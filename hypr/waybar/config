@@ -8,8 +8,8 @@
     "margin-left": 10,
     "margin-right": 10,
 
-    "modules-left": ["custom/launcher", "custom/overview", "hyprland/workspaces", "hyprland/window"],
-    "modules-center": ["clock"],
+    "modules-left": ["custom/launcher", "custom/overview", "hyprland/workspaces", "custom/layout", "hyprland/window"],
+    "modules-center": ["custom/media", "clock"],
     "modules-right": ["power-profiles-daemon", "custom/weather", "custom/vpn", "custom/updates", "custom/gpu", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "custom/notifications", "tray", "custom/cliphist", "custom/power"],
 
     "hyprland/workspaces": {
@@ -23,8 +23,27 @@
     },
 
     "hyprland/window": {
-      "max-length": 55,
-      "separate-outputs": true
+      "max-length": 22,
+      "separate-outputs": true,
+      "tooltip": true
+    },
+
+    "custom/layout": {
+      "exec": "~/.config/waybar/scripts/layout.sh",
+      "interval": 2,
+      "return-type": "plain",
+      "tooltip": "Current tiling layout",
+      "on-click": "~/.config/hypr/scripts/layout-switcher.sh toggle"
+    },
+
+    "custom/media": {
+      "exec": "~/.config/waybar/scripts/media.sh",
+      "interval": 2,
+      "return-type": "plain",
+      "max-length": 40,
+      "tooltip": true,
+      "on-click": "playerctl play-pause",
+      "on-click-right": "playerctl next"
     },
 
     "clock": {
@@ -69,9 +88,9 @@
 
     "custom/gpu": {
       "exec": "~/.config/waybar/scripts/gpu.sh",
-      "interval": 5,
+      "interval": 10,
       "return-type": "plain",
-      "tooltip": "NVIDIA status",
+      "tooltip": "dGPU runtime status (set WAYBAR_GPU_DEEP_POLL=1 for full metrics)",
       "on-click": "kitty -e nvtop"
     },
 

@@ -377,7 +377,7 @@ if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
 fi
 
-# atuin (better shell history, lazy by default)
+# atuin (better shell history)
 _atuin_loaded=0
 load_atuin_integration() {
   (( _atuin_loaded )) && return 0
@@ -385,14 +385,7 @@ load_atuin_integration() {
   _atuin_loaded=1
 }
 if command -v atuin >/dev/null 2>&1; then
-  if [[ "$ZSH_LAZY_LOAD_HEAVY" == "1" ]]; then
-    atuin() {
-      load_atuin_integration
-      command atuin "$@"
-    }
-  else
-    load_atuin_integration
-  fi
+  load_atuin_integration
 fi
 
 # pay-respects (modern command correction + command-not-found)
@@ -410,6 +403,13 @@ for plugin in \
   export YSU_MODE=BESTMATCH
   source "$plugin"
   break
+done
+
+# zsh-vi-mode (Vim motions in command line editing)
+for plugin in \
+  "$HOME/.local/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh" \
+  /usr/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh; do
+  [ -f "$plugin" ] && source "$plugin" && break
 done
 
 # Optional plugins (if installed)
@@ -461,26 +461,50 @@ for plugin in \
   [ -f "$plugin" ] && source "$plugin" && break
 done
 
-# Ctrl-r history search: prefer Atuin widget, fallback to builtin search.
+# History/jump UX: Ctrl-r for Atuin search, Alt-c for fuzzy directory jump.
 if [[ -o interactive ]]; then
-  history_search_widget() {
-    emulate -L zsh
-    if command -v atuin >/dev/null 2>&1; then
-      load_atuin_integration
-      if zle -l | grep -qx 'atuin-search'; then
-        zle atuin-search
-        return 0
-      fi
+  if zle -l | grep -Eq '^atuin-search([[:space:]]|$)'; then
+    bindkey '^R' atuin-search
+    bindkey -M emacs '^R' atuin-search 2>/dev/null || true
+    if zle -l | grep -Eq '^atuin-search-viins([[:space:]]|$)'; then
+      bindkey -M viins '^R' atuin-search-viins 2>/dev/null || true
+    else
+      bindkey -M viins '^R' atuin-search 2>/dev/null || true
     fi
-    zle history-incremental-search-backward
+  else
+    bindkey '^R' history-incremental-search-backward
+    bindkey -M emacs '^R' history-incremental-search-backward 2>/dev/null || true
+    bindkey -M viins '^R' history-incremental-search-backward 2>/dev/null || true
+  fi
+
+  fzf_jump_widget() {
+    emulate -L zsh
+    command -v fzf >/dev/null 2>&1 || return 0
+
+    local target=""
+    if command -v zoxide >/dev/null 2>&1; then
+      target="$(
+        zoxide query -l 2>/dev/null |
+          awk 'NF' |
+          fzf --height=45% --layout=reverse --prompt='jump> ' \
+            --preview='ls -la --color=always {} 2>/dev/null | head -n 80'
+      )"
+    fi
+
+    [ -n "$target" ] || return 0
+    cd "$target" || return 0
+    zle reset-prompt
   }
-  zle -N history_search_widget
-  bindkey '^R' history_search_widget
+  zle -N fzf_jump_widget
+  bindkey '^[c' fzf_jump_widget
+  bindkey -M emacs '^[c' fzf_jump_widget 2>/dev/null || true
+  bindkey -M viins '^[c' fzf_jump_widget 2>/dev/null || true
 fi
 
 # Compact RPROMPT with command duration + context (optional).
 ENABLE_COMPACT_RPROMPT="${ENABLE_COMPACT_RPROMPT:-1}"
 PROMPT_CMD_DURATION_MIN_MS="${PROMPT_CMD_DURATION_MIN_MS:-2000}"
+SHOW_NODE_RPROMPT="${SHOW_NODE_RPROMPT:-0}"
 typeset -g __cmd_started_ms=""
 typeset -g __cmd_duration_seg=""
 
@@ -511,7 +535,7 @@ update_compact_rprompt() {
   fi
 
   [ -n "${VIRTUAL_ENV:-}" ] && segs+=("py:${VIRTUAL_ENV:t}")
-  if command -v node >/dev/null 2>&1; then
+  if [[ "$SHOW_NODE_RPROMPT" == "1" ]] && command -v node >/dev/null 2>&1; then
     node_v="$(zsh_cache_run node_version 120 node -v)"
     [ -n "$node_v" ] && segs+=("node:${node_v#v}")
   fi

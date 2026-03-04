@@ -55,5 +55,6 @@ clone_or_update "fzf-tab" "https://github.com/Aloxaf/fzf-tab.git"
 clone_or_update "forgit" "https://github.com/wfxr/forgit.git"
 clone_or_update "zsh-you-should-use" "https://github.com/MichaelAquilina/zsh-you-should-use.git"
 clone_or_update "zsh-autopair" "https://github.com/hlissner/zsh-autopair.git"
+clone_or_update "zsh-vi-mode" "https://github.com/jeffreytse/zsh-vi-mode.git"
 
 echo "zsh plugin sync complete: $PLUGIN_DIR"

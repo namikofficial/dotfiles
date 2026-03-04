@@ -5,6 +5,9 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 ## Includes
 
 - `zshrc`, `aliases.zsh`, `aliases.local.zsh`, `SHELL_CHEATSHEET.md`
+- `atuin/config.toml` for consistent Atuin history UI/search defaults
+- `docs/KEYBINDS.md` full keybind tables + Mermaid map
+- `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
 - `hypr/` for Hyprland, Waybar, Rofi, swaync, wlogout, dunst, lockscreen, and helper scripts
 - `hypr/eww/` for optional widget panel (Quick Deck)
 - `kitty/kitty.conf` so new terminals always load login `zsh`
@@ -22,6 +25,7 @@ cd ~/Documents/code/dotfiles
 That command:
 
 - links shell files (`~/.zshrc`, cheat sheet)
+- links Atuin config into `~/.config/atuin/config.toml`
 - links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
 - links Eww and theme configs (`gtk`, `qt5ct`, `qt6ct`, `Kvantum`) into `~/.config`
 - links swaync/wlogout/dunst configs into `~/.config`
@@ -70,8 +74,10 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 ## Keybind highlights (Hyprland)
 
 - `Super + W`: workspace/window overview switcher (Rofi list)
-- `Super + Tab`: Mission-Control style overview (`hyprexpo`) with fallback to Rofi overview
+- `Super + Tab`: Mission-Control style overview (`hyprexpo`)
+- `Super + Shift + Tab`: force fallback Rofi overview
 - `Super + B`: open Google Chrome
+- `Super + D`: toggle dock (`nwg-dock-hyprland`)
 - `Super + F`: toggle floating on active window
 - `Super + G`: toggle tiling layout (`dwindle` <-> `master`)
 - `Super + Shift + G`: toggle floating-grid workspace mode
@@ -84,6 +90,7 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
 - `Super + Y`: toggle Eww widget panel
 - `Super + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
+- `Super + Ctrl + Y`: toggle panel engine (`waybar` <-> `hyprpanel`, if installed)
 - `Super + T`: toggle window group (tab-like stacks)
 - `Super + ,` / `Super + .`: previous/next tab in group
 - `Fn + 2/3/4/5` (`XF86Launch2..5`): AI helper actions (`ask`, `clipboard`, `shell`, `debug`)
@@ -92,6 +99,22 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + Ctrl + Shift + H/J/K/L` (or arrows): resize floating window
 - `Super + [ / ]`: previous/next workspace
 
+Full keybind tables: `docs/KEYBINDS.md`
+
+## Shell UX highlights
+
+- `Ctrl + R`: Atuin fuzzy history picker (bound in emacs + vi insert keymaps)
+- `Alt + C`: fuzzy zoxide directory jump
+- `zsh-vi-mode` is auto-loaded when installed via `setup/install-zsh-plugins.sh`
+
+## Optional UI stack (AGS/HyprPanel)
+
+```sh
+yay -S --needed aylurs-gtk-shell hyprpanel
+```
+
+Then toggle panels with `Super + Ctrl + Y`.
+
 ## Apply changes
 
 ```sh
@@ -99,7 +122,7 @@ exec zsh
 hyprctl reload
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
 ~/.config/hypr/scripts/theme-pass.sh
-waybar & disown
+~/.config/hypr/scripts/restart-waybar.sh
 ```
 
 If Waybar or Rofi was already running before bootstrap, restart your Hyprland session once.
@@ -117,11 +140,39 @@ hyprctl plugin list
 
 After changing NVIDIA kernel modules, reboot once before running the checks.
 
+You can run the bundled checker too:
+
+```sh
+./setup/verify-nvidia.sh
+```
+
+If you want live GPU metrics in Waybar (instead of low-noise runtime status), run:
+
+```sh
+export WAYBAR_GPU_DEEP_POLL=1
+~/.config/hypr/scripts/restart-waybar.sh
+```
+
+## 3-command reboot workflow
+
+```sh
+sudo ./setup/pre-reboot-apply.sh
+sudo reboot
+./setup/post-reboot-verify.sh
+```
+
+Logs are written to `logs/pre-reboot-latest.log`, `logs/post-reboot-latest.log`, and `~/.local/state/noxflow/waybar.log`.
+Full flow: `docs/RUNBOOK.md`
+
 ## NVIDIA stability notes (hybrid laptops)
 
 - If `modinfo -F license nvidia` prints `Dual MIT/GPL`, you are running NVIDIA open kernel modules (`nvidia-open-dkms`).
+- If `modinfo -F license nvidia` prints `NVIDIA`, you are running proprietary modules.
+- On current Arch repos, `nvidia-dkms` may be unavailable for some driver branches; `nvidia-open-dkms` is then the only official package.
 - On this setup, forcing `nvidia_drm` modeset can trigger login/shutdown hangs on some hybrid laptops.
 - The included safe profile keeps boot stable by blacklisting `nvidia_drm` during compositor startup.
+- `nm-applet` auto-start is disabled by default to avoid duplicate tray-registration warnings in Waybar.
+  Toggle it on demand with `~/.config/hypr/scripts/nm-applet-toggle.sh`.
 
 If login freezes and `nvidia-persistenced` times out, run:
 

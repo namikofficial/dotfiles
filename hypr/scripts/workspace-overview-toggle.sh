@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
-if hyprctl plugin list 2>/dev/null | grep -q 'Plugin hyprexpo'; then
-  hyprctl dispatch hyprexpo:expo toggle >/dev/null 2>&1 || true
+# Try Mission Control view first, then fallback to Rofi overview.
+if hyprctl dispatch hyprexpo:expo toggle >/dev/null 2>&1; then
   exit 0
 fi
 

@@ -1,0 +1,8 @@
+auto_sync = true
+update_check = true
+search_mode = "fuzzy"
+filter_mode = "global"
+style = "compact"
+inline_height = 20
+show_preview = true
+enter_accept = true

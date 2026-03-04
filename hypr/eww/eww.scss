@@ -1,43 +1,63 @@
-$bg: rgba(17, 19, 30, 0.92);
-$surface: rgba(28, 34, 53, 0.95);
-$border: rgba(122, 162, 247, 0.35);
+$bg: rgba(14, 16, 26, 0.94);
+$surface: rgba(28, 34, 53, 0.96);
+$border: rgba(122, 162, 247, 0.34);
 $text: #c0caf5;
 $muted: #9aa4c7;
 $accent: #7aa2f7;
+$accent2: #4fd6be;
 
 * {
   all: unset;
-  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", sans-serif;
   color: $text;
 }
 
 .quickpanel {
   background: $bg;
   border: 1px solid $border;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 12px;
-  min-width: 250px;
+  min-width: 286px;
 }
 
-.title {
-  color: $accent;
-  font-size: 15px;
+.hero {
+  background: linear-gradient(120deg, rgba(122, 162, 247, 0.2), rgba(79, 214, 190, 0.2));
+  border: 1px solid rgba(122, 162, 247, 0.22);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.hero-time {
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.stat {
-  background: $surface;
-  border-radius: 10px;
-  padding: 6px 8px;
-  margin-bottom: 4px;
-}
-
-.stat .icon {
   color: $accent;
+}
+
+.hero-date {
+  font-size: 13px;
+  color: $muted;
+}
+
+.card {
+  background: $surface;
+  border-radius: 11px;
+  border: 1px solid rgba(122, 162, 247, 0.16);
+  padding: 8px 10px;
+}
+
+.card-icon {
+  color: $accent2;
   margin-right: 8px;
 }
 
-.stat .text {
+.card-text {
   color: $muted;
+  font-size: 12px;
+}
+
+.calendar {
+  background: $surface;
+  border-radius: 11px;
+  border: 1px solid rgba(122, 162, 247, 0.16);
+  padding: 8px;
 }

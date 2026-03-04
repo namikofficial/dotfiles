@@ -1,32 +1,49 @@
-(defpoll now :interval "1s"
-  `date '+%a %d %b  %H:%M'`)
+(defpoll time_now :interval "1s"
+  `date '+%H:%M'`)
 
-(defpoll profile :interval "10s"
-  `sh -c 'printf "Profile %s" "$(powerprofilesctl get 2>/dev/null || echo balanced)"'`)
+(defpoll date_now :interval "30s"
+  `date '+%A, %d %B'`)
+
+(defpoll profile_line :interval "10s"
+  `sh -c 'printf "Power %s" "$(powerprofilesctl get 2>/dev/null || echo balanced)"'`)
 
 (defpoll battery_line :interval "15s"
   `sh -c 'printf "Battery %s%%" "$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -n1 || echo -)"'`)
 
-(defwidget stat [icon text]
-  (box :class "stat"
-    (label :class "icon" :text icon)
-    (label :class "text" :text text)))
+(defpoll weather_line :interval "900s"
+  `sh -c '$HOME/.config/waybar/scripts/weather.sh 2>/dev/null || echo "󰖐  Weather unavailable"'`)
+
+(defpoll music_line :interval "3s"
+  `sh -c 'status=$(playerctl status 2>/dev/null || true); if [ "$status" = "Playing" ] || [ "$status" = "Paused" ]; then artist=$(playerctl metadata artist 2>/dev/null || echo Unknown); title=$(playerctl metadata title 2>/dev/null || echo Unknown); printf "Music %s - %s" "$artist" "$title"; else echo "Music idle"; fi'`)
+
+(defpoll gpu_line :interval "12s"
+  `sh -c '$HOME/.config/waybar/scripts/gpu.sh 2>/dev/null || echo "GPU unavailable"'`)
+
+(defwidget card [icon text]
+  (box :class "card" :orientation "h" :spacing 10
+    (label :class "card-icon" :xalign 0 :text icon)
+    (label :class "card-text" :xalign 0 :hexpand true :text text)))
 
 (defwidget quickpanel []
-  (box :class "quickpanel" :orientation "v" :spacing 10
-    (label :class "title" :text "Quick Deck")
-    (stat :icon "󰥔" :text now)
-    (stat :icon "󰾅" :text battery_line)
-    (stat :icon "" :text profile)))
+  (box :class "quickpanel" :orientation "v" :spacing 12
+    (box :class "hero" :orientation "v"
+      (label :class "hero-time" :text time_now)
+      (label :class "hero-date" :text date_now))
+    (card :icon "󰾅" :text battery_line)
+    (card :icon "" :text profile_line)
+    (card :icon "󰖐" :text weather_line)
+    (card :icon "󰎈" :text music_line)
+    (card :icon "" :text gpu_line)
+    (calendar :class "calendar")))
 
 (defwindow quickpanel
   :monitor 0
   :focusable false
   :stacking "fg"
   :exclusive false
-  :geometry (geometry :x "22px"
-                      :y "66px"
-                      :width "270px"
+  :geometry (geometry :x "18px"
+                      :y "60px"
+                      :width "300px"
                       :height "0px"
-                      :anchor "top left")
+                      :anchor "top right")
   (quickpanel))

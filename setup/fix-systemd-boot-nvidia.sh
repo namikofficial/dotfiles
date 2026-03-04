@@ -30,14 +30,15 @@ for entry in "$ENTRY_DIR"/*.conf; do
 
   cp "$entry" "${entry}.bak.${STAMP}"
 
-  if grep -q 'nvidia-drm.modeset=' "$entry"; then
-    sed -i -E 's/nvidia-drm\.modeset=[01]/nvidia-drm.modeset=1/g' "$entry"
+  # Hybrid-safe default: never force modeset=1 in boot args.
+  if grep -Eq 'nvidia[-_]drm\.modeset=' "$entry"; then
+    sed -i -E 's/nvidia[-_]drm\.modeset=[01]/nvidia_drm.modeset=0/g' "$entry"
   else
-    sed -i -E '/^options\s+/ s|$| nvidia-drm.modeset=1|' "$entry"
+    sed -i -E '/^options\s+/ s|$| nvidia_drm.modeset=0|' "$entry"
   fi
 
   changed=1
-  echo "fix    $entry"
+  echo "fix    $entry (nvidia_drm.modeset=0)"
 done
 
 if (( changed == 0 )); then
@@ -45,4 +46,4 @@ if (( changed == 0 )); then
   exit 0
 fi
 
-echo "Done. Reboot to apply modesetting changes."
+echo "Done. Reboot to apply boot argument changes."

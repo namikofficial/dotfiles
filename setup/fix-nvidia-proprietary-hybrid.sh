@@ -34,12 +34,18 @@ pacman -S --needed --noconfirm \
   egl-wayland
 
 echo "[4/7] Write stable module options (hybrid-safe defaults)"
-[ -f /etc/modprobe.d/nvidia.conf ] && cp /etc/modprobe.d/nvidia.conf /etc/modprobe.d/nvidia.conf.bak.$(date +%F-%H%M%S)
+if [ -f /etc/modprobe.d/nvidia.conf ]; then
+  ts="$(date +%F-%H%M%S)"
+  cp /etc/modprobe.d/nvidia.conf "/etc/modprobe.d/nvidia.conf.bak.${ts}"
+fi
 cat >/etc/modprobe.d/nvidia.conf <<'EOF'
 options nvidia_drm modeset=0
 EOF
 
-[ -f /etc/modprobe.d/nvidia-hybrid.conf ] && cp /etc/modprobe.d/nvidia-hybrid.conf /etc/modprobe.d/nvidia-hybrid.conf.bak.$(date +%F-%H%M%S)
+if [ -f /etc/modprobe.d/nvidia-hybrid.conf ]; then
+  ts="$(date +%F-%H%M%S)"
+  cp /etc/modprobe.d/nvidia-hybrid.conf "/etc/modprobe.d/nvidia-hybrid.conf.bak.${ts}"
+fi
 cat >/etc/modprobe.d/nvidia-hybrid.conf <<'EOF'
 # Stable defaults for hybrid laptops.
 options nvidia NVreg_DynamicPowerManagement=0x00 NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/var/tmp

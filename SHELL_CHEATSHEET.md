@@ -55,6 +55,7 @@
 - Set performance mode: `powerprofilesctl set performance`
 - Set power-saver mode: `powerprofilesctl set power-saver`
 - Battery summary: `batt`
+- Enable detailed Waybar GPU polling (off by default): `export WAYBAR_GPU_DEEP_POLL=1; pkill -x waybar; waybar & disown`
 
 ## Git
 - Status short: `gss`
@@ -86,12 +87,20 @@
 ## Hyprland Quick Keys
 - `Super + Return`: terminal (`kitty`)
 - `Super + Space`: app launcher
-- `Super + W` or `Super + Tab`: workspace overview picker
+- `Super + W`: workspace overview picker (Rofi)
+- `Super + Tab`: Mission Control overview (`hyprexpo`)
+- `Super + Shift + Tab`: force Rofi overview
+- `Super + F`: toggle floating for active window
+- `Super + G`: toggle `dwindle` / `master` layout
+- `Super + D`: toggle dock
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
 - `Super + I`: pick a color (`hyprpicker -a`)
 - `Super + Shift + I`: toggle night light
 - `Super + Ctrl + R`: toggle screen recording
+- `Super + Y`: toggle widget panel (Eww)
+- `Super + Ctrl + Y`: toggle panel engine (`waybar`/`hyprpanel`)
+- `Fn + 2/3/4/5`: AI helper (`ask`/`clipboard`/`shell`/`debug`)
 - `Super + Ctrl + Arrow`: move active floating window
 - `Super + Ctrl + Shift + Arrow`: resize active floating window
 - `Super + [` / `Super + ]`: previous / next workspace
@@ -100,4 +109,15 @@
 - Reload shell config: `exec zsh`
 - Reload Hyprland config: `hyprctl reload`
 - Restart portal services: `systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk`
-- Restart Waybar cleanly: `pkill -x waybar; waybar & disown`
+- Restart Waybar cleanly: `~/.config/hypr/scripts/restart-waybar.sh`
+- Toggle NetworkManager tray applet: `~/.config/hypr/scripts/nm-applet-toggle.sh`
+
+## Reboot Runbook (3 commands)
+- `sudo ~/Documents/code/dotfiles/setup/pre-reboot-apply.sh`
+- `sudo reboot`
+- `~/Documents/code/dotfiles/setup/post-reboot-verify.sh`
+
+## Shell Navigation UX
+- `Ctrl + R`: Atuin fuzzy history UI
+- `Alt + C`: fuzzy jump into a zoxide directory
+- `Esc`: enter `zsh-vi-mode` normal mode (if plugin installed)

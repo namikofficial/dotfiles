@@ -46,12 +46,27 @@ run_cmd_if_not() {
   fi
 }
 
-run_once nm-applet nm-applet
+# nm-applet can spam duplicate StatusNotifier warnings with Waybar on some setups.
+# Keep it opt-in (set HYPR_ENABLE_NM_APPLET=1 to auto-start it).
+if [ "${HYPR_ENABLE_NM_APPLET:-0}" = "1" ]; then
+  run_once nm-applet nm-applet
+fi
 run_once blueman-applet blueman-applet
 run_once waybar waybar
 run_once kanshi kanshi
 run_once hypridle hypridle
+if [ "${HYPR_DOCK_AUTOSTART:-0}" = "1" ]; then
+  run_once nwg-dock-hyprland nwg-dock-hyprland
+fi
 run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
+
+# Ensure enabled hyprpm plugins are actually loaded after compositor startup.
+if resolve_cmd hyprpm >/dev/null 2>&1; then
+  (
+    sleep 3
+    hyprpm reload >/dev/null 2>&1 || true
+  ) &
+fi
 
 # Waybar occasionally races Hyprland startup on cold boots; retry once.
 if resolve_cmd waybar >/dev/null 2>&1; then

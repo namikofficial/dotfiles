@@ -4,6 +4,7 @@ set -eu
 choice="$(
 rofi -dmenu -i -p 'Quick Actions' -theme "$HOME/.config/rofi/actions.rasi" <<'MENU'
 󰖩  Toggle Wi-Fi
+󰖪  Toggle Network Applet
 󰂯  Toggle Bluetooth
 󰍹  Workspace Overview
 󰕾  Audio Mixer
@@ -21,6 +22,8 @@ rofi -dmenu -i -p 'Quick Actions' -theme "$HOME/.config/rofi/actions.rasi" <<'ME
 󰍹  Toggle Layout (Master/Dwindle)
 󰍸  Toggle Floating Grid
 󰫌  Toggle Widget Panel
+󰀻  Toggle Dock
+󰕮  Toggle Panel Engine
 󰖨  Restart Waybar
 󰸌  Apply Theme Pass
 󰏘  Pick Color
@@ -43,6 +46,7 @@ case "$choice" in
       nmcli radio wifi on
     fi
     ;;
+  "󰖪  Toggle Network Applet") ~/.config/hypr/scripts/nm-applet-toggle.sh ;;
   "󰂯  Toggle Bluetooth")
     state="$(bluetoothctl show | awk '/Powered:/ {print $2}')"
     if [ "$state" = "yes" ]; then
@@ -67,7 +71,9 @@ case "$choice" in
   "󰍹  Toggle Layout (Master/Dwindle)") ~/.config/hypr/scripts/layout-switcher.sh toggle ;;
   "󰍸  Toggle Floating Grid") ~/.config/hypr/scripts/layout-switcher.sh allfloat ;;
   "󰫌  Toggle Widget Panel") ~/.config/hypr/scripts/eww-toggle.sh ;;
-  "󰖨  Restart Waybar") sh -lc 'pkill -x waybar >/dev/null 2>&1 || true; waybar >/dev/null 2>&1 &' ;;
+  "󰀻  Toggle Dock") ~/.config/hypr/scripts/dock-toggle.sh ;;
+  "󰕮  Toggle Panel Engine") ~/.config/hypr/scripts/panel-switch.sh toggle ;;
+  "󰖨  Restart Waybar") ~/.config/hypr/scripts/restart-waybar.sh ;;
   "󰸌  Apply Theme Pass") ~/.config/hypr/scripts/theme-pass.sh ;;
   "󰏘  Pick Color") hyprpicker -a ;;
   "󰖔  Toggle Night Light") ~/.config/hypr/scripts/night-light-toggle.sh ;;

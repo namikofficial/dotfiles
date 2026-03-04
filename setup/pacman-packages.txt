@@ -39,12 +39,15 @@ hypridle
 hyprpaper
 hyprpicker
 hyprsunset
+hyprcursor
+hyprpolkitagent
 waybar
 rofi-wayland|rofi
 swaync
 wev
 kanshi
 swww
+nwg-dock-hyprland
 grim
 slurp
 swappy
