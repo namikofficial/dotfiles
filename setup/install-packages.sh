@@ -37,6 +37,21 @@ run_pacman() {
   fi
 }
 
+check_pacman_lock() {
+  local lock_file="/var/lib/pacman/db.lck"
+  if [ ! -f "$lock_file" ]; then
+    return 0
+  fi
+
+  if pgrep -x pacman >/dev/null 2>&1; then
+    echo "pacman is currently running; wait for it to finish and retry." >&2
+  else
+    echo "stale pacman lock detected at $lock_file" >&2
+    echo "fix with: sudo rm -f $lock_file" >&2
+  fi
+  exit 1
+}
+
 run_yay() {
   if (( EUID == 0 )); then
     if [ -z "${SUDO_USER:-}" ]; then
@@ -132,6 +147,7 @@ fi
 mapfile -t PACMAN_PACKAGES < <(filter_pacman_packages "${BASE_PACKAGES[@]}" "${EXTRA_PACKAGES[@]}")
 
 if (( ${#PACMAN_PACKAGES[@]} > 0 )); then
+  check_pacman_lock
   if (( DRY_RUN )); then
     echo "[dry-run] sudo pacman -Syu --needed ${PACMAN_PACKAGES[*]}"
   else

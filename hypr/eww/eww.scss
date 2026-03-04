@@ -1,0 +1,43 @@
+$bg: rgba(17, 19, 30, 0.92);
+$surface: rgba(28, 34, 53, 0.95);
+$border: rgba(122, 162, 247, 0.35);
+$text: #c0caf5;
+$muted: #9aa4c7;
+$accent: #7aa2f7;
+
+* {
+  all: unset;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+  color: $text;
+}
+
+.quickpanel {
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: 14px;
+  padding: 12px;
+  min-width: 250px;
+}
+
+.title {
+  color: $accent;
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.stat {
+  background: $surface;
+  border-radius: 10px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+}
+
+.stat .icon {
+  color: $accent;
+  margin-right: 8px;
+}
+
+.stat .text {
+  color: $muted;
+}

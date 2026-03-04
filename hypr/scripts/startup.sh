@@ -51,8 +51,17 @@ run_once blueman-applet blueman-applet
 run_once waybar waybar
 run_once kanshi kanshi
 run_once hypridle hypridle
-run_once swayosd-server swayosd-server
 run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
+
+# Waybar occasionally races Hyprland startup on cold boots; retry once.
+if resolve_cmd waybar >/dev/null 2>&1; then
+  (
+    sleep 2
+    if ! pgrep -x waybar >/dev/null 2>&1; then
+      "$(resolve_cmd waybar)" >/dev/null 2>&1 &
+    fi
+  ) &
+fi
 
 # Notifications: prefer swaync, fallback dunst.
 if resolve_cmd swaync >/dev/null 2>&1; then

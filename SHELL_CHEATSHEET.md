@@ -89,6 +89,9 @@
 - `Super + W` or `Super + Tab`: workspace overview picker
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
+- `Super + I`: pick a color (`hyprpicker -a`)
+- `Super + Shift + I`: toggle night light
+- `Super + Ctrl + R`: toggle screen recording
 - `Super + Ctrl + Arrow`: move active floating window
 - `Super + Ctrl + Shift + Arrow`: resize active floating window
 - `Super + [` / `Super + ]`: previous / next workspace

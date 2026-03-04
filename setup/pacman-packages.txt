@@ -42,6 +42,7 @@ hyprsunset
 waybar
 rofi-wayland|rofi
 swaync
+wev
 kanshi
 swww
 grim

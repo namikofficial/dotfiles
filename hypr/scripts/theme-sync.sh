@@ -10,16 +10,13 @@ if [ -n "$wall" ] && command -v cksum >/dev/null 2>&1; then
 else
   idx=1
 fi
-accent="$(printf '%s\n' $palettes | sed -n "${idx}p")"
+accent="$(printf '%s\n' "$palettes" | tr ' ' '\n' | sed -n "${idx}p")"
 
 cache_dir="$HOME/.cache/hypr"
 mkdir -p "$cache_dir"
 printf '%s\n' "$accent" >"$cache_dir/current-accent"
 
-# Keep legacy fallback notifiers in sync if users run them manually.
-sed -i "s/^frame_color = .*/frame_color = \"${accent}\"/" "$HOME/.config/dunst/dunstrc" 2>/dev/null || true
-sed -i "0,/^frame_color = .*/s//frame_color = \"${accent}\"/" "$HOME/.config/dunst/dunstrc" 2>/dev/null || true
-sed -i "s/border-color: #89b4fa;/border-color: ${accent};/" "$HOME/.config/wlogout/style.css" 2>/dev/null || true
+# Avoid mutating tracked dotfiles. Keep accent in cache only.
 
 # Refresh waybar colors if the bar is already running.
 if pgrep -x waybar >/dev/null 2>&1; then

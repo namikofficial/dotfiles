@@ -2,3 +2,4 @@
 google-chrome
 pamac-aur
 wlogout
+eww

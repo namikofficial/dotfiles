@@ -10,6 +10,7 @@ WITH_NVIDIA=""
 DRY_RUN=0
 NO_BACKUP=0
 INSTALL_ZSH_PLUGINS=1
+INSTALL_HYPR_PLUGINS=0
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 usage() {
@@ -21,6 +22,7 @@ Usage: $0 [options]
   --with-nvidia        Force NVIDIA package installation
   --no-nvidia          Skip NVIDIA packages even if GPU is detected
   --no-zsh-plugins     Skip optional zsh plugin sync
+  --install-hypr-plugins  Install hyprexpo via hyprpm (must run in Hyprland session)
   --dry-run            Print actions without writing changes
   --no-backup          Replace existing files without backup copy
 USAGE
@@ -38,6 +40,7 @@ while (($#)); do
     --with-nvidia) WITH_NVIDIA="--with-nvidia" ;;
     --no-nvidia) WITH_NVIDIA="--no-nvidia" ;;
     --no-zsh-plugins) INSTALL_ZSH_PLUGINS=0 ;;
+    --install-hypr-plugins) INSTALL_HYPR_PLUGINS=1 ;;
     --dry-run) DRY_RUN=1 ;;
     --no-backup) NO_BACKUP=1 ;;
     -h|--help)
@@ -123,8 +126,14 @@ link_path "$REPO_DIR/hypr/rofi" "$HOME/.config/rofi"
 link_path "$REPO_DIR/hypr/swaync" "$HOME/.config/swaync"
 link_path "$REPO_DIR/hypr/wlogout" "$HOME/.config/wlogout"
 link_path "$REPO_DIR/hypr/dunst" "$HOME/.config/dunst"
+link_path "$REPO_DIR/hypr/eww" "$HOME/.config/eww"
 link_path "$REPO_DIR/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
 link_path "$REPO_DIR/chrome/chrome-flags.conf" "$HOME/.config/chrome-flags.conf"
+link_path "$REPO_DIR/theme/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
+link_path "$REPO_DIR/theme/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
+link_path "$REPO_DIR/theme/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf"
+link_path "$REPO_DIR/theme/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf"
+link_path "$REPO_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
 
 if (( DRY_RUN )); then
   echo "[dry-run] mkdir -p '$HOME/.local/bin'"
@@ -157,6 +166,14 @@ if (( INSTALL_ZSH_PLUGINS )); then
   cmd=("$SCRIPT_DIR/install-zsh-plugins.sh")
   (( DRY_RUN )) && cmd+=(--dry-run)
   "${cmd[@]}"
+fi
+
+if (( INSTALL_HYPR_PLUGINS )); then
+  if (( DRY_RUN )); then
+    echo "[dry-run] $SCRIPT_DIR/install-hypr-plugins.sh"
+  else
+    "$SCRIPT_DIR/install-hypr-plugins.sh"
+  fi
 fi
 
 cat <<DONE
