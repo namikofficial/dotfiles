@@ -2,15 +2,15 @@
   {
     "layer": "top",
     "position": "top",
-    "height": 34,
+    "height": 44,
     "spacing": 8,
     "margin-top": 8,
     "margin-left": 10,
     "margin-right": 10,
 
-    "modules-left": ["custom/launcher", "hyprland/workspaces", "hyprland/window"],
+    "modules-left": ["custom/launcher", "custom/overview", "hyprland/workspaces", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": ["power-profiles-daemon", "custom/weather", "custom/vpn", "custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "custom/notifications", "tray", "custom/cliphist", "custom/power"],
+    "modules-right": ["power-profiles-daemon", "custom/weather", "custom/vpn", "custom/updates", "custom/gpu", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "custom/notifications", "tray", "custom/cliphist", "custom/power"],
 
     "hyprland/workspaces": {
       "all-outputs": true,
@@ -65,6 +65,14 @@
       "tooltip": true,
       "tooltip-format": "System updates",
       "on-click": "kitty -e sh -lc 'yay -Syu; read -r -p \"Press enter to close\"'"
+    },
+
+    "custom/gpu": {
+      "exec": "~/.config/waybar/scripts/gpu.sh",
+      "interval": 5,
+      "return-type": "plain",
+      "tooltip": "NVIDIA status",
+      "on-click": "kitty -e nvtop"
     },
 
     "cpu": {
@@ -127,6 +135,12 @@
       "format": "󰣇",
       "tooltip": false,
       "on-click": "rofi -show drun"
+    },
+
+    "custom/overview": {
+      "format": "󰍹",
+      "tooltip": "Workspace overview",
+      "on-click": "~/.config/hypr/scripts/workspace-overview.sh"
     },
 
     "custom/cliphist": {

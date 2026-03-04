@@ -5,7 +5,7 @@
     bg-alt: #1a1f33ee;
     fg: #d8def5;
     fg-muted: #9aa5ce;
-    accent: #2ac3de;
+    accent: #f7768e;
     good: #9ece6a;
     bad: #f7768e;
 

@@ -105,10 +105,6 @@ fi
 if command -v rg >/dev/null 2>&1; then
   alias grep="rg -n --smart-case"
 fi
-if command -v nvim >/dev/null 2>&1; then
-  alias v="nvim"
-  alias vim="nvim"
-fi
 if command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
   alias python="python3"
 fi
@@ -125,44 +121,6 @@ alias hstats="atuin stats --count 20"
 alias hweek="atuin stats 7d --count 20"
 alias hmonth="atuin stats 30d --count 20"
 
-# tmux helpers
-alias ta="tmux attach -t main || tmux new -s main"
-alias tls="tmux ls"
-alias tn="tmux new -s"
-alias tka="tmux kill-server"
-alias tns="tmux new -As"
-alias tms="$SCRIPTS_BIN/tmux-sessionizer"
-tr() {
-  local conf="${1:-$HOME/.tmux.conf}"
-  if ! command -v tmux >/dev/null 2>&1; then
-    echo "tmux is not installed." >&2
-    return 127
-  fi
-  if [ ! -f "$conf" ]; then
-    echo "tmux config not found: $conf" >&2
-    return 1
-  fi
-  if [ -n "${TMUX:-}" ]; then
-    if tmux display-message -p '#S' >/dev/null 2>&1; then
-      if tmux source-file "$conf"; then
-        echo "tmux reloaded: $conf"
-        return 0
-      fi
-      return 1
-    fi
-    echo "stale TMUX environment detected; trying tmux server directly." >&2
-  fi
-  if tmux ls >/dev/null 2>&1; then
-    if tmux source-file "$conf"; then
-      echo "tmux server reloaded: $conf"
-      return 0
-    fi
-    return 1
-  fi
-  echo "tmux is not running. Start it first with: ta" >&2
-  return 1
-}
-
 # Directory navigation (common projects)
 alias dev="cd ~/dev"
 alias cdev="cd ~/Documents/code"
@@ -177,7 +135,7 @@ alias zrc="vim ~/.zshrc"
 alias zalias="vim $DOTFILES_HOME/aliases.zsh"
 alias zshc="vim $DOTFILES_HOME/zshrc"
 alias starc="vim ~/.config/starship.toml"
-alias cheat="v $DOTFILES_HOME/SHELL_CHEATSHEET.md"
+alias cheat="vim $DOTFILES_HOME/SHELL_CHEATSHEET.md"
 
 # Git extras
 alias gss="git status -sb"
@@ -268,9 +226,6 @@ alias pathclean="$SCRIPTS_BIN/path-sanitize"
 alias envcheck="$SCRIPTS_BIN/env-validate"
 alias rup="$SCRIPTS_BIN/repo-update-all"
 alias pnew="$SCRIPTS_BIN/project-new"
-alias tmuxp="$SCRIPTS_BIN/tmux-project"
-alias tmuxt="$SCRIPTS_BIN/tmux-session-template"
-alias nvimcheck="$SCRIPTS_BIN/nvim-check"
 alias zshprofile="$SCRIPTS_BIN/zsh-startup-profile"
 
 # Installed modern CLIs
@@ -369,7 +324,7 @@ ff() {
   while IFS= read -r line; do
     [ -n "$line" ] && selected_files+=("$line")
   done <<< "$files"
-  [ ${#selected_files[@]} -gt 0 ] && "${EDITOR:-nvim}" "${selected_files[@]}"
+  [ ${#selected_files[@]} -gt 0 ] && "${EDITOR:-vim}" "${selected_files[@]}"
 }
 frg() {
   local q
@@ -390,7 +345,7 @@ frg() {
     | fzf --delimiter ':' --height=70% --layout=reverse --border \
       --preview "$preview_cmd" \
     | awk -F: '{print $1":"$2":"$3}' \
-    | xargs -r ${EDITOR:-nvim}
+    | xargs -r ${EDITOR:-vim}
 }
 fkill() {
   local pid
@@ -401,20 +356,10 @@ tnotes() {
   local f="$SCRIPTS_HOME/docs/NOTES.md"
   mkdir -p "$(dirname "$f")"
   [ -f "$f" ] || touch "$f"
-  ${EDITOR:-nvim} "$f"
+  ${EDITOR:-vim} "$f"
 }
 pkillport() {
   "$SCRIPTS_BIN/port-kill" "$@"
-}
-tk() {
-  if [ "$#" -eq 0 ]; then
-    echo "usage: tk <session> [session2 ...]"
-    return 1
-  fi
-  local s
-  for s in "$@"; do
-    tmux kill-session -t "$s"
-  done
 }
 extract() {
   if [ -f "$1" ]; then
@@ -463,86 +408,46 @@ jclip() {
   clippaste | jq-easy pretty
 }
 
-# Power profile helper (Pop!_OS / system76-power)
-# Usage:
-#   pp status
-#   pp battery|balanced|performance
-#   ppb|ppd|ppp
+# Power profile helper (Arch power-profiles-daemon)
+# Usage: pp [status|power-saver|balanced|performance]
 pp() {
-  if ! command -v system76-power >/dev/null 2>&1; then
-    echo "system76-power is not installed"
+  if ! command -v powerprofilesctl >/dev/null 2>&1; then
+    echo "powerprofilesctl is not installed"
     return 1
   fi
 
   case "${1:-status}" in
-    battery|balanced|performance)
-      if system76-power profile "$1" >/dev/null 2>&1; then
-        system76-power profile
-      else
-        sudo system76-power profile "$1" && system76-power profile
-      fi
+    power-saver|balanced|performance)
+      powerprofilesctl set "$1" >/dev/null 2>&1 || return 1
+      powerprofilesctl get
       ;;
     status)
-      system76-power profile
+      powerprofilesctl get
       ;;
     *)
-      echo "usage: pp [battery|balanced|performance|status]"
+      echo "usage: pp [status|power-saver|balanced|performance]"
       return 1
       ;;
   esac
 }
-alias ppb='pp battery'
+alias ppb='pp power-saver'
 alias ppd='pp balanced'
 alias ppp='pp performance'
 
-# Graphics mode helper (Pop!_OS / system76-power)
-# Usage:
-#   gfx status
-#   gfx integrated|hybrid|nvidia|compute
-#   gfxi|gfxh|gfxn|gfxc
-gfx() {
-  if ! command -v system76-power >/dev/null 2>&1; then
-    echo "system76-power is not installed"
-    return 1
-  fi
-
-  case "${1:-status}" in
-    integrated|hybrid|nvidia|compute)
-      if system76-power graphics "$1"; then
-        :
-      else
-        sudo system76-power graphics "$1" || return 1
-      fi
-      echo
-      system76-power graphics
-      ;;
-    status)
-      system76-power graphics
-      ;;
-    *)
-      echo "usage: gfx [integrated|hybrid|nvidia|compute|status]"
-      return 1
-      ;;
-  esac
-}
-alias gfxi='gfx integrated'
-alias gfxh='gfx hybrid'
-alias gfxn='gfx nvidia'
-alias gfxc='gfx compute'
-
-# Combined power + graphics status
-# Usage: pstatus
+# Combined power + GPU status
 pstatus() {
-  if ! command -v system76-power >/dev/null 2>&1; then
-    echo "system76-power is not installed"
+  if ! command -v powerprofilesctl >/dev/null 2>&1; then
+    echo "powerprofilesctl is not installed"
     return 1
   fi
 
   echo "== Power =="
-  system76-power profile
-  echo
-  echo "== Graphics =="
-  system76-power graphics
+  powerprofilesctl get
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    echo
+    echo "== NVIDIA =="
+    nvidia-smi --query-gpu=name,driver_version,pstate,temperature.gpu,utilization.gpu,memory.used,memory.total --format=csv,noheader
+  fi
 }
 
 # Battery summary (renamed to avoid conflict with 'bat')

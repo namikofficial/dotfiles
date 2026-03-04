@@ -4,29 +4,41 @@
   min-height: 0;
 }
 
+@define-color bg #0f111a;
+@define-color bg_soft #161a26;
+@define-color surface #1f2335;
+@define-color text #c8d3f5;
+@define-color muted #8a94b8;
+@define-color accent #4fd6be;
+@define-color accent2 #7aa2f7;
+@define-color warn #ff966c;
+@define-color danger #ff757f;
+
 window#waybar {
   background: transparent;
-  color: #c0caf5;
+  color: @text;
 }
 
 .modules-left,
 .modules-center,
 .modules-right {
-  background: rgba(26, 27, 38, 0.92);
-  border: 1px solid #414868;
-  border-radius: 12px;
-  padding: 3px 8px;
+  margin-top: 6px;
+  padding: 4px 9px;
+  border-radius: 14px;
+  border: 1px solid rgba(122, 162, 247, 0.22);
+  background: linear-gradient(180deg, rgba(31, 35, 53, 0.94), rgba(15, 17, 26, 0.94));
 }
 
 button {
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: none;
   text-shadow: none;
   background: transparent;
 }
 
 #custom-launcher,
+#custom-overview,
 #workspaces,
 #window,
 #clock,
@@ -34,6 +46,7 @@ button {
 #custom-weather,
 #custom-vpn,
 #custom-updates,
+#custom-gpu,
 #cpu,
 #memory,
 #network,
@@ -44,12 +57,14 @@ button {
 #tray,
 #custom-cliphist,
 #custom-power {
-  padding: 0 9px;
-  margin: 3px 2px;
-  border-radius: 9px;
+  margin: 2px 2px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 #custom-launcher,
+#custom-overview,
 #custom-power,
 #custom-cliphist,
 #custom-notifications,
@@ -57,35 +72,59 @@ button {
 #custom-weather,
 #custom-vpn,
 #custom-updates {
-  color: #7aa2f7;
+  color: @accent;
+}
+
+#custom-gpu {
+  color: @accent2;
+}
+
+#window {
+  color: @muted;
+  background: transparent;
+}
+
+#clock {
+  color: @text;
+  font-weight: 700;
+}
+
+#workspaces {
+  padding-left: 5px;
+  padding-right: 5px;
 }
 
 #workspaces button {
-  color: #a9b1d6;
-  padding: 0 7px;
+  color: @muted;
   margin: 0 2px;
+  padding: 0 8px;
+  border-radius: 9px;
 }
 
 #workspaces button.active {
-  color: #1a1b26;
-  background: #9ece6a;
+  color: #091016;
+  background: linear-gradient(120deg, @accent, @accent2);
 }
 
 #workspaces button:hover {
-  color: #c0caf5;
-  background: #414868;
+  color: @text;
+  background: rgba(79, 214, 190, 0.2);
+}
+
+#custom-updates {
+  color: @warn;
 }
 
 #battery.warning,
 #battery.critical,
 #network.disconnected,
 #pulseaudio.muted {
-  color: #f7768e;
+  color: @danger;
 }
 
 tooltip {
-  background: #1a1b26;
-  border: 1px solid #414868;
-  border-radius: 8px;
-  color: #c0caf5;
+  border-radius: 10px;
+  border: 1px solid rgba(122, 162, 247, 0.35);
+  background: rgba(15, 17, 26, 0.98);
+  color: @text;
 }

@@ -1,54 +1,122 @@
-# Arch Zsh Dotfiles
+# Arch Workstation Dotfiles
 
-This repo now contains the shell config that runs on your minimal Arch + Hyperland machine; everything is in `~/Documents/code/dotfiles` so you can self-host the zsh, aliases, and cheat sheet you rely on.
+This repository is designed to bootstrap a complete Arch + Hyprland workstation with reproducible shell, UI, and desktop behavior.
 
-## What’s inside
+## Includes
 
-- `zshrc` — the main Zsh startup file with completion tuning, history repair, Starship, plugin hooks, and environment helpers wired to `$DOTFILES_HOME`/`$SCRIPTS_HOME`.
-- `aliases.zsh` + `aliases.local.zsh` — the shared alias library and a tracked placeholder for host-specific tweaks.
-- `SHELL_CHEATSHEET.md` — a quick reference for the commands and helpers defined above.
+- `zshrc`, `aliases.zsh`, `aliases.local.zsh`, `SHELL_CHEATSHEET.md`
+- `hypr/` for Hyprland, Waybar, Rofi, swaync, wlogout, dunst, lockscreen, and helper scripts
+- `kitty/kitty.conf` so new terminals always load login `zsh`
+- `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
+- `setup/` automation scripts for links and package installation
 
-## Setup steps
+## Quick start
 
-1. **Link the managed configs**
+```sh
+cd ~/Documents/code/dotfiles
+./setup/bootstrap.sh --scripts-dir "$HOME/Documents/code/scripts"
+```
 
-   ```sh
-   ln -sf "$HOME/Documents/code/dotfiles/zshrc" ~/.zshrc
-   ln -sf "$HOME/Documents/code/dotfiles/SHELL_CHEATSHEET.md" ~/SHELL_CHEATSHEET.md
-   ```
+That command:
 
-2. **Install the dependencies referenced in `zshrc`**
+- links shell files (`~/.zshrc`, cheat sheet)
+- links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
+- links swaync/wlogout/dunst configs into `~/.config`
+- links Chrome flags to `~/.config/chrome-flags.conf`
+- links your `~/Documents/code/scripts/bin/*` commands into `~/.local/bin`
+- installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
+- creates timestamped backups when replacing existing configs
 
-   - `zsh`, `starship`, `fzf`, `ripgrep`, `fd`, `exa`/`eza`, `bat`/`batcat`, `direnv`, `atuin`, `zoxide`
-   - `jq`, `docker`, `kubectl`, `gh`, `pay-respects`, and any other CLI tools you plan to use (they are referenced by the aliases but fail gracefully if missing)
-   - `wl-clipboard` or `xclip` for the Wayland clipboard helpers
+## Full install (packages + links)
 
-3. **Install the shared scripts repository**
+```sh
+cd ~/Documents/code/dotfiles
+./setup/bootstrap.sh --scripts-dir "$HOME/Documents/code/scripts" --install-packages --with-aur
+```
 
-   Clone (or keep) `~/Documents/code/scripts` and expose its `bin/` directory on your `PATH` so the alias shortcuts work:
+NVIDIA users can force kernel/userspace driver packages:
 
-   ```sh
-   ln -sf "$HOME/Documents/code/scripts/bin/"* ~/.local/bin/
-   ```
+```sh
+./setup/bootstrap.sh --install-packages --with-aur --with-nvidia
+```
 
-4. **Per-machine overrides**
+You can run package install via `sudo` too; the script now delegates AUR operations to your normal user automatically.
 
-   Add host-specific tweaks to `aliases.local.zsh`; it’s tracked so you can keep machine-specific commands separate from the shared defaults.
+## Package manifests
 
-5. **Reload the shell**
+- `setup/pacman-packages.txt`: official repository packages
+- `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
+- `setup/aur-packages.txt`: AUR packages (`google-chrome`, `pamac-aur`, `wlogout`)
 
-   Run `exec zsh` or restart your terminal so the new config and aliases take effect.
+Install packages only:
 
-## Hypr + Rice
+```sh
+./setup/install-packages.sh --with-aur
+```
 
-- The `hypr/` folder mirrors your live `~/.config/hypr`, `~/.config/waybar`, and `~/.config/rofi` setups; it holds `hyprland.conf`, `scripts/`, waybar/rofi configs, and supporting `.conf` files so the rice stays versioned with the dotfiles repo.
-- To keep the actual config pointing at the repo, recreate the symlinks:
+The installer auto-skips packages that are not available in current repos.
+The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless you pass `--no-zsh-plugins`.
 
-  ```sh
-  ln -sf "$HOME/Documents/code/dotfiles/hypr/hyprland.conf" ~/.config/hypr/hyprland.conf
-  ln -sf "$HOME/Documents/code/dotfiles/hypr/scripts" ~/.config/hypr/scripts
-  ln -sf "$HOME/Documents/code/dotfiles/hypr/waybar" ~/.config/waybar
-  ln -sf "$HOME/Documents/code/dotfiles/hypr/rofi" ~/.config/rofi
-  ```
+## Keybind highlights (Hyprland)
 
-- Update any other Wayland helpers (wallpaper scripts, lock screen, etc.) by managing them inside this `hypr/` subtree and pointing their live path at the repo version.
+- `Super + W` or `Super + Tab`: workspace overview switcher
+- `Super + B` / `Super + G`: open Google Chrome
+- `Super + H/J/K/L`: focus left/down/up/right
+- `Super + Shift + H/J/K/L`: move window left/down/up/right
+- `Super + O`: wallpaper picker
+- `Super + Shift + O`: next wallpaper
+- `Super + Ctrl + H/J/K/L` (or arrows): move floating window
+- `Super + Ctrl + Shift + H/J/K/L` (or arrows): resize floating window
+- `Super + [ / ]`: previous/next workspace
+
+## Apply changes
+
+```sh
+exec zsh
+hyprctl reload
+systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
+waybar & disown
+```
+
+If Waybar or Rofi was already running before bootstrap, restart your Hyprland session once.
+
+## Post-install verify
+
+```sh
+nvidia-smi
+modinfo -F license nvidia
+vulkaninfo | head -n 20
+LIBVA_DRIVER_NAME=iHD vainfo | head -n 20
+xdg-settings get default-web-browser
+```
+
+After changing NVIDIA kernel modules, reboot once before running the checks.
+
+## NVIDIA stability notes (hybrid laptops)
+
+- If `modinfo -F license nvidia` prints `Dual MIT/GPL`, you are running NVIDIA open kernel modules (`nvidia-open-dkms`).
+- On this setup, forcing `nvidia_drm` modeset can trigger login/shutdown hangs on some hybrid laptops.
+- The included safe profile keeps boot stable by blacklisting `nvidia_drm` during compositor startup.
+
+If login freezes and `nvidia-persistenced` times out, run:
+
+```sh
+sudo ./setup/fix-nvidia-proprietary-hybrid.sh
+sudo reboot
+```
+
+If Hyprland crashes at login with `CBackend::create() failed`, check `AQ_DRM_DEVICES` in your Hyprland config. Do not use `/dev/dri/by-path/pci-0000:...` there because `AQ_DRM_DEVICES` is colon-separated; use `/dev/dri/cardN` instead.
+
+If your system hard-freezes during login with kernel messages about `kworker`, `nv_drm_dev_load`, or `nvidia-persiste`, use:
+
+```sh
+sudo ./setup/emergency-hypr-login-fix.sh
+sudo reboot
+```
+
+If reboot itself hangs and you need a guaranteed stable baseline, force iGPU-only boot:
+
+```sh
+sudo ./setup/force-igpu-safe-boot.sh
+sudo sh -c 'echo 1 > /proc/sys/kernel/sysrq; echo s > /proc/sysrq-trigger; echo u > /proc/sysrq-trigger; echo b > /proc/sysrq-trigger'
+```

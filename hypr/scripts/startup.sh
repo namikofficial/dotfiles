@@ -51,7 +51,7 @@ run_once blueman-applet blueman-applet
 run_once waybar waybar
 run_once kanshi kanshi
 run_once hypridle hypridle
-run_cmd_if_not '/home/namik/.config/hypr/scripts/power-profile-auto.sh' "$HOME/.config/hypr/scripts/power-profile-auto.sh"
+run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
 
 # Notifications: prefer swaync, fallback dunst.
 if resolve_cmd swaync >/dev/null 2>&1; then

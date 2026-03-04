@@ -28,7 +28,6 @@
 - `lli` → tree view + git summary
 - `cat` → `bat`/`batcat`
 - `grep` → `rg`
-- `vim` → `nvim`
 - `helpcmd` → `tldr`
 
 ## Handy Aliases
@@ -51,11 +50,10 @@
 - Alc commands: `ff`, `frg`, `fkill`, `tnotes`, `doctor`, `pkillport`
 
 ## Power / Graphics
-- Power status: `pp status`
-- Battery mode: `pp battery` / `ppb`
-- Balanced: `pp balanced`
-- Performance: `pp performance`
-- Graphics mode: `gfx status`, `gfx integrated`, `gfx hybrid`, `gfx nvidia`, `gfx compute`
+- Current power profile: `powerprofilesctl get`
+- Set balanced mode: `powerprofilesctl set balanced`
+- Set performance mode: `powerprofilesctl set performance`
+- Set power-saver mode: `powerprofilesctl set power-saver`
 - Battery summary: `batt`
 
 ## Git
@@ -84,3 +82,19 @@
 
 ## Included Scripts
 - `bin/dev-doctor`, `bin/jq-easy`, `bin/devlink-easy`, `bin/klogs-fzf`, etc., live in `~/Documents/code/scripts/bin` and back the aliases above.
+
+## Hyprland Quick Keys
+- `Super + Return`: terminal (`kitty`)
+- `Super + Space`: app launcher
+- `Super + W` or `Super + Tab`: workspace overview picker
+- `Super + O`: wallpaper picker
+- `Super + Shift + O`: next wallpaper
+- `Super + Ctrl + Arrow`: move active floating window
+- `Super + Ctrl + Shift + Arrow`: resize active floating window
+- `Super + [` / `Super + ]`: previous / next workspace
+
+## Session Repair
+- Reload shell config: `exec zsh`
+- Reload Hyprland config: `hyprctl reload`
+- Restart portal services: `systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk`
+- Restart Waybar cleanly: `pkill -x waybar; waybar & disown`

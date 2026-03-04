@@ -5,6 +5,7 @@ choice="$(
 rofi -dmenu -i -p 'Quick Actions' -theme "$HOME/.config/rofi/actions.rasi" <<'MENU'
 󰖩  Toggle Wi-Fi
 󰂯  Toggle Bluetooth
+󰍹  Workspace Overview
 󰕾  Audio Mixer
 󰒓  Bluetooth Manager
 󰍜  Network Manager
@@ -31,12 +32,13 @@ case "$choice" in
     state="$(bluetoothctl show | awk '/Powered:/ {print $2}')"
     [ "$state" = "yes" ] && bluetoothctl power off || bluetoothctl power on
     ;;
+  "󰍹  Workspace Overview") ~/.config/hypr/scripts/workspace-overview.sh ;;
   "󰕾  Audio Mixer") pavucontrol ;;
   "󰒓  Bluetooth Manager") blueman-manager ;;
   "󰍜  Network Manager") nm-connection-editor ;;
   "󰍉  Toggle Mic Mute") wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
   "󰚰  System Update") kitty -e sh -lc 'yay -Syu; read -r -p "Press enter to close"' ;;
-  "󰸉  Next Wallpaper") ~/.config/hypr/scripts/set-wallpaper.sh --pick ;;
+  "󰸉  Next Wallpaper") ~/.config/hypr/scripts/set-wallpaper.sh --next ;;
   "󰋊  Screenshot Area") ~/.config/hypr/scripts/screenshot.sh area ;;
   "󰍹  Screenshot Full") ~/.config/hypr/scripts/screenshot.sh full ;;
   "󰓃  Toggle Notifications") swaync-client -t ;;

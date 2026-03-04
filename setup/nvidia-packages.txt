@@ -1,0 +1,9 @@
+# Kernel module + userspace stack for NVIDIA on Arch
+linux-headers
+nvidia-dkms|nvidia-open-dkms|nvidia|nvidia-open
+nvidia-utils
+lib32-nvidia-utils
+libva-nvidia-driver
+nvidia-settings
+nvidia-prime
+egl-wayland

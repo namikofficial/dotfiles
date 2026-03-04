@@ -3,10 +3,26 @@ autoload -Uz colors && colors
 zmodload zsh/datetime
 
 # Centralize repo locations so we can source shared configs from here.
-DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
+if [[ -z "${DOTFILES_HOME:-}" ]]; then
+  zshrc_source="${(%):-%N}"
+  DOTFILES_HOME="${zshrc_source:A:h}"
+fi
+
+if [[ -z "${SCRIPTS_HOME:-}" ]]; then
+  for scripts_candidate in \
+    "$HOME/Documents/code/scripts" \
+    "$HOME/dev/personal-scripts"; do
+    if [[ -d "$scripts_candidate" ]]; then
+      SCRIPTS_HOME="$scripts_candidate"
+      break
+    fi
+  done
+fi
+
 SCRIPTS_HOME="${SCRIPTS_HOME:-$HOME/Documents/code/scripts}"
 SCRIPTS_BIN="${SCRIPTS_BIN:-$SCRIPTS_HOME/bin}"
 export DOTFILES_HOME SCRIPTS_HOME SCRIPTS_BIN
+unset zshrc_source scripts_candidate
 
 # Optional startup profiler.
 if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
@@ -241,11 +257,6 @@ fi
 
 # Startup behavior controls
 ZSH_LAZY_LOAD_HEAVY="${ZSH_LAZY_LOAD_HEAVY:-1}"
-ZSH_FAST_TMUX="${ZSH_FAST_TMUX:-1}"
-in_tmux_fast_path=0
-if [[ -n "${TMUX:-}" && "$ZSH_FAST_TMUX" == "1" ]]; then
-  in_tmux_fast_path=1
-fi
 
 # NVM init (lazy by default)
 export NVM_DIR="$HOME/.nvm"
@@ -339,17 +350,27 @@ if command -v fzf >/dev/null 2>&1; then
 fi
 
 # fzf-git.sh (Ctrl-g shortcuts for git objects)
-if (( ! in_tmux_fast_path )) && [ -f "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh" ]; then
+if [ -f "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh" ]; then
   source "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh"
 fi
 
 # fzf-tab (interactive fuzzy completion menu)
-if (( ! in_tmux_fast_path )) && [ -f "$HOME/.local/share/zsh/plugins/fzf-tab/fzf-tab.plugin.zsh" ]; then
-  source "$HOME/.local/share/zsh/plugins/fzf-tab/fzf-tab.plugin.zsh"
+fzf_tab_loaded=0
+for plugin in \
+  "$HOME/.local/share/zsh/plugins/fzf-tab/fzf-tab.plugin.zsh" \
+  /usr/share/zsh/plugins/fzf-tab/fzf-tab.plugin.zsh \
+  /usr/share/fzf-tab/fzf-tab.plugin.zsh; do
+  [ -f "$plugin" ] || continue
+  source "$plugin"
+  fzf_tab_loaded=1
+  break
+done
+if (( fzf_tab_loaded )); then
   zstyle ':fzf-tab:*' fzf-command fzf
   zstyle ':fzf-tab:*' switch-group ',' '.'
   zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color=always -1 $realpath 2>/dev/null'
 fi
+unset fzf_tab_loaded
 
 # direnv (project-local env loading)
 if command -v direnv >/dev/null 2>&1; then
@@ -380,17 +401,23 @@ if command -v pay-respects >/dev/null 2>&1; then
 fi
 
 # zsh-you-should-use (teaches aliases)
-if [ -f "$HOME/.local/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh" ]; then
+for plugin in \
+  "$HOME/.local/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh" \
+  /usr/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh; do
+  [ -f "$plugin" ] || continue
   # NOTE: plugin enables hardcore if the variable merely exists (even "0")
   unset YSU_HARDCORE
   export YSU_MODE=BESTMATCH
-  source "$HOME/.local/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh"
-fi
+  source "$plugin"
+  break
+done
 
 # Optional plugins (if installed)
-if (( ! in_tmux_fast_path )) && [ -f "$HOME/.local/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh" ]; then
-  source "$HOME/.local/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh"
-fi
+for plugin in \
+  "$HOME/.local/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
+  /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh; do
+  [ -f "$plugin" ] && source "$plugin" && break
+done
 
 for plugin in \
   "$HOME/.local/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" \
@@ -401,23 +428,31 @@ done
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#6c7086'
 
 # zsh-autopair
-if [ -f "$HOME/.local/share/zsh/plugins/zsh-autopair/autopair.zsh" ]; then
-  source "$HOME/.local/share/zsh/plugins/zsh-autopair/autopair.zsh"
-fi
+for plugin in \
+  "$HOME/.local/share/zsh/plugins/zsh-autopair/autopair.zsh" \
+  /usr/share/zsh/plugins/zsh-autopair/autopair.zsh; do
+  [ -f "$plugin" ] && source "$plugin" && break
+done
 
 # zsh-history-substring-search
-if [ -f "$HOME/.local/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh" ]; then
-  source "$HOME/.local/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh"
+for plugin in \
+  "$HOME/.local/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh" \
+  /usr/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh; do
+  [ -f "$plugin" ] || continue
+  source "$plugin"
   bindkey '^[[A' history-substring-search-up
   bindkey '^[[B' history-substring-search-down
   bindkey '^P' history-substring-search-up
   bindkey '^N' history-substring-search-down
-fi
+  break
+done
 
 # forgit (widgets / keybindings)
-if (( ! in_tmux_fast_path )) && [ -f "$HOME/.local/share/zsh/plugins/forgit/forgit.plugin.zsh" ]; then
-  source "$HOME/.local/share/zsh/plugins/forgit/forgit.plugin.zsh"
-fi
+for plugin in \
+  "$HOME/.local/share/zsh/plugins/forgit/forgit.plugin.zsh" \
+  /usr/share/zsh/plugins/forgit/forgit.plugin.zsh; do
+  [ -f "$plugin" ] && source "$plugin" && break
+done
 
 for plugin in \
   "$HOME/.local/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" \
