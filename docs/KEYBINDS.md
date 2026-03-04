@@ -20,15 +20,20 @@ flowchart LR
 |---|---|---|
 | `Super + Return` | Open terminal | `kitty` |
 | `Super + E` | Open file manager | `dolphin` |
-| `Super + Space` | App launcher | `~/.config/hypr/scripts/launcher.sh` |
-| `Super + A` or `Super + /` | Quick actions menu | `quick-actions.sh` |
+| `Super + Space` | App launcher (press again to close) | `~/.config/hypr/scripts/launcher.sh` |
+| `Super + A` or `Super + /` | Quick actions (press again to close) | `quick-actions.sh` |
 | `Super + W` | Workspace overview (Rofi) | `workspace-overview.sh` |
 | `Super + Tab` | Mission control overview | `hyprexpo:expo toggle` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
-| `Super + D` | Toggle dock | `dock-toggle.sh` |
+| `Super + N` | Toggle notification panel | `swaync-client -t` |
+| `Super + Shift + N` | Toggle DND | `swaync-client -d` |
+| `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |
+| `Super + D` | Quick actions menu (duplicate launcher utility key) | `quick-actions.sh` |
 | `Super + Y` | Toggle Eww panel | `eww-toggle.sh` |
 | `Super + Ctrl + Y` | Toggle Waybar/HyprPanel | `panel-switch.sh toggle` |
+| `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
+| `Super + Ctrl + Shift + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh` |
 | `Super + Escape` | Power menu | `power-menu.sh` |
 | `Super + L` | Lock screen | `lock.sh` |
 
@@ -44,6 +49,7 @@ flowchart LR
 | `Super + Ctrl + G` | Force `master` |
 | `Super + Ctrl + Shift + G` | Force `dwindle` |
 | `Super + T` | Toggle window group (tab-like stack) |
+| `Super + Ctrl + T` | Move active window out of group |
 | `Super + ,` / `Super + .` | Prev/next tab in group |
 
 ## Focus / Move / Resize
@@ -72,6 +78,7 @@ flowchart LR
 | `Super + Ctrl + V` | Clipboard history picker |
 | `Super + Shift + S` | Screenshot area |
 | `Super + Ctrl + Shift + S` | Screenshot full |
+| `Super + Shift + T` | OCR selected area -> clipboard |
 | `Super + Ctrl + R` | Toggle screen recording |
 | `Super + I` | Color picker |
 | `Super + Shift + I` | Night light toggle |
@@ -95,3 +102,26 @@ flowchart LR
 | `Ctrl + R` | Atuin history picker |
 | `Alt + C` | Fuzzy zoxide jump |
 | `Esc` | Enter `zsh-vi-mode` normal mode |
+
+## Rofi Menus (Launcher + Quick Actions)
+
+| Key | Action |
+|---|---|
+| `Ctrl + 1..0` | Quick-select row 1..10 |
+| `Enter` | Run/open selected item |
+
+## Notification Panel Contents
+
+```mermaid
+flowchart TD
+  A[Notifications Panel] --> B[System Hub Status Grid]
+  A --> C[Quick Action Grid]
+  A --> D[DND + MPRIS + Volume + Brightness]
+  A --> E[Notification List]
+```
+
+| Section | What it shows |
+|---|---|
+| Status grid | GPU active, media active, network online, panel visible |
+| Actions grid | Clear all, copy status, DND toggle, desktop widgets toggle, net applet, panel view, restart bar |
+| Controls | DND widget, media (MPRIS), volume slider, brightness slider |

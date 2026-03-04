@@ -1,16 +1,16 @@
 @theme "theme.rasi"
 
 window {
-    width: 46%;
+    width: 58%;
 }
 
 mainbox {
-    spacing: 12px;
-    padding: 14px;
+    spacing: 10px;
+    padding: 12px;
 }
 
 inputbar {
-    padding: 10px;
+    padding: 9px;
 }
 
 prompt {
@@ -18,14 +18,14 @@ prompt {
 }
 
 listview {
-    lines: 12;
-    spacing: 6px;
+    lines: 14;
+    spacing: 4px;
 }
 
 element {
-    padding: 9px 11px;
+    padding: 7px 10px;
 }
 
 element-icon {
-    size: 1.1em;
+    size: 1.05em;
 }

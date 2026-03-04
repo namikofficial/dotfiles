@@ -37,7 +37,7 @@ fi
 echo
 
 echo "[3/4] Ensure helper packages"
-pacman -S --needed nwg-dock-hyprland wev
+pacman -S --needed wev
 echo
 
 echo "[4/4] Snapshot status"

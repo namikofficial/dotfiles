@@ -47,11 +47,12 @@ swaync
 wev
 kanshi
 swww
-nwg-dock-hyprland
 grim
 slurp
 swappy
 wf-recorder
+tesseract
+tesseract-data-eng
 wl-clipboard
 cliphist
 brightnessctl

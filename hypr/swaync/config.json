@@ -5,7 +5,9 @@
   "layer": "overlay",
   "control-center-layer": "top",
   "cssPriority": "application",
+  "notification-2fa-action": true,
   "notification-window-width": 420,
+  "relative-timestamps": true,
   "timeout": 7,
   "timeout-low": 4,
   "timeout-critical": 0,
@@ -19,20 +21,110 @@
   "hide-on-action": true,
   "widgets": [
     "title",
+    "label#status_header",
+    "buttons-grid#status_grid",
+    "buttons-grid#actions_grid",
     "dnd",
+    "mpris",
+    "volume",
+    "backlight",
     "notifications"
   ],
   "widget-config": {
     "title": {
       "text": "Notifications",
       "clear-all-button": true,
-      "button-text": "Clear"
+      "button-text": "󰆴"
+    },
+    "label#status_header": {
+      "text": "System Hub"
+    },
+    "buttons-grid#status_grid": {
+      "buttons-per-row": 2,
+      "actions": [
+        {
+          "label": "󰢮 GPU Active",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/notification-summary.sh popup'",
+          "type": "toggle",
+          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-gpu-active.sh'"
+        },
+        {
+          "label": "󰐊 Media Active",
+          "command": "playerctl play-pause",
+          "type": "toggle",
+          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-media-active.sh'"
+        },
+        {
+          "label": "󰖩 Network Online",
+          "command": "nm-connection-editor",
+          "type": "toggle",
+          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-network-online.sh'"
+        },
+        {
+          "label": "󰍹 Panel Visible",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/panel-switch.sh toggle-view'",
+          "type": "toggle",
+          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-panel-visible.sh'"
+        }
+      ]
+    },
+    "buttons-grid#actions_grid": {
+      "buttons-per-row": 2,
+      "actions": [
+        {
+          "label": "󰆴 Clear All",
+          "command": "swaync-client -C"
+        },
+        {
+          "label": "󰏢 Copy Status",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/notification-summary.sh copy'"
+        },
+        {
+          "label": "󱐋 Toggle DND",
+          "command": "swaync-client -d",
+          "type": "toggle",
+          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-dnd.sh'"
+        },
+        {
+          "label": "󰫌 Desktop Widgets",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/eww-desktop-toggle.sh'",
+          "type": "toggle",
+          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-desktop-widgets.sh'"
+        },
+        {
+          "label": "󰖪 Net Applet",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/nm-applet-toggle.sh'",
+          "type": "toggle",
+          "update-command": "sh -lc 'pgrep -x nm-applet >/dev/null && echo true || echo false'"
+        },
+        {
+          "label": "󰕮 Panel View",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/panel-switch.sh toggle-view'"
+        },
+        {
+          "label": "󰖨 Restart Bar",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/restart-waybar.sh'"
+        }
+      ]
     },
     "dnd": {
       "text": "Do Not Disturb"
     },
+    "mpris": {
+      "autohide": false,
+      "show-album-art": "when-available"
+    },
+    "volume": {
+      "label": "Volume",
+      "show-per-app": true,
+      "expand-per-app": false
+    },
+    "backlight": {
+      "label": "Brightness"
+    },
     "notifications": {
-      "show-scrollbar": true
+      "show-scrollbar": true,
+      "vexpand": true
     }
   }
 }

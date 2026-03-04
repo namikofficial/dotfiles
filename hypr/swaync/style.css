@@ -1,48 +1,133 @@
+@define-color bg #0f111a;
+@define-color bg_soft #161a26;
+@define-color surface #1f2335;
+@define-color text #c8d3f5;
+@define-color muted #8a94b8;
+@define-color accent #7aa2f7;
+@define-color accent2 #4fd6be;
+@define-color warn #ff966c;
+@define-color danger #ff757f;
+
 * {
   font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
-  font-size: 13px;
-}
-
-.notification-row,
-.control-center {
-  background: #1a1b26;
-  color: #c0caf5;
-  border: 1px solid #414868;
-  border-radius: 12px;
-}
-
-.notification {
-  border-radius: 10px;
-  margin: 8px;
-  padding: 8px;
-}
-
-.notification-content {
-  background: #24283b;
-  border-radius: 10px;
+  font-size: 12px;
+  color: @text;
 }
 
 .control-center {
+  background: rgba(15, 17, 26, 0.97);
+  border: 1px solid rgba(122, 162, 247, 0.24);
+  border-radius: 14px;
   padding: 12px;
 }
 
-.control-center .notification-row .notification-background .notification {
-  border: 1px solid #414868;
+.notification-row {
+  margin: 4px 0;
+}
+
+.notification {
+  border-radius: 11px;
+  margin: 6px 0;
+  padding: 8px;
+  border: 1px solid rgba(122, 162, 247, 0.16);
+  background: @surface;
+}
+
+.notification-content {
+  background: transparent;
 }
 
 .widget-title,
-.widget-dnd {
-  color: #7aa2f7;
+.widget-dnd,
+.widget-label {
+  color: @accent;
 }
 
-button {
-  background: #24283b;
-  color: #c0caf5;
-  border: 1px solid #414868;
+.widget-title > button {
+  min-width: 34px;
+  min-height: 28px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.widget-label {
+  margin: 2px 0;
+  padding: 2px 2px 3px 2px;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+}
+
+.widget-buttons-grid {
+  margin: 4px 0 8px 0;
+}
+
+.widget-buttons-grid flowboxchild > button {
+  min-height: 32px;
+  border-radius: 10px;
+}
+
+.widget-buttons-grid flowboxchild > button.active {
+  background: rgba(79, 214, 190, 0.2);
+  border-color: rgba(79, 214, 190, 0.55);
+  color: @accent2;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .summary {
+  color: @text;
+  font-weight: 700;
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .time {
+  color: @muted;
+  font-size: 11px;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(122, 162, 247, 0.22);
+  background: rgba(22, 26, 38, 0.88);
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .body {
+  color: @muted;
+}
+
+.notification-row .notification-background .notification .notification-action > button {
+  min-height: 28px;
   border-radius: 8px;
 }
 
+.widget-mpris,
+.widget-volume,
+.widget-backlight {
+  border: 1px solid rgba(122, 162, 247, 0.2);
+  border-radius: 11px;
+  padding: 8px;
+  margin: 4px 0;
+  background: @surface;
+}
+
+button {
+  background: @bg_soft;
+  color: @text;
+  border: 1px solid rgba(122, 162, 247, 0.24);
+  border-radius: 9px;
+}
+
 button:hover {
-  background: #7aa2f7;
-  color: #1a1b26;
+  background: rgba(122, 162, 247, 0.2);
+  color: @text;
+}
+
+.close-button {
+  background: rgba(255, 117, 127, 0.1);
+  border-color: rgba(255, 117, 127, 0.4);
+  color: @danger;
+}
+
+.summary {
+  color: @text;
+}
+
+.body {
+  color: @muted;
 }

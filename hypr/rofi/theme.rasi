@@ -1,13 +1,13 @@
 * {
-    font: "JetBrainsMono Nerd Font 12";
+    font: "JetBrainsMono Nerd Font 11";
 
     bg: #101320ee;
     bg-alt: #1a1f33ee;
     fg: #d8def5;
     fg-muted: #9aa5ce;
-    accent: #f7768e;
-    good: #9ece6a;
-    bad: #f7768e;
+    accent: #7aa2f7;
+    good: #4fd6be;
+    bad: #ff757f;
 
     border: 2px;
     radius: 14px;
@@ -24,19 +24,19 @@ window {
     border-color: @accent;
     border-radius: @radius;
     background-color: @bg;
-    padding: 8px;
+    padding: 10px;
 }
 
 mainbox {
-    spacing: 12px;
-    padding: 14px;
+    spacing: 10px;
+    padding: 12px;
     background-color: transparent;
 }
 
 inputbar {
     children: [prompt, entry];
-    spacing: 10px;
-    padding: 10px;
+    spacing: 8px;
+    padding: 9px;
     border-radius: 10px;
     background-color: @bg-alt;
 }
@@ -53,10 +53,10 @@ entry {
 }
 
 listview {
-    lines: 12;
+    lines: 11;
     columns: 1;
     fixed-height: false;
-    spacing: 6px;
+    spacing: 4px;
     cycle: true;
     dynamic: true;
     scrollbar: false;
@@ -64,8 +64,8 @@ listview {
 }
 
 element {
-    padding: 8px 10px;
-    border-radius: 10px;
+    padding: 7px 10px;
+    border-radius: 9px;
     background-color: transparent;
     text-color: @fg-muted;
 }
@@ -82,8 +82,8 @@ element selected.urgent {
 }
 
 element selected.normal {
-    background-color: @good;
-    text-color: #11131f;
+    background-color: rgba(122, 162, 247, 0.88);
+    text-color: #0f111a;
 }
 
 element-text {
@@ -93,9 +93,14 @@ element-text {
 }
 
 element-icon {
-    size: 1.15em;
+    size: 1.05em;
     background-color: transparent;
-    margin: 0 10px 0 0;
+    margin: 0 8px 0 0;
+}
+
+message {
+    text-color: @fg-muted;
+    padding: 2px 2px 6px 2px;
 }
 
 mode-switcher {

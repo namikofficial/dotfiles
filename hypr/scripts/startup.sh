@@ -55,9 +55,6 @@ run_once blueman-applet blueman-applet
 run_once waybar waybar
 run_once kanshi kanshi
 run_once hypridle hypridle
-if [ "${HYPR_DOCK_AUTOSTART:-0}" = "1" ]; then
-  run_once nwg-dock-hyprland nwg-dock-hyprland
-fi
 run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
 
 # Ensure enabled hyprpm plugins are actually loaded after compositor startup.

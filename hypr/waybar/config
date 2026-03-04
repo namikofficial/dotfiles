@@ -9,8 +9,8 @@
     "margin-right": 10,
 
     "modules-left": ["custom/launcher", "custom/overview", "hyprland/workspaces", "custom/layout", "hyprland/window"],
-    "modules-center": ["custom/media", "clock"],
-    "modules-right": ["power-profiles-daemon", "custom/weather", "custom/vpn", "custom/updates", "custom/gpu", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "custom/notifications", "tray", "custom/cliphist", "custom/power"],
+    "modules-center": ["clock"],
+    "modules-right": ["power-profiles-daemon", "custom/weather", "custom/vpn", "custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "custom/notifications", "tray", "custom/cliphist", "custom/power"],
 
     "hyprland/workspaces": {
       "all-outputs": true,
@@ -23,7 +23,7 @@
     },
 
     "hyprland/window": {
-      "max-length": 22,
+      "max-length": 16,
       "separate-outputs": true,
       "tooltip": true
     },
@@ -34,16 +34,6 @@
       "return-type": "plain",
       "tooltip": "Current tiling layout",
       "on-click": "~/.config/hypr/scripts/layout-switcher.sh toggle"
-    },
-
-    "custom/media": {
-      "exec": "~/.config/waybar/scripts/media.sh",
-      "interval": 2,
-      "return-type": "plain",
-      "max-length": 40,
-      "tooltip": true,
-      "on-click": "playerctl play-pause",
-      "on-click-right": "playerctl next"
     },
 
     "clock": {
@@ -84,14 +74,6 @@
       "tooltip": true,
       "tooltip-format": "System updates",
       "on-click": "kitty -e sh -lc 'yay -Syu; read -r -p \"Press enter to close\"'"
-    },
-
-    "custom/gpu": {
-      "exec": "~/.config/waybar/scripts/gpu.sh",
-      "interval": 10,
-      "return-type": "plain",
-      "tooltip": "dGPU runtime status (set WAYBAR_GPU_DEEP_POLL=1 for full metrics)",
-      "on-click": "kitty -e nvtop"
     },
 
     "cpu": {
@@ -143,6 +125,7 @@
       "tooltip": true,
       "tooltip-format": "Notifications",
       "on-click": "swaync-client -t",
+      "on-click-middle": "~/.config/hypr/scripts/notification-summary.sh copy",
       "on-click-right": "swaync-client -d"
     },
 
@@ -153,7 +136,7 @@
     "custom/launcher": {
       "format": "󰣇",
       "tooltip": false,
-      "on-click": "rofi -show drun"
+      "on-click": "~/.config/hypr/scripts/launcher.sh"
     },
 
     "custom/overview": {

@@ -76,8 +76,12 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + W`: workspace/window overview switcher (Rofi list)
 - `Super + Tab`: Mission-Control style overview (`hyprexpo`)
 - `Super + Shift + Tab`: force fallback Rofi overview
+- `Super + Space`: app launcher (press again to close)
+- `Super + A` / `Super + /`: quick actions (press again to close)
+- `Ctrl + 1..0` in launcher/actions: quick-select top 10 rows
+- `Enter` in launcher/actions: open/run selected row
 - `Super + B`: open Google Chrome
-- `Super + D`: toggle dock (`nwg-dock-hyprland`)
+- `Super + D`: quick actions (duplicate utility key)
 - `Super + F`: toggle floating on active window
 - `Super + G`: toggle tiling layout (`dwindle` <-> `master`)
 - `Super + Shift + G`: toggle floating-grid workspace mode
@@ -85,13 +89,20 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + Shift + H/J/K/L`: move window left/down/up/right
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
+- `Super + N`: toggle notification panel
+- `Super + Shift + N`: toggle DND
+- `Super + Ctrl + N`: copy notification/status summary to clipboard
 - `Super + I`: color picker (copies hex)
 - `Super + Shift + I`: toggle night light (`hyprsunset`)
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
+- `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
 - `Super + Y`: toggle Eww widget panel
 - `Super + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
 - `Super + Ctrl + Y`: toggle panel engine (`waybar` <-> `hyprpanel`, if installed)
+- `Super + Alt + Y`: toggle panel visibility only (show/hide current panel)
+- `Super + Ctrl + Shift + Y`: toggle desktop widgets (above wallpaper / below windows)
 - `Super + T`: toggle window group (tab-like stacks)
+- `Super + Ctrl + T`: move active window out of group
 - `Super + ,` / `Super + .`: previous/next tab in group
 - `Fn + 2/3/4/5` (`XF86Launch2..5`): AI helper actions (`ask`, `clipboard`, `shell`, `debug`)
 - `Super + Alt + 2/3/4/5`: fallback AI helper actions
@@ -114,6 +125,8 @@ yay -S --needed aylurs-gtk-shell hyprpanel
 ```
 
 Then toggle panels with `Super + Ctrl + Y`.
+
+Notification panel now includes sticky "System Hub" controls (GPU/media/network/panel status, copy summary, widget toggles, and quick controls) via SwayNC.
 
 ## Apply changes
 
@@ -168,7 +181,7 @@ Full flow: `docs/RUNBOOK.md`
 
 - If `modinfo -F license nvidia` prints `Dual MIT/GPL`, you are running NVIDIA open kernel modules (`nvidia-open-dkms`).
 - If `modinfo -F license nvidia` prints `NVIDIA`, you are running proprietary modules.
-- On current Arch repos, `nvidia-dkms` may be unavailable for some driver branches; `nvidia-open-dkms` is then the only official package.
+- On current Arch repos (since the March 3, 2026 NVIDIA 570+ packaging change), `nvidia-dkms` is not provided and `nvidia-open-dkms` is the official kernel-module package.
 - On this setup, forcing `nvidia_drm` modeset can trigger login/shutdown hangs on some hybrid laptops.
 - The included safe profile keeps boot stable by blacklisting `nvidia_drm` during compositor startup.
 - `nm-applet` auto-start is disabled by default to avoid duplicate tray-registration warnings in Waybar.

@@ -24,11 +24,8 @@
     (label :class "card-icon" :xalign 0 :text icon)
     (label :class "card-text" :xalign 0 :hexpand true :text text)))
 
-(defwidget quickpanel []
-  (box :class "quickpanel" :orientation "v" :spacing 12
-    (box :class "hero" :orientation "v"
-      (label :class "hero-time" :text time_now)
-      (label :class "hero-date" :text date_now))
+(defwidget quickpanel-content []
+  (box :class "quickpanel-content" :orientation "v" :spacing 10
     (card :icon "󰾅" :text battery_line)
     (card :icon "" :text profile_line)
     (card :icon "󰖐" :text weather_line)
@@ -36,14 +33,43 @@
     (card :icon "" :text gpu_line)
     (calendar :class "calendar")))
 
+(defwidget quickpanel []
+  (box :class "quickpanel" :orientation "v" :spacing 12
+    (box :class "hero" :orientation "v"
+      (label :class "hero-time" :text time_now)
+      (label :class "hero-date" :text date_now))
+    (scroll :class "quickpanel-scroll" :hscroll false :vscroll true
+      (quickpanel-content))))
+
+(defwidget desktoppanel []
+  (box :class "desktoppanel" :orientation "v" :spacing 8
+    (label :class "desk-title" :text "Desktop Hub")
+    (label :class "desk-time" :text time_now)
+    (label :class "desk-date" :text date_now)
+    (label :class "desk-line" :text weather_line)
+    (label :class "desk-line" :text music_line)
+    (label :class "desk-line" :text gpu_line)))
+
 (defwindow quickpanel
   :monitor 0
-  :focusable false
+  :focusable true
   :stacking "fg"
   :exclusive false
   :geometry (geometry :x "18px"
                       :y "60px"
-                      :width "300px"
-                      :height "0px"
+                      :width "320px"
+                      :height "640px"
                       :anchor "top right")
   (quickpanel))
+
+(defwindow desktoppanel
+  :monitor 0
+  :focusable false
+  :stacking "bg"
+  :exclusive false
+  :geometry (geometry :x "28px"
+                      :y "84px"
+                      :width "340px"
+                      :height "0px"
+                      :anchor "top left")
+  (desktoppanel))

@@ -86,20 +86,28 @@
 
 ## Hyprland Quick Keys
 - `Super + Return`: terminal (`kitty`)
-- `Super + Space`: app launcher
+- `Super + Space`: app launcher (press again to close)
+- `Super + A` or `Super + /`: quick actions (press again to close)
+- In launcher/actions: `Ctrl + 1..0` quick-select, `Enter` run/open
 - `Super + W`: workspace overview picker (Rofi)
 - `Super + Tab`: Mission Control overview (`hyprexpo`)
 - `Super + Shift + Tab`: force Rofi overview
 - `Super + F`: toggle floating for active window
 - `Super + G`: toggle `dwindle` / `master` layout
-- `Super + D`: toggle dock
+- `Super + D`: quick actions
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
+- `Super + N`: toggle notification panel
+- `Super + Shift + N`: toggle DND
+- `Super + Ctrl + N`: copy notification/status summary
 - `Super + I`: pick a color (`hyprpicker -a`)
 - `Super + Shift + I`: toggle night light
+- `Super + Shift + T`: OCR selected area to clipboard
 - `Super + Ctrl + R`: toggle screen recording
 - `Super + Y`: toggle widget panel (Eww)
 - `Super + Ctrl + Y`: toggle panel engine (`waybar`/`hyprpanel`)
+- `Super + Alt + Y`: toggle panel visibility only
+- `Super + Ctrl + Shift + Y`: toggle desktop widgets
 - `Fn + 2/3/4/5`: AI helper (`ask`/`clipboard`/`shell`/`debug`)
 - `Super + Ctrl + Arrow`: move active floating window
 - `Super + Ctrl + Shift + Arrow`: resize active floating window
