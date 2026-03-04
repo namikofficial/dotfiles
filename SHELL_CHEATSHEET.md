@@ -1,0 +1,86 @@
+# Shell Cheatsheet
+
+## Reload / Edit
+- Reload shell: `source ~/.zshrc` or `reload`
+- Edit zsh dotfile: `zshc`
+- Edit aliases: `zalias`
+- Edit starship prompt: `starc`
+- Open this cheatsheet: `cheat`
+
+## Navigation
+- Jump projects: `dev`, `scripts`, `projects`
+- Jump code dir: `cdev` (`~/Documents/code`)
+- Up dirs: `..`, `...`, `....`
+- Make + enter dir: `mkcd my-folder`
+- Jump to git repo root: `groot`
+- FZF cd picker: `cdf`
+
+## Search + History
+- Fuzzy file/command search: `fzf` and `<TAB>` with `fzf-tab`
+- History search: type part of command, then `Up`/`Down`
+- Atuin interactive search: `hs`
+- Atuin sync/status/login: `hstatus`, `hlogin`, `hsync`
+- Weekly/monthly stats: `hweek`, `hmonth`
+
+## Modern Replacements
+- `ls` → `eza`
+- `ll` → detailed `eza` with git info
+- `lli` → tree view + git summary
+- `cat` → `bat`/`batcat`
+- `grep` → `rg`
+- `vim` → `nvim`
+- `helpcmd` → `tldr`
+
+## Handy Aliases
+- Disk usage in current dir: `duh`
+- Filesystem usage: `dfh`
+- Show PATH lines: `path`
+- Current timestamp: `now`
+- Public IP: `myip`
+- System monitor: `sysmon` (`btop`)
+- Disk overview: `disks` (`duf`)
+- LazyGit: `lg`
+- Process explorer: `pps`, CPU sort `ppsc`, memory sort `ppsm`
+- Disk analyzer: `dsz`, shallow depth `dsz2`
+- Benchmarks: `bench 'cmd1' 'cmd2'`
+- GitHub CLI: `ghs`, `ghpr`, `ghpv`
+- Pipx: `pxl`, `pxi`
+- Clipboard helpers: `echo "text" | clipcopy`, `clippaste`, `jclip`
+- JSON helpers: `je`, `jj`, `jc`, `jk`, `jl`, `jp`, `jf`, `jv`, `jh`
+- Devlink helpers: `dl`, `dld`, `dlp`, `dlh`, `dlm`
+- Alc commands: `ff`, `frg`, `fkill`, `tnotes`, `doctor`, `pkillport`
+
+## Power / Graphics
+- Power status: `pp status`
+- Battery mode: `pp battery` / `ppb`
+- Balanced: `pp balanced`
+- Performance: `pp performance`
+- Graphics mode: `gfx status`, `gfx integrated`, `gfx hybrid`, `gfx nvidia`, `gfx compute`
+- Battery summary: `batt`
+
+## Git
+- Status short: `gss`
+- Graph log: `glg`
+- Commit: `gcm`, `gcam`
+- Undo last commit: `gundo`
+- Delete merged branches safely: `gclean`
+
+## Docker / K8s
+- Docker ps table: `dps`
+- Docker prune: `dprune`
+- Docker compose logs: `dclg`
+- Docker compose build: `dcb`
+- Kubernetes get all: `kga`
+- Kubernetes current context: `kctx`
+- Kubernetes namespace switch: `kns my-namespace`
+
+## Safety Defaults
+- `noclobber` protects overwrites
+- `cp`, `mv`, `rm` prompt before destructive actions
+
+## Command Fixer
+- After a failed command, run: `fuck`
+- `pay-respects` teaches a better command
+
+## Included Scripts
+- `bin/dev-doctor`, `bin/jq-easy`, `bin/devlink-easy`, `bin/klogs-fzf`, etc., live in `~/Documents/code/scripts/bin` and back the aliases above.

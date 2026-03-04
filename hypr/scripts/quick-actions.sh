@@ -1,0 +1,49 @@
+#!/usr/bin/env sh
+set -eu
+
+choice="$(
+rofi -dmenu -i -p 'Quick Actions' -theme "$HOME/.config/rofi/actions.rasi" <<'MENU'
+󰖩  Toggle Wi-Fi
+󰂯  Toggle Bluetooth
+󰕾  Audio Mixer
+󰒓  Bluetooth Manager
+󰍜  Network Manager
+󰍉  Toggle Mic Mute
+󰚰  System Update
+󰸉  Next Wallpaper
+󰋊  Screenshot Area
+󰍹  Screenshot Full
+󰓃  Toggle Notifications
+󱐋  Toggle DND
+󰾆  Power Saver Profile
+󱐤  Performance Profile
+󰒓  System Monitor
+󰌾  Lock Screen
+MENU
+)"
+
+case "$choice" in
+  "󰖩  Toggle Wi-Fi")
+    state="$(nmcli radio wifi)"
+    [ "$state" = "enabled" ] && nmcli radio wifi off || nmcli radio wifi on
+    ;;
+  "󰂯  Toggle Bluetooth")
+    state="$(bluetoothctl show | awk '/Powered:/ {print $2}')"
+    [ "$state" = "yes" ] && bluetoothctl power off || bluetoothctl power on
+    ;;
+  "󰕾  Audio Mixer") pavucontrol ;;
+  "󰒓  Bluetooth Manager") blueman-manager ;;
+  "󰍜  Network Manager") nm-connection-editor ;;
+  "󰍉  Toggle Mic Mute") wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
+  "󰚰  System Update") kitty -e sh -lc 'yay -Syu; read -r -p "Press enter to close"' ;;
+  "󰸉  Next Wallpaper") ~/.config/hypr/scripts/set-wallpaper.sh --pick ;;
+  "󰋊  Screenshot Area") ~/.config/hypr/scripts/screenshot.sh area ;;
+  "󰍹  Screenshot Full") ~/.config/hypr/scripts/screenshot.sh full ;;
+  "󰓃  Toggle Notifications") swaync-client -t ;;
+  "󱐋  Toggle DND") swaync-client -d ;;
+  "󰾆  Power Saver Profile") powerprofilesctl set power-saver ;;
+  "󱐤  Performance Profile") powerprofilesctl set performance ;;
+  "󰒓  System Monitor") kitty -e btop ;;
+  "󰌾  Lock Screen") ~/.config/hypr/scripts/lock.sh ;;
+  *) exit 0 ;;
+esac

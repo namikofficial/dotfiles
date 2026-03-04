@@ -1,0 +1,31 @@
+@theme "theme.rasi"
+
+window {
+    width: 46%;
+}
+
+mainbox {
+    spacing: 12px;
+    padding: 14px;
+}
+
+inputbar {
+    padding: 10px;
+}
+
+prompt {
+    text-color: @accent;
+}
+
+listview {
+    lines: 12;
+    spacing: 6px;
+}
+
+element {
+    padding: 9px 11px;
+}
+
+element-icon {
+    size: 1.1em;
+}

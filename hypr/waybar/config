@@ -1,0 +1,144 @@
+[
+  {
+    "layer": "top",
+    "position": "top",
+    "height": 34,
+    "spacing": 8,
+    "margin-top": 8,
+    "margin-left": 10,
+    "margin-right": 10,
+
+    "modules-left": ["custom/launcher", "hyprland/workspaces", "hyprland/window"],
+    "modules-center": ["clock"],
+    "modules-right": ["power-profiles-daemon", "custom/weather", "custom/vpn", "custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "custom/notifications", "tray", "custom/cliphist", "custom/power"],
+
+    "hyprland/workspaces": {
+      "all-outputs": true,
+      "format": "{icon}",
+      "format-icons": {
+        "active": "",
+        "default": ""
+      },
+      "on-click": "activate"
+    },
+
+    "hyprland/window": {
+      "max-length": 55,
+      "separate-outputs": true
+    },
+
+    "clock": {
+      "format": "󰥔 {:%a %d %b  %H:%M}",
+      "tooltip-format": "{:%Y-%m-%d %H:%M:%S %Z}"
+    },
+
+    "power-profiles-daemon": {
+      "format": "{icon}",
+      "format-icons": {
+        "default": "",
+        "performance": "",
+        "balanced": "",
+        "power-saver": ""
+      },
+      "tooltip": true
+    },
+
+    "custom/weather": {
+      "exec": "~/.config/waybar/scripts/weather.sh",
+      "interval": 900,
+      "return-type": "plain",
+      "tooltip": false
+    },
+
+    "custom/vpn": {
+      "exec": "~/.config/waybar/scripts/vpn.sh",
+      "interval": 5,
+      "return-type": "plain",
+      "tooltip": false,
+      "on-click": "nm-connection-editor"
+    },
+
+    "custom/updates": {
+      "exec": "~/.config/waybar/scripts/updates.sh",
+      "interval": 900,
+      "return-type": "plain",
+      "tooltip": true,
+      "tooltip-format": "System updates",
+      "on-click": "kitty -e sh -lc 'yay -Syu; read -r -p \"Press enter to close\"'"
+    },
+
+    "cpu": {
+      "format": " {usage}%",
+      "interval": 3
+    },
+
+    "memory": {
+      "format": " {}%",
+      "interval": 5
+    },
+
+    "network": {
+      "format-wifi": "  {signalStrength}%",
+      "format-ethernet": "󰈀 {ifname}",
+      "format-disconnected": "󰤮 down",
+      "tooltip-format": "{ifname} {ipaddr}/{cidr}"
+    },
+
+    "backlight": {
+      "format": "󰃠 {percent}%"
+    },
+
+    "battery": {
+      "states": {
+        "warning": 25,
+        "critical": 12
+      },
+      "format": "{icon} {capacity}%",
+      "format-charging": "󰂄 {capacity}%",
+      "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+    },
+
+    "pulseaudio": {
+      "format": "{icon} {volume}%",
+      "format-muted": "󰝟 muted",
+      "format-icons": {
+        "default": ["󰕿", "󰖀", "󰕾"]
+      },
+      "on-click": "pavucontrol",
+      "on-scroll-up": "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 2%+",
+      "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"
+    },
+
+    "custom/notifications": {
+      "exec": "swaync-client -D >/dev/null 2>&1 && echo '' || echo ''",
+      "interval": 2,
+      "return-type": "plain",
+      "tooltip": true,
+      "tooltip-format": "Notifications",
+      "on-click": "swaync-client -t",
+      "on-click-right": "swaync-client -d"
+    },
+
+    "tray": {
+      "spacing": 8
+    },
+
+    "custom/launcher": {
+      "format": "󰣇",
+      "tooltip": false,
+      "on-click": "rofi -show drun"
+    },
+
+    "custom/cliphist": {
+      "format": "󱘛",
+      "tooltip": "Clipboard history",
+      "on-click": "~/.config/hypr/scripts/cliphist-rofi.sh"
+    },
+
+    "custom/power": {
+      "format": "",
+      "tooltip": false,
+      "on-click": "~/.config/hypr/scripts/power-menu.sh"
+    }
+  }
+]
