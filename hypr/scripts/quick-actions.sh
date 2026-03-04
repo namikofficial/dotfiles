@@ -14,6 +14,9 @@ rofi -dmenu -i -p 'Quick Actions' -theme "$HOME/.config/rofi/actions.rasi" <<'ME
 󰸉  Next Wallpaper
 󰋊  Screenshot Area
 󰍹  Screenshot Full
+󰑊  Toggle Screen Record
+󰏘  Pick Color
+󰖔  Toggle Night Light
 󰓃  Toggle Notifications
 󱐋  Toggle DND
 󰾆  Power Saver Profile
@@ -41,6 +44,9 @@ case "$choice" in
   "󰸉  Next Wallpaper") ~/.config/hypr/scripts/set-wallpaper.sh --next ;;
   "󰋊  Screenshot Area") ~/.config/hypr/scripts/screenshot.sh area ;;
   "󰍹  Screenshot Full") ~/.config/hypr/scripts/screenshot.sh full ;;
+  "󰑊  Toggle Screen Record") ~/.config/hypr/scripts/screen-record-toggle.sh ;;
+  "󰏘  Pick Color") hyprpicker -a ;;
+  "󰖔  Toggle Night Light") ~/.config/hypr/scripts/night-light-toggle.sh ;;
   "󰓃  Toggle Notifications") swaync-client -t ;;
   "󱐋  Toggle DND") swaync-client -d ;;
   "󰾆  Power Saver Profile") powerprofilesctl set power-saver ;;

@@ -22,6 +22,8 @@ lazygit
 duf
 dust
 procs
+yazi
+zellij
 hyperfine
 pipx|python-pipx
 shellcheck
@@ -35,6 +37,8 @@ hyprland
 hyprlock
 hypridle
 hyprpaper
+hyprpicker
+hyprsunset
 waybar
 rofi-wayland|rofi
 swaync
@@ -42,6 +46,8 @@ kanshi
 swww
 grim
 slurp
+swappy
+wf-recorder
 wl-clipboard
 cliphist
 brightnessctl
@@ -55,6 +61,10 @@ xdg-desktop-portal-hyprland
 xdg-desktop-portal-gtk
 qt5-wayland
 qt6-wayland
+nwg-look
+qt5ct
+qt6ct
+kvantum
 
 # UI polish and fonts
 ttf-jetbrains-mono-nerd
@@ -83,3 +93,8 @@ vulkan-icd-loader
 libva
 libva-utils
 intel-media-driver|libva-intel-driver
+swayosd
+flatpak
+ufw
+mpv
+easyeffects
