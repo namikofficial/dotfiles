@@ -40,8 +40,18 @@ Generated under `~/.cache/hypr/`:
 
 Each hook receives palette env vars (`THEME_BG`, `THEME_TEXT`, `THEME_ACCENT`, etc.), so additional utilities can be auto-themed without editing core scripts.
 
-Current default hook:
+Current default hooks:
 - `10-btop-theme.sh` -> generates/updates `~/.config/btop/themes/NoxflowDynamic.theme` and sets `color_theme = "NoxflowDynamic"`.
+- `20-zathura-theme.sh` -> writes `~/.config/zathura/theme.generated` and auto-includes it from `~/.config/zathura/zathurarc`.
+- `30-shell-tools-theme.sh` -> generates:
+  - `~/.cache/hypr/theme-shell.zsh` (`FZF_DEFAULT_OPTS`, `BAT_THEME`, `LG_CONFIG_FILE`)
+  - `~/.config/bat/themes/NoxflowDynamic.tmTheme`
+  - `~/.config/lazygit/theme.generated.yml`
+- `40-discord-theme.sh` -> generates Discord-family CSS theme files:
+  - `~/.config/vesktop/themes/NoxflowDynamic.theme.css`
+  - `~/.config/discord/themes/NoxflowDynamic.theme.css`
+  - `~/.config/Vencord/themes/NoxflowDynamic.theme.css`
+  - `~/.config/BetterDiscord/themes/NoxflowDynamic.theme.css`
 
 ## Scripts
 

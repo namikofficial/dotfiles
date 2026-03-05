@@ -306,6 +306,9 @@ if ! command -v codex >/dev/null 2>&1; then
   [ -n "$codex_bin_dir" ] && path=("$codex_bin_dir" $path)
 fi
 
+# ensure copilot cli remains available if installed via npm and node versions change
+eval "$(copilot alias -- zsh)"
+
 # Android SDK Configuration
 export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
 export ANDROID_HOME="$ANDROID_SDK_ROOT"
@@ -356,6 +359,11 @@ if command -v fzf >/dev/null 2>&1; then
   else
     load_fzf_integration
   fi
+fi
+
+# Wallpaper-driven shell tool theme overrides (fzf, bat, lazygit).
+if [ -f "$HOME/.cache/hypr/theme-shell.zsh" ]; then
+  source "$HOME/.cache/hypr/theme-shell.zsh"
 fi
 
 # fzf-git.sh (Ctrl-g shortcuts for git objects)
