@@ -4,6 +4,7 @@ set -eu
 wall="${1:-}"
 cache_dir="$HOME/.cache/hypr"
 mkdir -p "$cache_dir"
+hooks_dir="$HOME/.config/hypr/scripts/theme-hooks.d"
 
 palette_json="$cache_dir/theme-palette.json"
 waybar_colors="$cache_dir/theme-colors-waybar.css"
@@ -277,4 +278,24 @@ if [ -f "$HOME/.config/Code/User/settings.json" ]; then
       )
     }
   ' "$HOME/.config/Code/User/settings.json" > "$tmp_file" 2>/dev/null && mv "$tmp_file" "$HOME/.config/Code/User/settings.json" || rm -f "$tmp_file"
+fi
+
+# Optional per-app hooks for extra utilities (btop, custom tools, etc.).
+if [ -d "$hooks_dir" ]; then
+  for hook in "$hooks_dir"/*.sh; do
+    [ -f "$hook" ] || continue
+    THEME_WALL="$wall" \
+    THEME_CACHE_DIR="$cache_dir" \
+    THEME_PALETTE_JSON="$palette_json" \
+    THEME_BG="$bg" \
+    THEME_BG_SOFT="$bg_soft" \
+    THEME_SURFACE="$surface" \
+    THEME_TEXT="$text" \
+    THEME_MUTED="$muted" \
+    THEME_ACCENT="$accent" \
+    THEME_ACCENT2="$accent2" \
+    THEME_WARN="$warn" \
+    THEME_DANGER="$danger" \
+    sh "$hook" >/dev/null 2>&1 || true
+  done
 fi

@@ -33,6 +33,16 @@ Generated under `~/.cache/hypr/`:
 - `theme-colors-hyprlock.conf`
 - `theme-palette.json`
 
+## App Hook Layer
+
+`theme-sync.sh` also runs executable hooks from:
+- `~/.config/hypr/scripts/theme-hooks.d/*.sh`
+
+Each hook receives palette env vars (`THEME_BG`, `THEME_TEXT`, `THEME_ACCENT`, etc.), so additional utilities can be auto-themed without editing core scripts.
+
+Current default hook:
+- `10-btop-theme.sh` -> generates/updates `~/.config/btop/themes/NoxflowDynamic.theme` and sets `color_theme = "NoxflowDynamic"`.
+
 ## Scripts
 
 - Apply next wallpaper:
@@ -72,6 +82,9 @@ Generated under `~/.cache/hypr/`:
   - `wal` (pywal)
   - `matugen`
   - `pywalfox update` (Firefox)
+- Qt apps are forced to the Qt theming stack via Hyprland env:
+  - `QT_QPA_PLATFORMTHEME=qt6ct`
+  - `QT_STYLE_OVERRIDE=kvantum`
 - Discord/Vesktop dynamic theming is not applied automatically yet (needs client theme plugin layer).
 - PrismLauncher uses `ApplicationTheme=system` in `~/.local/share/PrismLauncher/prismlauncher.cfg`; it will follow system/Qt theme, not Waybar CSS.
 - If you want absolutely no visual transition artifacts, set:
@@ -82,3 +95,9 @@ Generated under `~/.cache/hypr/`:
 - Dynamic palette files were being imported in lower-priority order in some theme files, so static defaults won.
 - Fix applied: dynamic imports now override base defaults (Waybar/SwayNC/Rofi/Eww).
 - `swaync-client -rs` could block sync; it now runs with a timeout so downstream updates (including Kitty/VSCode) continue.
+
+## Toolkit Scope Clarification
+
+- GTK currently has stable major lines `GTK2`, `GTK3`, `GTK4`.
+- There is no mainstream `GTK5/6/7/8` stack to target today.
+- Your setup now covers GTK3/4 + Qt5/6 + terminal/UI tools with hook extensibility.
