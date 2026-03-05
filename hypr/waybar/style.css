@@ -106,19 +106,21 @@ button {
 }
 
 #workspaces button {
-  font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font", "Noto Sans", sans-serif;
-  font-size: 12px;
+  font-family: "Noto Sans", "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
+  font-size: 13px;
   color: @muted;
   margin: 0 2px;
-  padding: 1px 8px 0 8px;
+  padding: 1px 8px;
   border-radius: 9px;
   transition: all 130ms ease;
+  opacity: 0.62;
 }
 
 #workspaces button.active {
   color: #081018;
   background: linear-gradient(120deg, @accent, @accent2);
   box-shadow: 0 0 14px rgba(122, 162, 247, 0.35);
+  opacity: 1;
 }
 
 #workspaces button:hover {
@@ -138,22 +140,26 @@ button {
 #custom-overview,
 #custom-layout,
 #power-profiles-daemon,
+#custom-notifications,
 #custom-cliphist,
 #custom-power,
 #tray {
   font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font", "Noto Sans", sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   min-height: 20px;
   padding-top: 1px;
   padding-bottom: 1px;
 }
 
+#workspaces button label,
+#custom-notifications label {
+  margin-top: 1px;
+}
+
 #custom-notifications {
-  font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font", "Noto Sans", sans-serif;
-  font-size: 12px;
-  min-height: 20px;
-  padding-top: 2px;
-  padding-bottom: 0;
+  min-width: 22px;
+  padding-left: 7px;
+  padding-right: 7px;
 }
 
 #workspaces button {
