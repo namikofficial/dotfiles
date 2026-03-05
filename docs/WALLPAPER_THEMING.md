@@ -17,7 +17,9 @@
 3. Triggers sync:
 - lockscreen wallpaper sync
 - palette extraction from current wallpaper
-- runtime color files for Waybar/SwayNC/Rofi/Eww/Kitty
+- runtime color files for Waybar/SwayNC/Rofi/Eww/Kitty/Hyprlock
+- GTK3/GTK4 override CSS generation
+- VSCode dynamic workbench color update
 
 ## Runtime color files
 
@@ -28,6 +30,7 @@ Generated under `~/.cache/hypr/`:
 - `theme-colors-rofi.rasi`
 - `theme-colors-eww.scss`
 - `theme-colors-kitty.conf`
+- `theme-colors-hyprlock.conf`
 - `theme-palette.json`
 
 ## Scripts
@@ -59,5 +62,23 @@ Generated under `~/.cache/hypr/`:
 ## Notes
 
 - Kitty dynamic colors require `kitty` remote control support in running sessions (`kitty @ set-colors -a ...`).
+- Hyprlock reads `~/.cache/hypr/theme-colors-hyprlock.conf` via `source = ...` in `hypr/hyprlock.conf`.
+- GTK overrides are written to:
+  - `~/.config/gtk-3.0/gtk.css`
+  - `~/.config/gtk-4.0/gtk.css`
+- VSCode colors are merged into:
+  - `~/.config/Code/User/settings.json`
+- Optional external integrations (auto-run only if installed):
+  - `wal` (pywal)
+  - `matugen`
+  - `pywalfox update` (Firefox)
+- Discord/Vesktop dynamic theming is not applied automatically yet (needs client theme plugin layer).
+- PrismLauncher uses `ApplicationTheme=system` in `~/.local/share/PrismLauncher/prismlauncher.cfg`; it will follow system/Qt theme, not Waybar CSS.
 - If you want absolutely no visual transition artifacts, set:
 `WALLPAPER_TRANSITION_TYPE=none`
+
+## Why colors were not updating earlier
+
+- Dynamic palette files were being imported in lower-priority order in some theme files, so static defaults won.
+- Fix applied: dynamic imports now override base defaults (Waybar/SwayNC/Rofi/Eww).
+- `swaync-client -rs` could block sync; it now runs with a timeout so downstream updates (including Kitty/VSCode) continue.

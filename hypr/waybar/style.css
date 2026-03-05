@@ -23,8 +23,8 @@ window#waybar {
 .modules-left,
 .modules-center,
 .modules-right {
-  margin-top: 6px;
-  padding: 4px 10px;
+  margin-top: 1px;
+  padding: 2px 8px;
   border-radius: 14px;
   border: 1px solid rgba(122, 162, 247, 0.35);
   background: linear-gradient(180deg, rgba(32, 39, 65, 0.88), rgba(15, 17, 26, 0.9));
@@ -61,8 +61,8 @@ button {
 #tray,
 #custom-cliphist,
 #custom-power {
-  margin: 2px 2px;
-  padding: 4px 10px;
+  margin: 0 2px;
+  padding: 2px 8px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(122, 162, 247, 0.12);

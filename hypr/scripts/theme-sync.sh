@@ -11,6 +11,9 @@ swaync_colors="$cache_dir/theme-colors-swaync.css"
 rofi_colors="$cache_dir/theme-colors-rofi.rasi"
 eww_colors="$cache_dir/theme-colors-eww.scss"
 kitty_colors="$cache_dir/theme-colors-kitty.conf"
+hyprlock_colors="$cache_dir/theme-colors-hyprlock.conf"
+gtk3_css="$HOME/.config/gtk-3.0/gtk.css"
+gtk4_css="$HOME/.config/gtk-4.0/gtk.css"
 
 if [ -z "$wall" ] || [ ! -f "$wall" ]; then
   if [ -f "$HOME/.cache/current-wallpaper" ]; then
@@ -204,7 +207,35 @@ color14 ${accent}
 color15 ${text}
 EOF2
 
+cat > "$hyprlock_colors" <<EOF2
+\$lock_bg = rgb(${bg#\#})
+\$lock_fg = rgb(${text#\#})
+\$lock_accent = rgb(${accent#\#})
+EOF2
+
+mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
+cat > "$gtk3_css" <<EOF2
+@define-color theme_bg_color ${bg};
+@define-color theme_fg_color ${text};
+@define-color theme_selected_bg_color ${accent};
+@define-color theme_selected_fg_color ${bg};
+EOF2
+cp "$gtk3_css" "$gtk4_css"
+
 printf '%s\n' "$accent" > "$cache_dir/current-accent"
+
+# Optional external themers (run only if installed).
+if command -v wal >/dev/null 2>&1; then
+  timeout 15 wal -q -n -i "$wall" >/dev/null 2>&1 || true
+fi
+
+if command -v matugen >/dev/null 2>&1; then
+  timeout 20 matugen image "$wall" >/dev/null 2>&1 || true
+fi
+
+if command -v pywalfox >/dev/null 2>&1; then
+  timeout 15 pywalfox update >/dev/null 2>&1 || true
+fi
 
 if pgrep -x waybar >/dev/null 2>&1; then
   pkill -USR2 -x waybar >/dev/null 2>&1 || true
@@ -220,4 +251,30 @@ fi
 
 if command -v kitty >/dev/null 2>&1; then
   kitty @ set-colors -a "$kitty_colors" >/dev/null 2>&1 || true
+fi
+
+# VSCode dynamic palette sync (if installed/config exists).
+if [ -f "$HOME/.config/Code/User/settings.json" ]; then
+  tmp_file="$(mktemp)"
+  jq --arg bg "$bg" --arg text "$text" --arg accent "$accent" --arg muted "$muted" '
+    . + {
+      "workbench.colorCustomizations": (
+        (.["workbench.colorCustomizations"] // {}) + {
+          "editor.background": $bg,
+          "editor.foreground": $text,
+          "activityBar.background": $bg,
+          "activityBar.foreground": $text,
+          "statusBar.background": $accent,
+          "statusBar.foreground": $bg,
+          "sideBar.background": $bg,
+          "sideBar.foreground": $text,
+          "titleBar.activeBackground": $bg,
+          "titleBar.activeForeground": $text,
+          "tab.activeBackground": $bg,
+          "tab.activeForeground": $text,
+          "tab.inactiveForeground": $muted
+        }
+      )
+    }
+  ' "$HOME/.config/Code/User/settings.json" > "$tmp_file" 2>/dev/null && mv "$tmp_file" "$HOME/.config/Code/User/settings.json" || rm -f "$tmp_file"
 fi

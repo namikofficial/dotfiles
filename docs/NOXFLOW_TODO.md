@@ -28,10 +28,13 @@ Last updated: 2026-03-05
 - [x] Unify wallpaper pool handling across `~/Pictures/wallpaper` + `~/Pictures/Wallpapers` in rotation script
 - [x] Upgrade wallpaper theme sync to real palette extraction and generate runtime color overlays for Waybar/SwayNC/Rofi/Eww
 - [x] Add Kitty runtime wallpaper palette sync (`~/.cache/hypr/theme-colors-kitty.conf` + `kitty @ set-colors`)
+- [x] Add Hyprlock runtime palette sync (`~/.cache/hypr/theme-colors-hyprlock.conf` + sourced lock vars)
+- [x] Add GTK3/GTK4 wallpaper palette overrides (`~/.config/gtk-3.0/gtk.css`, `~/.config/gtk-4.0/gtk.css`)
+- [x] Add VSCode wallpaper palette merge into user settings (`workbench.colorCustomizations`)
 - [x] Document wallpaper/theming workflow and tuning knobs (`docs/WALLPAPER_THEMING.md`)
 
 ## Next
 
 - [ ] Run package installer to ensure new dependencies are present (`ttf-inter`, `smartmontools`, `nvme-cli`, `code`, `helix`)
 - [ ] Reboot and verify SDDM noxflow theme readability on real login screen
-- [ ] Capture fresh screenshots after blur/glass/animation tune and do one final spacing pass
+- [ ] Capture fresh screenshots after blur/glass/animation tune and verify latest top-bar spacing pass
