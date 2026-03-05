@@ -19,19 +19,44 @@
 (defpoll gpu_line :interval "12s"
   `sh -c '$HOME/.config/waybar/scripts/gpu.sh 2>/dev/null || echo "GPU unavailable"'`)
 
+(defpoll network_line :interval "6s"
+  `sh -c 'if nmcli -t -f STATE g 2>/dev/null | grep -q "^connected$"; then active=$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null | head -n1 | sed "s/:/ · /"); active=$(printf "%s" "$active" | cut -c1-36); [ -n "$active" ] && printf "Net %s" "$active" || echo "Net connected"; else echo "Net offline"; fi'`)
+
+(defpoll memory_line :interval "5s"
+  `sh -c 'total=$(grep -m1 "^MemTotal:" /proc/meminfo 2>/dev/null | tr -s " " | cut -d" " -f2); avail=$(grep -m1 "^MemAvailable:" /proc/meminfo 2>/dev/null | tr -s " " | cut -d" " -f2); if [ -n "$total" ] && [ -n "$avail" ] && [ "$total" -gt 0 ]; then used=$((total-avail)); printf "RAM %s%% (%s/%sG)" "$((used*100/total))" "$((used/1024/1024))" "$((total/1024/1024))"; else echo "RAM unavailable"; fi'`)
+
+(defpoll disk_line :interval "60s"
+  `sh -c 'line=$(df -h / 2>/dev/null | tail -n1 | tr -s " "); used=$(printf "%s" "$line" | cut -d" " -f5); free=$(printf "%s" "$line" | cut -d" " -f4); [ -n "$used" ] && [ -n "$free" ] && printf "Disk %s used (%s free)" "$used" "$free" || echo "Disk unavailable"'`)
+
+(defpoll uptime_line :interval "20s"
+  `sh -c 'up=$(uptime -p 2>/dev/null | sed "s/^up //"); [ -n "$up" ] && printf "Uptime %s" "$up" || echo "Uptime unavailable"'`)
+
+(defpoll volume_line :interval "3s"
+  `sh -c 'if command -v wpctl >/dev/null 2>&1; then v=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null || true); echo "$v" | grep -q MUTED && { echo "Volume muted"; exit 0; }; printf "%s" "$v" | sed "s/^Volume:[[:space:]]*/Volume /"; else echo "Volume unavailable"; fi'`)
+
+(defpoll brightness_line :interval "10s"
+  `sh -c 'if command -v brightnessctl >/dev/null 2>&1; then pct=$(brightnessctl -m 2>/dev/null | cut -d, -f4 | tr -d "%"); [ -n "$pct" ] && printf "Brightness %s%%" "$pct" || echo "Brightness unavailable"; else echo "Brightness unavailable"; fi'`)
+
+(defpoll vpn_line :interval "12s"
+  `sh -c '$HOME/.config/waybar/scripts/vpn.sh 2>/dev/null || echo "󰦞"'`)
+
 (defwidget card [icon text]
   (box :class "card" :orientation "h" :spacing 10
     (label :class "card-icon" :xalign 0 :text icon)
     (label :class "card-text" :xalign 0 :hexpand true :text text)))
+
+(defwidget action-card [icon text action]
+  (button :class "card-btn" :onclick action
+    (box :class "card card-action" :orientation "h" :spacing 10
+      (label :class "card-icon" :xalign 0 :text icon)
+      (label :class "card-text" :xalign 0 :hexpand true :text text))))
 
 (defwidget quickpanel-content []
   (box :class "quickpanel-content" :orientation "v" :spacing 10
     (card :icon "󰾅" :text battery_line)
     (card :icon "" :text profile_line)
     (card :icon "󰖐" :text weather_line)
-    (card :icon "󰎈" :text music_line)
-    (card :icon "" :text gpu_line)
-    (calendar :class "calendar")))
+    (card :icon "󰎈" :text music_line)))
 
 (defwidget quickpanel []
   (box :class "quickpanel" :orientation "v" :spacing 12
@@ -41,13 +66,46 @@
     (quickpanel-content)))
 
 (defwidget desktoppanel []
-  (box :class "desktoppanel" :orientation "v" :spacing 8
-    (label :class "desk-title" :text "Desktop Hub")
-    (label :class "desk-time" :text time_now)
-    (label :class "desk-date" :text date_now)
-    (label :class "desk-line" :text weather_line)
-    (label :class "desk-line" :text music_line)
-    (label :class "desk-line" :text gpu_line)))
+  (box :class "desktoppanel" :orientation "v" :spacing 10
+    (box :class "desk-hero" :orientation "v" :spacing 3
+      (label :class "desk-title" :text "Desktop Hub")
+      (label :class "desk-time" :text time_now)
+      (label :class "desk-date" :text date_now))
+    (box :class "desk-grid" :orientation "v" :spacing 7
+      (action-card :icon "󰖐" :text weather_line :action "~/.config/hypr/scripts/widget-actions.sh weather")
+      (action-card :icon "󰎈" :text music_line :action "~/.config/hypr/scripts/widget-actions.sh music")
+      (action-card :icon "󰍛" :text network_line :action "~/.config/hypr/scripts/widget-actions.sh network")
+      (action-card :icon "󰾅" :text battery_line :action "~/.config/hypr/scripts/widget-actions.sh power")
+      (action-card :icon "" :text memory_line :action "~/.config/hypr/scripts/widget-actions.sh ram")
+      (action-card :icon "󰋊" :text disk_line :action "~/.config/hypr/scripts/widget-actions.sh disk")
+      (action-card :icon "" :text gpu_line :action "~/.config/hypr/scripts/widget-actions.sh gpu"))
+    (box :class "desk-actions" :orientation "v" :spacing 6
+      (box :class "desk-action-row" :orientation "h" :spacing 8
+        (button :class "desk-btn" :onclick "~/.config/hypr/scripts/widget-actions.sh screenshot" "󰄄 Capture")
+        (button :class "desk-btn" :onclick "~/.config/hypr/scripts/widget-actions.sh notes" "󰠮 Notes"))
+      (box :class "desk-action-row" :orientation "h" :spacing 8
+        (button :class "desk-btn" :onclick "~/.config/hypr/scripts/widget-actions.sh apps" "󰣇 Apps")
+        (button :class "desk-btn" :onclick "~/.config/hypr/scripts/widget-actions.sh lock" "󰌾 Lock")))))
+
+(defwidget desktoppanel-right []
+  (box :class "desktoppanel desktoppanel-right" :orientation "v" :spacing 10
+    (box :class "desk-hero" :orientation "v" :spacing 3
+      (label :class "desk-title" :text "Control Dock")
+      (label :class "desk-time" :text time_now)
+      (label :class "desk-date" :text date_now))
+    (box :class "desk-grid" :orientation "v" :spacing 7
+      (action-card :icon "󰕾" :text volume_line :action "~/.config/hypr/scripts/widget-actions.sh volume")
+      (action-card :icon "󰃠" :text brightness_line :action "~/.config/hypr/scripts/widget-actions.sh brightness")
+      (action-card :icon "󰦞" :text vpn_line :action "~/.config/hypr/scripts/widget-actions.sh vpn")
+      (action-card :icon "󰔚" :text uptime_line :action "~/.config/hypr/scripts/widget-actions.sh logs")
+      (action-card :icon "" :text profile_line :action "~/.config/hypr/scripts/widget-actions.sh power"))
+    (box :class "desk-actions" :orientation "v" :spacing 6
+      (box :class "desk-action-row" :orientation "h" :spacing 8
+        (button :class "desk-btn" :onclick "~/.config/hypr/scripts/widget-actions.sh quick-actions" "󰒓 Actions")
+        (button :class "desk-btn" :onclick "~/.config/hypr/scripts/widget-actions.sh workspace" "󱂬 Workspaces"))
+      (box :class "desk-action-row" :orientation "h" :spacing 8
+        (button :class "desk-btn" :onclick "~/.config/hypr/scripts/widget-actions.sh screenshot" "󰄄 Capture")
+        (button :class "desk-btn" :onclick "~/.config/hypr/scripts/widget-actions.sh notes" "󰠮 Notes")))))
 
 (defwindow quickpanel
   :monitor 0
@@ -55,8 +113,8 @@
   :stacking "fg"
   :exclusive false
   :geometry (geometry :x "14px"
-                      :y "60px"
-                      :width "338px"
+                      :y "56px"
+                      :width "296px"
                       :height "0px"
                       :anchor "top right")
   (quickpanel))
@@ -67,8 +125,20 @@
   :stacking "bg"
   :exclusive false
   :geometry (geometry :x "28px"
-                      :y "84px"
-                      :width "340px"
+                      :y "74px"
+                      :width "286px"
                       :height "0px"
                       :anchor "top left")
   (desktoppanel))
+
+(defwindow desktoppanel_right
+  :monitor 0
+  :focusable false
+  :stacking "bg"
+  :exclusive false
+  :geometry (geometry :x "28px"
+                      :y "74px"
+                      :width "286px"
+                      :height "0px"
+                      :anchor "top right")
+  (desktoppanel-right))
