@@ -27,6 +27,8 @@ Last updated: 2026-03-05
 - [x] Add wallpaper source downloader/importer workflow (`setup/fetch-wallpaper-sources.sh`, `hypr/scripts/wallpaper-import.sh`)
 - [x] Unify wallpaper pool handling across `~/Pictures/wallpaper` + `~/Pictures/Wallpapers` in rotation script
 - [x] Upgrade wallpaper theme sync to real palette extraction and generate runtime color overlays for Waybar/SwayNC/Rofi/Eww
+- [x] Add Kitty runtime wallpaper palette sync (`~/.cache/hypr/theme-colors-kitty.conf` + `kitty @ set-colors`)
+- [x] Document wallpaper/theming workflow and tuning knobs (`docs/WALLPAPER_THEMING.md`)
 
 ## Next
 

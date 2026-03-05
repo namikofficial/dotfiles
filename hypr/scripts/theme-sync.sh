@@ -10,6 +10,7 @@ waybar_colors="$cache_dir/theme-colors-waybar.css"
 swaync_colors="$cache_dir/theme-colors-swaync.css"
 rofi_colors="$cache_dir/theme-colors-rofi.rasi"
 eww_colors="$cache_dir/theme-colors-eww.scss"
+kitty_colors="$cache_dir/theme-colors-kitty.conf"
 
 if [ -z "$wall" ] || [ ! -f "$wall" ]; then
   if [ -f "$HOME/.cache/current-wallpaper" ]; then
@@ -178,6 +179,31 @@ cat > "$eww_colors" <<EOF2
 \$accent2: ${accent2};
 EOF2
 
+cat > "$kitty_colors" <<EOF2
+foreground ${text}
+background ${bg}
+selection_foreground ${bg}
+selection_background ${accent}
+cursor ${accent}
+cursor_text_color ${bg}
+color0  ${bg}
+color1  ${danger}
+color2  ${accent2}
+color3  ${warn}
+color4  ${accent}
+color5  ${accent2}
+color6  ${accent}
+color7  ${text}
+color8  ${bg_soft}
+color9  ${danger}
+color10 ${accent2}
+color11 ${warn}
+color12 ${accent}
+color13 ${accent2}
+color14 ${accent}
+color15 ${text}
+EOF2
+
 printf '%s\n' "$accent" > "$cache_dir/current-accent"
 
 if pgrep -x waybar >/dev/null 2>&1; then
@@ -185,9 +211,13 @@ if pgrep -x waybar >/dev/null 2>&1; then
 fi
 
 if command -v swaync-client >/dev/null 2>&1; then
-  swaync-client -rs >/dev/null 2>&1 || true
+  timeout 3 swaync-client -rs >/dev/null 2>&1 || true
 fi
 
 if command -v eww >/dev/null 2>&1 && [ -d "$HOME/.config/eww" ]; then
   eww --config "$HOME/.config/eww" reload >/dev/null 2>&1 || true
+fi
+
+if command -v kitty >/dev/null 2>&1; then
+  kitty @ set-colors -a "$kitty_colors" >/dev/null 2>&1 || true
 fi

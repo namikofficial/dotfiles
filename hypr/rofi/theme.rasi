@@ -1,5 +1,3 @@
-@import "/home/namik/.cache/hypr/theme-colors-rofi.rasi"
-
 * {
     font: "JetBrainsMono Nerd Font 12";
 
@@ -17,6 +15,8 @@
     background-color: transparent;
     text-color: @fg;
 }
+
+@import "/home/namik/.cache/hypr/theme-colors-rofi.rasi"
 
 window {
     location: center;

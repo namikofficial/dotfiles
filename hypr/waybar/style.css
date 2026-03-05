@@ -1,5 +1,3 @@
-@import url("/home/namik/.cache/hypr/theme-colors-waybar.css");
-
 * {
   font-family: "Inter", "Noto Sans", "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
   font-size: 12px;
@@ -15,6 +13,7 @@
 @define-color accent2 #c678dd;
 @define-color warn #ff966c;
 @define-color danger #ff757f;
+@import url("/home/namik/.cache/hypr/theme-colors-waybar.css");
 
 window#waybar {
   background: transparent;

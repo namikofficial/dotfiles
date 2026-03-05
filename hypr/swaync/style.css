@@ -1,5 +1,3 @@
-@import url("/home/namik/.cache/hypr/theme-colors-swaync.css");
-
 @define-color bg #0f111a;
 @define-color bg_soft #161a26;
 @define-color surface #1f2335;
@@ -9,6 +7,7 @@
 @define-color accent2 #4fd6be;
 @define-color warn #ff966c;
 @define-color danger #ff757f;
+@import url("/home/namik/.cache/hypr/theme-colors-swaync.css");
 
 * {
   font-family: "Inter", "Noto Sans", "JetBrainsMono Nerd Font", sans-serif;

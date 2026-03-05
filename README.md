@@ -133,6 +133,7 @@ Launcher performance note:
 - fast mode (`launcher.sh --fast`) skips icon rendering for near-instant open
 
 Full keybind tables: `docs/KEYBINDS.md`
+Wallpaper/theming pipeline: `docs/WALLPAPER_THEMING.md`
 
 ## Shell UX highlights
 
