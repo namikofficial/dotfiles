@@ -46,6 +46,18 @@ run_cmd_if_not() {
   fi
 }
 
+ensure_single_process() {
+  name="$1"
+  pids="$(pgrep -x "$name" 2>/dev/null || true)"
+  [ -n "$pids" ] || return 0
+  keep="$(printf '%s\n' "$pids" | head -n1)"
+  printf '%s\n' "$pids" | while IFS= read -r pid; do
+    [ -n "$pid" ] || continue
+    [ "$pid" = "$keep" ] && continue
+    kill "$pid" >/dev/null 2>&1 || true
+  done
+}
+
 # Warm launcher cache first so Super+Space opens immediately.
 if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
   "$HOME/.config/hypr/scripts/launcher.sh" --warm-cache >/dev/null 2>&1 &
@@ -62,9 +74,11 @@ if [ "${HYPR_ENABLE_NM_APPLET:-0}" = "1" ]; then
   run_once nm-applet nm-applet
 fi
 run_once blueman-applet blueman-applet
-run_cmd_if_not '(^|/)udiskie( |$)' udiskie --tray
+run_cmd_if_not '(^|/)udiskie( .*)?$' udiskie --smart-tray --menu nested --no-appindicator
+ensure_single_process udiskie
 run_once avizo-service avizo-service
 run_once waybar waybar
+ensure_single_process waybar
 run_once kanshi kanshi
 run_once hypridle hypridle
 run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
