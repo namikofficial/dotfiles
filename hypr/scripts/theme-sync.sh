@@ -15,6 +15,19 @@ kitty_colors="$cache_dir/theme-colors-kitty.conf"
 hyprlock_colors="$cache_dir/theme-colors-hyprlock.conf"
 gtk3_css="$HOME/.config/gtk-3.0/gtk.css"
 gtk4_css="$HOME/.config/gtk-4.0/gtk.css"
+qt5_colors_dir="$HOME/.config/qt5ct/colors"
+qt6_colors_dir="$HOME/.config/qt6ct/colors"
+qt5_scheme="$qt5_colors_dir/NoxflowDynamic.conf"
+qt6_scheme="$qt6_colors_dir/NoxflowDynamic.conf"
+qt5_conf="$HOME/.config/qt5ct/qt5ct.conf"
+qt6_conf="$HOME/.config/qt6ct/qt6ct.conf"
+kdeglobals="$HOME/.config/kdeglobals"
+waybar_before_hash=""
+waybar_after_hash=""
+
+if [ -f "$waybar_colors" ]; then
+  waybar_before_hash="$(sha256sum "$waybar_colors" | awk '{print $1}')"
+fi
 
 if [ -z "$wall" ] || [ ! -f "$wall" ]; then
   if [ -f "$HOME/.cache/current-wallpaper" ]; then
@@ -59,37 +72,70 @@ def sat(rgb):
     r, g, b = [c / 255 for c in rgb]
     return colorsys.rgb_to_hsv(r, g, b)[1]
 
+def hue(rgb):
+    r, g, b = [c / 255 for c in rgb]
+    return colorsys.rgb_to_hsv(r, g, b)[0]
+
 def blend(a, b, t):
     return tuple(int(round(a[i] * (1 - t) + b[i] * t)) for i in range(3))
 
 def to_hex(rgb):
     return "#%02x%02x%02x" % rgb
 
+def contrast_ratio(a, b):
+    la = lum(a)
+    lb = lum(b)
+    l1, l2 = (la, lb) if la >= lb else (lb, la)
+    return (l1 + 0.05) / (l2 + 0.05)
+
 sorted_by_lum = sorted([rgb for _, rgb in colors], key=lum)
 bg_raw = sorted_by_lum[0]
 bg = blend(bg_raw, (10, 14, 24), 0.50)
 surface = blend(bg, (255, 255, 255), 0.12)
 
-candidates = sorted([rgb for _, rgb in colors], key=lambda c: (sat(c), -lum(c)), reverse=True)
-accent = None
+candidates = [rgb for _, rgb in colors]
+
+scored = []
 for rgb in candidates:
+    s = sat(rgb)
     l = lum(rgb)
-    if 0.20 <= l <= 0.86 and sat(rgb) >= 0.18:
-        accent = rgb
-        break
-if accent is None:
+    c_bg = contrast_ratio(rgb, bg)
+    # Bias toward vivid, readable, mid-light accents.
+    score = (s * 1.9) + (c_bg * 0.7) - abs(l - 0.56)
+    if 0.16 <= l <= 0.88 and s >= 0.14 and c_bg >= 1.6:
+        scored.append((score, rgb))
+
+if scored:
+    scored.sort(reverse=True, key=lambda x: x[0])
+    accent = scored[0][1]
+else:
     accent = (122, 162, 247)
 
+accent_h = hue(accent)
 accent2 = None
+best2 = -999.0
 for rgb in candidates:
     if rgb == accent:
         continue
-    dist = sum(abs(rgb[i] - accent[i]) for i in range(3))
-    if dist >= 90:
+    s = sat(rgb)
+    l = lum(rgb)
+    c_bg = contrast_ratio(rgb, bg)
+    h = hue(rgb)
+    dh = abs(h - accent_h)
+    dh = min(dh, 1 - dh)
+    score = (dh * 2.2) + (s * 1.1) + (c_bg * 0.5) - abs(l - 0.54)
+    if 0.14 <= l <= 0.9 and s >= 0.1 and c_bg >= 1.45 and score > best2:
+        best2 = score
         accent2 = rgb
-        break
+
 if accent2 is None:
     accent2 = (79, 214, 190)
+
+# Enforce readability against dark background.
+if contrast_ratio(accent, bg) < 2.0:
+    accent = blend(accent, (255, 255, 255), 0.18)
+if contrast_ratio(accent2, bg) < 1.9:
+    accent2 = blend(accent2, (255, 255, 255), 0.16)
 
 text = (232, 238, 252) if lum(bg) < 0.42 else (18, 24, 37)
 muted = blend(text, bg, 0.38)
@@ -136,6 +182,13 @@ accent="$(read_color accent)"
 accent2="$(read_color accent2)"
 warn="$(read_color warn)"
 danger="$(read_color danger)"
+bg_rgb="$(hex_to_rgb_csv "$bg")"
+bg_soft_rgb="$(hex_to_rgb_csv "$bg_soft")"
+surface_rgb="$(hex_to_rgb_csv "$surface")"
+text_rgb="$(hex_to_rgb_csv "$text")"
+muted_rgb="$(hex_to_rgb_csv "$muted")"
+accent_rgb="$(hex_to_rgb_csv "$accent")"
+accent2_rgb="$(hex_to_rgb_csv "$accent2")"
 
 cat > "$waybar_colors" <<EOF2
 @define-color bg ${bg};
@@ -148,6 +201,10 @@ cat > "$waybar_colors" <<EOF2
 @define-color warn ${warn};
 @define-color danger ${danger};
 EOF2
+
+if [ -f "$waybar_colors" ]; then
+  waybar_after_hash="$(sha256sum "$waybar_colors" | awk '{print $1}')"
+fi
 
 cat > "$swaync_colors" <<EOF2
 @define-color bg ${bg};
@@ -223,6 +280,114 @@ cat > "$gtk3_css" <<EOF2
 EOF2
 cp "$gtk3_css" "$gtk4_css"
 
+mkdir -p "$qt5_colors_dir" "$qt6_colors_dir"
+cat > "$qt5_scheme" <<EOF2
+[ColorScheme]
+active_colors=$text_rgb
+disabled_colors=$muted_rgb
+inactive_colors=$muted_rgb
+
+[Colors:Window]
+BackgroundNormal=$bg_rgb
+BackgroundAlternate=$bg_soft_rgb
+ForegroundNormal=$text_rgb
+ForegroundInactive=$muted_rgb
+ForegroundActive=$accent_rgb
+
+[Colors:View]
+BackgroundNormal=$surface_rgb
+BackgroundAlternate=$bg_soft_rgb
+ForegroundNormal=$text_rgb
+ForegroundInactive=$muted_rgb
+ForegroundActive=$accent_rgb
+DecorationFocus=$accent_rgb
+DecorationHover=$accent2_rgb
+
+[Colors:Button]
+BackgroundNormal=$bg_soft_rgb
+BackgroundAlternate=$surface_rgb
+ForegroundNormal=$text_rgb
+ForegroundInactive=$muted_rgb
+ForegroundActive=$accent_rgb
+
+[Colors:Selection]
+BackgroundNormal=$accent_rgb
+BackgroundAlternate=$accent2_rgb
+ForegroundNormal=$bg_rgb
+ForegroundInactive=$bg_rgb
+ForegroundActive=$bg_rgb
+
+[Colors:Tooltip]
+BackgroundNormal=$surface_rgb
+ForegroundNormal=$text_rgb
+EOF2
+cp "$qt5_scheme" "$qt6_scheme"
+
+set_qtct_value() {
+  conf="$1"
+  key="$2"
+  val="$3"
+  [ -f "$conf" ] || return 0
+  if grep -q "^$key=" "$conf"; then
+    sed -i "s|^$key=.*|$key=$val|" "$conf" || true
+  else
+    # Place in [Appearance] if present, otherwise append.
+    if grep -q '^\[Appearance\]' "$conf"; then
+      awk -v k="$key" -v v="$val" '
+        BEGIN {done=0}
+        /^\[Appearance\]/ {print; print k "=" v; done=1; next}
+        {print}
+        END {if (!done) print k "=" v}
+      ' "$conf" > "$conf.tmp" && mv "$conf.tmp" "$conf"
+    else
+      printf '\n%s=%s\n' "$key" "$val" >> "$conf"
+    fi
+  fi
+}
+
+set_qtct_value "$qt5_conf" "color_scheme_path" "$qt5_scheme"
+set_qtct_value "$qt6_conf" "color_scheme_path" "$qt6_scheme"
+set_qtct_value "$qt5_conf" "icon_theme" "Papirus-Dark"
+set_qtct_value "$qt6_conf" "icon_theme" "Papirus-Dark"
+
+cat > "$kdeglobals" <<EOF2
+[General]
+ColorScheme=NoxflowDynamic
+
+[Icons]
+Theme=Papirus-Dark
+
+[KDE]
+widgetStyle=kvantum
+
+[Colors:Window]
+BackgroundNormal=$bg_rgb
+BackgroundAlternate=$bg_soft_rgb
+ForegroundNormal=$text_rgb
+ForegroundInactive=$muted_rgb
+ForegroundActive=$accent_rgb
+
+[Colors:View]
+BackgroundNormal=$surface_rgb
+BackgroundAlternate=$bg_soft_rgb
+ForegroundNormal=$text_rgb
+ForegroundInactive=$muted_rgb
+ForegroundActive=$accent_rgb
+DecorationFocus=$accent_rgb
+DecorationHover=$accent2_rgb
+
+[Colors:Button]
+BackgroundNormal=$bg_soft_rgb
+BackgroundAlternate=$surface_rgb
+ForegroundNormal=$text_rgb
+ForegroundInactive=$muted_rgb
+ForegroundActive=$accent_rgb
+
+[Colors:Selection]
+BackgroundNormal=$accent_rgb
+ForegroundNormal=$bg_rgb
+EOF2
+
 printf '%s\n' "$accent" > "$cache_dir/current-accent"
 
 # Optional external themers (run only if installed).
@@ -238,7 +403,7 @@ if command -v pywalfox >/dev/null 2>&1; then
   timeout 15 pywalfox update >/dev/null 2>&1 || true
 fi
 
-if pgrep -x waybar >/dev/null 2>&1; then
+if pgrep -x waybar >/dev/null 2>&1 && [ "$waybar_before_hash" != "$waybar_after_hash" ]; then
   pkill -USR2 -x waybar >/dev/null 2>&1 || true
 fi
 
