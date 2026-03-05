@@ -419,30 +419,60 @@ if command -v kitty >/dev/null 2>&1; then
   kitty @ set-colors -a "$kitty_colors" >/dev/null 2>&1 || true
 fi
 
-# VSCode dynamic palette sync (if installed/config exists).
+# VSCode dynamic palette sync (JSONC-tolerant).
 if [ -f "$HOME/.config/Code/User/settings.json" ]; then
-  tmp_file="$(mktemp)"
-  jq --arg bg "$bg" --arg text "$text" --arg accent "$accent" --arg muted "$muted" '
-    . + {
-      "workbench.colorCustomizations": (
-        (.["workbench.colorCustomizations"] // {}) + {
-          "editor.background": $bg,
-          "editor.foreground": $text,
-          "activityBar.background": $bg,
-          "activityBar.foreground": $text,
-          "statusBar.background": $accent,
-          "statusBar.foreground": $bg,
-          "sideBar.background": $bg,
-          "sideBar.foreground": $text,
-          "titleBar.activeBackground": $bg,
-          "titleBar.activeForeground": $text,
-          "tab.activeBackground": $bg,
-          "tab.activeForeground": $text,
-          "tab.inactiveForeground": $muted
-        }
-      )
+  python3 - "$HOME/.config/Code/User/settings.json" "$bg" "$text" "$accent" "$muted" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+bg, text, accent, muted = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+
+raw = path.read_text(encoding="utf-8")
+
+def strip_jsonc(s: str) -> str:
+    # Remove // and /* */ comments.
+    s = re.sub(r"//.*?$", "", s, flags=re.MULTILINE)
+    s = re.sub(r"/\*.*?\*/", "", s, flags=re.DOTALL)
+    # Remove trailing commas before } or ].
+    s = re.sub(r",(\s*[}\]])", r"\1", s)
+    return s
+
+try:
+    data = json.loads(strip_jsonc(raw))
+except Exception:
+    data = {}
+
+if not isinstance(data, dict):
+    data = {}
+
+cc = data.get("workbench.colorCustomizations")
+if not isinstance(cc, dict):
+    cc = {}
+
+cc.update(
+    {
+        "editor.background": bg,
+        "editor.foreground": text,
+        "activityBar.background": bg,
+        "activityBar.foreground": text,
+        "statusBar.background": accent,
+        "statusBar.foreground": bg,
+        "sideBar.background": bg,
+        "sideBar.foreground": text,
+        "titleBar.activeBackground": bg,
+        "titleBar.activeForeground": text,
+        "tab.activeBackground": bg,
+        "tab.activeForeground": text,
+        "tab.inactiveForeground": muted,
     }
-  ' "$HOME/.config/Code/User/settings.json" > "$tmp_file" 2>/dev/null && mv "$tmp_file" "$HOME/.config/Code/User/settings.json" || rm -f "$tmp_file"
+)
+
+data["workbench.colorCustomizations"] = cc
+path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+PY
 fi
 
 # Optional per-app hooks for extra utilities (btop, custom tools, etc.).

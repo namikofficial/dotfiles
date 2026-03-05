@@ -4,6 +4,11 @@ set -eu
 notes_dir="${NOXFLOW_NOTES_DIR:-$HOME/Documents/notes}"
 mkdir -p "$notes_dir"
 
+if [ -x "$HOME/.config/hypr/scripts/vscode-launcher.sh" ]; then
+  "$HOME/.config/hypr/scripts/vscode-launcher.sh" "$notes_dir" >/dev/null 2>&1 &
+  exit 0
+fi
+
 if command -v code >/dev/null 2>&1; then
   code "$notes_dir" >/dev/null 2>&1 &
   exit 0
