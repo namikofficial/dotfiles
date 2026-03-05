@@ -210,6 +210,22 @@ handle_selection() {
 
 handle_script_mode() {
   local mode="${1:-all}"
+  local mode_label="All"
+
+  case "$mode" in
+    daily) mode_label="Daily" ;;
+    keyboard) mode_label="Keyboard" ;;
+    hyprland) mode_label="Hyprland" ;;
+    zsh_aliases) mode_label="Zsh Aliases" ;;
+    git) mode_label="Git" ;;
+    docker) mode_label="Docker" ;;
+    neovim) mode_label="Neovim" ;;
+    tmux_zellij) mode_label="Tmux/Zellij" ;;
+    system) mode_label="System" ;;
+    plugins) mode_label="Plugins" ;;
+    configs) mode_label="Configs" ;;
+    custom) mode_label="Custom" ;;
+  esac
 
   bootstrap_defaults
   need_cache_rebuild && build_cache
@@ -224,8 +240,8 @@ handle_script_mode() {
     exit 0
   fi
 
-  printf '\0prompt\x1fDev Cheatsheet\n'
-  printf '\0message\x1fType to search | Ctrl+Tab switch tabs | Enter/Ctrl+Y copy | Esc close\n'
+  printf '\0prompt\x1fDev Cheatsheet (%s)\n' "$mode_label"
+  printf '\0message\x1fTab: %s | Type to search | Ctrl+Tab switch tabs | Enter/Ctrl+Y copy | Esc close\n' "$mode_label"
   print_mode_rows "$mode"
 }
 
