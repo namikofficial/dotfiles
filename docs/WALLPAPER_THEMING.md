@@ -75,6 +75,10 @@ Current default hooks:
 - `WALLPAPER_TRANSITION_DURATION`
 - `WALLPAPER_TRANSITION_STEP`
 - `WALLPAPER_DIRS` (colon-separated pool list)
+- `WALLPAPER_ROTATE_MODE` (`daily` default, or `interval`)
+- `WALLPAPER_ROTATE_CHECK_INTERVAL` (seconds, daily mode check cadence, default `600`)
+- `WALLPAPER_ROTATE_INTERVAL` (seconds, interval mode only, default `1800`)
+- `WALLPAPER_ROTATE_STATE_FILE` (daily mode state file, default `~/.cache/hypr/wallpaper-last-rotate-date`)
 - `WALL_SOURCE_ROOT` (for source downloader)
 - `WALL_GIT_TIMEOUT_SECONDS`
 - `WALL_UPDATE_EXISTING=1` to pull existing clones
