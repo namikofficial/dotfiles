@@ -610,7 +610,14 @@ if [ -f "$DOTFILES_HOME/aliases.local.zsh" ]; then
 fi
 
 # Custom helpers
-alias fix-time="sudo timedatectl set-ntp true && sudo systemctl restart chrony && sudo chronyc makestep"
+fix-time() {
+  sudo timedatectl set-ntp true || return 1
+  if command -v chronyc >/dev/null 2>&1; then
+    sudo systemctl restart chronyd >/dev/null 2>&1 || sudo systemctl restart chrony >/dev/null 2>&1 || true
+    sudo chronyc makestep >/dev/null 2>&1 || true
+  fi
+  timedatectl status | sed -n '1,20p'
+}
 
 # Starship prompt (should be last)
 eval "$(starship init zsh)"
