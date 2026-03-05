@@ -104,11 +104,22 @@ file_mtime_epoch() {
 
 cache_is_fresh() {
   [ -s "$CACHE_FILE" ] || return 1
-  local now mtime age
+  local now mtime age app_dir
   now="$(date +%s)"
   mtime="$(file_mtime_epoch "$CACHE_FILE")"
   age=$((now - mtime))
-  [ "$age" -lt "$CACHE_TTL_SECONDS" ]
+  [ "$age" -lt "$CACHE_TTL_SECONDS" ] || return 1
+
+  # If desktop app directories changed after cache creation, rebuild now.
+  for app_dir in \
+    "$HOME/.local/share/applications" \
+    /usr/local/share/applications \
+    /usr/share/applications; do
+    [ -d "$app_dir" ] || continue
+    [ "$(file_mtime_epoch "$app_dir")" -le "$mtime" ] || return 1
+  done
+
+  return 0
 }
 
 schedule_cache_refresh() {

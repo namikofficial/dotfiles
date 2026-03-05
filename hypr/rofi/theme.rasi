@@ -1,3 +1,5 @@
+@import "/home/namik/.cache/hypr/theme-colors-rofi.rasi"
+
 * {
     font: "JetBrainsMono Nerd Font 12";
 

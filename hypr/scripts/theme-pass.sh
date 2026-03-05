@@ -35,4 +35,8 @@ if command -v hyprctl >/dev/null 2>&1; then
   hyprctl reload >/dev/null 2>&1 || true
 fi
 
+if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
+  "$HOME/.config/hypr/scripts/launcher.sh" --rebuild-cache >/dev/null 2>&1 || true
+fi
+
 notify "Theme pass applied" "GTK/Qt + Waybar/SwayNC/Eww synced"

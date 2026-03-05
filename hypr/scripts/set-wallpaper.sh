@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
-wall_dir="$HOME/Pictures/Wallpapers"
+wall_dirs="${WALLPAPER_DIRS:-$HOME/Pictures/wallpaper:$HOME/Pictures/Wallpapers}"
 fallback_wall="$HOME/.cache/wallpapers/fallback-4k.png"
-mkdir -p "$wall_dir"
+mkdir -p "$HOME/Pictures/wallpaper" "$HOME/Pictures/Wallpapers"
 
 ensure_fallback_wall() {
   mkdir -p "$HOME/.cache/wallpapers"
@@ -22,7 +22,13 @@ ensure_fallback_wall() {
 }
 
 pick_wall() {
-  find "$wall_dir" -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \) | sort
+  old_ifs="$IFS"
+  IFS=':'
+  for dir in $wall_dirs; do
+    [ -d "$dir" ] || continue
+    find "$dir" -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \)
+  done | sort -u
+  IFS="$old_ifs"
 }
 
 pick_random_wall() {
@@ -84,22 +90,61 @@ write_wall_cache() {
 apply_wallpaper() {
   wall="$1"
   transition="$2"
-  transition_type="${WALLPAPER_TRANSITION_TYPE:-random}"
+  transition_type="${WALLPAPER_TRANSITION_TYPE:-fade}"
   transition_fps="${WALLPAPER_TRANSITION_FPS:-120}"
   transition_duration="${WALLPAPER_TRANSITION_DURATION:-1.3}"
   transition_step="${WALLPAPER_TRANSITION_STEP:-90}"
+  resize_mode="${WALLPAPER_RESIZE_MODE:-crop}"
+
+  prepared_wall="$(prepare_wall "$wall")"
 
   if [ "$transition" = "init" ]; then
-    swww img "$wall" --resize fit --transition-type any --transition-fps "$transition_fps" --transition-duration 1
+    swww clear 000000 >/dev/null 2>&1 || true
+    swww img "$prepared_wall" --resize "$resize_mode" --transition-type fade --transition-fps "$transition_fps" --transition-duration 1
     return 0
   fi
 
-  swww img "$wall" \
-    --resize fit \
+  swww clear 000000 >/dev/null 2>&1 || true
+  swww img "$prepared_wall" \
+    --resize "$resize_mode" \
     --transition-type "$transition_type" \
     --transition-step "$transition_step" \
     --transition-fps "$transition_fps" \
     --transition-duration "$transition_duration"
+}
+
+prepare_wall() {
+  src="$1"
+  ext="$(printf '%s' "${src##*.}" | tr '[:upper:]' '[:lower:]')"
+
+  case "$ext" in
+    png|webp)
+      out_dir="$HOME/.cache/wallpapers/prepared"
+      mkdir -p "$out_dir"
+      key="$(printf '%s' "$src" | cksum | awk '{print $1}')"
+      out_file="$out_dir/${key}.jpg"
+
+      if [ ! -f "$out_file" ] || [ "$src" -nt "$out_file" ]; then
+        python3 - "$src" "$out_file" <<'PY'
+from PIL import Image
+import sys
+
+src, dst = sys.argv[1], sys.argv[2]
+im = Image.open(src)
+if "A" in im.getbands():
+    bg = Image.new("RGB", im.size, (11, 15, 24))
+    bg.paste(im, mask=im.getchannel("A"))
+    bg.save(dst, "JPEG", quality=95)
+else:
+    im.convert("RGB").save(dst, "JPEG", quality=95)
+PY
+      fi
+      printf '%s\n' "$out_file"
+      return 0
+      ;;
+  esac
+
+  printf '%s\n' "$src"
 }
 
 wayland_ready() {
