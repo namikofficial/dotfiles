@@ -27,7 +27,7 @@ entries="$({
     map(select(.workspace.id > 0))
     | sort_by(.workspace.id, .address)
     | .[]
-    | "\(.workspace.id)\twindow\t󰖯  [\(.workspace.id)] \((.class // \"app\")) - \((.title // \"untitled\"))\t\(.address)"
+    | "\(.workspace.id)\twindow\t󰖯  [\(.workspace.id)] \((.class // "app")) - \((.title // "untitled"))\t\(.address)"
   '
 } | awk 'NF' | sort -n -k1,1)"
 
