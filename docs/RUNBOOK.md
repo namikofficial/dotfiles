@@ -10,6 +10,14 @@ sudo reboot
 ~/Documents/code/dotfiles/setup/post-reboot-verify.sh
 ```
 
+## One-time Safety Setup (recommended)
+
+```bash
+sudo ~/Documents/code/dotfiles/setup/configure-timeshift.sh
+```
+
+This enables daily Timeshift automation and keeps only the latest 5 daily snapshots.
+
 ## Flow
 
 ```mermaid

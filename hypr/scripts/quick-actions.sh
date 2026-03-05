@@ -29,86 +29,76 @@ fi
 stop_if_running "$other_pid_file" || true
 
 actions=(
-  "󰖩  Toggle Wi-Fi"
-  "󰖪  Toggle Network Applet"
-  "󰂯  Toggle Bluetooth"
-  "󰍹  Workspace Overview"
-  "󰕾  Audio Mixer"
-  "󰒓  Bluetooth Manager"
-  "󰍜  Network Manager"
-  "󰍉  Toggle Mic Mute"
-  "󰚩  AI Helper Menu"
-  "󰘦  AI Shell Command"
-  "󱞁  AI Clipboard Summary"
-  "󰚰  System Update"
-  "󰸉  Next Wallpaper"
-  "󰋊  Screenshot Area"
-  "󰍹  Screenshot Full"
-  "󰓝  OCR Area -> Clipboard"
-  "󰑊  Toggle Screen Record"
-  "󰍹  Toggle Layout (Master/Dwindle)"
-  "󰍸  Toggle Floating Grid"
-  "󰫌  Toggle Widget Panel (quick)"
-  "󰫌  Toggle Desktop Widgets"
-  "󰕮  Toggle Panel Engine"
-  "󰕮  Toggle Panel Visibility"
-  "󰖨  Restart Waybar"
-  "󰏢  Copy Notification Summary"
-  "󰸌  Apply Theme Pass"
-  "󰏘  Pick Color"
-  "󰖔  Toggle Night Light"
-  "󰓃  Toggle Notifications"
-  "󱐋  Toggle DND"
-  "󰆴  Clear All Notifications"
-  "󰾆  Power Saver Profile"
-  "󱐤  Performance Profile"
-  "󰒓  System Monitor"
-  "󰌾  Lock Screen"
+  "Toggle Wi-Fi"
+  "Toggle Network Applet"
+  "Toggle Bluetooth"
+  "Workspace Overview"
+  "Audio Mixer"
+  "Bluetooth Manager"
+  "Network Manager"
+  "Toggle Mic Mute"
+  "AI Helper Menu"
+  "AI Shell Command"
+  "AI Clipboard Summary"
+  "System Update"
+  "Next Wallpaper"
+  "Screenshot Area"
+  "Screenshot Full"
+  "OCR Area -> Clipboard"
+  "Toggle Screen Record"
+  "Toggle Layout (Master/Dwindle)"
+  "Toggle Floating Grid"
+  "Toggle Widget Panel (quick)"
+  "Toggle Desktop Widgets"
+  "Toggle Panel Engine"
+  "Toggle Panel Visibility"
+  "Restart Waybar"
+  "Copy Notification Summary"
+  "Show Keybind Cheat Sheet"
+  "Apply Theme Pass"
+  "Pick Color"
+  "Toggle Night Light"
+  "Toggle Notifications"
+  "Toggle DND"
+  "Clear All Notifications"
+  "Power Saver Profile"
+  "Performance Profile"
+  "System Monitor"
+  "Lock Screen"
 )
 
+hint_for_index() {
+  case "$1" in
+    0) echo 'Ctrl+1' ;;
+    1) echo 'Ctrl+2' ;;
+    2) echo 'Ctrl+3' ;;
+    3) echo 'Ctrl+4' ;;
+    4) echo 'Ctrl+5' ;;
+    5) echo 'Ctrl+6' ;;
+    6) echo 'Ctrl+7' ;;
+    7) echo 'Ctrl+8' ;;
+    8) echo 'Ctrl+9' ;;
+    9) echo 'Ctrl+0' ;;
+    *) echo '--' ;;
+  esac
+}
+
 render_menu() {
-  local action hint idx=0
-  local max_action=0
-  local action_width=42
+  local action idx max_width=0 width hint
 
   for action in "${actions[@]}"; do
-    if [ "${#action}" -gt 52 ]; then
-      action="${action:0:49}..."
-    fi
-    if [ "${#action}" -gt "$max_action" ]; then
-      max_action="${#action}"
-    fi
+    [ "${#action}" -gt "$max_width" ] && max_width="${#action}"
   done
 
-  if [ "$max_action" -gt 36 ]; then
-    action_width="$max_action"
-  fi
-  if [ "$action_width" -gt 56 ]; then
-    action_width=56
-  fi
+  width=$((max_width + 2))
+  [ "$width" -lt 30 ] && width=30
+  [ "$width" -gt 56 ] && width=56
 
-  for action in "${actions[@]}"; do
-    if [ "${#action}" -gt 52 ]; then
-      action="${action:0:49}..."
-    fi
-
-    case "$idx" in
-      0) hint='Ctrl+1' ;;
-      1) hint='Ctrl+2' ;;
-      2) hint='Ctrl+3' ;;
-      3) hint='Ctrl+4' ;;
-      4) hint='Ctrl+5' ;;
-      5) hint='Ctrl+6' ;;
-      6) hint='Ctrl+7' ;;
-      7) hint='Ctrl+8' ;;
-      8) hint='Ctrl+9' ;;
-      9) hint='Ctrl+0' ;;
-      *) hint='Ctrl+1..0' ;;
-    esac
-
-    printf -v action '%-*s' "$action_width" "$action"
-    printf '%s | %9s\n' "$action" "$hint"
-    idx=$((idx + 1))
+  for idx in "${!actions[@]}"; do
+    action="${actions[$idx]}"
+    [ "${#action}" -gt 56 ] && action="${action:0:53}..."
+    hint="$(hint_for_index "$idx")"
+    printf '%-*s | quick | %7s\n' "$width" "$action" "$hint"
   done
 }
 
@@ -117,7 +107,7 @@ choice_index="$(
   render_menu | rofi -dmenu -i \
     -no-show-icons \
     -p 'Quick Actions' \
-    -mesg 'Use Ctrl+1..0 shortcuts' \
+    -mesg 'Ctrl+1..0 quick-launch rows 1-10' \
     -theme "$HOME/.config/rofi/actions.rasi" \
     -kb-select-1 'Control+1,Super+1' \
     -kb-select-2 'Control+2,Super+2' \
@@ -139,16 +129,10 @@ set -e
 rm -f "$pid_file"
 [ "$rofi_status" -eq 0 ] || exit 0
 [ -n "$choice_index" ] || exit 0
+[[ "$choice_index" =~ ^[0-9]+$ ]] || exit 0
 
-if ! [[ "$choice_index" =~ ^[0-9]+$ ]]; then
-  exit 0
-fi
-
-choice="${actions[$choice_index]:-}"
-[ -n "$choice" ] || exit 0
-
-case "$choice" in
-  "󰖩  Toggle Wi-Fi")
+case "$choice_index" in
+  0)
     state="$(nmcli radio wifi)"
     if [ "$state" = "enabled" ]; then
       nmcli radio wifi off
@@ -156,8 +140,8 @@ case "$choice" in
       nmcli radio wifi on
     fi
     ;;
-  "󰖪  Toggle Network Applet") ~/.config/hypr/scripts/nm-applet-toggle.sh ;;
-  "󰂯  Toggle Bluetooth")
+  1) ~/.config/hypr/scripts/nm-applet-toggle.sh ;;
+  2)
     state="$(bluetoothctl show | awk '/Powered:/ {print $2}')"
     if [ "$state" = "yes" ]; then
       bluetoothctl power off
@@ -165,37 +149,38 @@ case "$choice" in
       bluetoothctl power on
     fi
     ;;
-  "󰍹  Workspace Overview") ~/.config/hypr/scripts/workspace-overview-toggle.sh ;;
-  "󰕾  Audio Mixer") pavucontrol ;;
-  "󰒓  Bluetooth Manager") blueman-manager ;;
-  "󰍜  Network Manager") nm-connection-editor ;;
-  "󰍉  Toggle Mic Mute") wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
-  "󰚩  AI Helper Menu") ~/.config/hypr/scripts/ai-helper.sh menu ;;
-  "󰘦  AI Shell Command") ~/.config/hypr/scripts/ai-helper.sh shell ;;
-  "󱞁  AI Clipboard Summary") ~/.config/hypr/scripts/ai-helper.sh clip ;;
-  "󰚰  System Update") kitty -e sh -lc 'yay -Syu; read -r -p "Press enter to close"' ;;
-  "󰸉  Next Wallpaper") ~/.config/hypr/scripts/set-wallpaper.sh --next ;;
-  "󰋊  Screenshot Area") ~/.config/hypr/scripts/screenshot.sh area ;;
-  "󰍹  Screenshot Full") ~/.config/hypr/scripts/screenshot.sh full ;;
-  "󰓝  OCR Area -> Clipboard") ~/.config/hypr/scripts/ocr-capture.sh ;;
-  "󰑊  Toggle Screen Record") ~/.config/hypr/scripts/screen-record-toggle.sh ;;
-  "󰍹  Toggle Layout (Master/Dwindle)") ~/.config/hypr/scripts/layout-switcher.sh toggle ;;
-  "󰍸  Toggle Floating Grid") ~/.config/hypr/scripts/layout-switcher.sh allfloat ;;
-  "󰫌  Toggle Widget Panel (quick)") ~/.config/hypr/scripts/eww-toggle.sh ;;
-  "󰫌  Toggle Desktop Widgets") ~/.config/hypr/scripts/eww-desktop-toggle.sh ;;
-  "󰕮  Toggle Panel Engine") ~/.config/hypr/scripts/panel-switch.sh toggle ;;
-  "󰕮  Toggle Panel Visibility") ~/.config/hypr/scripts/panel-switch.sh toggle-view ;;
-  "󰖨  Restart Waybar") ~/.config/hypr/scripts/restart-waybar.sh ;;
-  "󰏢  Copy Notification Summary") ~/.config/hypr/scripts/notification-summary.sh copy ;;
-  "󰸌  Apply Theme Pass") ~/.config/hypr/scripts/theme-pass.sh ;;
-  "󰏘  Pick Color") hyprpicker -a ;;
-  "󰖔  Toggle Night Light") ~/.config/hypr/scripts/night-light-toggle.sh ;;
-  "󰓃  Toggle Notifications") swaync-client -t ;;
-  "󱐋  Toggle DND") swaync-client -d ;;
-  "󰆴  Clear All Notifications") swaync-client -C ;;
-  "󰾆  Power Saver Profile") powerprofilesctl set power-saver ;;
-  "󱐤  Performance Profile") powerprofilesctl set performance ;;
-  "󰒓  System Monitor") kitty -e btop ;;
-  "󰌾  Lock Screen") ~/.config/hypr/scripts/lock.sh ;;
+  3) ~/.config/hypr/scripts/workspace-overview-toggle.sh ;;
+  4) pavucontrol ;;
+  5) blueman-manager ;;
+  6) nm-connection-editor ;;
+  7) ~/.config/hypr/scripts/volume-control.sh mic-mute ;;
+  8) ~/.config/hypr/scripts/ai-helper.sh menu ;;
+  9) ~/.config/hypr/scripts/ai-helper.sh shell ;;
+  10) ~/.config/hypr/scripts/ai-helper.sh clip ;;
+  11) kitty -e sh -lc 'yay -Syu; read -r -p "Press enter to close"' ;;
+  12) ~/.config/hypr/scripts/set-wallpaper.sh --next ;;
+  13) ~/.config/hypr/scripts/screenshot.sh area ;;
+  14) ~/.config/hypr/scripts/screenshot.sh full ;;
+  15) ~/.config/hypr/scripts/ocr-capture.sh ;;
+  16) ~/.config/hypr/scripts/screen-record-toggle.sh ;;
+  17) ~/.config/hypr/scripts/layout-switcher.sh toggle ;;
+  18) ~/.config/hypr/scripts/layout-switcher.sh allfloat ;;
+  19) ~/.config/hypr/scripts/eww-toggle.sh ;;
+  20) ~/.config/hypr/scripts/eww-desktop-toggle.sh ;;
+  21) ~/.config/hypr/scripts/panel-switch.sh toggle ;;
+  22) ~/.config/hypr/scripts/panel-switch.sh toggle-view ;;
+  23) ~/.config/hypr/scripts/restart-waybar.sh ;;
+  24) ~/.config/hypr/scripts/notification-summary.sh copy ;;
+  25) ~/.config/hypr/scripts/hypr-binds.sh ;;
+  26) ~/.config/hypr/scripts/theme-pass.sh ;;
+  27) hyprpicker -a ;;
+  28) ~/.config/hypr/scripts/night-light-toggle.sh ;;
+  29) swaync-client -t ;;
+  30) swaync-client -d ;;
+  31) swaync-client -C ;;
+  32) powerprofilesctl set power-saver ;;
+  33) powerprofilesctl set performance ;;
+  34) kitty -e btop ;;
+  35) ~/.config/hypr/scripts/lock.sh ;;
   *) exit 0 ;;
 esac

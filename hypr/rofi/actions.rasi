@@ -1,11 +1,11 @@
 @theme "theme.rasi"
 
 window {
-    width: 50%;
+    width: 56%;
 }
 
 listview {
-    lines: 14;
+    lines: 16;
     spacing: 4px;
 }
 

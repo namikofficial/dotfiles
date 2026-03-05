@@ -3,3 +3,5 @@ google-chrome
 pamac-aur
 wlogout
 eww
+avizo
+usql

@@ -338,6 +338,11 @@ load_fzf_integration() {
   _fzf_integration_loaded=1
 }
 if command -v fzf >/dev/null 2>&1; then
+  if command -v fd >/dev/null 2>&1; then
+    export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+    export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
+  fi
   export FZF_DEFAULT_OPTS="--height=55% --layout=reverse --border=rounded --info=inline-right --pointer='>' --marker='*' --color=fg:#d0d0d0,bg:#11111b,hl:#f5c2e7,fg+:#ffffff,bg+:#313244,hl+:#89b4fa,prompt:#a6e3a1,pointer:#f38ba8,marker:#fab387,info:#94e2d5"
   if [[ "$ZSH_LAZY_LOAD_HEAVY" == "1" ]]; then
     fzf() {
@@ -454,12 +459,26 @@ for plugin in \
   [ -f "$plugin" ] && source "$plugin" && break
 done
 
+syntax_highlight_loaded=0
 for plugin in \
-  "$HOME/.local/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" \
-  /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
-  /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
-  [ -f "$plugin" ] && source "$plugin" && break
+  "$HOME/.local/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh" \
+  /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh \
+  /usr/share/zsh-fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh; do
+  [ -f "$plugin" ] || continue
+  source "$plugin"
+  syntax_highlight_loaded=1
+  break
 done
+
+if (( ! syntax_highlight_loaded )); then
+  for plugin in \
+    "$HOME/.local/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" \
+    /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+    /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+    [ -f "$plugin" ] && source "$plugin" && break
+  done
+fi
+unset syntax_highlight_loaded
 
 # History/jump UX: Ctrl-r for Atuin search, Alt-c for fuzzy directory jump.
 if [[ -o interactive ]]; then

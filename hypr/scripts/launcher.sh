@@ -149,14 +149,14 @@ emit_menu_rows() {
       7) hint='Ctrl+8' ;;
       8) hint='Ctrl+9' ;;
       9) hint='Ctrl+0' ;;
-      *) hint='Ctrl+1..0' ;;
+      *) hint='--' ;;
     esac
 
     printf -v display_name '%-*s' "$name_width" "$display_name"
     if [ -n "$icon" ]; then
-      printf '%s | %9s\0icon\x1f%s\n' "$display_name" "$hint" "$icon"
+      printf '%s | quick | %7s\0icon\x1f%s\n' "$display_name" "$hint" "$icon"
     else
-      printf '%s | %9s\n' "$display_name" "$hint"
+      printf '%s | quick | %7s\n' "$display_name" "$hint"
     fi
     idx=$((idx + 1))
   done < "$CACHE_FILE"
@@ -183,7 +183,7 @@ selection="$(
     -kb-select-10 'Control+0,Super+0' \
     -kb-cancel 'Escape,Control+g,Super+space' \
     -p 'Apps' \
-    -mesg 'Use Ctrl+1..0 shortcuts' \
+    -mesg 'Ctrl+1..0 quick-launch rows 1-10' \
     -format 'i' \
     -theme "$ROFI_THEME" \
     -pid "$PID_FILE"

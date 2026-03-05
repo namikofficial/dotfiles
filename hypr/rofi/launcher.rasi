@@ -1,7 +1,7 @@
 @theme "theme.rasi"
 
 window {
-    width: 58%;
+    width: 62%;
 }
 
 mainbox {
@@ -18,7 +18,7 @@ prompt {
 }
 
 listview {
-    lines: 14;
+    lines: 15;
     spacing: 4px;
 }
 

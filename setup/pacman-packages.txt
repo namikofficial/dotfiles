@@ -16,17 +16,31 @@ zsh-history-substring-search
 zsh-syntax-highlighting
 jq
 tldr
+tealdeer
+man-db
+man-pages
 git
 github-cli
 lazygit
+lazydocker
 duf
 dust
 procs
 yazi
+ffmpegthumbnailer
+unarchiver
+broot
+onefetch
+chafa
+xh
+pgcli
 zellij
 hyperfine
 pipx|python-pipx
 shellcheck
+strace
+lsof
+sd
 curl
 wget
 unzip
@@ -50,11 +64,13 @@ swww
 grim
 slurp
 swappy
+satty
 wf-recorder
 tesseract
 tesseract-data-eng
 wl-clipboard
 cliphist
+udiskie
 brightnessctl
 playerctl
 pavucontrol
@@ -70,6 +86,7 @@ nwg-look
 qt5ct
 qt6ct
 kvantum
+libcanberra
 
 # UI polish and fonts
 ttf-jetbrains-mono-nerd
@@ -83,6 +100,10 @@ timeshift
 # Performance and diagnostics
 btop
 nvtop
+lnav
+iotop
+iftop
+nethogs
 gamemode
 lib32-gamemode
 mangohud
@@ -92,7 +113,9 @@ power-profiles-daemon
 pipewire
 pipewire-pulse
 wireplumber
+pkgfile
 pacman-contrib
+bleachbit
 vulkan-tools
 vulkan-icd-loader
 libva

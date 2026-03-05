@@ -8,6 +8,7 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `atuin/config.toml` for consistent Atuin history UI/search defaults
 - `docs/KEYBINDS.md` full keybind tables + Mermaid map
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
+- `docs/NOXFLOW_TODO.md` tracked setup checklist
 - `hypr/` for Hyprland, Waybar, Rofi, swaync, wlogout, dunst, lockscreen, and helper scripts
 - `hypr/eww/` for optional widget panel (Quick Deck)
 - `kitty/kitty.conf` so new terminals always load login `zsh`
@@ -77,9 +78,12 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + Tab`: Mission-Control style overview (`hyprexpo`)
 - `Super + Shift + Tab`: force fallback Rofi overview
 - `Super + Space`: app launcher (press again to close)
+- `Super + F1`: open keybind helper overlay (`hypr-binds.sh`)
+- `Super + Ctrl + /`: open keybind helper overlay
 - `Super + A` / `Super + /`: quick actions (press again to close)
 - `Ctrl + 1..0` in launcher/actions: quick-select top 10 rows
 - `Enter` in launcher/actions: open/run selected row
+- opener key again (`Super+Space` / `Super+A`): close launcher/actions
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)
 - `Super + F`: toggle floating on active window
@@ -178,6 +182,14 @@ sudo reboot
 
 Logs are written to `logs/pre-reboot-latest.log`, `logs/post-reboot-latest.log`, and `~/.local/state/noxflow/waybar.log`.
 Full flow: `docs/RUNBOOK.md`
+
+## Timeshift daily auto snapshots (keep latest 5)
+
+```sh
+sudo ./setup/configure-timeshift.sh
+```
+
+This sets Timeshift to daily snapshots only, keeps the latest 5 daily snapshots, installs `noxflow-timeshift-auto.timer`, and writes logs to `logs/timeshift-setup-latest.log`.
 
 ## NVIDIA stability notes (hybrid laptops)
 

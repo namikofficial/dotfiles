@@ -61,6 +61,15 @@
   margin: 4px 0 8px 0;
 }
 
+.widget-buttons-grid#notif_tools {
+  margin: 2px 0 8px 0;
+}
+
+.widget-buttons-grid#notif_tools flowboxchild > button {
+  min-height: 30px;
+  font-weight: 700;
+}
+
 .widget-buttons-grid flowboxchild > button {
   min-height: 32px;
   border-radius: 10px;

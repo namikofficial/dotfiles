@@ -51,12 +51,12 @@
 
 (defwindow quickpanel
   :monitor 0
-  :focusable false
+  :focusable true
   :stacking "fg"
   :exclusive false
-  :geometry (geometry :x "18px"
+  :geometry (geometry :x "14px"
                       :y "60px"
-                      :width "320px"
+                      :width "338px"
                       :height "0px"
                       :anchor "top right")
   (quickpanel))

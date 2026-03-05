@@ -21,7 +21,9 @@ flowchart LR
 | `Super + Return` | Open terminal | `kitty` |
 | `Super + E` | Open file manager | `dolphin` |
 | `Super + Space` | App launcher (press again to close) | `~/.config/hypr/scripts/launcher.sh` |
+| `Super + F1` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + A` or `Super + /` | Quick actions (press again to close) | `quick-actions.sh` |
+| `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + W` | Workspace overview (Rofi) | `workspace-overview.sh` |
 | `Super + Tab` | Mission control overview | `hyprexpo:expo toggle` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
@@ -111,6 +113,7 @@ flowchart LR
 |---|---|
 | `Ctrl + 1..0` | Quick-select row 1..10 |
 | `Enter` | Run/open selected item |
+| `Esc` or opener key again | Close menu (`Super+Space` / `Super+A`) |
 
 ## Notification Panel Contents
 

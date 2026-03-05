@@ -52,6 +52,8 @@ if [ "${HYPR_ENABLE_NM_APPLET:-0}" = "1" ]; then
   run_once nm-applet nm-applet
 fi
 run_once blueman-applet blueman-applet
+run_cmd_if_not '(^|/)udiskie( |$)' udiskie --tray
+run_once avizo-service avizo-service
 run_once waybar waybar
 run_once kanshi kanshi
 run_once hypridle hypridle

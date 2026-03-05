@@ -87,7 +87,9 @@
 ## Hyprland Quick Keys
 - `Super + Return`: terminal (`kitty`)
 - `Super + Space`: app launcher (press again to close)
+- `Super + F1`: keybind helper overlay
 - `Super + A` or `Super + /`: quick actions (press again to close)
+- `Super + Ctrl + /`: keybind helper overlay
 - In launcher/actions: `Ctrl + 1..0` quick-select, `Enter` run/open
 - `Super + W`: workspace overview picker (Rofi)
 - `Super + Tab`: Mission Control overview (`hyprexpo`)
@@ -126,6 +128,11 @@
 - `sudo ~/Documents/code/dotfiles/setup/pre-reboot-apply.sh`
 - `sudo reboot`
 - `~/Documents/code/dotfiles/setup/post-reboot-verify.sh`
+
+## Timeshift Auto Snapshots
+- Configure daily snapshots + keep latest 5: `sudo ~/Documents/code/dotfiles/setup/configure-timeshift.sh`
+- Check timer status: `systemctl status noxflow-timeshift-auto.timer`
+- Read latest setup log: `cat ~/Documents/code/dotfiles/logs/timeshift-setup-latest.log`
 
 ## Shell Navigation UX
 - `Ctrl + R`: Atuin fuzzy history UI

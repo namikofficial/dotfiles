@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Noxflow Timeshift auto snapshot daily
+
+[Timer]
+OnCalendar=*-*-* 04:15:00
+Persistent=true
+RandomizedDelaySec=20m
+Unit=noxflow-timeshift-auto.service
+
+[Install]
+WantedBy=timers.target
