@@ -16,8 +16,8 @@
       "all-outputs": true,
       "format": "{icon}",
       "format-icons": {
-        "active": "",
-        "default": ""
+        "active": "●",
+        "default": "●"
       },
       "on-click": "activate"
     },
@@ -47,7 +47,8 @@
         "default": "",
         "performance": "",
         "balanced": "",
-        "power-saver": ""
+        "power-saver": "",
+        "unknown": ""
       },
       "tooltip": true
     },
@@ -119,7 +120,7 @@
     },
 
     "custom/notifications": {
-      "exec": "swaync-client -D >/dev/null 2>&1 && echo '' || echo ''",
+      "exec": "swaync-client -D >/dev/null 2>&1 && echo '󰂛' || echo '󰂚'",
       "interval": 2,
       "return-type": "plain",
       "tooltip": true,
