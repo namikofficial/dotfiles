@@ -17,6 +17,9 @@ zsh-syntax-highlighting
 jq
 tldr
 tealdeer
+navi
+tokei
+dog
 man-db
 man-pages
 git
@@ -34,6 +37,7 @@ onefetch
 chafa
 xh
 pgcli
+obsidian
 zellij
 hyperfine
 pipx|python-pipx

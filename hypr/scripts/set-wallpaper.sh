@@ -84,13 +84,22 @@ write_wall_cache() {
 apply_wallpaper() {
   wall="$1"
   transition="$2"
+  transition_type="${WALLPAPER_TRANSITION_TYPE:-random}"
+  transition_fps="${WALLPAPER_TRANSITION_FPS:-120}"
+  transition_duration="${WALLPAPER_TRANSITION_DURATION:-1.3}"
+  transition_step="${WALLPAPER_TRANSITION_STEP:-90}"
 
   if [ "$transition" = "init" ]; then
-    swww img "$wall" --resize fit --transition-type any --transition-fps 60 --transition-duration 1
+    swww img "$wall" --resize fit --transition-type any --transition-fps "$transition_fps" --transition-duration 1
     return 0
   fi
 
-  swww img "$wall" --resize fit --transition-type wipe --transition-step 90 --transition-fps 60 --transition-duration 1
+  swww img "$wall" \
+    --resize fit \
+    --transition-type "$transition_type" \
+    --transition-step "$transition_step" \
+    --transition-fps "$transition_fps" \
+    --transition-duration "$transition_duration"
 }
 
 wayland_ready() {

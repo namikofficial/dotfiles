@@ -1,0 +1,2 @@
+# Flatpak applications (Flathub)
+org.localsend.localsend_app

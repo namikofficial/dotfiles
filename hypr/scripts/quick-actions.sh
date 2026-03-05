@@ -65,6 +65,13 @@ actions=(
   "Performance Profile"
   "System Monitor"
   "Lock Screen"
+  "Cycle Dynamic Layout (4 modes)"
+  "Logs Workspace (9)"
+  "Logs Workspace Stack"
+  "Toggle Side Panel"
+  "Move Window -> Side Panel"
+  "Open LocalSend"
+  "Open Obsidian"
 )
 
 hint_for_index() {
@@ -182,5 +189,12 @@ case "$choice_index" in
   33) powerprofilesctl set performance ;;
   34) kitty -e btop ;;
   35) ~/.config/hypr/scripts/lock.sh ;;
+  36) ~/.config/hypr/scripts/layout-switcher.sh cycle ;;
+  37) ~/.config/hypr/scripts/logs-workspace.sh open ;;
+  38) ~/.config/hypr/scripts/logs-workspace.sh stack ;;
+  39) ~/.config/hypr/scripts/sidepanel.sh toggle ;;
+  40) ~/.config/hypr/scripts/sidepanel.sh send ;;
+  41) flatpak run org.localsend.localsend_app >/dev/null 2>&1 & ;;
+  42) obsidian >/dev/null 2>&1 & ;;
   *) exit 0 ;;
 esac

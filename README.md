@@ -77,7 +77,8 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + W`: workspace/window overview switcher (Rofi list)
 - `Super + Tab`: Mission-Control style overview (`hyprexpo`)
 - `Super + Shift + Tab`: force fallback Rofi overview
-- `Super + Space`: app launcher (press again to close)
+- `Super + Space`: app launcher (top 5 frequent first, press again to close)
+- `Ctrl + Tab` inside launcher: toggle frequent-first <-> full app list
 - `Super + F1`: open keybind helper overlay (`hypr-binds.sh`)
 - `Super + Ctrl + /`: open keybind helper overlay
 - `Super + A` / `Super + /`: quick actions (press again to close)
@@ -89,7 +90,10 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + F`: toggle floating on active window
 - `Super + M`: maximize/unmaximize active window
 - `Super + G`: toggle tiling layout (`dwindle` <-> `master`)
+- `Super + Alt + G`: cycle dynamic layouts (`dwindle -> master -> allfloat -> allpseudo`)
 - `Super + Shift + G`: toggle floating-grid workspace mode
+- `Super + \`: toggle side panel special workspace
+- `Super + Shift + \`: move active window to side panel and open it
 - `Super + H/J/K/L`: focus left/down/up/right
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle windows in current workspace
 - `Super + Shift + H/J/K/L`: move window left/down/up/right
@@ -115,6 +119,8 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + Ctrl + H/J/K/L` (or arrows): move floating window
 - `Super + Ctrl + Shift + H/J/K/L` (or arrows): resize floating window
 - `Super + [ / ]`: previous/next workspace
+- `Super + Ctrl + 9`: open logs workspace helper
+- `Super + Ctrl + Shift + 9`: open logs workspace stack
 
 Full keybind tables: `docs/KEYBINDS.md`
 
@@ -133,6 +139,10 @@ yay -S --needed aylurs-gtk-shell hyprpanel
 Then toggle panels with `Super + Ctrl + Y`.
 
 Notification panel now includes sticky "System Hub" controls (GPU/media/network/panel status, copy summary, widget toggles, and quick controls) via SwayNC.
+
+AI helper behavior:
+- Uses `codex exec` in a dedicated Kitty window when available.
+- Falls back to opening ChatGPT in browser if Codex CLI is unavailable.
 
 ## Apply changes
 
@@ -190,6 +200,28 @@ sudo ./setup/configure-timeshift.sh
 ```
 
 This sets Timeshift to daily snapshots only, keeps the latest 5 daily snapshots, installs `noxflow-timeshift-auto.timer`, and writes logs to `logs/timeshift-setup-latest.log`.
+
+## SDDM login screen polish
+
+```sh
+sudo ./setup/configure-sddm.sh
+```
+
+This applies an improved SDDM theme profile (`elarun`) and syncs login background from your current wallpaper cache.
+
+## LocalSend (AirDrop-style sharing)
+
+If `localsend` is not in pacman/AUR on your mirror state, use Flatpak:
+
+```sh
+flatpak install -y flathub org.localsend.localsend_app
+```
+
+Or use repo automation:
+
+```sh
+./setup/install-flatpak-apps.sh
+```
 
 ## NVIDIA stability notes (hybrid laptops)
 

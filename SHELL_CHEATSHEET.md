@@ -87,6 +87,7 @@
 ## Hyprland Quick Keys
 - `Super + Return`: terminal (`kitty`)
 - `Super + Space`: app launcher (press again to close)
+- In launcher: top 5 frequent apps first, `Ctrl + Tab` toggles all-app view
 - `Super + F1`: keybind helper overlay
 - `Super + A` or `Super + /`: quick actions (press again to close)
 - `Super + Ctrl + /`: keybind helper overlay
@@ -97,7 +98,11 @@
 - `Super + F`: toggle floating for active window
 - `Super + M`: maximize / unmaximize active window
 - `Super + G`: toggle `dwindle` / `master` layout
+- `Super + Alt + G`: cycle dynamic layouts (`dwindle/master/allfloat/allpseudo`)
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle workspace windows
+- `Super + \\`: toggle side panel special workspace
+- `Super + Shift + \\`: move current window into side panel + open it
+- `Super + Ctrl + 9`: open logs workspace terminal (workspace 9)
 - `Super + D`: quick actions
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
@@ -133,6 +138,13 @@
 - Configure daily snapshots + keep latest 5: `sudo ~/Documents/code/dotfiles/setup/configure-timeshift.sh`
 - Check timer status: `systemctl status noxflow-timeshift-auto.timer`
 - Read latest setup log: `cat ~/Documents/code/dotfiles/logs/timeshift-setup-latest.log`
+
+## Login Screen (SDDM)
+- Apply improved SDDM theme/background: `sudo ~/Documents/code/dotfiles/setup/configure-sddm.sh`
+
+## LocalSend
+- Install via Flatpak: `flatpak install -y flathub org.localsend.localsend_app`
+- Launch: `flatpak run org.localsend.localsend_app`
 
 ## Shell Navigation UX
 - `Ctrl + R`: Atuin fuzzy history UI

@@ -5,3 +5,4 @@ wlogout
 eww
 avizo
 usql
+localsend-bin|localsend-appimage

@@ -6,6 +6,15 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow"
 PID_FILE="$STATE_DIR/rofi-launcher.pid"
 OTHER_PID_FILE="$STATE_DIR/rofi-actions.pid"
 CACHE_FILE="$STATE_DIR/launcher-apps.tsv"
+ORDERED_CACHE="$STATE_DIR/launcher-ordered.tsv"
+USAGE_FILE="$STATE_DIR/launcher-usage.tsv"
+
+MODE="${1:-frequent}"
+if [ "$MODE" != "frequent" ] && [ "$MODE" != "all" ]; then
+  MODE="frequent"
+fi
+
+TOP_COUNT=0
 
 mkdir -p "$STATE_DIR"
 
@@ -110,6 +119,66 @@ build_cache() {
   sort -f -t $'\t' -k1,1 "$CACHE_FILE" -o "$CACHE_FILE"
 }
 
+rebuild_ordered_cache() {
+  local row name desktop_id icon
+  local -a base_rows=()
+  local -a ordered_rows=()
+  declare -A row_by_id=()
+  declare -A added=()
+
+  mapfile -t base_rows < "$CACHE_FILE"
+  [ "${#base_rows[@]}" -gt 0 ] || return 0
+
+  for row in "${base_rows[@]}"; do
+    IFS=$'\t' read -r name desktop_id icon <<< "$row"
+    row_by_id["$desktop_id"]="$row"
+  done
+
+  TOP_COUNT=0
+  if [ "$MODE" = "frequent" ] && [ -s "$USAGE_FILE" ]; then
+    while IFS=$'\t' read -r desktop_id _count; do
+      [ -n "${desktop_id:-}" ] || continue
+      row="${row_by_id[$desktop_id]:-}"
+      [ -n "$row" ] || continue
+      if [ -n "${added[$desktop_id]:-}" ]; then
+        continue
+      fi
+      ordered_rows+=("$row")
+      added["$desktop_id"]=1
+      TOP_COUNT=$((TOP_COUNT + 1))
+      [ "$TOP_COUNT" -ge 5 ] && break
+    done < <(sort -t $'\t' -k2,2nr "$USAGE_FILE" 2>/dev/null || true)
+  fi
+
+  for row in "${base_rows[@]}"; do
+    IFS=$'\t' read -r _name desktop_id _icon <<< "$row"
+    [ -n "${added[$desktop_id]:-}" ] && continue
+    ordered_rows+=("$row")
+    added["$desktop_id"]=1
+  done
+
+  : > "$ORDERED_CACHE"
+  for row in "${ordered_rows[@]}"; do
+    printf '%s\n' "$row" >> "$ORDERED_CACHE"
+  done
+}
+
+hint_for_index() {
+  case "$1" in
+    0) echo 'Ctrl+1' ;;
+    1) echo 'Ctrl+2' ;;
+    2) echo 'Ctrl+3' ;;
+    3) echo 'Ctrl+4' ;;
+    4) echo 'Ctrl+5' ;;
+    5) echo 'Ctrl+6' ;;
+    6) echo 'Ctrl+7' ;;
+    7) echo 'Ctrl+8' ;;
+    8) echo 'Ctrl+9' ;;
+    9) echo 'Ctrl+0' ;;
+    *) echo '--' ;;
+  esac
+}
+
 emit_menu_rows() {
   local name desktop_id icon
   local display_name hint idx=0
@@ -118,13 +187,17 @@ emit_menu_rows() {
 
   while IFS=$'\t' read -r name desktop_id icon; do
     display_name="$name"
+    if [ "$idx" -lt "$TOP_COUNT" ]; then
+      display_name="[top] ${display_name}"
+    fi
     if [ "${#display_name}" -gt 46 ]; then
       display_name="${display_name:0:43}..."
     fi
     if [ "${#display_name}" -gt "$max_name" ]; then
       max_name="${#display_name}"
     fi
-  done < "$CACHE_FILE"
+    idx=$((idx + 1))
+  done < "$ORDERED_CACHE"
 
   if [ "$max_name" -gt 34 ]; then
     name_width="$max_name"
@@ -133,24 +206,16 @@ emit_menu_rows() {
     name_width=56
   fi
 
+  idx=0
   while IFS=$'\t' read -r name desktop_id icon; do
     display_name="$name"
+    if [ "$idx" -lt "$TOP_COUNT" ]; then
+      display_name="[top] ${display_name}"
+    fi
     if [ "${#display_name}" -gt 46 ]; then
       display_name="${display_name:0:43}..."
     fi
-    case "$idx" in
-      0) hint='Ctrl+1' ;;
-      1) hint='Ctrl+2' ;;
-      2) hint='Ctrl+3' ;;
-      3) hint='Ctrl+4' ;;
-      4) hint='Ctrl+5' ;;
-      5) hint='Ctrl+6' ;;
-      6) hint='Ctrl+7' ;;
-      7) hint='Ctrl+8' ;;
-      8) hint='Ctrl+9' ;;
-      9) hint='Ctrl+0' ;;
-      *) hint='--' ;;
-    esac
+    hint="$(hint_for_index "$idx")"
 
     printf -v display_name '%-*s' "$name_width" "$display_name"
     if [ -n "$icon" ]; then
@@ -159,11 +224,21 @@ emit_menu_rows() {
       printf '%s | quick | %7s\n' "$display_name" "$hint"
     fi
     idx=$((idx + 1))
-  done < "$CACHE_FILE"
+  done < "$ORDERED_CACHE"
+}
+
+menu_message() {
+  if [ "$MODE" = "all" ]; then
+    echo 'All apps | Ctrl+Tab top-5 view | type to search'
+  else
+    echo 'Top 5 first | Ctrl+Tab all apps | type to search'
+  fi
 }
 
 build_cache
 [ -s "$CACHE_FILE" ] || exit 0
+rebuild_ordered_cache
+[ -s "$ORDERED_CACHE" ] || exit 0
 
 set +e
 selection="$(
@@ -181,9 +256,10 @@ selection="$(
     -kb-select-8 'Control+8,Super+8' \
     -kb-select-9 'Control+9,Super+9' \
     -kb-select-10 'Control+0,Super+0' \
+    -kb-custom-1 'Control+Tab' \
     -kb-cancel 'Escape,Control+g,Super+space' \
     -p 'Apps' \
-    -mesg 'Ctrl+1..0 quick-launch rows 1-10' \
+    -mesg "$(menu_message)" \
     -format 'i' \
     -theme "$ROFI_THEME" \
     -pid "$PID_FILE"
@@ -191,10 +267,48 @@ selection="$(
 rofi_status=$?
 set -e
 rm -f "$PID_FILE"
+
+if [ "$rofi_status" -eq 10 ]; then
+  if [ "$MODE" = "all" ]; then
+    exec "$0" frequent
+  else
+    exec "$0" all
+  fi
+fi
+
 [ "$rofi_status" -eq 0 ] || exit 0
 [ -n "$selection" ] || exit 0
 
-mapfile -t app_rows < "$CACHE_FILE"
+mapfile -t app_rows < "$ORDERED_CACHE"
+
+update_usage() {
+  local desktop_id="$1"
+  local tmp_file="$USAGE_FILE.tmp.$$"
+
+  if [ -f "$USAGE_FILE" ]; then
+    awk -F '\t' -v id="$desktop_id" '
+      BEGIN { found = 0 }
+      NF >= 2 {
+        if ($1 == id) {
+          $2 = $2 + 1
+          found = 1
+        }
+        print $1 "\t" $2
+        next
+      }
+      END {
+        if (!found) {
+          print id "\t1"
+        }
+      }
+    ' "$USAGE_FILE" > "$tmp_file"
+  else
+    printf '%s\t1\n' "$desktop_id" > "$tmp_file"
+  fi
+
+  sort -t $'\t' -k2,2nr "$tmp_file" | awk -F '\t' '!seen[$1]++' > "$USAGE_FILE"
+  rm -f "$tmp_file"
+}
 
 launch_one() {
   local row_index="$1"
@@ -205,6 +319,7 @@ launch_one() {
   [ -n "$desktop_id" ] || return 0
   if command -v gtk-launch >/dev/null 2>&1; then
     gtk-launch "$desktop_id" >/dev/null 2>&1 &
+    update_usage "$desktop_id"
   else
     if command -v notify-send >/dev/null 2>&1; then
       notify-send -a Launcher "gtk-launch missing" "Install gtk3 to launch desktop entries."

@@ -28,6 +28,9 @@ flowchart LR
 | `Super + Tab` | Mission control overview | `hyprexpo:expo toggle` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
+| `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
+| `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
+| `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
 | `Super + N` | Toggle notification panel | `swaync-client -t` |
 | `Super + Shift + N` | Toggle DND | `swaync-client -d` |
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |
@@ -48,6 +51,7 @@ flowchart LR
 | `Super + Shift + F` | Fullscreen (mode 1) |
 | `Super + Ctrl + F` | Fullscreen (mode 0) |
 | `Super + G` | Toggle `dwindle` / `master` |
+| `Super + Alt + G` | Cycle dynamic layout (`dwindle -> master -> allfloat -> allpseudo`) |
 | `Super + Shift + G` | Toggle floating-grid |
 | `Super + Ctrl + G` | Force `master` |
 | `Super + Ctrl + Shift + G` | Force `dwindle` |
@@ -71,6 +75,8 @@ flowchart LR
 |---|---|
 | `Super + 1..0` | Jump to workspace 1..10 |
 | `Super + Shift + 1..0` | Move active window to workspace |
+| `Super + Ctrl + 9` | Open logs workspace launcher (workspace 9) |
+| `Super + Ctrl + Shift + 9` | Open logs workspace stack (journal + waybar logs) |
 | `Super + [` / `Super + ]` | Prev / next workspace |
 | `Super + mouse wheel` | Prev / next workspace |
 | `Super + grave` | Toggle scratchpad workspace |
@@ -112,6 +118,7 @@ flowchart LR
 | Key | Action |
 |---|---|
 | `Ctrl + 1..0` | Quick-select row 1..10 |
+| `Ctrl + Tab` | Toggle launcher between frequent-first and all-apps view |
 | `Enter` | Run/open selected item |
 | `Esc` or opener key again | Close menu (`Super+Space` / `Super+A`) |
 

@@ -10,11 +10,16 @@ Last updated: 2026-03-05
 - [x] Add media key wrappers for OSD-aware volume/brightness controls
 - [x] Add startup hooks for `udiskie --tray` and `avizo-service`
 - [x] Add Timeshift automation script + systemd timer units
+- [x] Add SDDM login-theme setup script
 - [x] Expand package manifests with debugging/learning tools and quality-of-life CLIs
+- [x] Add launcher frequent-app mode + Ctrl+Tab view toggle
+- [x] Add side-panel workspace workflow + workspace-9 logs helpers
 
 ## Next
 
+- [ ] Install new requested tools (`navi`, `tokei`, `dog`, `obsidian`, `localsend`)
 - [ ] Run package installer with `--with-aur` and validate new package set
 - [ ] Run `setup/configure-timeshift.sh` as root and verify daily timer status
+- [ ] Run `setup/configure-sddm.sh` as root and verify login screen after reboot
 - [ ] Reload Hyprland and confirm helper menus/OSD behavior on live session
 - [ ] Final screenshot-based visual tune pass (Rofi + Eww + SwayNC spacing)

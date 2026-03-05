@@ -35,6 +35,38 @@ open_chat() {
   fi
 }
 
+run_codex_terminal() {
+  title="$1"
+  prompt_text="$2"
+
+  if ! command -v codex >/dev/null 2>&1 || ! command -v kitty >/dev/null 2>&1; then
+    return 1
+  fi
+
+  # shellcheck disable=SC2016
+  AI_PROMPT="$prompt_text" \
+  kitty --title "$title" -e sh -lc '
+    printf "Noxflow AI helper\n\n"
+    codex exec --sandbox workspace-write --ask-for-approval on-request "$AI_PROMPT" || true
+    printf "\nPress Enter to close..."
+    read -r _
+  ' >/dev/null 2>&1 &
+
+  return 0
+}
+
+run_ai() {
+  title="$1"
+  prompt_text="$2"
+
+  if run_codex_terminal "$title" "$prompt_text"; then
+    return 0
+  fi
+
+  # Fallback path when codex/kitty is unavailable.
+  open_chat "$prompt_text"
+}
+
 rofi_input() {
   prompt="$1"
   if [ -f "$rofi_theme" ]; then
@@ -46,7 +78,7 @@ rofi_input() {
 
 clipboard_text() {
   if command -v wl-paste >/dev/null 2>&1; then
-    wl-paste -n --type text 2>/dev/null | head -c 1800
+    wl-paste -n --type text 2>/dev/null | head -c 3500
   fi
 }
 
@@ -54,7 +86,8 @@ ask_mode() {
   require_cmd rofi
   question="$(rofi_input 'Ask AI')"
   [ -n "$question" ] || exit 0
-  open_chat "Answer this clearly and concisely:\n${question}"
+
+  run_ai "AI Ask" "Answer this clearly and concisely. Keep it actionable.\n\nQuestion:\n${question}"
 }
 
 clip_mode() {
@@ -63,14 +96,16 @@ clip_mode() {
     notify "Clipboard is empty" "Copy text first, then try Fn+3."
     exit 1
   }
-  open_chat "Summarize the text and list next actions:\n\n${text}"
+
+  run_ai "AI Clipboard Summary" "Summarize this text, list key points, and propose next actions.\n\n${text}"
 }
 
 shell_mode() {
   require_cmd rofi
   task="$(rofi_input 'Describe shell task')"
   [ -n "$task" ] || exit 0
-  open_chat "Write an Arch Linux shell command for this task, then explain it briefly:\n${task}"
+
+  run_ai "AI Shell Command" "Generate safe Arch Linux shell commands for this task. Explain each command briefly and include rollback/check steps.\n\nTask:\n${task}"
 }
 
 debug_mode() {
@@ -80,25 +115,26 @@ debug_mode() {
     text="$(rofi_input 'Paste error summary')"
   fi
   [ -n "$text" ] || exit 0
-  open_chat "Debug this issue. Explain likely root cause, checks, and fix steps:\n\n${text}"
+
+  run_ai "AI Debug" "Debug this issue. Give likely root cause, checks to run, and a minimal fix plan.\n\n${text}"
 }
 
 menu_mode() {
   require_cmd rofi
   choice="$(
     rofi -dmenu -i -p 'AI Helper' -theme "$rofi_theme" <<'MENU'
-󰚩  Ask AI
-󱞁  Summarize Clipboard
-󰘦  Generate Shell Command
-󰁨  Debug Clipboard Error
+Ask AI
+Summarize Clipboard
+Generate Shell Command
+Debug Clipboard Error
 MENU
   )"
 
   case "$choice" in
-    "󰚩  Ask AI") ask_mode ;;
-    "󱞁  Summarize Clipboard") clip_mode ;;
-    "󰘦  Generate Shell Command") shell_mode ;;
-    "󰁨  Debug Clipboard Error") debug_mode ;;
+    'Ask AI') ask_mode ;;
+    'Summarize Clipboard') clip_mode ;;
+    'Generate Shell Command') shell_mode ;;
+    'Debug Clipboard Error') debug_mode ;;
     *) exit 0 ;;
   esac
 }
