@@ -23,6 +23,7 @@ flowchart LR
 | `Super + Space` | Ultra-fast app launcher (press again to close) | `launcher.sh --fast` |
 | `Super + Shift + Space` | Window/workspace search | `workspace-overview.sh` |
 | `Super + Ctrl + Space` | Command palette (quick actions) | `quick-actions.sh` |
+| `Super + .` | Fullscreen dev cheatsheet overlay (searchable tabs) | `dev-cheatsheet.sh` |
 | `Super + F1` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + A` or `Super + /` | Quick actions (press again to close) | `quick-actions.sh` |
 | `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
@@ -36,11 +37,10 @@ flowchart LR
 | `Super + N` | Toggle notification panel | `swaync-client -t` |
 | `Super + Alt + N` | Toggle DND | `swaync-client -d` |
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |
-| `Super + Shift + N` | Toggle notes scratchpad | `scratchpad-notes.sh toggle` |
-| `Super + \`` | Toggle terminal scratchpad | `scratchpad-term.sh toggle` |
+| `Super + Shift + N` | Open notes folder | `open-notes.sh` |
 | `Super + Alt + E` | Open notes folder | `open-notes.sh` |
 | `Super + D` | Quick actions menu (duplicate launcher utility key) | `quick-actions.sh` |
-| `Super + Y` | Toggle Eww panel | `eww-toggle.sh` |
+| `Super + Y` | Quick actions menu | `quick-actions.sh` |
 | `Super + Ctrl + Y` | Toggle Waybar/HyprPanel | `panel-switch.sh toggle` |
 | `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
 | `Super + Ctrl + Shift + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh` |
@@ -62,7 +62,7 @@ flowchart LR
 | `Super + Ctrl + Shift + G` | Force `dwindle` |
 | `Super + T` | Toggle window group (tab-like stack) |
 | `Super + Ctrl + T` | Move active window out of group |
-| `Super + ,` / `Super + .` | Prev/next tab in group |
+| `Super + Alt + ,` / `Super + Alt + .` | Prev/next tab in group |
 
 ## Focus / Move / Resize
 
@@ -84,7 +84,6 @@ flowchart LR
 | `Super + Ctrl + Shift + 9` | Open logs workspace stack (journal + waybar logs) |
 | `Super + [` / `Super + ]` | Prev / next workspace |
 | `Super + mouse wheel` | Prev / next workspace |
-| `Super + grave` | Toggle scratch terminal |
 
 ## Media / Screen / Clipboard
 

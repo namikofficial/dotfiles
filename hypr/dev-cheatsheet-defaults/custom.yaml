@@ -1,0 +1,28 @@
+category: Custom
+slug: custom
+entries:
+  - key: TODO item
+    description: add your own command in custom.yaml
+    copy: edit ~/.config/dev-cheatsheet/custom.yaml
+    source: ~/.config/dev-cheatsheet/custom.yaml
+    tags: [daily]
+  - key: Health check
+    description: run weekly workstation audit script
+    copy: ~/Documents/code/dotfiles/setup/weekly-health-check.sh
+    source: ~/Documents/code/dotfiles/setup/weekly-health-check.sh
+  - key: Theme pass
+    description: sync theme settings across components
+    copy: ~/.config/hypr/scripts/theme-pass.sh
+    source: ~/.config/hypr/scripts/theme-pass.sh
+  - key: Restart panel
+    description: restart waybar quickly
+    copy: ~/.config/hypr/scripts/restart-waybar.sh
+    source: ~/.config/hypr/scripts/restart-waybar.sh
+  - key: AI helper shell
+    description: generate shell command via helper
+    copy: ~/.config/hypr/scripts/ai-helper.sh shell
+    source: ~/.config/hypr/scripts/ai-helper.sh
+  - key: Wallpaper picker
+    description: choose wallpaper with rofi
+    copy: ~/.config/hypr/scripts/set-wallpaper.sh --pick
+    source: ~/.config/hypr/scripts/set-wallpaper.sh

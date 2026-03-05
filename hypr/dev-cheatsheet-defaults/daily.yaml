@@ -1,0 +1,33 @@
+category: Daily
+slug: daily
+entries:
+  - key: Super+.
+    description: open this cheatsheet overlay
+    copy: ~/.config/hypr/scripts/dev-cheatsheet.sh
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+Space
+    description: app launcher
+    copy: ~/.config/hypr/scripts/launcher.sh --fast
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+W
+    description: workspace overview menu
+    copy: ~/.config/hypr/scripts/workspace-overview.sh
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: gs
+    description: git status alias
+    copy: gs
+    source: ~/.zshrc
+    tags: [daily]
+  - key: gpl
+    description: git pull alias
+    copy: gpl
+    source: ~/.zshrc
+    tags: [daily]
+  - key: btop
+    description: open system monitor
+    copy: btop
+    source: ~/.config/dev-cheatsheet/daily.yaml
+    tags: [daily]

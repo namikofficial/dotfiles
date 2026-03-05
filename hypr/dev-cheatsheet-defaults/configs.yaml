@@ -1,0 +1,28 @@
+category: Configs
+slug: configs
+entries:
+  - key: Hyprland config
+    description: main compositor config
+    copy: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Keybind docs
+    description: canonical shortcut table
+    copy: ~/Documents/code/dotfiles/docs/KEYBINDS.md
+    source: ~/Documents/code/dotfiles/docs/KEYBINDS.md
+  - key: Zsh config
+    description: shell aliases/functions
+    copy: ~/.zshrc
+    source: ~/.zshrc
+  - key: Git config
+    description: git defaults and signing
+    copy: ~/.gitconfig
+    source: ~/.gitconfig
+  - key: Nvim config root
+    description: neovim config directory
+    copy: ~/.config/nvim
+    source: ~/.config/nvim
+  - key: Cheatsheet config root
+    description: editable cheatsheet yaml tabs
+    copy: ~/.config/dev-cheatsheet
+    source: ~/.config/dev-cheatsheet

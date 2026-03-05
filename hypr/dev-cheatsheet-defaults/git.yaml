@@ -1,0 +1,29 @@
+category: Git
+slug: git
+entries:
+  - key: git status -sb
+    description: compact repo status
+    copy: git status -sb
+    source: ~/.config/dev-cheatsheet/git.yaml
+    tags: [daily]
+  - key: git add -p
+    description: stage hunks interactively
+    copy: git add -p
+    source: ~/.config/dev-cheatsheet/git.yaml
+  - key: git commit -m "msg"
+    description: commit staged changes
+    copy: git commit -m "msg"
+    source: ~/.config/dev-cheatsheet/git.yaml
+    tags: [daily]
+  - key: git pull --rebase
+    description: pull cleanly on top
+    copy: git pull --rebase
+    source: ~/.config/dev-cheatsheet/git.yaml
+  - key: git log --oneline --graph --decorate -20
+    description: quick recent history graph
+    copy: git log --oneline --graph --decorate -20
+    source: ~/.config/dev-cheatsheet/git.yaml
+  - key: git switch -c feature/name
+    description: create and switch branch
+    copy: git switch -c feature/name
+    source: ~/.config/dev-cheatsheet/git.yaml

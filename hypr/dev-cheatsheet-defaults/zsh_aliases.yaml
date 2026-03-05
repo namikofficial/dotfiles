@@ -1,0 +1,31 @@
+category: Zsh Aliases
+slug: zsh_aliases
+entries:
+  - key: gs
+    description: git status
+    copy: gs
+    source: ~/.zshrc
+    tags: [daily]
+  - key: ga
+    description: git add
+    copy: ga
+    source: ~/.zshrc
+    tags: [daily]
+  - key: gcmsg
+    description: git commit with message
+    copy: gcmsg "message"
+    source: ~/.zshrc
+  - key: gpl
+    description: git pull --rebase
+    copy: gpl
+    source: ~/.zshrc
+    tags: [daily]
+  - key: gph
+    description: git push
+    copy: gph
+    source: ~/.zshrc
+    tags: [daily]
+  - key: v
+    description: open nvim
+    copy: v
+    source: ~/.zshrc

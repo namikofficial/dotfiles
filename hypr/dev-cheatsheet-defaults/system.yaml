@@ -1,0 +1,28 @@
+category: System
+slug: system
+entries:
+  - key: btop
+    description: system monitor
+    copy: btop
+    source: ~/.config/dev-cheatsheet/system.yaml
+    tags: [daily]
+  - key: htop
+    description: cpu process monitor
+    copy: htop
+    source: ~/.config/dev-cheatsheet/system.yaml
+  - key: fastfetch
+    description: system summary
+    copy: fastfetch
+    source: ~/.config/dev-cheatsheet/system.yaml
+  - key: journalctl -p err -b
+    description: current boot errors only
+    copy: journalctl -p err -b
+    source: ~/.config/dev-cheatsheet/system.yaml
+  - key: systemctl --failed
+    description: failed units
+    copy: systemctl --failed
+    source: ~/.config/dev-cheatsheet/system.yaml
+  - key: df -h
+    description: filesystem usage
+    copy: df -h
+    source: ~/.config/dev-cheatsheet/system.yaml

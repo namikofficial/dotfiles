@@ -1,0 +1,28 @@
+category: Hyprland
+slug: hyprland
+entries:
+  - key: Super+.
+    description: Open dev cheatsheet overlay
+    copy: ~/.config/hypr/scripts/dev-cheatsheet.sh
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+T
+    description: Toggle grouped/tabbed window stack
+    copy: hyprctl dispatch togglegroup
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+T
+    description: Move active window out of group
+    copy: hyprctl dispatch moveoutofgroup
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Alt+.
+    description: Next tab in grouped stack
+    copy: hyprctl dispatch changegroupactive f
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Alt+,
+    description: Previous tab in grouped stack
+    copy: hyprctl dispatch changegroupactive b
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+Y
+    description: Toggle panel engine
+    copy: ~/.config/hypr/scripts/panel-switch.sh toggle
+    source: ~/.config/hypr/hyprland.conf

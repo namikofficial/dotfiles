@@ -1,0 +1,27 @@
+category: Tmux/Zellij
+slug: tmux_zellij
+entries:
+  - key: tmux ls
+    description: list tmux sessions
+    copy: tmux ls
+    source: ~/.config/dev-cheatsheet/tmux_zellij.yaml
+  - key: tmux attach -t main
+    description: attach named session
+    copy: tmux attach -t main
+    source: ~/.config/dev-cheatsheet/tmux_zellij.yaml
+  - key: Prefix + c
+    description: create window (tmux)
+    copy: Prefix + c
+    source: ~/.tmux.conf
+  - key: Prefix + |
+    description: vertical split (tmux)
+    copy: Prefix + |
+    source: ~/.tmux.conf
+  - key: zellij
+    description: launch zellij session
+    copy: zellij
+    source: ~/.config/zellij
+  - key: Ctrl+p
+    description: command palette (zellij)
+    copy: Ctrl+p
+    source: ~/.config/zellij

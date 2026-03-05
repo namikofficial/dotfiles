@@ -1,0 +1,29 @@
+category: Neovim
+slug: neovim
+entries:
+  - key: <leader>ff
+    description: find file (telescope/snacks style)
+    copy: <leader>ff
+    source: ~/.config/nvim
+    tags: [daily]
+  - key: <leader>fg
+    description: live grep
+    copy: <leader>fg
+    source: ~/.config/nvim
+    tags: [daily]
+  - key: <leader>e
+    description: toggle file explorer
+    copy: <leader>e
+    source: ~/.config/nvim
+  - key: gd
+    description: goto definition via LSP
+    copy: gd
+    source: ~/.config/nvim
+  - key: <leader>ca
+    description: code action
+    copy: <leader>ca
+    source: ~/.config/nvim
+  - key: :Lazy
+    description: plugin manager UI
+    copy: :Lazy
+    source: ~/.config/nvim

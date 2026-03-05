@@ -88,6 +88,7 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - opener key again (`Super+Space` / `Super+A`): close launcher/actions
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)
+- `Super + .`: fullscreen dev cheatsheet overlay (searchable + tabbed)
 - `Super + F`: toggle floating on active window
 - `Super + M`: maximize/unmaximize active window
 - `Super + G`: toggle tiling layout (`dwindle` <-> `master`)
@@ -103,21 +104,20 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + N`: toggle notification panel
 - `Super + Alt + N`: toggle DND
 - `Super + Ctrl + N`: copy notification/status summary to clipboard
-- `Super + Shift + N`: toggle scratchpad notes
-- `Super + \``: toggle scratchpad terminal
+- `Super + Shift + N`: open notes folder
 - `Super + Alt + E`: open notes folder in editor
 - `Super + I`: color picker (copies hex)
 - `Super + Shift + I`: toggle night light (`hyprsunset`)
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
 - `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
-- `Super + Y`: toggle Eww widget panel
+- `Super + Y`: quick actions menu
 - `Super + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
 - `Super + Ctrl + Y`: toggle panel engine (`waybar` <-> `hyprpanel`, if installed)
 - `Super + Alt + Y`: toggle panel visibility only (show/hide current panel)
 - `Super + Ctrl + Shift + Y`: toggle desktop widgets (above wallpaper / below windows)
 - `Super + T`: toggle window group (tab-like stacks)
 - `Super + Ctrl + T`: move active window out of group
-- `Super + ,` / `Super + .`: previous/next tab in group
+- `Super + Alt + ,` / `Super + Alt + .`: previous/next tab in group
 - `Fn + 2/3/4/5` (`XF86Launch2..5`): AI helper actions (`ask`, `clipboard`, `shell`, `debug`)
 - `Super + Alt + 2/3/4/5`: fallback AI helper actions
 - `Super + Ctrl + H/J/K/L` (or arrows): move floating window

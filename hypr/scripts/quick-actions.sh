@@ -72,8 +72,8 @@ actions=(
   "Move Window -> Side Panel"
   "Open LocalSend"
   "Open Obsidian"
-  "Toggle Scratch Terminal"
-  "Toggle Scratch Notes"
+  "Open Terminal"
+  "Open Notes"
   "Open Notes Folder"
   "Run Weekly Health Check"
 )
@@ -200,8 +200,8 @@ case "$choice_index" in
   40) ~/.config/hypr/scripts/sidepanel.sh send ;;
   41) flatpak run org.localsend.localsend_app >/dev/null 2>&1 & ;;
   42) obsidian >/dev/null 2>&1 & ;;
-  43) ~/.config/hypr/scripts/scratchpad-term.sh toggle ;;
-  44) ~/.config/hypr/scripts/scratchpad-notes.sh toggle ;;
+  43) kitty >/dev/null 2>&1 & ;;
+  44) ~/.config/hypr/scripts/open-notes.sh ;;
   45) ~/.config/hypr/scripts/open-notes.sh ;;
   46) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;
   *) exit 0 ;;

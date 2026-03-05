@@ -1,0 +1,31 @@
+category: Keyboard
+slug: keyboard
+entries:
+  - key: Super+Return
+    description: Open terminal
+    copy: kitty
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+Space
+    description: App launcher (fast)
+    copy: ~/.config/hypr/scripts/launcher.sh --fast
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+Shift+Space
+    description: Workspace overview search
+    copy: ~/.config/hypr/scripts/workspace-overview.sh
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+Ctrl+Space
+    description: Quick actions palette
+    copy: ~/.config/hypr/scripts/quick-actions.sh
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Tab
+    description: Mission control overview
+    copy: hyprctl dispatch hyprexpo:expo toggle
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Q
+    description: Close active window
+    copy: hyprctl dispatch killactive
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]

@@ -1,0 +1,28 @@
+category: Docker
+slug: docker
+entries:
+  - key: docker ps
+    description: list running containers
+    copy: docker ps
+    source: ~/.config/dev-cheatsheet/docker.yaml
+    tags: [daily]
+  - key: docker compose up -d
+    description: start compose stack in background
+    copy: docker compose up -d
+    source: ~/.config/dev-cheatsheet/docker.yaml
+  - key: docker compose logs -f
+    description: stream compose logs
+    copy: docker compose logs -f
+    source: ~/.config/dev-cheatsheet/docker.yaml
+  - key: docker exec -it <name> sh
+    description: shell into container
+    copy: docker exec -it <name> sh
+    source: ~/.config/dev-cheatsheet/docker.yaml
+  - key: docker image prune -f
+    description: remove dangling images
+    copy: docker image prune -f
+    source: ~/.config/dev-cheatsheet/docker.yaml
+  - key: docker system df
+    description: check docker disk usage
+    copy: docker system df
+    source: ~/.config/dev-cheatsheet/docker.yaml

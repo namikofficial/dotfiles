@@ -1,0 +1,116 @@
+@theme "theme.rasi"
+
+* {
+    font: "JetBrainsMono Nerd Font 12";
+}
+
+window {
+    location: center;
+    anchor: center;
+    width: 96%;
+    height: 94%;
+    border: 2px;
+    border-color: #4f7de6;
+    border-radius: 18px;
+    background-color: #0b1224d6;
+    padding: 16px;
+}
+
+mainbox {
+    spacing: 14px;
+    padding: 10px 14px 14px 14px;
+    background-color: transparent;
+}
+
+inputbar {
+    spacing: 12px;
+    padding: 14px;
+    border: 1px;
+    border-color: #3d6fd2;
+    border-radius: 14px;
+    background-color: #14203be8;
+}
+
+prompt {
+    text-color: #79a5ff;
+    font: "JetBrainsMono Nerd Font Bold 13";
+}
+
+entry {
+    text-color: #dbe4ff;
+    placeholder: "Type to filter commands, aliases, plugins, configs...";
+    placeholder-color: #93a2d6;
+    font: "JetBrainsMono Nerd Font 12";
+}
+
+message {
+    padding: 0px 4px 8px 4px;
+    text-color: #9eb2eb;
+    font: "JetBrainsMono Nerd Font 11";
+}
+
+mode-switcher {
+    spacing: 8px;
+    background-color: transparent;
+}
+
+button {
+    padding: 9px 12px;
+    border-radius: 11px;
+    border: 1px;
+    border-color: #2f4e96;
+    background-color: #151f37d9;
+    text-color: #9eb0de;
+}
+
+button selected {
+    background-color: #5f87f1;
+    border-color: #8eb0ff;
+    text-color: #0d1327;
+}
+
+listview {
+    lines: 24;
+    columns: 1;
+    fixed-height: false;
+    dynamic: true;
+    cycle: true;
+    spacing: 5px;
+    scrollbar: true;
+    border: 1px;
+    border-color: #253d75;
+    border-radius: 14px;
+    background-color: #0f172dd1;
+    padding: 10px;
+}
+
+element {
+    padding: 8px 12px;
+    border-radius: 9px;
+    background-color: transparent;
+    text-color: #9aaad6;
+}
+
+element normal.normal {
+    background-color: transparent;
+    text-color: #9aaad6;
+}
+
+element selected.normal {
+    background-color: #7aa2f7e0;
+    text-color: #101726;
+}
+
+element-text {
+    text-color: inherit;
+    background-color: transparent;
+    highlight: bold #101726;
+}
+
+scrollbar {
+    width: 6px;
+    border-radius: 100%;
+    handle-width: 8px;
+    handle-color: #638de8;
+    background-color: #172648;
+}

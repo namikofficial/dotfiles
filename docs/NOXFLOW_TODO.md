@@ -21,6 +21,9 @@ Last updated: 2026-03-05
 - [x] Add scratchpad terminal + scratchpad notes workflows
 - [x] Add notes folder helper + default editor MIME setup script
 - [x] Add dynamic day/night sync helper (`dynamic-theme-sync.sh`)
+- [x] Add fullscreen tabbed dev-cheatsheet overlay (`Super+.`) with searchable categories and clipboard copy (`hypr/scripts/dev-cheatsheet.sh`)
+- [x] Add config-driven cheatsheet tabs under `~/.config/dev-cheatsheet` (bootstrapped from `hypr/dev-cheatsheet-defaults/*.yaml`)
+- [x] Remove scratchpad keybinds/workspace rules to avoid stuck/hard-crash workflows; repoint notes shortcut to `open-notes.sh`
 
 ## Next
 
