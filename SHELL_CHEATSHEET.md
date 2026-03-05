@@ -93,7 +93,9 @@
 - `Super + Tab`: Mission Control overview (`hyprexpo`)
 - `Super + Shift + Tab`: force Rofi overview
 - `Super + F`: toggle floating for active window
+- `Super + M`: maximize / unmaximize active window
 - `Super + G`: toggle `dwindle` / `master` layout
+- `Alt + Tab` / `Alt + Shift + Tab`: cycle workspace windows
 - `Super + D`: quick actions
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper

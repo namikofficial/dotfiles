@@ -42,6 +42,7 @@ flowchart LR
 | Keybind | Action |
 |---|---|
 | `Super + F` | Toggle floating |
+| `Super + M` | Maximize / unmaximize (fullscreen mode 1) |
 | `Super + Shift + F` | Fullscreen (mode 1) |
 | `Super + Ctrl + F` | Fullscreen (mode 0) |
 | `Super + G` | Toggle `dwindle` / `master` |
@@ -57,6 +58,7 @@ flowchart LR
 | Keybind | Action |
 |---|---|
 | `Super + H/J/K/L` or arrows | Move focus |
+| `Alt + Tab` / `Alt + Shift + Tab` | Cycle windows in current workspace |
 | `Super + Shift + H/J/K/L` or arrows | Move window |
 | `Super + Ctrl + H/J/K/L` or arrows | Move floating window |
 | `Super + Ctrl + Shift + H/J/K/L` or arrows | Resize floating window |

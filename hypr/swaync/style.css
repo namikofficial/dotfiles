@@ -119,8 +119,17 @@ button:hover {
 }
 
 .close-button {
-  background: rgba(255, 117, 127, 0.1);
-  border-color: rgba(255, 117, 127, 0.4);
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(255, 117, 127, 0.14);
+  border-color: rgba(255, 117, 127, 0.5);
+  color: @danger;
+}
+
+.close-button label {
   color: @danger;
 }
 

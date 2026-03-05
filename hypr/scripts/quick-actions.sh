@@ -68,6 +68,25 @@ actions=(
 
 render_menu() {
   local action hint idx=0
+  local max_action=0
+  local action_width=42
+
+  for action in "${actions[@]}"; do
+    if [ "${#action}" -gt 52 ]; then
+      action="${action:0:49}..."
+    fi
+    if [ "${#action}" -gt "$max_action" ]; then
+      max_action="${#action}"
+    fi
+  done
+
+  if [ "$max_action" -gt 36 ]; then
+    action_width="$max_action"
+  fi
+  if [ "$action_width" -gt 56 ]; then
+    action_width=56
+  fi
+
   for action in "${actions[@]}"; do
     if [ "${#action}" -gt 52 ]; then
       action="${action:0:49}..."
@@ -87,7 +106,8 @@ render_menu() {
       *) hint='Ctrl+1..0' ;;
     esac
 
-    printf '%s\t%s\n' "$action" "$hint"
+    printf -v action '%-*s' "$action_width" "$action"
+    printf '%s | %9s\n' "$action" "$hint"
     idx=$((idx + 1))
   done
 }
@@ -97,10 +117,8 @@ choice_index="$(
   render_menu | rofi -dmenu -i \
     -no-show-icons \
     -p 'Quick Actions' \
-    -mesg 'Quick run with Ctrl+1..0 (or Enter)' \
+    -mesg 'Use Ctrl+1..0 shortcuts' \
     -theme "$HOME/.config/rofi/actions.rasi" \
-    -display-columns 1,2 \
-    -display-column-separator '\t' \
     -kb-select-1 'Control+1,Super+1' \
     -kb-select-2 'Control+2,Super+2' \
     -kb-select-3 'Control+3,Super+3' \

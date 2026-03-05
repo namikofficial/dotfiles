@@ -83,9 +83,11 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)
 - `Super + F`: toggle floating on active window
+- `Super + M`: maximize/unmaximize active window
 - `Super + G`: toggle tiling layout (`dwindle` <-> `master`)
 - `Super + Shift + G`: toggle floating-grid workspace mode
 - `Super + H/J/K/L`: focus left/down/up/right
+- `Alt + Tab` / `Alt + Shift + Tab`: cycle windows in current workspace
 - `Super + Shift + H/J/K/L`: move window left/down/up/right
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper

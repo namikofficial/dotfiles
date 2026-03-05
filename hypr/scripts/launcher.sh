@@ -113,13 +113,31 @@ build_cache() {
 emit_menu_rows() {
   local name desktop_id icon
   local display_name hint idx=0
+  local max_name=0
+  local name_width=44
 
   while IFS=$'\t' read -r name desktop_id icon; do
     display_name="$name"
     if [ "${#display_name}" -gt 46 ]; then
       display_name="${display_name:0:43}..."
     fi
+    if [ "${#display_name}" -gt "$max_name" ]; then
+      max_name="${#display_name}"
+    fi
+  done < "$CACHE_FILE"
 
+  if [ "$max_name" -gt 34 ]; then
+    name_width="$max_name"
+  fi
+  if [ "$name_width" -gt 56 ]; then
+    name_width=56
+  fi
+
+  while IFS=$'\t' read -r name desktop_id icon; do
+    display_name="$name"
+    if [ "${#display_name}" -gt 46 ]; then
+      display_name="${display_name:0:43}..."
+    fi
     case "$idx" in
       0) hint='Ctrl+1' ;;
       1) hint='Ctrl+2' ;;
@@ -134,10 +152,11 @@ emit_menu_rows() {
       *) hint='Ctrl+1..0' ;;
     esac
 
+    printf -v display_name '%-*s' "$name_width" "$display_name"
     if [ -n "$icon" ]; then
-      printf '%s\t%s\0icon\x1f%s\n' "$display_name" "$hint" "$icon"
+      printf '%s | %9s\0icon\x1f%s\n' "$display_name" "$hint" "$icon"
     else
-      printf '%s\t%s\n' "$display_name" "$hint"
+      printf '%s | %9s\n' "$display_name" "$hint"
     fi
     idx=$((idx + 1))
   done < "$CACHE_FILE"
@@ -152,8 +171,6 @@ selection="$(
     -dmenu \
     -i \
     -show-icons \
-    -display-columns 1,2 \
-    -display-column-separator '\t' \
     -kb-select-1 'Control+1,Super+1' \
     -kb-select-2 'Control+2,Super+2' \
     -kb-select-3 'Control+3,Super+3' \
@@ -166,7 +183,7 @@ selection="$(
     -kb-select-10 'Control+0,Super+0' \
     -kb-cancel 'Escape,Control+g,Super+space' \
     -p 'Apps' \
-    -mesg 'Quick launch with Ctrl+1..0 (or Enter)' \
+    -mesg 'Use Ctrl+1..0 shortcuts' \
     -format 'i' \
     -theme "$ROFI_THEME" \
     -pid "$PID_FILE"
