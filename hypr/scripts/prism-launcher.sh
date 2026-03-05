@@ -30,12 +30,13 @@ export MANGOHUD
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland;xcb}"
 export QT_QPA_PLATFORMTHEME="${QT_QPA_PLATFORMTHEME:-qt6ct}"
 export QT_STYLE_OVERRIDE="${QT_STYLE_OVERRIDE:-kvantum}"
+export KVANTUM_THEME="${KVANTUM_THEME:-NoxflowDynamic}"
 export KDE_SESSION_VERSION=6
 export KDE_FULL_SESSION=false
 
 # Run launcher + game processes under Feral GameMode when available.
 if command -v gamemoderun >/dev/null 2>&1; then
-  exec gamemoderun "$launcher_bin" "$@"
+  exec gamemoderun "$launcher_bin" -style kvantum "$@"
 fi
 
-exec "$launcher_bin" "$@"
+exec "$launcher_bin" -style kvantum "$@"

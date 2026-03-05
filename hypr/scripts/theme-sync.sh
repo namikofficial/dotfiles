@@ -22,6 +22,11 @@ qt6_scheme="$qt6_colors_dir/NoxflowDynamic.conf"
 qt5_conf="$HOME/.config/qt5ct/qt5ct.conf"
 qt6_conf="$HOME/.config/qt6ct/qt6ct.conf"
 kdeglobals="$HOME/.config/kdeglobals"
+kvantum_dir="$HOME/.config/Kvantum"
+kvantum_theme_dir="$kvantum_dir/NoxflowDynamic"
+kvantum_theme_conf="$kvantum_theme_dir/NoxflowDynamic.kvconfig"
+kvantum_theme_svg="$kvantum_theme_dir/NoxflowDynamic.svg"
+kvantum_main_conf="$kvantum_dir/kvantum.kvconfig"
 waybar_before_hash=""
 waybar_after_hash=""
 
@@ -386,6 +391,53 @@ ForegroundActive=$accent_rgb
 [Colors:Selection]
 BackgroundNormal=$accent_rgb
 ForegroundNormal=$bg_rgb
+EOF2
+
+mkdir -p "$kvantum_theme_dir"
+if [ -f "/usr/share/Kvantum/KvArcDark/KvArcDark.svg" ]; then
+  cp "/usr/share/Kvantum/KvArcDark/KvArcDark.svg" "$kvantum_theme_svg"
+fi
+
+cat > "$kvantum_theme_conf" <<EOF2
+[%General]
+author=noxflow
+comment=Dynamic wallpaper-synced Kvantum theme
+x11drag=menubar_and_primary_toolbar
+composite=true
+translucent_windows=true
+blurring=true
+popup_blurring=true
+respect_DE=true
+
+[GeneralColors]
+window.color=$bg
+base.color=$surface
+alt.base.color=$bg_soft
+button.color=$bg_soft
+light.color=$accent2
+mid.light.color=$surface
+dark.color=#101216
+mid.color=#1a1f2a
+highlight.color=$accent
+inactive.highlight.color=$accent2
+text.color=$text
+window.text.color=$text
+button.text.color=$text
+disabled.text.color=$muted
+tooltip.text.color=$text
+highlight.text.color=$bg
+link.color=$accent2
+link.visited.color=$accent
+progress.indicator.text.color=$bg
+
+[Hacks]
+respect_darkness=true
+transparent_menutitle=true
+EOF2
+
+cat > "$kvantum_main_conf" <<EOF2
+[General]
+theme=NoxflowDynamic
 EOF2
 
 printf '%s\n' "$accent" > "$cache_dir/current-accent"
