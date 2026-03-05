@@ -183,8 +183,26 @@ hint_for_index() {
     7) echo 'Ctrl+8' ;;
     8) echo 'Ctrl+9' ;;
     9) echo 'Ctrl+0' ;;
-    *) echo '--' ;;
+    *) echo '' ;;
   esac
+}
+
+format_row() {
+  local display="$1"
+  local hint="$2"
+  local icon="$3"
+  local desktop_id="$4"
+  local text="$display"
+
+  if [ -n "$hint" ]; then
+    text="$text | $hint"
+  fi
+
+  if [ -n "$icon" ]; then
+    printf '%s\0icon\x1f%s\x1finfo\x1f%s\n' "$text" "$icon" "$desktop_id"
+  else
+    printf '%s\0info\x1f%s\n' "$text" "$desktop_id"
+  fi
 }
 
 emit_rows_all() {
@@ -194,12 +212,7 @@ emit_rows_all() {
     display="$name"
     [ "${#display}" -gt 46 ] && display="${display:0:43}..."
     hint="$(hint_for_index "$idx")"
-
-    if [ -n "$icon" ]; then
-      printf '%s | quick | %7s\0icon\x1f%s\x1finfo\x1f%s\n' "$display" "$hint" "$icon" "$desktop_id"
-    else
-      printf '%s | quick | %7s\0info\x1f%s\n' "$display" "$hint" "$desktop_id"
-    fi
+    format_row "$display" "$hint" "$icon" "$desktop_id"
     idx=$((idx + 1))
   done < "$CACHE_FILE"
 }
@@ -246,14 +259,103 @@ emit_rows_frequent() {
     display="[top] $name"
     [ "${#display}" -gt 46 ] && display="${display:0:43}..."
     hint="$(hint_for_index "$idx")"
-
-    if [ -n "$icon" ]; then
-      printf '%s | quick | %7s\0icon\x1f%s\x1finfo\x1f%s\n' "$display" "$hint" "$icon" "$desktop_id"
-    else
-      printf '%s | quick | %7s\0info\x1f%s\n' "$display" "$hint" "$desktop_id"
-    fi
+    format_row "$display" "$hint" "$icon" "$desktop_id"
     idx=$((idx + 1))
   done
+}
+
+desktop_file_for_id() {
+  local desktop_id="$1"
+  local desktop_file
+
+  for desktop_file in \
+    "$HOME/.local/share/applications/$desktop_id" \
+    "/usr/local/share/applications/$desktop_id" \
+    "/usr/share/applications/$desktop_id"; do
+    if [ -f "$desktop_file" ]; then
+      printf '%s\n' "$desktop_file"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+desktop_launch_info() {
+  local file="$1"
+  awk '
+    BEGIN {
+      in_entry = 0
+      terminal = "false"
+      exec_line = ""
+    }
+    /^\[Desktop Entry\]$/ {
+      in_entry = 1
+      next
+    }
+    /^\[/ {
+      if (in_entry) {
+        exit
+      }
+    }
+    !in_entry {
+      next
+    }
+    /^Terminal=/ {
+      sub(/^Terminal=/, "", $0)
+      terminal = tolower($0)
+      next
+    }
+    /^Exec=/ && exec_line == "" {
+      sub(/^Exec=/, "", $0)
+      exec_line = $0
+      next
+    }
+    END {
+      gsub(/\r/, "", terminal)
+      gsub(/\r/, "", exec_line)
+      printf "%s\t%s\n", terminal, exec_line
+    }
+  ' "$file"
+}
+
+normalize_exec_line() {
+  local exec_line="$1"
+
+  exec_line="${exec_line//%%/%}"
+  printf '%s\n' "$exec_line" | sed -E \
+    -e 's/[[:space:]]+%[fFuUdDnNickvm]//g' \
+    -e 's/%[fFuUdDnNickvm]//g' \
+    -e 's/[[:space:]]+/ /g' \
+    -e 's/^[[:space:]]+//; s/[[:space:]]+$//'
+}
+
+launch_in_terminal() {
+  local command_line="$1"
+  [ -n "$command_line" ] || return 1
+
+  if command -v kitty >/dev/null 2>&1; then
+    kitty sh -lc "$command_line" >/dev/null 2>&1 &
+    return 0
+  fi
+  if command -v foot >/dev/null 2>&1; then
+    foot -e sh -lc "$command_line" >/dev/null 2>&1 &
+    return 0
+  fi
+  if command -v alacritty >/dev/null 2>&1; then
+    alacritty -e sh -lc "$command_line" >/dev/null 2>&1 &
+    return 0
+  fi
+  if command -v wezterm >/dev/null 2>&1; then
+    wezterm start -- sh -lc "$command_line" >/dev/null 2>&1 &
+    return 0
+  fi
+  if command -v xterm >/dev/null 2>&1; then
+    xterm -e sh -lc "$command_line" >/dev/null 2>&1 &
+    return 0
+  fi
+
+  return 1
 }
 
 update_usage() {
@@ -287,12 +389,31 @@ update_usage() {
 
 launch_desktop_id() {
   local desktop_id="$1"
+  local desktop_file info terminal exec_line normalized_exec
   [ -n "$desktop_id" ] || return 0
 
+  desktop_file="$(desktop_file_for_id "$desktop_id" || true)"
+  if [ -n "$desktop_file" ]; then
+    info="$(desktop_launch_info "$desktop_file")"
+    IFS=$'\t' read -r terminal exec_line <<< "$info"
+
+    if [ "$terminal" = "true" ]; then
+      normalized_exec="$(normalize_exec_line "$exec_line")"
+      if launch_in_terminal "$normalized_exec"; then
+        update_usage "$desktop_id"
+        "$0" --rebuild-rows >/dev/null 2>&1 &
+        return 0
+      fi
+    fi
+  fi
+
   if command -v gtk-launch >/dev/null 2>&1; then
-    gtk-launch "$desktop_id" >/dev/null 2>&1 &
-    update_usage "$desktop_id"
-    "$0" --rebuild-rows >/dev/null 2>&1 &
+    if gtk-launch "$desktop_id" >/dev/null 2>&1; then
+      update_usage "$desktop_id"
+      "$0" --rebuild-rows >/dev/null 2>&1 &
+    elif command -v notify-send >/dev/null 2>&1; then
+      notify-send -a Launcher "Launch failed" "Could not launch: $desktop_id"
+    fi
   else
     if command -v notify-send >/dev/null 2>&1; then
       notify-send -a Launcher "gtk-launch missing" "Install gtk3 to launch desktop entries."
@@ -461,7 +582,7 @@ rofi \
   -kb-select-9 'Control+9,Super+9' \
   -kb-select-10 'Control+0,Super+0' \
   -kb-cancel 'Escape,Control+g,Super+space' \
-  -mesg 'Tab A: frequent top 5 | Tab B: all apps | Ctrl+Tab switches tabs' \
+  -mesg 'Top: frequent 5 | Apps: full list | Ctrl+Tab switches tabs' \
   -theme "$ROFI_THEME" \
   -pid "$PID_FILE"
 rofi_status=$?
