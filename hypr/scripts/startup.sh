@@ -46,6 +46,11 @@ run_cmd_if_not() {
   fi
 }
 
+# Warm launcher cache first so Super+Space opens immediately.
+if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
+  "$HOME/.config/hypr/scripts/launcher.sh" --warm-cache >/dev/null 2>&1 &
+fi
+
 # nm-applet can spam duplicate StatusNotifier warnings with Waybar on some setups.
 # Keep it opt-in (set HYPR_ENABLE_NM_APPLET=1 to auto-start it).
 if [ "${HYPR_ENABLE_NM_APPLET:-0}" = "1" ]; then

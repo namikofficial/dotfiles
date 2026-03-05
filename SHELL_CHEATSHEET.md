@@ -87,7 +87,7 @@
 ## Hyprland Quick Keys
 - `Super + Return`: terminal (`kitty`)
 - `Super + Space`: app launcher (press again to close)
-- In launcher: top 5 frequent apps first, `Ctrl + Tab` toggles all-app view
+- In launcher: Tab A = top 5 frequent, Tab B = all apps, `Ctrl + Tab` switches tabs
 - `Super + F1`: keybind helper overlay
 - `Super + A` or `Super + /`: quick actions (press again to close)
 - `Super + Ctrl + /`: keybind helper overlay

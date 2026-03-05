@@ -118,7 +118,7 @@ flowchart LR
 | Key | Action |
 |---|---|
 | `Ctrl + 1..0` | Quick-select row 1..10 |
-| `Ctrl + Tab` | Toggle launcher between frequent-first and all-apps view |
+| `Ctrl + Tab` | Switch launcher tab (`frequent` <-> `apps`) |
 | `Enter` | Run/open selected item |
 | `Esc` or opener key again | Close menu (`Super+Space` / `Super+A`) |
 

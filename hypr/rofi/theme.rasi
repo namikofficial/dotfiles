@@ -1,16 +1,16 @@
 * {
-    font: "JetBrainsMono Nerd Font 11";
+    font: "JetBrainsMono Nerd Font 12";
 
-    bg: #101320ee;
-    bg-alt: #1a1f33ee;
-    fg: #d8def5;
-    fg-muted: #9aa5ce;
+    bg: #0f1322ef;
+    bg-alt: #181f33ee;
+    fg: #dbe4ff;
+    fg-muted: #97a7d6;
     accent: #7aa2f7;
     good: #4fd6be;
     bad: #ff757f;
 
     border: 2px;
-    radius: 14px;
+    radius: 16px;
 
     background-color: transparent;
     text-color: @fg;
@@ -19,44 +19,48 @@
 window {
     location: center;
     anchor: center;
-    width: 46%;
+    width: 52%;
     border: @border;
     border-color: @accent;
     border-radius: @radius;
     background-color: @bg;
-    padding: 10px;
+    padding: 12px;
 }
 
 mainbox {
-    spacing: 10px;
-    padding: 12px;
+    spacing: 12px;
+    padding: 12px 14px;
     background-color: transparent;
 }
 
 inputbar {
     children: [prompt, entry];
-    spacing: 8px;
-    padding: 9px;
-    border-radius: 10px;
+    spacing: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
     background-color: @bg-alt;
+    border: 1px;
+    border-color: #337aa2f7;
 }
 
 prompt {
     text-color: @accent;
     background-color: transparent;
+    font: "JetBrainsMono Nerd Font Bold 12";
 }
 
 entry {
     text-color: @fg;
     placeholder-color: @fg-muted;
     background-color: transparent;
+    font: "JetBrainsMono Nerd Font 12";
 }
 
 listview {
-    lines: 11;
+    lines: 12;
     columns: 1;
     fixed-height: false;
-    spacing: 4px;
+    spacing: 6px;
     cycle: true;
     dynamic: true;
     scrollbar: false;
@@ -64,10 +68,11 @@ listview {
 }
 
 element {
-    padding: 7px 10px;
+    padding: 8px 12px;
     border-radius: 9px;
     background-color: transparent;
     text-color: @fg-muted;
+    orientation: horizontal;
 }
 
 element normal.normal {
@@ -90,17 +95,18 @@ element-text {
     text-color: inherit;
     background-color: transparent;
     vertical-align: 0.5;
+    highlight: bold #0f111a;
 }
 
 element-icon {
-    size: 1.05em;
+    size: 1.15em;
     background-color: transparent;
-    margin: 0 8px 0 0;
+    margin: 0 10px 0 0;
 }
 
 message {
     text-color: @fg-muted;
-    padding: 2px 2px 6px 2px;
+    padding: 0 2px 6px 2px;
 }
 
 mode-switcher {
@@ -109,10 +115,12 @@ mode-switcher {
 }
 
 button {
-    padding: 7px 11px;
-    border-radius: 9px;
+    padding: 8px 12px;
+    border-radius: 10px;
     background-color: @bg-alt;
     text-color: @fg-muted;
+    border: 1px;
+    border-color: #2b7aa2f7;
 }
 
 button selected {

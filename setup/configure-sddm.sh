@@ -22,17 +22,31 @@ echo "repo: $REPO_DIR"
 echo "log:  $LOG_FILE"
 echo
 
-if [[ ! -d /usr/share/sddm/themes/elarun ]]; then
-  echo "Missing /usr/share/sddm/themes/elarun"
-  echo "Install with: sudo pacman -S sddm"
+THEME_NAME="noxflow"
+THEME_SRC="$REPO_DIR/sddm/$THEME_NAME"
+THEME_DEST="/usr/share/sddm/themes/$THEME_NAME"
+
+if [[ ! -d "$THEME_SRC" ]]; then
+  echo "Missing theme source in repo: $THEME_SRC"
+  exit 1
+fi
+
+if [[ ! -d /usr/share/sddm/themes ]]; then
+  echo "Missing /usr/share/sddm/themes"
+  echo "Install/enable SDDM first."
   exit 1
 fi
 
 install -Dm644 "$REPO_DIR/sddm/sddm.conf.d/10-noxflow-theme.conf" /etc/sddm.conf.d/10-noxflow-theme.conf
-install -Dm644 "$REPO_DIR/sddm/elarun/theme.conf.user" /usr/share/sddm/themes/elarun/theme.conf.user
 
-default_wall="/usr/share/sddm/themes/elarun/elarun.jpg"
-target_wall="/usr/share/sddm/themes/elarun/images/noxflow-login.jpg"
+rm -rf "$THEME_DEST"
+mkdir -p "$THEME_DEST"
+cp -r "$THEME_SRC"/. "$THEME_DEST"/
+chown -R root:root "$THEME_DEST"
+chmod -R a+rX "$THEME_DEST"
+
+default_wall="$THEME_DEST/images/background.png"
+target_wall="$THEME_DEST/images/noxflow-login.jpg"
 
 src_user="${SUDO_USER:-$USER}"
 src_home="$(getent passwd "$src_user" | cut -d: -f6)"
@@ -56,10 +70,10 @@ else
   cp "$wall_path" "$target_wall"
 fi
 
-echo "Configured SDDM theme: elarun"
+echo "Configured SDDM theme: $THEME_NAME"
 echo "Login background: $target_wall"
 echo "Applied config: /etc/sddm.conf.d/10-noxflow-theme.conf"
-echo "Applied theme user config: /usr/share/sddm/themes/elarun/theme.conf.user"
+echo "Installed theme: $THEME_DEST"
 echo
 echo "Reboot to preview the improved login screen."
 

@@ -77,8 +77,8 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + W`: workspace/window overview switcher (Rofi list)
 - `Super + Tab`: Mission-Control style overview (`hyprexpo`)
 - `Super + Shift + Tab`: force fallback Rofi overview
-- `Super + Space`: app launcher (top 5 frequent first, press again to close)
-- `Ctrl + Tab` inside launcher: toggle frequent-first <-> full app list
+- `Super + Space`: app launcher tabs (Tab A: top 5 frequent, Tab B: full app list)
+- `Ctrl + Tab` inside launcher: switch tabs
 - `Super + F1`: open keybind helper overlay (`hypr-binds.sh`)
 - `Super + Ctrl + /`: open keybind helper overlay
 - `Super + A` / `Super + /`: quick actions (press again to close)
@@ -122,6 +122,12 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + Ctrl + 9`: open logs workspace helper
 - `Super + Ctrl + Shift + 9`: open logs workspace stack
 
+Launcher performance note:
+- cache is warmed at session startup (`launcher.sh --warm-cache`)
+- row lists are pre-rendered to `~/.local/state/noxflow/launcher-rows-*.txt`
+- stale cache refresh runs in background
+- typical warm open path is sub-500ms on this setup
+
 Full keybind tables: `docs/KEYBINDS.md`
 
 ## Shell UX highlights
@@ -152,6 +158,7 @@ hyprctl reload
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
 ~/.config/hypr/scripts/theme-pass.sh
 ~/.config/hypr/scripts/restart-waybar.sh
+~/.config/hypr/scripts/launcher.sh --warm-cache
 ```
 
 If Waybar or Rofi was already running before bootstrap, restart your Hyprland session once.
@@ -207,7 +214,7 @@ This sets Timeshift to daily snapshots only, keeps the latest 5 daily snapshots,
 sudo ./setup/configure-sddm.sh
 ```
 
-This applies an improved SDDM theme profile (`elarun`) and syncs login background from your current wallpaper cache.
+This installs the repo theme profile (`noxflow`) and syncs login background from your current wallpaper cache.
 
 ## LocalSend (AirDrop-style sharing)
 

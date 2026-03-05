@@ -1,3 +1,7 @@
+# Suppress zsh-syntax-highlighting "unhandled ZLE widget" warnings globally.
+# Keep this at the top so it applies even if the plugin is sourced early.
+typeset -g ZSH_HIGHLIGHT_WARNINGS=0
+
 # Color support for prompt/completion
 autoload -Uz colors && colors
 zmodload zsh/datetime
@@ -459,33 +463,33 @@ for plugin in \
   [ -f "$plugin" ] && source "$plugin" && break
 done
 
-syntax_highlight_loaded=0
+typeset -gi __nox_syntax_highlight_loaded=0
 for plugin in \
   "$HOME/.local/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh" \
   /usr/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh \
   /usr/share/zsh-fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh; do
   [ -f "$plugin" ] || continue
-  source "$plugin"
-  syntax_highlight_loaded=1
+  { source "$plugin"; } 2>/dev/null
+  __nox_syntax_highlight_loaded=1
   break
 done
 
-if (( ! syntax_highlight_loaded )); then
+if (( ! __nox_syntax_highlight_loaded )); then
   for plugin in \
     "$HOME/.local/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" \
     /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
     /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
-    [ -f "$plugin" ] && source "$plugin" && break
+    [ -f "$plugin" ] && { source "$plugin"; } 2>/dev/null && break
   done
 fi
-unset syntax_highlight_loaded
+unset __nox_syntax_highlight_loaded
 
 # History/jump UX: Ctrl-r for Atuin search, Alt-c for fuzzy directory jump.
 if [[ -o interactive ]]; then
-  if zle -l | grep -Eq '^atuin-search([[:space:]]|$)'; then
+  if zle -l | command grep -Eq '^atuin-search([[:space:]]|$)'; then
     bindkey '^R' atuin-search
     bindkey -M emacs '^R' atuin-search 2>/dev/null || true
-    if zle -l | grep -Eq '^atuin-search-viins([[:space:]]|$)'; then
+    if zle -l | command grep -Eq '^atuin-search-viins([[:space:]]|$)'; then
       bindkey -M viins '^R' atuin-search-viins 2>/dev/null || true
     else
       bindkey -M viins '^R' atuin-search 2>/dev/null || true
