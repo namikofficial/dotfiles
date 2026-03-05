@@ -1,0 +1,7 @@
+[Unit]
+Description=Noxflow weekly health check
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/Documents/code/dotfiles/setup/weekly-health-check.sh

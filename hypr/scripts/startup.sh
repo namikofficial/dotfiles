@@ -141,6 +141,10 @@ if [ -x "$HOME/.config/hypr/scripts/set-wallpaper.sh" ]; then
   "$HOME/.config/hypr/scripts/set-wallpaper.sh" --init >/dev/null 2>&1 || true
 fi
 
+if [ -x "$HOME/.config/hypr/scripts/dynamic-theme-sync.sh" ]; then
+  run_cmd_if_not "$HOME/.config/hypr/scripts/dynamic-theme-sync.sh watch" "$HOME/.config/hypr/scripts/dynamic-theme-sync.sh" watch
+fi
+
 if [ -x "$HOME/.config/hypr/scripts/wallpaper-rotate.sh" ]; then
   run_cmd_if_not "$HOME/.config/hypr/scripts/wallpaper-rotate.sh" "$HOME/.config/hypr/scripts/wallpaper-rotate.sh"
 fi

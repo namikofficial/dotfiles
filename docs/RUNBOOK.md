@@ -33,6 +33,7 @@ flowchart TD
 - `~/Documents/code/dotfiles/logs/pre-reboot-latest.log`
 - `~/Documents/code/dotfiles/logs/post-reboot-latest.log`
 - `~/.local/state/noxflow/waybar.log`
+- `~/Documents/code/dotfiles/logs/health-latest.log`
 
 ## What The Scripts Check
 
@@ -40,3 +41,4 @@ flowchart TD
 |---|---|
 | `pre-reboot-apply.sh` | Normalizes boot args, sets default entry, ensures helper packages, snapshots current boot config |
 | `post-reboot-verify.sh` | Verifies NVIDIA runtime, Vulkan/VA-API, Hypr plugin state, browser default, zsh keybinds, and boot hang signatures |
+| `weekly-health-check.sh` | Weekly PASS/FAIL audit: portals, GPU/VAAPI/Vulkan, journal errors grouped by service, disk/SMART state |

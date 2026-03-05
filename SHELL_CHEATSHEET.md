@@ -107,8 +107,13 @@
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
 - `Super + N`: toggle notification panel
-- `Super + Shift + N`: toggle DND
+- `Super + Shift + Space`: window/workspace search
+- `Super + Ctrl + Space`: command palette
+- `Super + Alt + N`: toggle DND
 - `Super + Ctrl + N`: copy notification/status summary
+- `Super + Shift + N`: toggle scratchpad notes
+- `Super + \``: toggle scratchpad terminal
+- `Super + Alt + E`: open notes folder in editor
 - `Super + I`: pick a color (`hyprpicker -a`)
 - `Super + Shift + I`: toggle night light
 - `Super + Shift + T`: OCR selected area to clipboard
@@ -141,6 +146,15 @@
 
 ## Login Screen (SDDM)
 - Apply improved SDDM theme/background: `sudo ~/Documents/code/dotfiles/setup/configure-sddm.sh`
+
+## Weekly Health Check
+- Run now: `~/Documents/code/dotfiles/setup/weekly-health-check.sh`
+- Enable weekly timer: `~/Documents/code/dotfiles/setup/configure-weekly-healthcheck.sh`
+- Latest log: `cat ~/Documents/code/dotfiles/logs/health-latest.log`
+- Auto-open failures in editor: `HEALTHCHECK_OPEN_ON_FAIL=1 ~/Documents/code/dotfiles/setup/weekly-health-check.sh`
+
+## Default Editor
+- Configure MIME defaults (VS Code preferred): `~/Documents/code/dotfiles/setup/configure-default-editor.sh`
 
 ## LocalSend
 - Install via Flatpak: `flatpak install -y flathub org.localsend.localsend_app`

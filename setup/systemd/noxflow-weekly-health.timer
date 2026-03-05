@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Noxflow weekly health check
+
+[Timer]
+OnCalendar=Sun *-*-* 11:00:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=noxflow-weekly-health.service
+
+[Install]
+WantedBy=timers.target

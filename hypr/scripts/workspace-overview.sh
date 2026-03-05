@@ -36,6 +36,9 @@ entries="$({
 choice="$(printf '%s\n' "$entries" | rofi -dmenu -i \
   -p 'Workspace Overview' \
   -theme "$HOME/.config/rofi/launcher.rasi" \
+  -no-show-icons \
+  -no-sort \
+  -kb-cancel 'Escape,Control+g,Super+Shift+space' \
   -display-columns 3 \
   -display-column-separator '\t')"
 

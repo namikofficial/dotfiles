@@ -24,6 +24,8 @@ man-db
 man-pages
 git
 github-cli
+code
+helix
 lazygit
 lazydocker
 duf
@@ -94,6 +96,7 @@ libcanberra
 
 # UI polish and fonts
 ttf-jetbrains-mono-nerd
+ttf-inter
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
@@ -120,6 +123,8 @@ wireplumber
 pkgfile
 pacman-contrib
 bleachbit
+smartmontools
+nvme-cli
 vulkan-tools
 vulkan-icd-loader
 libva

@@ -14,12 +14,16 @@ Last updated: 2026-03-05
 - [x] Expand package manifests with debugging/learning tools and quality-of-life CLIs
 - [x] Add launcher frequent-app mode + Ctrl+Tab view toggle
 - [x] Add side-panel workspace workflow + workspace-9 logs helpers
+- [x] Add weekly health-check script with PASS/FAIL + red flags + log output (`setup/weekly-health-check.sh`)
+- [x] Add user timer setup for weekly health-check (`setup/configure-weekly-healthcheck.sh`)
+- [x] Add ultra-fast app launcher mode (`launcher.sh --fast`) with cached rows
+- [x] Split launcher/search binds (`Super+Space`, `Super+Shift+Space`, `Super+Ctrl+Space`)
+- [x] Add scratchpad terminal + scratchpad notes workflows
+- [x] Add notes folder helper + default editor MIME setup script
+- [x] Add dynamic day/night sync helper (`dynamic-theme-sync.sh`)
 
 ## Next
 
-- [ ] Install new requested tools (`navi`, `tokei`, `dog`, `obsidian`, `localsend`)
-- [ ] Run package installer with `--with-aur` and validate new package set
-- [ ] Run `setup/configure-timeshift.sh` as root and verify daily timer status
-- [ ] Run `setup/configure-sddm.sh` as root and verify login screen after reboot
-- [ ] Reload Hyprland and confirm helper menus/OSD behavior on live session
-- [ ] Final screenshot-based visual tune pass (Rofi + Eww + SwayNC spacing)
+- [ ] Run package installer to ensure new dependencies are present (`ttf-inter`, `smartmontools`, `nvme-cli`, `code`, `helix`)
+- [ ] Reboot and verify SDDM noxflow theme readability on real login screen
+- [ ] Capture fresh screenshots after blur/glass/animation tune and do one final spacing pass

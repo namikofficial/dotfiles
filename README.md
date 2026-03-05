@@ -77,8 +77,9 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + W`: workspace/window overview switcher (Rofi list)
 - `Super + Tab`: Mission-Control style overview (`hyprexpo`)
 - `Super + Shift + Tab`: force fallback Rofi overview
-- `Super + Space`: app launcher tabs (Tab A: top 5 frequent, Tab B: full app list)
-- `Ctrl + Tab` inside launcher: switch tabs
+- `Super + Space`: ultra-fast app launcher (type-to-search, minimal chrome)
+- `Super + Shift + Space`: window/workspace search
+- `Super + Ctrl + Space`: command palette (quick actions)
 - `Super + F1`: open keybind helper overlay (`hypr-binds.sh`)
 - `Super + Ctrl + /`: open keybind helper overlay
 - `Super + A` / `Super + /`: quick actions (press again to close)
@@ -100,8 +101,11 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
 - `Super + N`: toggle notification panel
-- `Super + Shift + N`: toggle DND
+- `Super + Alt + N`: toggle DND
 - `Super + Ctrl + N`: copy notification/status summary to clipboard
+- `Super + Shift + N`: toggle scratchpad notes
+- `Super + \``: toggle scratchpad terminal
+- `Super + Alt + E`: open notes folder in editor
 - `Super + I`: color picker (copies hex)
 - `Super + Shift + I`: toggle night light (`hyprsunset`)
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
@@ -126,7 +130,7 @@ Launcher performance note:
 - cache is warmed at session startup (`launcher.sh --warm-cache`)
 - row lists are pre-rendered to `~/.local/state/noxflow/launcher-rows-*.txt`
 - stale cache refresh runs in background
-- typical warm open path is sub-500ms on this setup
+- fast mode (`launcher.sh --fast`) skips icon rendering for near-instant open
 
 Full keybind tables: `docs/KEYBINDS.md`
 
@@ -199,6 +203,42 @@ sudo reboot
 
 Logs are written to `logs/pre-reboot-latest.log`, `logs/post-reboot-latest.log`, and `~/.local/state/noxflow/waybar.log`.
 Full flow: `docs/RUNBOOK.md`
+
+## Weekly health check (logs + red flags)
+
+Run once:
+
+```sh
+./setup/weekly-health-check.sh
+```
+
+Enable weekly timer:
+
+```sh
+./setup/configure-weekly-healthcheck.sh
+```
+
+Log output:
+- `logs/health-*.log`
+- `logs/health-latest.log`
+
+If you want the log to auto-open on failures:
+
+```sh
+HEALTHCHECK_OPEN_ON_FAIL=1 ./setup/weekly-health-check.sh
+```
+
+## Default editor + notes workflow
+
+Set default editor MIME handlers:
+
+```sh
+./setup/configure-default-editor.sh
+```
+
+Notes path defaults:
+- Folder: `~/Documents/notes`
+- Scratch file: `~/Documents/notes/inbox.md`
 
 ## Timeshift daily auto snapshots (keep latest 5)
 

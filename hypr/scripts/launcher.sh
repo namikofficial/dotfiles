@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROFI_THEME="$HOME/.config/rofi/launcher.rasi"
+ROFI_FAST_THEME="$HOME/.config/rofi/launcher-fast.rasi"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow"
 PID_FILE="$STATE_DIR/rofi-launcher.pid"
 OTHER_PID_FILE="$STATE_DIR/rofi-actions.pid"
@@ -11,6 +12,7 @@ CACHE_REFRESH_PID_FILE="$STATE_DIR/launcher-cache-refresh.pid"
 CACHE_TTL_SECONDS="${LAUNCHER_CACHE_TTL_SECONDS:-21600}"
 ROWS_ALL_FILE="$STATE_DIR/launcher-rows-all.txt"
 ROWS_FREQUENT_FILE="$STATE_DIR/launcher-rows-frequent.txt"
+ROWS_FAST_FILE="$STATE_DIR/launcher-rows-fast.tsv"
 
 mkdir -p "$STATE_DIR"
 
@@ -140,19 +142,31 @@ ensure_cache() {
 build_rows_cache() {
   local tmp_all="${ROWS_ALL_FILE}.tmp.$$"
   local tmp_frequent="${ROWS_FREQUENT_FILE}.tmp.$$"
+  local tmp_fast="${ROWS_FAST_FILE}.tmp.$$"
+  local idx=0 name desktop_id _icon display hint
 
   emit_rows_all > "$tmp_all"
   emit_rows_frequent > "$tmp_frequent"
 
+  : > "$tmp_fast"
+  while IFS=$'\t' read -r name desktop_id _icon; do
+    display="$name"
+    [ "${#display}" -gt 60 ] && display="${display:0:57}..."
+    hint="$(hint_for_index "$idx")"
+    printf '%s\t%s\t%s\n' "$display" "$desktop_id" "$hint" >> "$tmp_fast"
+    idx=$((idx + 1))
+  done < "$CACHE_FILE"
+
   mv "$tmp_all" "$ROWS_ALL_FILE"
   mv "$tmp_frequent" "$ROWS_FREQUENT_FILE"
+  mv "$tmp_fast" "$ROWS_FAST_FILE"
 }
 
 ensure_data_cache() {
   ensure_cache
   [ -s "$CACHE_FILE" ] || return 1
 
-  if [ ! -s "$ROWS_ALL_FILE" ] || [ ! -s "$ROWS_FREQUENT_FILE" ]; then
+  if [ ! -s "$ROWS_ALL_FILE" ] || [ ! -s "$ROWS_FREQUENT_FILE" ] || [ ! -s "$ROWS_FAST_FILE" ]; then
     build_rows_cache
   fi
 }
@@ -340,6 +354,48 @@ stop_if_running() {
   return 1
 }
 
+run_fast_launcher() {
+  local choice desktop_id rofi_status
+
+  ensure_data_cache
+  [ -s "$ROWS_FAST_FILE" ] || exit 0
+
+  set +e
+  choice="$(
+    rofi -dmenu -i \
+      -p 'Apps' \
+      -display-columns 1,3 \
+      -display-column-separator $'\t' \
+      -theme "$ROFI_FAST_THEME" \
+      -no-show-icons \
+      -no-sort \
+      -kb-select-1 'Control+1,Super+1' \
+      -kb-select-2 'Control+2,Super+2' \
+      -kb-select-3 'Control+3,Super+3' \
+      -kb-select-4 'Control+4,Super+4' \
+      -kb-select-5 'Control+5,Super+5' \
+      -kb-select-6 'Control+6,Super+6' \
+      -kb-select-7 'Control+7,Super+7' \
+      -kb-select-8 'Control+8,Super+8' \
+      -kb-select-9 'Control+9,Super+9' \
+      -kb-select-10 'Control+0,Super+0' \
+      -kb-cancel 'Escape,Control+g,Super+space' \
+      -mesg 'Type to search instantly | Ctrl+1..0 quick-launch' \
+      -format 's' \
+      -pid "$PID_FILE" < "$ROWS_FAST_FILE"
+  )"
+  rofi_status=$?
+  set -e
+
+  rm -f "$PID_FILE"
+  [ "$rofi_status" -eq 0 ] || exit 0
+  [ -n "$choice" ] || exit 0
+
+  desktop_id="$(printf '%s\n' "$choice" | awk -F '\t' '{print $2}')"
+  [ -n "$desktop_id" ] || exit 0
+  launch_desktop_id "$desktop_id"
+}
+
 # Cache maintenance entrypoints.
 if [ "${1:-}" = "--rebuild-cache" ]; then
   build_cache
@@ -359,6 +415,11 @@ if [ "${1:-}" = "--warm-cache" ]; then
   exit 0
 fi
 
+launch_mode="tabs"
+if [ "${1:-}" = "--fast" ]; then
+  launch_mode="fast"
+fi
+
 # Script mode entrypoint for rofi tabs.
 if [ "${1:-}" = "--mode" ]; then
   mode="${2:-frequent}"
@@ -376,6 +437,11 @@ if stop_if_running "$PID_FILE"; then
 fi
 
 stop_if_running "$OTHER_PID_FILE" || true
+
+if [ "$launch_mode" = "fast" ]; then
+  run_fast_launcher
+  exit 0
+fi
 
 set +e
 rofi \

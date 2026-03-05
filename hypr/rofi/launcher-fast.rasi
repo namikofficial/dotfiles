@@ -1,0 +1,27 @@
+@theme "theme.rasi"
+
+window {
+    width: 48%;
+}
+
+mainbox {
+    spacing: 8px;
+    padding: 10px 12px;
+}
+
+inputbar {
+    padding: 8px 10px;
+}
+
+listview {
+    lines: 10;
+    spacing: 4px;
+}
+
+element {
+    padding: 7px 10px;
+}
+
+mode-switcher {
+    enabled: false;
+}
