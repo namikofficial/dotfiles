@@ -306,8 +306,14 @@ if ! command -v codex >/dev/null 2>&1; then
   [ -n "$codex_bin_dir" ] && path=("$codex_bin_dir" $path)
 fi
 
-# ensure copilot cli remains available if installed via npm and node versions change
-eval "$(copilot alias -- zsh)"
+# GitHub Copilot shell aliases (safe no-op when not installed).
+if command -v gh >/dev/null 2>&1; then
+  if gh extension list 2>/dev/null | rg -q 'github/gh-copilot'; then
+    eval "$(gh copilot alias -- zsh)"
+  fi
+elif command -v github-copilot-cli >/dev/null 2>&1; then
+  eval "$(github-copilot-cli alias -- zsh)"
+fi
 
 # Android SDK Configuration
 export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
