@@ -222,15 +222,28 @@ lS() { _ls_unified size "$@"; }
 #   AUTO_LS=0 disables automatic listing after cd
 #   AUTO_LS_MAX_ENTRIES limits auto-ls output size in large directories
 AUTO_LS="${AUTO_LS:-1}"
-AUTO_LS_MAX_ENTRIES="${AUTO_LS_MAX_ENTRIES:-30}"
+AUTO_LS_MAX_ENTRIES="${AUTO_LS_MAX_ENTRIES:-50}"
 
-# Auto-list directory contents after changing directories.
+_auto_ls_list() {
+  emulate -L zsh
+  if command -v eza >/dev/null 2>&1; then
+    eza -a --icons=auto --group-directories-first
+  elif ls --color=auto -d . >/dev/null 2>&1; then
+    command ls -AhF --color=auto
+  elif ls -G -d . >/dev/null 2>&1; then
+    command ls -AhFG
+  else
+    command ls -AhF
+  fi
+}
+
+# Auto-list directory contents after changing directories (works for cd + autocd).
 auto_ls_chpwd() {
   emulate -L zsh
   [[ "$AUTO_LS" == "0" ]] && return 0
   [[ -o interactive ]] || return 0
 
-  integer max_entries=30
+  integer max_entries=50
   if [[ "$AUTO_LS_MAX_ENTRIES" == <-> ]] && (( AUTO_LS_MAX_ENTRIES > 0 )); then
     max_entries=$AUTO_LS_MAX_ENTRIES
   fi
@@ -240,29 +253,32 @@ auto_ls_chpwd() {
   integer total_entries=${#entries}
 
   if ! [[ -t 1 ]]; then
-    command ls -1A
+    _auto_ls_list
     return 0
   fi
 
+  print -P "%B%F{blue}auto-ls%f%b %F{8}(${PWD:t})%f"
   if (( total_entries > max_entries )); then
-    print -P "%F{yellow}auto-ls:%f showing first ${max_entries}/${total_entries} entries (set AUTO_LS_MAX_ENTRIES to change)"
-    command ls -1A | head -n "$max_entries"
+    local -a shown_entries
+    shown_entries=( "${entries[@][1,max_entries]}" )
+    print -P "%F{yellow}showing first %F{cyan}${max_entries}%f/%F{green}${total_entries}%f entries %F{8}(set AUTO_LS_MAX_ENTRIES to change)%f"
+    if command -v eza >/dev/null 2>&1; then
+      eza --icons=auto --group-directories-first -- "${shown_entries[@]}"
+    elif ls --color=auto -d . >/dev/null 2>&1; then
+      command ls -hF --color=auto -d -- "${shown_entries[@]}"
+    elif ls -G -d . >/dev/null 2>&1; then
+      command ls -hFG -d -- "${shown_entries[@]}"
+    else
+      command ls -hF -d -- "${shown_entries[@]}"
+    fi
     integer remaining_entries=$(( total_entries - max_entries ))
     if (( remaining_entries > 0 )); then
-      print -P "%F{yellow}auto-ls:%f ... and ${remaining_entries} more"
+      print -P "%F{8}... and %F{magenta}${remaining_entries}%f%F{8} more%f"
     fi
     return 0
   fi
 
-  if command -v eza >/dev/null 2>&1; then
-    eza --icons=auto --group-directories-first
-  elif ls --color=auto -d . >/dev/null 2>&1; then
-    command ls --color=auto -hF
-  elif ls -G -d . >/dev/null 2>&1; then
-    command ls -G -hF
-  else
-    command ls -hF
-  fi
+  _auto_ls_list
 }
 typeset -ga chpwd_functions
 if (( ${chpwd_functions[(Ie)auto_ls_chpwd]} == 0 )); then

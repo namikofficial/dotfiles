@@ -23,12 +23,12 @@ window#waybar {
 .modules-left,
 .modules-center,
 .modules-right {
-  margin-top: 1px;
-  padding: 2px 8px;
-  border-radius: 14px;
+  margin-top: 0;
+  padding: 4px 8px;
+  border-radius: 16px;
   border: 1px solid rgba(122, 162, 247, 0.35);
   background: linear-gradient(180deg, rgba(32, 39, 65, 0.88), rgba(15, 17, 26, 0.9));
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.36);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.38);
 }
 
 button {
@@ -61,11 +61,11 @@ button {
 #tray,
 #custom-cliphist,
 #custom-power {
-  margin: 0 2px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(122, 162, 247, 0.12);
+  margin: 2px 2px;
+  padding: 2px 10px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(122, 162, 247, 0.18);
 }
 
 #custom-launcher,
@@ -101,17 +101,17 @@ button {
 }
 
 #workspaces {
-  padding-left: 5px;
-  padding-right: 5px;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 
 #workspaces button {
   font-family: "Noto Sans", "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
   font-size: 13px;
   color: @muted;
-  margin: 0 2px;
-  padding: 1px 8px;
-  border-radius: 9px;
+  margin: 1px 2px;
+  padding: 2px 9px;
+  border-radius: 10px;
   transition: all 130ms ease;
   opacity: 0.62;
 }
@@ -129,7 +129,7 @@ button {
 }
 
 #custom-media {
-  min-width: 180px;
+  min-width: 172px;
 }
 
 #custom-updates {
@@ -145,7 +145,7 @@ button {
 #custom-power,
 #tray {
   font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font", "Noto Sans", sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   min-height: 20px;
   padding-top: 1px;
   padding-bottom: 1px;
@@ -164,6 +164,32 @@ button {
 
 #workspaces button {
   min-height: 20px;
+}
+
+#custom-launcher,
+#custom-overview,
+#custom-layout,
+#power-profiles-daemon,
+#custom-notifications,
+#custom-cliphist,
+#custom-power {
+  font-size: 13px;
+}
+
+#clock,
+#cpu,
+#memory,
+#network,
+#backlight,
+#battery,
+#pulseaudio,
+#custom-weather,
+#custom-vpn,
+#custom-updates,
+#window {
+  font-size: 12px;
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 #battery.warning,
