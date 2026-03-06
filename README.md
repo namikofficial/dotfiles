@@ -74,7 +74,8 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 
 ## Keybind highlights (Hyprland)
 
-- `Super + W`: workspace/window overview switcher (Rofi list)
+- `Super + Y`: primary workspace hub (`workspace-overview-toggle.sh`)
+- `Super + W`: workspace/window overview switcher (direct Rofi list)
 - `Super + Tab`: Mission-Control style overview (`hyprexpo`)
 - `Super + Shift + Tab`: force fallback Rofi overview
 - `Super + Space`: ultra-fast app launcher (type-to-search, minimal chrome)
@@ -110,7 +111,7 @@ The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless yo
 - `Super + Shift + I`: toggle night light (`hyprsunset`)
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
 - `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
-- `Super + Y`: quick actions menu
+- In-workspace-hub hotkeys: `Ctrl + Alt + R` rename, `Ctrl + Alt + Backspace` clear label, `Ctrl + Alt + F` favorite, `Ctrl + Alt + S` shortcuts, `Ctrl + Alt + M/O/P` window move/send actions
 - `Super + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
 - `Super + Ctrl + Y`: toggle panel engine (`waybar` <-> `hyprpanel`, if installed)
 - `Super + Alt + Y`: toggle panel visibility only (show/hide current panel)

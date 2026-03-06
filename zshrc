@@ -64,6 +64,11 @@ fi
 # Completion setup
 mkdir -p "$HOME/.cache/zsh"
 
+# Completion list behavior:
+# - LISTMAX=0 asks only when list output would scroll off-screen.
+# - Keep completion UIs compact by default.
+LISTMAX=0
+
 # zsh-completions (must be in fpath before compinit)
 if [ -d "$HOME/.local/share/zsh/plugins/zsh-completions/src" ]; then
   fpath=("$HOME/.local/share/zsh/plugins/zsh-completions/src" $fpath)
@@ -95,6 +100,7 @@ zstyle ':completion:*' completer _expand _complete _correct _approximate
 zstyle ':completion:*' format 'Completing %d'
 zstyle ':completion:*' group-name ''
 zstyle ':completion:*' list-prompt '%SAt %p: hit TAB for more%s'
+zstyle ':completion:*' list-lines 24
 zstyle ':completion:*' matcher-list '' 'm:{a-z}={A-Z}' 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=* l:|=*'
 zstyle ':completion:*' menu select=long
 zstyle ':completion:*' select-prompt '%SScrolling active: current selection at %p%s'
@@ -216,7 +222,7 @@ lS() { _ls_unified size "$@"; }
 #   AUTO_LS=0 disables automatic listing after cd
 #   AUTO_LS_MAX_ENTRIES limits auto-ls output size in large directories
 AUTO_LS="${AUTO_LS:-1}"
-AUTO_LS_MAX_ENTRIES="${AUTO_LS_MAX_ENTRIES:-200}"
+AUTO_LS_MAX_ENTRIES="${AUTO_LS_MAX_ENTRIES:-30}"
 
 # Auto-list directory contents after changing directories.
 auto_ls_chpwd() {
@@ -224,7 +230,7 @@ auto_ls_chpwd() {
   [[ "$AUTO_LS" == "0" ]] && return 0
   [[ -o interactive ]] || return 0
 
-  integer max_entries=200
+  integer max_entries=30
   if [[ "$AUTO_LS_MAX_ENTRIES" == <-> ]] && (( AUTO_LS_MAX_ENTRIES > 0 )); then
     max_entries=$AUTO_LS_MAX_ENTRIES
   fi
@@ -241,6 +247,10 @@ auto_ls_chpwd() {
   if (( total_entries > max_entries )); then
     print -P "%F{yellow}auto-ls:%f showing first ${max_entries}/${total_entries} entries (set AUTO_LS_MAX_ENTRIES to change)"
     command ls -1A | head -n "$max_entries"
+    integer remaining_entries=$(( total_entries - max_entries ))
+    if (( remaining_entries > 0 )); then
+      print -P "%F{yellow}auto-ls:%f ... and ${remaining_entries} more"
+    fi
     return 0
   fi
 

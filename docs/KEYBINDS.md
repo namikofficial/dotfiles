@@ -27,7 +27,8 @@ flowchart LR
 | `Super + F1` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + A` or `Super + /` | Quick actions (press again to close) | `quick-actions.sh` |
 | `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
-| `Super + W` | Workspace overview (Rofi) | `workspace-overview.sh` |
+| `Super + Y` | Workspace hub (primary path) | `workspace-overview-toggle.sh` |
+| `Super + W` | Workspace overview (direct Rofi path) | `workspace-overview.sh` |
 | `Super + Tab` | Mission control overview | `hyprexpo:expo toggle` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
@@ -40,7 +41,6 @@ flowchart LR
 | `Super + Shift + N` | Open notes folder | `open-notes.sh` |
 | `Super + Alt + E` | Open notes folder | `open-notes.sh` |
 | `Super + D` | Quick actions menu (duplicate launcher utility key) | `quick-actions.sh` |
-| `Super + Y` | Quick actions menu | `quick-actions.sh` |
 | `Super + Ctrl + Y` | Toggle Waybar/HyprPanel | `panel-switch.sh toggle` |
 | `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
 | `Super + Ctrl + Shift + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh` |
@@ -124,6 +124,18 @@ flowchart LR
 | `Ctrl + 1..0` | Quick-select row 1..10 |
 | `Enter` | Run/open selected item |
 | `Esc` or opener key again | Close menu (`Super+Space` / `Super+A`) |
+
+## Workspace Hub In-Menu Hotkeys
+
+| Key | Action |
+|---|---|
+| `Ctrl + Alt + R` | Rename selected workspace |
+| `Ctrl + Alt + Backspace` | Clear selected workspace label |
+| `Ctrl + Alt + F` | Toggle selected workspace favorite |
+| `Ctrl + Alt + S` | Show overview shortcuts panel |
+| `Ctrl + Alt + M` | Move selected window to workspace |
+| `Ctrl + Alt + O` | Move selected window + follow |
+| `Ctrl + Alt + P` | Send selected window to side panel |
 
 ## Notification Panel Contents
 

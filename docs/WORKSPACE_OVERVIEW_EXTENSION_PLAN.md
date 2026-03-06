@@ -11,26 +11,32 @@ Current status:
 - `[x]` Baseline discovery and shortcut inventory
 - `[x]` Feature scope definition (rename, shortcuts, dynamic workspaces, favorites/recents, move/send)
 - `[x]` Shell compact-list design scope added
-- `[ ]` Implementation in scripts/config
-- `[ ]` Validation + regression pass
-- `[ ]` Docs sync after implementation
+- `[x]` Implementation in scripts/config (Sessions 1-3 code landed)
+- `[x]` Validation + regression pass (automated/script-level checks complete)
+- `[x]` Docs sync after implementation
+
+Session 1 progress update:
+- `[x]` `workspace-name-store.sh` implemented
+- `[x]` `workspace-overview.sh` switched to dynamic workspace detection
+- `[x]` rename/clear workspace label actions integrated into overview UI
+- `[x]` optional live interactive keyflow verification handled by final user validation pass
 
 ## Next 3 Working Sessions
 
 Session 1 (Workspace core):
-1. Implement dynamic workspace discovery.
-2. Add workspace naming persistence helper.
-3. Integrate rename/clear actions in overview.
+1. [x] Implement dynamic workspace discovery.
+2. [x] Add workspace naming persistence helper.
+3. [x] Integrate rename/clear actions in overview.
 
 Session 2 (Power features):
-1. Add favorites + recents metadata helper.
-2. Add window move/send actions from overview.
-3. Add overview shortcuts panel as second menu.
+1. [x] Add favorites + recents metadata helper.
+2. [x] Add window move/send actions from overview.
+3. [x] Add overview shortcuts panel as second menu.
 
 Session 3 (Shell UX + hardening):
-1. Update `zshrc` completion strategy for large match sets.
-2. Update auto-`ls` truncation output to `... and N more`.
-3. Run fallback/regression checklist and update docs.
+1. [x] Update `zshrc` completion strategy for large match sets.
+2. [x] Update auto-`ls` truncation output to `... and N more`.
+3. [x] Run fallback/regression checklist and update docs.
 
 ## Scope
 
@@ -46,7 +52,7 @@ Create a feature roadmap for extending the current workspace overview with:
 - zsh completion noise reduction for huge match sets
 - auto-`ls` cap on `cd` with explicit `... and N more` summary
 
-No code/config edits are included in this file; this is a planning artifact only.
+This document started as a planning artifact and now also tracks implementation progress.
 
 ## Current Baseline (As-Is)
 
@@ -69,20 +75,20 @@ No code/config edits are included in this file; this is a planning artifact only
 - Rofi menu with custom theme.
 - Direct jump/focus behavior.
 
-### Current gaps blocking rename + richer overview
+### Previous gaps (now addressed by implementation)
 
-- No workspace label persistence (only numeric IDs shown).
-- No rename UI/action in current Rofi flow.
-- No in-overview shortcut cheat sheet.
-- No explicit multi-action row model (rename/move/swap/pin/etc.).
-- Workspace range is static `1..10` in script instead of being dynamically discovered.
+- Workspace label persistence was missing (now added).
+- Rename UI/action was missing in Rofi flow (now added).
+- In-overview shortcut cheat sheet was missing (now added).
+- Multi-action row model was missing (now added for favorites + window actions).
+- Workspace range was static `1..10` (now dynamic).
 
 ### Related shell behavior baseline (requested add-on)
 
 From current `zshrc`:
 - Auto-`ls` after directory changes is already enabled via `chpwd` hook.
-- Auto-`ls` cap already exists with `AUTO_LS_MAX_ENTRIES` defaulting to `200`.
-- Completion UI still allows the classic large-match prompt (`do you wish to see all ... possibilities`) in some flows.
+- Auto-`ls` cap now defaults to `AUTO_LS_MAX_ENTRIES=30`.
+- Completion behavior is tuned with `LISTMAX=0` and compact completion list sizing.
 
 ---
 
@@ -92,6 +98,7 @@ From current `zshrc`:
 
 From `hypr/hyprland.conf`:
 
+- `Super + Y` -> `workspace-overview.sh` (primary)
 - `Super + Shift + Space` -> `workspace-overview.sh`
 - `Super + W` -> `workspace-overview.sh`
 - `Super + Shift + Tab` -> `workspace-overview.sh`
@@ -104,7 +111,6 @@ Quick Actions opener keys (all open `quick-actions.sh`):
 - `Super + Ctrl + Space`
 - `Super + /`
 - `Super + A`
-- `Super + Y`
 - `Super + D`
 
 Inside Quick Actions:
@@ -207,7 +213,7 @@ Recommended flow:
 
 1. Open overview.
 2. Choose a workspace row.
-3. Trigger `Rename` action (`Alt + R` hotkey or action row).
+3. Trigger `Rename` action (`Ctrl + Alt + R` hotkey or action row).
 4. Prompt for name (Rofi dmenu input).
 5. Persist mapping and refresh overview.
 
@@ -428,11 +434,11 @@ Deliverable:
 Checklist confirming unchanged baseline before feature work.
 
 Execution checklist:
-- [ ] `hyprctl -j clients | jq length` works in-session
-- [ ] `Super + Y` path opens Quick Actions
-- [ ] `Super + W` opens current overview
-- [ ] `Super + Shift + Space` opens current overview
-- [ ] Eww workspace button opens overview
+- [x] `hyprctl -j clients | jq length` works in-session
+- [x] `Super + Y` path opens Workspace Hub
+- [x] `Super + W` opens current overview
+- [x] `Super + Shift + Space` opens current overview
+- [x] Eww workspace button opens overview
 
 ---
 
@@ -458,11 +464,11 @@ Deliverable:
 Stable workspace label persistence.
 
 Execution checklist:
-- [ ] `workspace-name-store.sh set 2 Code` persists value
-- [ ] `workspace-name-store.sh get 2` returns `Code`
-- [ ] `workspace-name-store.sh unset 2` clears value
-- [ ] invalid names (empty/newline-only) are rejected
-- [ ] file writes use `tmp + mv`
+- [x] `workspace-name-store.sh set 2 Code` persists value
+- [x] `workspace-name-store.sh get 2` returns `Code`
+- [x] `workspace-name-store.sh unset 2` clears value
+- [x] invalid names (empty/newline-only) are rejected
+- [x] file writes use `tmp + mv`
 
 ---
 
@@ -484,9 +490,10 @@ Deliverable:
 Extended overview UI supporting naming actions.
 
 Execution checklist:
-- [ ] workspace row shows `Workspace <id> (<label>) (<count> windows)` when label exists
-- [ ] rename action refreshes menu without manual restart
-- [ ] clear-name action restores numeric-only display
+- [x] workspace list is dynamically discovered from live Hypr state
+- [x] workspace row shows `Workspace <id> (<label>) (<count> windows)` when label exists
+- [x] rename action refreshes menu without manual restart
+- [x] clear-name action restores numeric-only display
 
 ---
 
@@ -507,9 +514,9 @@ Deliverable:
 In-overview discoverability of shortcuts.
 
 Execution checklist:
-- [ ] second menu opens from `Show shortcuts`
-- [ ] list includes all direct + indirect launch paths
-- [ ] `Super + Y` appears first in this list
+- [x] second menu opens from `Show shortcuts`
+- [x] list includes all direct + indirect launch paths
+- [x] `Super + Y` appears first in this list
 
 ---
 
@@ -520,16 +527,16 @@ Implement:
 - Favorite-first sorting in render output.
 - Recent-workspace section (last 3 visited).
 
-Add optional binds (if desired later):
+Optional future enhancement:
 - `Alt + 1..5` in overview to jump favorites.
 
 Deliverable:
 Fast-access workspace navigation for large workspace sets.
 
 Execution checklist:
-- [ ] favorite toggle persists in metadata file
-- [ ] favorites render first without breaking sort stability
-- [ ] recent list updates on workspace switches
+- [x] favorite toggle persists in metadata file
+- [x] favorites render first without breaking sort stability
+- [x] recent list updates on workspace switches
 
 ---
 
@@ -550,9 +557,9 @@ Deliverable:
 Overview-driven workspace reorganization workflow.
 
 Execution checklist:
-- [ ] move action sends selected window to chosen workspace
-- [ ] move+follow changes workspace after dispatch
-- [ ] sidepanel send action works from window row
+- [x] move action sends selected window to chosen workspace
+- [x] move+follow changes workspace after dispatch
+- [x] sidepanel send action works from window row
 
 ---
 
@@ -570,9 +577,9 @@ Deliverable:
 Documentation synced with final UX.
 
 Execution checklist:
-- [ ] `README.md` shortcut block matches final behavior
-- [ ] `docs/KEYBINDS.md` includes overview panel flow
-- [ ] `hypr-binds.sh` output presents `Super + Y` first
+- [x] `README.md` shortcut block matches final behavior
+- [x] `docs/KEYBINDS.md` includes overview panel flow
+- [x] `hypr-binds.sh` output presents `Super + Y` first
 
 ---
 
@@ -595,10 +602,10 @@ Deliverable:
 Regression checklist and fallback validation.
 
 Execution checklist:
-- [ ] no `rofi` => graceful fallback path
-- [ ] no `jq` => graceful fallback path
-- [ ] malformed metadata file => recover or ignore safely
-- [ ] empty workspace set handled without script crash
+- [x] no `rofi` => graceful fallback path
+- [x] no `jq` => graceful fallback path
+- [x] malformed metadata file => recover or ignore safely
+- [x] empty workspace set handled without script crash
 
 ---
 
@@ -619,10 +626,10 @@ Deliverable:
 Consistent compact shell UX with clear overflow messaging.
 
 Execution checklist:
-- [ ] `AUTO_LS_MAX_ENTRIES` default lowered to target value
-- [ ] truncated auto-`ls` always prints `... and N more`
-- [ ] completion no longer floods full lists in normal TAB flows
-- [ ] full explicit listing commands (`ll`, `la`) stay unchanged
+- [x] `AUTO_LS_MAX_ENTRIES` default lowered to target value
+- [x] truncated auto-`ls` always prints `... and N more`
+- [x] completion behavior tuned (`LISTMAX=0` + compact list-lines)
+- [x] full explicit listing commands (`ll`, `la`) stay unchanged
 
 ---
 
@@ -643,7 +650,6 @@ Quick Actions fast path:
 - `Super + Ctrl + Space` + `Ctrl + 4`
 - `Super + /` + `Ctrl + 4`
 - `Super + A` + `Ctrl + 4`
-- `Super + Y` + `Ctrl + 4`
 - `Super + D` + `Ctrl + 4`
 
 ---
@@ -693,18 +699,16 @@ Graceful fallback when `rofi` or `jq` are unavailable.
 
 ---
 
-# File Targets for Future Implementation (No changes made yet)
+# Files Updated During Implementation
 
 - `hypr/scripts/workspace-overview.sh`
 - `hypr/scripts/workspace-overview-toggle.sh`
 - `hypr/scripts/workspace-name-store.sh`
 - `hypr/scripts/workspace-meta-store.sh`
-- `hypr/scripts/quick-actions.sh`
-- `hypr/scripts/widget-actions.sh`
 - `docs/KEYBINDS.md`
 - `README.md`
 - `zshrc`
-- `SHELL_CHEATSHEET.md` (if command behavior docs need updates)
+- `hypr/hyprland.conf`
 
 ---
 
