@@ -117,6 +117,21 @@ flowchart LR
 | `Alt + C` | Fuzzy zoxide jump |
 | `Esc` | Enter `zsh-vi-mode` normal mode |
 
+## Kitty Terminal Keymaps
+
+| Keybind | Action |
+|---|---|
+| `Ctrl + Shift + T` | New tab (inherits current working directory) |
+| `Ctrl + Shift + Q` | Close current tab |
+| `Ctrl + Shift + W` | Close current split/window |
+| `Ctrl + Shift + [` / `Ctrl + Shift + ]` | Previous / next tab |
+| `Ctrl + Shift + Enter` | New terminal window (same cwd) |
+| `Ctrl + Shift + O` / `Ctrl + Shift + E` | Split horizontal / vertical |
+| `Ctrl + Shift + H/J/K/L` | Focus left/down/up/right split |
+| `Ctrl + Shift + Alt + H/J/K/L` | Resize split (narrow/short/tall/wide) |
+| `Ctrl + Shift + F5` | Reload kitty config |
+| Select text | Auto-copy to clipboard (`copy_on_select`) |
+
 ## Rofi Menus (Launcher + Quick Actions)
 
 | Key | Action |

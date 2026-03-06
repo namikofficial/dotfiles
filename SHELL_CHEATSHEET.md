@@ -88,6 +88,7 @@
 - `Super + Return`: terminal (`kitty`)
 - `Super + Space`: app launcher (press again to close)
 - In launcher: Tab A = top 5 frequent, Tab B = all apps, `Ctrl + Tab` switches tabs
+- `Super + .`: fullscreen dev cheatsheet overlay
 - `Super + F1`: keybind helper overlay
 - `Super + A` or `Super + /`: quick actions (press again to close)
 - `Super + Ctrl + /`: keybind helper overlay
@@ -126,6 +127,18 @@
 - `Super + Ctrl + Arrow`: move active floating window
 - `Super + Ctrl + Shift + Arrow`: resize active floating window
 - `Super + [` / `Super + ]`: previous / next workspace
+
+## Kitty Keymaps
+- New tab (same cwd): `Ctrl + Shift + T`
+- Close tab: `Ctrl + Shift + Q`
+- Close split/window: `Ctrl + Shift + W`
+- Previous / next tab: `Ctrl + Shift + [` / `Ctrl + Shift + ]`
+- New window (same cwd): `Ctrl + Shift + Enter`
+- Split horizontal / vertical: `Ctrl + Shift + O` / `Ctrl + Shift + E`
+- Focus left/right/up/down split: `Ctrl + Shift + H/J/K/L`
+- Resize split: `Ctrl + Shift + Alt + H/J/K/L`
+- Reload kitty config: `Ctrl + Shift + F5`
+- Clipboard: selecting text copies automatically (`copy_on_select`)
 
 ## Session Repair
 - Reload shell config: `exec zsh`
