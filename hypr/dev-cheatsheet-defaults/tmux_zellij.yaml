@@ -1,22 +1,48 @@
 category: Tmux/Zellij
 slug: tmux_zellij
 entries:
+  - key: tnew
+    description: start/attach main tmux session
+    copy: tmux new-session -A -s main
+    source: ~/.zshrc
+    tags: [daily]
+  - key: ta <name>
+    description: attach/create named tmux session
+    copy: ta main
+    source: ~/.zshrc
+    tags: [daily]
   - key: tmux ls
     description: list tmux sessions
     copy: tmux ls
     source: ~/.config/dev-cheatsheet/tmux_zellij.yaml
-  - key: tmux attach -t main
-    description: attach named session
-    copy: tmux attach -t main
-    source: ~/.config/dev-cheatsheet/tmux_zellij.yaml
+  - key: Prefix (Ctrl+a)
+    description: tmux prefix key
+    copy: Ctrl+a
+    source: ~/.tmux.conf
   - key: Prefix + c
     description: create window (tmux)
     copy: Prefix + c
     source: ~/.tmux.conf
-  - key: Prefix + |
-    description: vertical split (tmux)
-    copy: Prefix + |
+  - key: Prefix + - / Prefix + |
+    description: split pane horizontal / vertical
+    copy: Prefix + - / Prefix + |
     source: ~/.tmux.conf
+  - key: Prefix + h/j/k/l
+    description: move between panes
+    copy: Prefix + h/j/k/l
+    source: ~/.tmux.conf
+  - key: Prefix + H/J/K/L
+    description: resize panes
+    copy: Prefix + H/J/K/L
+    source: ~/.tmux.conf
+  - key: Prefix + r
+    description: reload tmux config
+    copy: tmux source-file ~/.tmux.conf
+    source: ~/.tmux.conf
+  - key: install tmux plugins
+    description: install/update TPM plugins from ~/.tmux.conf
+    copy: ~/Documents/code/dotfiles/setup/install-tmux-plugins.sh
+    source: ~/Documents/code/dotfiles/setup/install-tmux-plugins.sh
   - key: zellij
     description: launch zellij session
     copy: zellij

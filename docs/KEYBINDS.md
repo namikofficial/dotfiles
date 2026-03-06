@@ -117,6 +117,19 @@ flowchart LR
 | `Alt + C` | Fuzzy zoxide jump |
 | `Esc` | Enter `zsh-vi-mode` normal mode |
 
+## Tmux Keymaps
+
+| Keybind | Action |
+|---|---|
+| `Ctrl + A` | Tmux prefix |
+| `Prefix + c` | New window (current directory) |
+| `Prefix + -` / `Prefix + \|` | Split horizontal / vertical |
+| `Prefix + h/j/k/l` | Focus pane left/down/up/right |
+| `Prefix + H/J/K/L` | Resize pane |
+| `Prefix + [` | Enter copy mode (vi) |
+| `copy-mode: v` then `y` | Select and copy to clipboard (`wl-copy`) |
+| `Prefix + r` | Reload `~/.tmux.conf` |
+
 ## Kitty Terminal Keymaps
 
 | Keybind | Action |

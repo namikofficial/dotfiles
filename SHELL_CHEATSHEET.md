@@ -140,6 +140,19 @@
 - Reload kitty config: `Ctrl + Shift + F5`
 - Clipboard: selecting text copies automatically (`copy_on_select`)
 
+## Tmux Quickstart
+- Start/attach `main` session: `tnew` or `tn`
+- Attach named session: `ta mysession`
+- List sessions: `tls`
+- Prefix key: `Ctrl + A`
+- New window: `Prefix + c`
+- Split horizontal / vertical: `Prefix + -` / `Prefix + |`
+- Move panes: `Prefix + h/j/k/l`
+- Resize panes: `Prefix + H/J/K/L`
+- Reload tmux config: `Prefix + r` or `treload`
+- Copy in copy-mode: `Prefix + [` then `v` select, `y` copy (uses `wl-copy`)
+- Install/update TPM plugins: `~/Documents/code/dotfiles/setup/install-tmux-plugins.sh`
+
 ## Session Repair
 - Reload shell config: `exec zsh`
 - Reload Hyprland config: `hyprctl reload`

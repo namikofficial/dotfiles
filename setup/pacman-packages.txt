@@ -24,6 +24,7 @@ man-db
 man-pages
 git
 github-cli
+tmux
 code
 helix
 lazygit

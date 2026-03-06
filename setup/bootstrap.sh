@@ -10,6 +10,7 @@ WITH_NVIDIA=""
 DRY_RUN=0
 NO_BACKUP=0
 INSTALL_ZSH_PLUGINS=1
+INSTALL_TMUX_PLUGINS=1
 INSTALL_HYPR_PLUGINS=0
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
@@ -22,6 +23,7 @@ Usage: $0 [options]
   --with-nvidia        Force NVIDIA package installation
   --no-nvidia          Skip NVIDIA packages even if GPU is detected
   --no-zsh-plugins     Skip optional zsh plugin sync
+  --no-tmux-plugins    Skip optional tmux plugin sync
   --install-hypr-plugins  Install hyprexpo via hyprpm (must run in Hyprland session)
   --dry-run            Print actions without writing changes
   --no-backup          Replace existing files without backup copy
@@ -40,6 +42,7 @@ while (($#)); do
     --with-nvidia) WITH_NVIDIA="--with-nvidia" ;;
     --no-nvidia) WITH_NVIDIA="--no-nvidia" ;;
     --no-zsh-plugins) INSTALL_ZSH_PLUGINS=0 ;;
+    --no-tmux-plugins) INSTALL_TMUX_PLUGINS=0 ;;
     --install-hypr-plugins) INSTALL_HYPR_PLUGINS=1 ;;
     --dry-run) DRY_RUN=1 ;;
     --no-backup) NO_BACKUP=1 ;;
@@ -113,6 +116,7 @@ link_path() {
 }
 
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
+link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
 
@@ -165,6 +169,12 @@ fi
 
 if (( INSTALL_ZSH_PLUGINS )); then
   cmd=("$SCRIPT_DIR/install-zsh-plugins.sh")
+  (( DRY_RUN )) && cmd+=(--dry-run)
+  "${cmd[@]}"
+fi
+
+if (( INSTALL_TMUX_PLUGINS )); then
+  cmd=("$SCRIPT_DIR/install-tmux-plugins.sh")
   (( DRY_RUN )) && cmd+=(--dry-run)
   "${cmd[@]}"
 fi

@@ -5,6 +5,7 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 ## Includes
 
 - `zshrc`, `aliases.zsh`, `aliases.local.zsh`, `SHELL_CHEATSHEET.md`
+- `tmux/tmux.conf` + `setup/install-tmux-plugins.sh` (TPM plugin sync)
 - `atuin/config.toml` for consistent Atuin history UI/search defaults
 - `docs/KEYBINDS.md` full keybind tables + Mermaid map
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
@@ -26,6 +27,7 @@ cd ~/Documents/code/dotfiles
 That command:
 
 - links shell files (`~/.zshrc`, cheat sheet)
+- links tmux config (`~/.tmux.conf`)
 - links Atuin config into `~/.config/atuin/config.toml`
 - links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
 - links Eww and theme configs (`gtk`, `qt5ct`, `qt6ct`, `Kvantum`) into `~/.config`
@@ -33,6 +35,7 @@ That command:
 - links Chrome flags to `~/.config/chrome-flags.conf`
 - links your `~/Documents/code/scripts/bin/*` commands into `~/.local/bin`
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
+- installs/updates tmux plugins via TPM (`~/.tmux/plugins/tpm`)
 - creates timestamped backups when replacing existing configs
 
 ## Full install (packages + links)
@@ -71,6 +74,7 @@ sudo rm -f /var/lib/pacman/db.lck
 
 The installer auto-skips packages that are not available in current repos.
 The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless you pass `--no-zsh-plugins`.
+The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless you pass `--no-tmux-plugins`.
 
 ## Keybind highlights (Hyprland)
 
@@ -141,6 +145,7 @@ Wallpaper/theming pipeline: `docs/WALLPAPER_THEMING.md`
 - `Ctrl + R`: Atuin fuzzy history picker (bound in emacs + vi insert keymaps)
 - `Alt + C`: fuzzy zoxide directory jump
 - `zsh-vi-mode` is auto-loaded when installed via `setup/install-zsh-plugins.sh`
+- Tmux prefix is `Ctrl + A`; pane navigation is `Prefix + h/j/k/l`
 
 ## Optional UI stack (AGS/HyprPanel)
 

@@ -238,6 +238,17 @@ zshbenchcmp() {
     'zsh -i -c exit' \
     'ZSH_LAZY_LOAD_HEAVY=0 zsh -i -c exit'
 }
+alias tls='tmux list-sessions'
+alias tnew='tmux new-session -A -s main'
+alias treload='tmux source-file ~/.tmux.conf'
+ta() {
+  local session="${1:-main}"
+  tmux attach -t "$session" 2>/dev/null || tmux new -s "$session"
+}
+tn() {
+  local session="${1:-main}"
+  tmux new-session -A -s "$session"
+}
 
 # Installed modern CLIs
 if command -v procs >/dev/null 2>&1; then
