@@ -228,6 +228,16 @@ alias envcheck="$SCRIPTS_BIN/env-validate"
 alias rup="$SCRIPTS_BIN/repo-update-all"
 alias pnew="$SCRIPTS_BIN/project-new"
 alias zshprofile="$SCRIPTS_BIN/zsh-startup-profile"
+alias zshbench="$SCRIPTS_BIN/zsh-startup-profile --runs 20"
+zshbenchcmp() {
+  command -v hyperfine >/dev/null 2>&1 || {
+    echo "hyperfine not found" >&2
+    return 1
+  }
+  hyperfine --warmup 2 --runs 12 \
+    'zsh -i -c exit' \
+    'ZSH_LAZY_LOAD_HEAVY=0 zsh -i -c exit'
+}
 
 # Installed modern CLIs
 if command -v procs >/dev/null 2>&1; then
