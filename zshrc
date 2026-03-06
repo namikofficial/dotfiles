@@ -446,11 +446,16 @@ for plugin in \
 done
 
 # Optional plugins (if installed)
-for plugin in \
-  "$HOME/.local/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
-  /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh; do
-  [ -f "$plugin" ] && source "$plugin" && break
-done
+# Keep autocomplete disabled by default because autosuggestions is also enabled.
+# Set ENABLE_ZSH_AUTOCOMPLETE=1 if you prefer its menu/completion behavior.
+ENABLE_ZSH_AUTOCOMPLETE="${ENABLE_ZSH_AUTOCOMPLETE:-0}"
+if [[ "$ENABLE_ZSH_AUTOCOMPLETE" == "1" ]]; then
+  for plugin in \
+    "$HOME/.local/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
+    /usr/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh; do
+    [ -f "$plugin" ] && source "$plugin" && break
+  done
+fi
 
 for plugin in \
   "$HOME/.local/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" \
