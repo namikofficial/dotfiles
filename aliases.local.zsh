@@ -6,3 +6,7 @@
 #
 # Example:
 # alias myvpn='~/scripts/connect-vpn'
+
+# Local project shortcuts.
+alias noxflow='cd ~/Documents/code/noxflow'
+alias dotfiles='cd ~/Documents/code/dotfiles'
