@@ -76,6 +76,14 @@ fi
 run_once blueman-applet blueman-applet
 run_cmd_if_not '(^|/)udiskie( .*)?$' udiskie --smart-tray --menu nested --no-appindicator
 ensure_single_process udiskie
+
+# Secret service for apps like Obsidian (encrypted token/key storage).
+if command -v gnome-keyring-daemon >/dev/null 2>&1; then
+  if ! pgrep -x gnome-keyring-daemon >/dev/null 2>&1; then
+    gnome-keyring-daemon --start --components=secrets >/dev/null 2>&1 || true
+  fi
+fi
+
 run_once avizo-service avizo-service
 run_once waybar waybar
 ensure_single_process waybar

@@ -94,6 +94,8 @@ qt5ct
 qt6ct
 kvantum
 libcanberra
+gnome-keyring
+seahorse
 
 # UI polish and fonts
 ttf-jetbrains-mono-nerd
