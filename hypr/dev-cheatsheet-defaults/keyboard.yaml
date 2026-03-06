@@ -29,3 +29,28 @@ entries:
     copy: hyprctl dispatch killactive
     source: ~/.config/hypr/hyprland.conf
     tags: [daily]
+  - key: Ctrl+Shift+T
+    description: Kitty new tab in current cwd
+    copy: new_tab_with_cwd
+    source: ~/.config/kitty/kitty.conf
+    tags: [daily]
+  - key: Ctrl+Shift+O
+    description: Kitty split horizontally
+    copy: launch --location=hsplit --cwd=current
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+E
+    description: Kitty split vertically
+    copy: launch --location=vsplit --cwd=current
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+H/J/K/L
+    description: Kitty focus split left/down/up/right
+    copy: neighboring_window left|down|up|right
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+Alt+H/J/K/L
+    description: Kitty resize split
+    copy: resize_window narrower|shorter|taller|wider
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+F5
+    description: Reload kitty config
+    copy: load_config_file
+    source: ~/.config/kitty/kitty.conf
