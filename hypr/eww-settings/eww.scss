@@ -2,27 +2,165 @@
   all: unset;
 }
 
-.settings-root {
-  background: rgba(17, 20, 28, 0.95);
-  border: 2px solid rgba(122, 162, 247, 0.6);
-  border-radius: 14px;
-  padding: 14px;
+.page-root {
+  background: rgba(8, 11, 17, 0.94);
+  border: 2px solid rgba(80, 214, 190, 0.28);
+  border-radius: 18px;
+  color: #dbe3f7;
+}
+
+.sidebar {
+  min-width: 230px;
+  max-width: 230px;
+  padding: 18px;
+  border-right: 1px solid rgba(122, 162, 247, 0.2);
+  background: linear-gradient(180deg, rgba(22, 28, 40, 0.98), rgba(13, 17, 25, 0.98));
+}
+
+.brand {
+  font-size: 20px;
+  font-weight: 700;
+  color: #7aa2f7;
+  margin-bottom: 4px;
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: #8ea1c5;
+  margin-bottom: 16px;
+}
+
+.hint {
+  margin-top: 14px;
+  font-size: 11px;
+  color: #7b869e;
+}
+
+.sidebar-btn {
+  background: rgba(44, 55, 76, 0.78);
+  border: 1px solid rgba(122, 162, 247, 0.22);
+  border-radius: 10px;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  color: #dbe3f7;
+}
+
+.sidebar-btn:hover {
+  background: rgba(67, 86, 121, 0.9);
+}
+
+.sidebar-btn.primary {
+  background: rgba(122, 162, 247, 0.24);
+  border-color: rgba(122, 162, 247, 0.6);
+}
+
+.sidebar-btn.danger {
+  background: rgba(169, 74, 90, 0.22);
+  border-color: rgba(255, 117, 127, 0.5);
+}
+
+.content {
+  padding: 18px 20px;
+}
+
+.topbar {
+  margin-bottom: 12px;
+}
+
+.topbar-title {
+  min-width: 560px;
 }
 
 .title {
-  color: #c0caf5;
-  font-size: 18px;
-  margin-bottom: 10px;
+  font-size: 26px;
+  font-weight: 700;
+  color: #e8eefc;
 }
 
-.section-btn {
-  color: #c0caf5;
-  background: rgba(49, 54, 74, 0.9);
+.subtitle {
+  font-size: 13px;
+  color: #9aabc9;
+  margin-top: 3px;
+}
+
+.topbar-actions {
+  margin-left: 12px;
+}
+
+.chip-btn {
+  background: rgba(36, 48, 70, 0.9);
+  border: 1px solid rgba(122, 162, 247, 0.3);
+  border-radius: 999px;
+  color: #c7d1ea;
+  padding: 7px 12px;
+  margin-left: 8px;
+}
+
+.chip-btn:hover {
+  background: rgba(53, 72, 104, 0.95);
+}
+
+.cards {
+  padding-right: 8px;
+}
+
+.section-card {
+  background: rgba(18, 24, 35, 0.92);
+  border: 1px solid rgba(80, 214, 190, 0.2);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 17px;
+  font-weight: 650;
+  color: #9ad8ff;
+}
+
+.section-subtitle {
+  font-size: 12px;
+  color: #89a1c5;
+  margin-bottom: 9px;
+}
+
+.setting-row {
+  background: rgba(11, 15, 23, 0.66);
+  border: 1px solid rgba(66, 85, 116, 0.45);
+  border-radius: 10px;
+  padding: 9px 11px;
+  margin-bottom: 7px;
+}
+
+.setting-meta {
+  min-width: 470px;
+}
+
+.setting-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #dce4f8;
+}
+
+.setting-desc {
+  font-size: 11px;
+  color: #8b97af;
+  margin-top: 2px;
+}
+
+.setting-controls {
+  margin-left: 12px;
+}
+
+.ctl-btn {
+  background: rgba(122, 162, 247, 0.16);
+  border: 1px solid rgba(122, 162, 247, 0.35);
   border-radius: 8px;
-  padding: 9px;
-  margin-bottom: 8px;
+  color: #cad6f2;
+  padding: 6px 10px;
+  margin-left: 6px;
 }
 
-.section-btn:hover {
-  background: rgba(122, 162, 247, 0.45);
+.ctl-btn:hover {
+  background: rgba(122, 162, 247, 0.34);
 }
