@@ -88,33 +88,40 @@ window {
 
 .root button {
   border-radius: 9px;
-}
-
-.root button.btn {
-  background-color: rgba(44, 86, 168, 0.92);
-  border: 1px solid rgba(143, 182, 255, 0.9);
+  background-image: none;
+  box-shadow: none;
+  text-shadow: none;
+  outline: none;
   padding: 8px 12px;
   margin-right: 8px;
 }
 
-.root button.btn:hover {
-  background-color: rgba(63, 108, 196, 0.98);
+.root button,
+.root button.btn {
+  background-color: rgb(42, 82, 160);
+  border: 1px solid rgb(136, 176, 255);
 }
 
+.root button:hover,
+.root button.btn:hover {
+  background-color: rgb(60, 104, 188);
+}
+
+.root button label,
 .root button.btn label,
-.root button.btn * {
+.root button * {
   color: #f7faff;
   font-weight: 800;
 }
 
 .root button.danger {
-  background-color: rgba(173, 52, 71, 0.95);
-  border: 1px solid rgba(255, 157, 170, 0.95);
+  background-color: rgb(169, 58, 78);
+  border: 1px solid rgb(255, 166, 179);
 }
 
 .root button.danger label,
 .root button.danger * {
-  color: #fff3f5;
+  color: #fff5f7;
   font-weight: 800;
 }
 
