@@ -67,7 +67,7 @@ flowchart LR
 | `Super + Ctrl + Shift + G` | Force `dwindle` |
 | `Super + T` | Toggle window group (tab-like stack) |
 | `Super + Ctrl + T` | Move active window out of group |
-| `Super + Alt + ,` / `Super + Alt + .` | Prev/next tab in group |
+| `Super + Alt + ;` / `Super + Alt + .` | Prev/next tab in group |
 
 ## Focus / Move / Resize
 

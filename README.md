@@ -132,7 +132,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + Shift + Y`: toggle desktop widgets (above wallpaper / below windows)
 - `Super + T`: toggle window group (tab-like stacks)
 - `Super + Ctrl + T`: move active window out of group
-- `Super + Alt + ,` / `Super + Alt + .`: previous/next tab in group
+- `Super + Alt + ;` / `Super + Alt + .`: previous/next tab in group
 - `Fn + 2/3/4/5` (`XF86Launch2..5`): AI helper actions (`ask`, `clipboard`, `shell`, `debug`)
 - `Super + Alt + 2/3/4/5`: fallback AI helper actions
 - `Super + Ctrl + H/J/K/L` (or arrows): move floating window

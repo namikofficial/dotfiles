@@ -11,10 +11,10 @@ mkdir -p "$STATE_DIR"
 menu_items() {
   cat <<MENU
 Apply All Settings|apply|all
-Open Settings Editor|editor|none
+Open Settings Panel (Eww)|eww|none
+Open Quick Editor (Rofi)|editor|none
 Open App Routing Editor|routing|none
 Pick Machine Profile|profile|none
-Open Eww Settings Panel|eww|none
 Notifications|apply|notifications
 Action Center|apply|action-center
 Notification Sounds|apply|sounds

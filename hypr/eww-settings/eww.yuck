@@ -9,26 +9,6 @@
 (defwidget action_btn [label cmd cls]
   (button :class cls :onclick cmd label))
 
-(defwidget setting_row [label desc controls]
-  (box :class "setting-row" :orientation "h" :space-evenly false
-    (box :class "setting-meta" :orientation "v" :space-evenly false
-      (label :class "setting-label" :text label)
-      (label :class "setting-desc" :text desc)
-    )
-    (box :class "setting-controls" :orientation "h" :space-evenly false
-      controls
-    )
-  )
-)
-
-(defwidget section_card [title subtitle body]
-  (box :class "section-card" :orientation "v" :space-evenly false
-    (label :class "section-title" :text title)
-    (label :class "section-subtitle" :text subtitle)
-    body
-  )
-)
-
 (defwidget settings_page []
   (box :class "page-root" :orientation "h" :space-evenly false
     (box :class "sidebar" :orientation "v" :space-evenly false
@@ -47,7 +27,7 @@
       (box :class "topbar" :orientation "h" :space-evenly false
         (box :class "topbar-title" :orientation "v" :space-evenly false
           (label :class "title" :text "Desktop Settings")
-          (label :class "subtitle" :text "A real config panel for notifications, display, routing, system behavior")
+          (label :class "subtitle" :text "Config panel for notifications, display, routing, and system behavior")
         )
         (box :class "topbar-actions" :orientation "h" :space-evenly false
           (action_btn :label "Reload Hypr" :cmd "hyprctl reload" :cls "chip-btn")
@@ -58,114 +38,152 @@
       (scroll :vscroll true :hscroll false
         (box :class "cards" :orientation "v" :space-evenly false
 
-          (section_card
-            :title "Notifications & Action Center"
-            :subtitle "Sound, urgency timing, and panel behavior"
-            :body (box :orientation "v" :space-evenly false
-              (setting_row
-                :label "Notification Sounds"
-                :desc "Enable/disable all notification sounds"
-                :controls (box :orientation "h"
-                  (action_btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle notifications.sounds.enabled && ~/.config/hypr/scripts/settingsctl apply sounds" :cls "ctl-btn")))
-              (setting_row
-                :label "Notification Timeout"
-                :desc "Popup timeout (seconds)"
-                :controls (box :orientation "h"
-                  (action_btn :label "-" :cmd "~/.config/hypr/scripts/settings/adjust.sh notifications.timeout -1 notifications" :cls "ctl-btn")
-                  (action_btn :label "+" :cmd "~/.config/hypr/scripts/settings/adjust.sh notifications.timeout 1 notifications" :cls "ctl-btn")))
-              (setting_row
-                :label "Action Center Width"
-                :desc "Control center panel width"
-                :controls (box :orientation "h"
-                  (action_btn :label "-20" :cmd "~/.config/hypr/scripts/settings/adjust.sh action_center.width -20 action-center" :cls "ctl-btn")
-                  (action_btn :label "+20" :cmd "~/.config/hypr/scripts/settings/adjust.sh action_center.width 20 action-center" :cls "ctl-btn")))
-              (setting_row
-                :label "Action Center Height"
-                :desc "Control center panel height"
-                :controls (box :orientation "h"
-                  (action_btn :label "-20" :cmd "~/.config/hypr/scripts/settings/adjust.sh action_center.height -20 action-center" :cls "ctl-btn")
-                  (action_btn :label "+20" :cmd "~/.config/hypr/scripts/settings/adjust.sh action_center.height 20 action-center" :cls "ctl-btn")))))
+          (box :class "section-card" :orientation "v" :space-evenly false
+            (label :class "section-title" :text "Notifications & Action Center")
+            (label :class "section-subtitle" :text "Sound, urgency timing, and panel behavior")
 
-          (section_card
-            :title "Display, Lock, and Wallpaper"
-            :subtitle "Lock visuals, wallpaper rotation, and panel engine"
-            :body (box :orientation "v" :space-evenly false
-              (setting_row
-                :label "Lock Blur"
-                :desc "Background blur passes on lock screen"
-                :controls (box :orientation "h"
-                  (action_btn :label "-" :cmd "~/.config/hypr/scripts/settings/adjust.sh lock_screen.blur_passes -1 lock-screen" :cls "ctl-btn")
-                  (action_btn :label "+" :cmd "~/.config/hypr/scripts/settings/adjust.sh lock_screen.blur_passes 1 lock-screen" :cls "ctl-btn")))
-              (setting_row
-                :label "Lock Brightness"
-                :desc "Backdrop brightness on lock screen"
-                :controls (box :orientation "h"
-                  (action_btn :label "-0.05" :cmd "~/.config/hypr/scripts/settings/adjust.sh lock_screen.brightness -0.05 lock-screen" :cls "ctl-btn")
-                  (action_btn :label "+0.05" :cmd "~/.config/hypr/scripts/settings/adjust.sh lock_screen.brightness 0.05 lock-screen" :cls "ctl-btn")))
-              (setting_row
-                :label "Wallpaper Rotation"
-                :desc "Auto-rotate wallpaper schedule"
-                :controls (box :orientation "h"
-                  (action_btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle wallpaper.rotate_enabled && ~/.config/hypr/scripts/settingsctl apply wallpaper" :cls "ctl-btn")
-                  (action_btn :label "Interval" :cmd "~/.config/hypr/scripts/settings/editor.sh" :cls "ctl-btn")))
-              (setting_row
-                :label "Panel Engine"
-                :desc "Switch between Waybar and HyprPanel"
-                :controls (box :orientation "h"
-                  (action_btn :label "Cycle" :cmd "~/.config/hypr/scripts/settings/cycle.sh panel.engine waybar,hyprpanel panel" :cls "ctl-btn")
-                  (action_btn :label "Visibility" :cmd "~/.config/hypr/scripts/panel-switch.sh toggle-view" :cls "ctl-btn")))))
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Notification Sounds")
+                (label :class "setting-desc" :text "Enable/disable all notification sounds")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle notifications.sounds.enabled && ~/.config/hypr/scripts/settingsctl apply sounds" :cls "ctl-btn")
+              )
+            )
 
-          (section_card
-            :title "Input, Power, and Profiles"
-            :subtitle "Keyboard/touchpad behavior and machine modes"
-            :body (box :orientation "v" :space-evenly false
-              (setting_row
-                :label "Power Profile"
-                :desc "Cycle power-saver / balanced / performance"
-                :controls (box :orientation "h"
-                  (action_btn :label "Cycle" :cmd "~/.config/hypr/scripts/settings/cycle.sh power.default_profile power-saver,balanced,performance power" :cls "ctl-btn")))
-              (setting_row
-                :label "Touchpad Natural Scroll"
-                :desc "Natural scroll behavior"
-                :controls (box :orientation "h"
-                  (action_btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle input.touchpad_natural_scroll && ~/.config/hypr/scripts/settingsctl apply input" :cls "ctl-btn")))
-              (setting_row
-                :label "Workspace Swipe"
-                :desc "Enable/disable touchpad workspace swipe"
-                :controls (box :orientation "h"
-                  (action_btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle input.workspace_swipe && ~/.config/hypr/scripts/settingsctl apply input" :cls "ctl-btn")))
-              (setting_row
-                :label "Machine Profile"
-                :desc "Choose laptop / dock / safe-gpu / performance"
-                :controls (box :orientation "h"
-                  (action_btn :label "Select" :cmd "~/.config/hypr/scripts/settings/profile-picker.sh" :cls "ctl-btn")
-                  (action_btn :label "Apply" :cmd "~/.config/hypr/scripts/settingsctl apply all" :cls "ctl-btn")))))
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Notification Timeout")
+                (label :class "setting-desc" :text "Popup timeout in seconds")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "-" :cmd "~/.config/hypr/scripts/settings/adjust.sh notifications.timeout -1 notifications" :cls "ctl-btn")
+                (action_btn :label "+" :cmd "~/.config/hypr/scripts/settings/adjust.sh notifications.timeout 1 notifications" :cls "ctl-btn")
+              )
+            )
 
-          (section_card
-            :title "App Routing, Privacy, and Defaults"
-            :subtitle "Per-app rules and default app behavior"
-            :body (box :orientation "v" :space-evenly false
-              (setting_row
-                :label "Per-App Routing"
-                :desc "Set route + audio sink + workspace rules"
-                :controls (box :orientation "h"
-                  (action_btn :label "Open Editor" :cmd "~/.config/hypr/scripts/settings/app-routing-editor.sh" :cls "ctl-btn")
-                  (action_btn :label "Apply Focused" :cmd "~/.config/hypr/scripts/app-routing-apply-focused.sh" :cls "ctl-btn")))
-              (setting_row
-                :label "Clipboard History"
-                :desc "Privacy toggle for clipboard history"
-                :controls (box :orientation "h"
-                  (action_btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle privacy.clipboard_history_enabled && ~/.config/hypr/scripts/settingsctl apply privacy" :cls "ctl-btn")))
-              (setting_row
-                :label "Default Browser"
-                :desc "Set browser desktop entry"
-                :controls (box :orientation "h"
-                  (action_btn :label "Set" :cmd "~/.config/hypr/scripts/settings/editor.sh" :cls "ctl-btn")))
-              (setting_row
-                :label "Default Image Viewer"
-                :desc "Set image viewer desktop entry"
-                :controls (box :orientation "h"
-                  (action_btn :label "Set" :cmd "~/.config/hypr/scripts/settings/editor.sh" :cls "ctl-btn")))))
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Action Center Width")
+                (label :class "setting-desc" :text "Control center width")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "-20" :cmd "~/.config/hypr/scripts/settings/adjust.sh action_center.width -20 action-center" :cls "ctl-btn")
+                (action_btn :label "+20" :cmd "~/.config/hypr/scripts/settings/adjust.sh action_center.width 20 action-center" :cls "ctl-btn")
+              )
+            )
+          )
+
+          (box :class "section-card" :orientation "v" :space-evenly false
+            (label :class "section-title" :text "Display, Lock, and Wallpaper")
+            (label :class "section-subtitle" :text "Lock visuals, wallpaper rotation, and panel engine")
+
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Lock Blur")
+                (label :class "setting-desc" :text "Backdrop blur passes")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "-" :cmd "~/.config/hypr/scripts/settings/adjust.sh lock_screen.blur_passes -1 lock-screen" :cls "ctl-btn")
+                (action_btn :label "+" :cmd "~/.config/hypr/scripts/settings/adjust.sh lock_screen.blur_passes 1 lock-screen" :cls "ctl-btn")
+              )
+            )
+
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Wallpaper Rotation")
+                (label :class "setting-desc" :text "Enable or disable automatic rotation")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle wallpaper.rotate_enabled && ~/.config/hypr/scripts/settingsctl apply wallpaper" :cls "ctl-btn")
+                (action_btn :label "Interval" :cmd "~/.config/hypr/scripts/settings/editor.sh" :cls "ctl-btn")
+              )
+            )
+
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Panel Engine")
+                (label :class "setting-desc" :text "Switch between Waybar and HyprPanel")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "Cycle" :cmd "~/.config/hypr/scripts/settings/cycle.sh panel.engine waybar,hyprpanel panel" :cls "ctl-btn")
+                (action_btn :label "Visibility" :cmd "~/.config/hypr/scripts/panel-switch.sh toggle-view" :cls "ctl-btn")
+              )
+            )
+          )
+
+          (box :class "section-card" :orientation "v" :space-evenly false
+            (label :class "section-title" :text "Input, Power, and Profiles")
+            (label :class "section-subtitle" :text "Touchpad, power profile, and machine mode")
+
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Power Profile")
+                (label :class "setting-desc" :text "Cycle power-saver/balanced/performance")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "Cycle" :cmd "~/.config/hypr/scripts/settings/cycle.sh power.default_profile power-saver,balanced,performance power" :cls "ctl-btn")
+              )
+            )
+
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Touchpad Natural Scroll")
+                (label :class "setting-desc" :text "Enable or disable natural scrolling")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle input.touchpad_natural_scroll && ~/.config/hypr/scripts/settingsctl apply input" :cls "ctl-btn")
+              )
+            )
+
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Machine Profile")
+                (label :class "setting-desc" :text "Select laptop/dock/safe-gpu/performance")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "Select" :cmd "~/.config/hypr/scripts/settings/profile-picker.sh" :cls "ctl-btn")
+                (action_btn :label "Apply" :cmd "~/.config/hypr/scripts/settingsctl apply all" :cls "ctl-btn")
+              )
+            )
+          )
+
+          (box :class "section-card" :orientation "v" :space-evenly false
+            (label :class "section-title" :text "App Routing, Privacy, and Defaults")
+            (label :class "section-subtitle" :text "Per-app rules and default app behavior")
+
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Per-App Routing")
+                (label :class "setting-desc" :text "Route notifications, sink, and workspace")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "Open Editor" :cmd "~/.config/hypr/scripts/settings/app-routing-editor.sh" :cls "ctl-btn")
+                (action_btn :label "Apply Focused" :cmd "~/.config/hypr/scripts/app-routing-apply-focused.sh" :cls "ctl-btn")
+              )
+            )
+
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Clipboard History")
+                (label :class "setting-desc" :text "Privacy toggle")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle privacy.clipboard_history_enabled && ~/.config/hypr/scripts/settingsctl apply privacy" :cls "ctl-btn")
+              )
+            )
+
+            (box :class "setting-row" :orientation "h"
+              (box :class "setting-meta" :orientation "v"
+                (label :class "setting-label" :text "Default Apps")
+                (label :class "setting-desc" :text "Set browser and image viewer IDs")
+              )
+              (box :class "setting-controls" :orientation "h"
+                (action_btn :label "Open Editor" :cmd "~/.config/hypr/scripts/settings/editor.sh" :cls "ctl-btn")
+              )
+            )
+          )
 
         )
       )
