@@ -164,3 +164,13 @@
 .ctl-btn:hover {
   background: rgba(122, 162, 247, 0.34);
 }
+
+.value-chip {
+  background: rgba(80, 214, 190, 0.18);
+  border: 1px solid rgba(80, 214, 190, 0.45);
+  border-radius: 999px;
+  color: #b9f5e8;
+  padding: 4px 9px;
+  margin-left: 6px;
+  font-size: 11px;
+}
