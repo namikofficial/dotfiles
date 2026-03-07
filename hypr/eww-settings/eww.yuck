@@ -17,7 +17,7 @@
   :monitor 0
   :stacking "fg"
   :focusable true
-  :geometry (geometry :x "3%" :y "4%" :width "94%" :height "90%" :anchor "top left")
+  :geometry (geometry :x "11%" :y "7%" :width "78%" :height "86%" :anchor "top left")
   (settings_page)
 )
 
