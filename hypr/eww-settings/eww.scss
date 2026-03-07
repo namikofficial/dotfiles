@@ -1,116 +1,118 @@
 * {
-  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
-  color: #dbe3f7;
+  font-family: "JetBrains Mono", monospace;
+  color: #e7ecff;
 }
 
 window {
   background-color: transparent;
 }
 
-.page-root {
-  background-color: rgba(12, 16, 24, 0.98);
-  border: 1px solid rgba(122, 162, 247, 0.45);
+.root {
+  background-color: rgba(10, 14, 22, 0.98);
+  border: 1px solid rgba(122, 162, 247, 0.55);
   border-radius: 14px;
   padding: 12px;
 }
 
-.topbar {
-  padding: 4px 6px 10px 6px;
-  border-bottom: 1px solid rgba(122, 162, 247, 0.25);
+.header {
+  border-bottom: 1px solid rgba(122, 162, 247, 0.3);
+  padding-bottom: 10px;
   margin-bottom: 10px;
 }
 
-.topbar-left {
-  min-width: 420px;
+.header-left {
+  min-width: 360px;
 }
 
 .title {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
-  color: #e6ecff;
+  color: #f0f4ff;
 }
 
 .subtitle {
-  font-size: 12px;
-  color: #9bb0d6;
+  font-size: 13px;
+  color: #9cb0d6;
 }
 
-.topbar-right {
+.header-right {
   margin-left: 10px;
 }
 
-.cards {
+.content {
   padding-right: 4px;
 }
 
-.section-card {
-  background-color: rgba(21, 28, 40, 0.92);
-  border: 1px solid rgba(80, 214, 190, 0.3);
+.card {
+  background-color: rgba(17, 24, 36, 0.95);
+  border: 1px solid rgba(80, 214, 190, 0.35);
   border-radius: 12px;
   padding: 10px;
   margin-bottom: 10px;
 }
 
-.section-title {
-  font-size: 16px;
+.card-title {
+  font-size: 17px;
   font-weight: 700;
-  color: #8bd5ff;
+  color: #8fd5ff;
   margin-bottom: 8px;
 }
 
-.setting-row {
-  background-color: rgba(10, 14, 22, 0.86);
-  border: 1px solid rgba(72, 92, 126, 0.5);
+.row {
+  background-color: rgba(11, 16, 24, 0.88);
+  border: 1px solid rgba(73, 94, 132, 0.55);
   border-radius: 10px;
   padding: 9px;
+  margin-bottom: 8px;
+}
+
+.row-top {
+  margin-bottom: 2px;
+}
+
+.row-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e9efff;
+}
+
+.row-desc {
+  font-size: 12px;
+  color: #9ab0d8;
   margin-bottom: 7px;
 }
 
-.setting-meta {
-  min-width: 420px;
+.row-actions {
+  margin-top: 2px;
 }
 
-.setting-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #dfe8ff;
-}
-
-.setting-desc {
-  font-size: 11px;
-  color: #8da1c6;
-}
-
-.setting-controls {
-  margin-left: 8px;
-}
-
-.value-chip {
-  background-color: rgba(80, 214, 190, 0.16);
-  border: 1px solid rgba(80, 214, 190, 0.45);
-  border-radius: 999px;
-  padding: 4px 9px;
-  margin-left: 6px;
-  font-size: 11px;
-  color: #bff8ea;
-}
-
-.ctl-btn,
-.chip-btn {
-  background-color: rgba(122, 162, 247, 0.16);
-  border: 1px solid rgba(122, 162, 247, 0.38);
+button.btn,
+button.chip-btn {
+  background-color: rgba(122, 162, 247, 0.24);
+  color: #ecf2ff;
+  border: 1px solid rgba(122, 162, 247, 0.62);
   border-radius: 8px;
-  padding: 6px 10px;
-  margin-left: 6px;
-  color: #d6e2ff;
+  padding: 7px 11px;
+  margin-right: 7px;
 }
 
-.ctl-btn:hover,
-.chip-btn:hover {
-  background-color: rgba(122, 162, 247, 0.34);
+button.btn:hover,
+button.chip-btn:hover {
+  background-color: rgba(122, 162, 247, 0.42);
 }
 
-.chip-btn.danger {
-  background-color: rgba(255, 117, 127, 0.15);
-  border-color: rgba(255, 117, 127, 0.45);
+button.danger {
+  background-color: rgba(255, 117, 127, 0.22);
+  border-color: rgba(255, 117, 127, 0.62);
+  color: #ffdbe0;
+}
+
+.chip {
+  background-color: rgba(80, 214, 190, 0.22);
+  border: 1px solid rgba(80, 214, 190, 0.6);
+  border-radius: 999px;
+  color: #c9fff1;
+  padding: 4px 9px;
+  margin-right: 7px;
+  font-size: 11px;
 }
