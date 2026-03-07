@@ -19,6 +19,8 @@ if command -v kvantummanager >/dev/null 2>&1; then
   kvantummanager --set KvArcDark >/dev/null 2>&1 || true
 fi
 
+
+
 if [ -x "$HOME/.config/hypr/scripts/restart-waybar.sh" ]; then
   "$HOME/.config/hypr/scripts/restart-waybar.sh" >/dev/null 2>&1 || true
 fi
@@ -39,4 +41,13 @@ if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
   "$HOME/.config/hypr/scripts/launcher.sh" --rebuild-cache >/dev/null 2>&1 || true
 fi
 
-notify "Theme pass applied" "GTK/Qt + Waybar/SwayNC/Eww synced"
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+fi
+
+if command -v kbuildsycoca6 >/dev/null 2>&1; then
+  rm -f "$HOME"/.cache/ksycoca6_* "$HOME"/.cache/ksycoca* >/dev/null 2>&1 || true
+  kbuildsycoca6 --noincremental >/dev/null 2>&1 || true
+fi
+
+notify "Theme pass applied" "GTK/Qt + panel + MIME/KDE caches refreshed"
