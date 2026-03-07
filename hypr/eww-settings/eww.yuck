@@ -21,20 +21,6 @@
 (defwidget chip [val]
   (label :class "chip" :text val))
 
-(defwidget row [title desc value b1l b1c b2l b2c]
-  (box :class "row" :orientation "v" :space-evenly false
-    (box :class "row-top" :orientation "h" :space-evenly false
-      (label :class "row-title" :text title)
-      (chip :val value)
-    )
-    (label :class "row-desc" :text desc)
-    (box :class "row-actions" :orientation "h" :space-evenly false
-      (btn :label b1l :cmd b1c :cls "btn")
-      (btn :label b2l :cmd b2c :cls "btn")
-    )
-  )
-)
-
 (defwidget settings_page []
   (box :class "root" :orientation "v" :space-evenly false
     (box :class "header" :orientation "h" :space-evenly false
@@ -58,77 +44,122 @@
 
         (box :class "card" :orientation "v" :space-evenly false
           (label :class "card-title" :text "Notifications")
-          (row :title "Notification Sounds"
-               :desc "Global sound switch"
-               :value v_notif_sound
-               :b1l "Toggle"
-               :b1c "~/.config/hypr/scripts/settingsctl toggle notifications.sounds.enabled && ~/.config/hypr/scripts/settingsctl apply sounds"
-               :b2l "Clear All"
-               :b2c "swaync-client -C")
-          (row :title "Notification Timeout"
-               :desc "Popup duration"
-               :value v_notif_timeout
-               :b1l "-1s"
-               :b1c "~/.config/hypr/scripts/settings/adjust.sh notifications.timeout -1 notifications"
-               :b2l "+1s"
-               :b2c "~/.config/hypr/scripts/settings/adjust.sh notifications.timeout 1 notifications")
-          (row :title "Do Not Disturb"
-               :desc "Pause notifications quickly"
-               :value v_dnd
-               :b1l "Toggle"
-               :b1c "swaync-client -d"
-               :b2l "Summary"
-               :b2c "~/.config/hypr/scripts/notification-summary.sh popup")
+
+          (box :class "row" :orientation "v" :space-evenly false
+            (box :class "row-top" :orientation "h" :space-evenly false
+              (label :class "row-title" :text "Notification Sounds")
+              (chip :val v_notif_sound)
+            )
+            (label :class "row-desc" :text "Global sound switch")
+            (box :class "row-actions" :orientation "h" :space-evenly false
+              (btn :label "Toggle" :cmd "~/.config/hypr/scripts/settingsctl toggle notifications.sounds.enabled && ~/.config/hypr/scripts/settingsctl apply sounds" :cls "btn")
+              (btn :label "Clear All" :cmd "swaync-client -C" :cls "btn")
+            )
+          )
+
+          (box :class "row" :orientation "v" :space-evenly false
+            (box :class "row-top" :orientation "h" :space-evenly false
+              (label :class "row-title" :text "Notification Timeout")
+              (chip :val v_notif_timeout)
+            )
+            (label :class "row-desc" :text "Popup duration")
+            (box :class "row-actions" :orientation "h" :space-evenly false
+              (btn :label "-1s" :cmd "~/.config/hypr/scripts/settings/adjust.sh notifications.timeout -1 notifications" :cls "btn")
+              (btn :label "+1s" :cmd "~/.config/hypr/scripts/settings/adjust.sh notifications.timeout 1 notifications" :cls "btn")
+            )
+          )
+
+          (box :class "row" :orientation "v" :space-evenly false
+            (box :class "row-top" :orientation "h" :space-evenly false
+              (label :class "row-title" :text "Do Not Disturb")
+              (chip :val v_dnd)
+            )
+            (label :class "row-desc" :text "Pause notifications quickly")
+            (box :class "row-actions" :orientation "h" :space-evenly false
+              (btn :label "Toggle" :cmd "swaync-client -d" :cls "btn")
+              (btn :label "Summary" :cmd "~/.config/hypr/scripts/notification-summary.sh popup" :cls "btn")
+            )
+          )
         )
 
         (box :class "card" :orientation "v" :space-evenly false
           (label :class "card-title" :text "Display and Power")
-          (row :title "Panel Engine"
-               :desc "Waybar or HyprPanel"
-               :value v_panel_engine
-               :b1l "Cycle"
-               :b1c "~/.config/hypr/scripts/settings/cycle.sh panel.engine waybar,hyprpanel panel"
-               :b2l "Visibility"
-               :b2c "~/.config/hypr/scripts/panel-switch.sh toggle-view")
-          (row :title "Night Light"
-               :desc "Eye comfort mode"
-               :value v_night
-               :b1l "Toggle"
-               :b1c "~/.config/hypr/scripts/night-light-toggle.sh"
-               :b2l "Next Wallpaper"
-               :b2c "~/.config/hypr/scripts/set-wallpaper.sh --next")
-          (row :title "Power Profile"
-               :desc "power-saver / balanced / performance"
-               :value v_power
-               :b1l "Cycle"
-               :b1c "~/.config/hypr/scripts/settings/cycle.sh power.default_profile power-saver,balanced,performance power"
-               :b2l "Pick Profile"
-               :b2c "~/.config/hypr/scripts/settings/profile-picker.sh")
+
+          (box :class "row" :orientation "v" :space-evenly false
+            (box :class "row-top" :orientation "h" :space-evenly false
+              (label :class "row-title" :text "Panel Engine")
+              (chip :val v_panel_engine)
+            )
+            (label :class "row-desc" :text "Waybar or HyprPanel")
+            (box :class "row-actions" :orientation "h" :space-evenly false
+              (btn :label "Cycle" :cmd "~/.config/hypr/scripts/settings/cycle.sh panel.engine waybar,hyprpanel panel" :cls "btn")
+              (btn :label "Visibility" :cmd "~/.config/hypr/scripts/panel-switch.sh toggle-view" :cls "btn")
+            )
+          )
+
+          (box :class "row" :orientation "v" :space-evenly false
+            (box :class "row-top" :orientation "h" :space-evenly false
+              (label :class "row-title" :text "Night Light")
+              (chip :val v_night)
+            )
+            (label :class "row-desc" :text "Eye comfort mode")
+            (box :class "row-actions" :orientation "h" :space-evenly false
+              (btn :label "Toggle" :cmd "~/.config/hypr/scripts/night-light-toggle.sh" :cls "btn")
+              (btn :label "Next Wallpaper" :cmd "~/.config/hypr/scripts/set-wallpaper.sh --next" :cls "btn")
+            )
+          )
+
+          (box :class "row" :orientation "v" :space-evenly false
+            (box :class "row-top" :orientation "h" :space-evenly false
+              (label :class "row-title" :text "Power Profile")
+              (chip :val v_power)
+            )
+            (label :class "row-desc" :text "power-saver / balanced / performance")
+            (box :class "row-actions" :orientation "h" :space-evenly false
+              (btn :label "Cycle" :cmd "~/.config/hypr/scripts/settings/cycle.sh power.default_profile power-saver,balanced,performance power" :cls "btn")
+              (btn :label "Pick Profile" :cmd "~/.config/hypr/scripts/settings/profile-picker.sh" :cls "btn")
+            )
+          )
         )
 
         (box :class "card" :orientation "v" :space-evenly false
           (label :class "card-title" :text "Apps and Groups")
-          (row :title "Per-App Routing"
-               :desc "App -> notify route + sink + workspace"
-               :value "Rules"
-               :b1l "Edit"
-               :b1c "~/.config/hypr/scripts/settings/app-routing-editor.sh"
-               :b2l "Apply Focused"
-               :b2c "~/.config/hypr/scripts/app-routing-apply-focused.sh")
-          (row :title "Tab Groups"
-               :desc "Group focused windows"
-               :value "Manual"
-               :b1l "Group"
-               :b1c "hyprctl dispatch togglegroup"
-               :b2l "Move Out"
-               :b2c "hyprctl dispatch moveoutofgroup")
-          (row :title "Quick Actions"
-               :desc "Lock and restart panel"
-               :value "Quick"
-               :b1l "Lock"
-               :b1c "~/.config/hypr/scripts/lock.sh"
-               :b2l "Restart Bar"
-               :b2c "~/.config/hypr/scripts/restart-waybar.sh")
+
+          (box :class "row" :orientation "v" :space-evenly false
+            (box :class "row-top" :orientation "h" :space-evenly false
+              (label :class "row-title" :text "Per-App Routing")
+              (chip :val "Rules")
+            )
+            (label :class "row-desc" :text "App -> notify route + sink + workspace")
+            (box :class "row-actions" :orientation "h" :space-evenly false
+              (btn :label "Edit" :cmd "~/.config/hypr/scripts/settings/app-routing-editor.sh" :cls "btn")
+              (btn :label "Apply Focused" :cmd "~/.config/hypr/scripts/app-routing-apply-focused.sh" :cls "btn")
+            )
+          )
+
+          (box :class "row" :orientation "v" :space-evenly false
+            (box :class "row-top" :orientation "h" :space-evenly false
+              (label :class "row-title" :text "Tab Groups")
+              (chip :val "Manual")
+            )
+            (label :class "row-desc" :text "Group focused windows")
+            (box :class "row-actions" :orientation "h" :space-evenly false
+              (btn :label "Group" :cmd "hyprctl dispatch togglegroup" :cls "btn")
+              (btn :label "Move Out" :cmd "hyprctl dispatch moveoutofgroup" :cls "btn")
+            )
+          )
+
+          (box :class "row" :orientation "v" :space-evenly false
+            (box :class "row-top" :orientation "h" :space-evenly false
+              (label :class "row-title" :text "Quick Actions")
+              (chip :val "Quick")
+            )
+            (label :class "row-desc" :text "Lock and restart panel")
+            (box :class "row-actions" :orientation "h" :space-evenly false
+              (btn :label "Lock" :cmd "~/.config/hypr/scripts/lock.sh" :cls "btn")
+              (btn :label "Restart Bar" :cmd "~/.config/hypr/scripts/restart-waybar.sh" :cls "btn")
+            )
+          )
         )
 
       )
