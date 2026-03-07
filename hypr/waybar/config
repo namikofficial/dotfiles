@@ -10,7 +10,7 @@
 
     "modules-left": ["custom/launcher", "custom/overview", "hyprland/workspaces", "custom/layout", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": ["power-profiles-daemon", "custom/weather", "custom/vpn", "custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "custom/notifications", "tray", "custom/cliphist", "custom/power"],
+    "modules-right": ["power-profiles-daemon", "custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "tray", "custom/power"],
 
     "hyprland/workspaces": {
       "all-outputs": true,

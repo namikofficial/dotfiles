@@ -1,8 +1,8 @@
 [Unit]
-Description=Run Noxflow Timeshift auto snapshot daily
+Description=Run Noxflow Timeshift auto snapshot every 2 days
 
 [Timer]
-OnCalendar=*-*-* 04:15:00
+OnUnitActiveSec=2d
 Persistent=true
 RandomizedDelaySec=20m
 Unit=noxflow-timeshift-auto.service

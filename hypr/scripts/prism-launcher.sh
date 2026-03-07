@@ -18,9 +18,7 @@ export __GLX_VENDOR_LIBRARY_NAME=nvidia
 export __VK_LAYER_NV_optimus=NVIDIA_only
 export DRI_PRIME=1
 
-# NVIDIA driver tuning for better frame pacing/latency.
-export __GL_THREADED_OPTIMIZATIONS=1
-export __GL_MaxFramesAllowed=1
+# Keep launcher-side GPU env conservative; per-game tuning is done in Prism instance settings.
 
 # Enable telemetry overlays only if user explicitly wants it.
 : "${MANGOHUD:=0}"
@@ -33,10 +31,5 @@ export QT_STYLE_OVERRIDE="${QT_STYLE_OVERRIDE:-kvantum}"
 export KVANTUM_THEME="${KVANTUM_THEME:-NoxflowDynamic}"
 export KDE_SESSION_VERSION=6
 export KDE_FULL_SESSION=false
-
-# Run launcher + game processes under Feral GameMode when available.
-if command -v gamemoderun >/dev/null 2>&1; then
-  exec gamemoderun "$launcher_bin" -style kvantum "$@"
-fi
 
 exec "$launcher_bin" -style kvantum "$@"

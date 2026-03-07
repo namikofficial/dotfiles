@@ -74,6 +74,12 @@ echo
 echo "Installing systemd timer/service..."
 install -Dm644 "$SYSTEMD_DIR/noxflow-timeshift-auto.service" /etc/systemd/system/noxflow-timeshift-auto.service
 install -Dm644 "$SYSTEMD_DIR/noxflow-timeshift-auto.timer" /etc/systemd/system/noxflow-timeshift-auto.timer
+
+if [[ -f /etc/cron.d/timeshift-hourly ]]; then
+  echo "Disabling distro hourly cron trigger (/etc/cron.d/timeshift-hourly)..."
+  mv /etc/cron.d/timeshift-hourly "/etc/cron.d/timeshift-hourly.disabled.${TS}"
+fi
+
 systemctl daemon-reload
 systemctl enable --now noxflow-timeshift-auto.timer
 systemctl status --no-pager noxflow-timeshift-auto.timer | sed -n '1,14p'
