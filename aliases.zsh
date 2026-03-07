@@ -70,6 +70,7 @@ fi
 alias ports="$SCRIPTS_BIN/ports"
 alias reload="exec zsh"
 alias hreload="hyprctl reload"
+alias hrestart='pkill -x eww || true; ~/.config/hypr/scripts/restart-waybar.sh; hyprctl reload'
 alias helpcmd="tldr"
 alias doctor="$SCRIPTS_BIN/dev-doctor"
 alias hyprkeys="$HOME/.config/hypr/scripts/hypr-binds.sh"
