@@ -1,178 +1,116 @@
 * {
-  all: unset;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+  color: #dbe3f7;
+}
+
+window {
+  background-color: transparent;
 }
 
 .page-root {
-  background: rgba(10, 14, 22, 0.97);
-  border: 1px solid rgba(122, 162, 247, 0.3);
-  border-radius: 18px;
-  color: #dbe3f7;
-}
-
-.sidebar {
-  min-width: 230px;
-  max-width: 230px;
-  padding: 18px;
-  border-right: 1px solid rgba(122, 162, 247, 0.2);
-  background: linear-gradient(180deg, rgba(22, 28, 40, 0.98), rgba(13, 17, 25, 0.98));
-}
-
-.brand {
-  font-size: 20px;
-  font-weight: 700;
-  color: #7aa2f7;
-  margin-bottom: 4px;
-}
-
-.brand-sub {
-  font-size: 12px;
-  color: #8ea1c5;
-  margin-bottom: 16px;
-}
-
-.hint {
-  margin-top: 14px;
-  font-size: 11px;
-  color: #7b869e;
-}
-
-.sidebar-btn {
-  background: rgba(44, 55, 76, 0.78);
-  border: 1px solid rgba(122, 162, 247, 0.22);
-  border-radius: 10px;
-  padding: 9px 12px;
-  margin-bottom: 8px;
-  color: #dbe3f7;
-}
-
-.sidebar-btn:hover {
-  background: rgba(67, 86, 121, 0.9);
-}
-
-.sidebar-btn.primary {
-  background: rgba(122, 162, 247, 0.24);
-  border-color: rgba(122, 162, 247, 0.6);
-}
-
-.sidebar-btn.danger {
-  background: rgba(169, 74, 90, 0.22);
-  border-color: rgba(255, 117, 127, 0.5);
-}
-
-.content {
-  min-width: 940px;
-  padding: 18px 20px;
+  background-color: rgba(12, 16, 24, 0.98);
+  border: 1px solid rgba(122, 162, 247, 0.45);
+  border-radius: 14px;
+  padding: 12px;
 }
 
 .topbar {
-  margin-bottom: 12px;
+  padding: 4px 6px 10px 6px;
+  border-bottom: 1px solid rgba(122, 162, 247, 0.25);
+  margin-bottom: 10px;
 }
 
-.topbar-title {
-  min-width: 560px;
+.topbar-left {
+  min-width: 420px;
 }
 
 .title {
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 700;
-  color: #e8eefc;
+  color: #e6ecff;
 }
 
 .subtitle {
-  font-size: 13px;
-  color: #9aabc9;
-  margin-top: 3px;
+  font-size: 12px;
+  color: #9bb0d6;
 }
 
-.topbar-actions {
-  margin-left: 12px;
-}
-
-.chip-btn {
-  background: rgba(36, 48, 70, 0.9);
-  border: 1px solid rgba(122, 162, 247, 0.3);
-  border-radius: 999px;
-  color: #c7d1ea;
-  padding: 7px 12px;
-  margin-left: 8px;
-}
-
-.chip-btn:hover {
-  background: rgba(53, 72, 104, 0.95);
+.topbar-right {
+  margin-left: 10px;
 }
 
 .cards {
-  min-width: 920px;
-  padding-right: 8px;
+  padding-right: 4px;
 }
 
 .section-card {
-  background: rgba(17, 23, 34, 0.95);
-  border: 1px solid rgba(122, 162, 247, 0.22);
-  border-radius: 14px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
+  background-color: rgba(21, 28, 40, 0.92);
+  border: 1px solid rgba(80, 214, 190, 0.3);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
 }
 
 .section-title {
-  font-size: 17px;
-  font-weight: 650;
-  color: #9ad8ff;
-}
-
-.section-subtitle {
-  font-size: 12px;
-  color: #89a1c5;
-  margin-bottom: 9px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #8bd5ff;
+  margin-bottom: 8px;
 }
 
 .setting-row {
-  background: rgba(11, 15, 23, 0.78);
-  border: 1px solid rgba(66, 85, 116, 0.45);
+  background-color: rgba(10, 14, 22, 0.86);
+  border: 1px solid rgba(72, 92, 126, 0.5);
   border-radius: 10px;
-  padding: 9px 11px;
+  padding: 9px;
   margin-bottom: 7px;
 }
 
 .setting-meta {
-  min-width: 350px;
+  min-width: 420px;
 }
 
 .setting-label {
   font-size: 13px;
-  font-weight: 600;
-  color: #dce4f8;
+  font-weight: 700;
+  color: #dfe8ff;
 }
 
 .setting-desc {
   font-size: 11px;
-  color: #8b97af;
-  margin-top: 2px;
+  color: #8da1c6;
 }
 
 .setting-controls {
-  margin-left: 12px;
-}
-
-.ctl-btn {
-  background: rgba(122, 162, 247, 0.16);
-  border: 1px solid rgba(122, 162, 247, 0.35);
-  border-radius: 8px;
-  color: #cad6f2;
-  padding: 6px 10px;
-  margin-left: 6px;
-}
-
-.ctl-btn:hover {
-  background: rgba(122, 162, 247, 0.34);
+  margin-left: 8px;
 }
 
 .value-chip {
-  background: rgba(80, 214, 190, 0.18);
+  background-color: rgba(80, 214, 190, 0.16);
   border: 1px solid rgba(80, 214, 190, 0.45);
   border-radius: 999px;
-  color: #b9f5e8;
   padding: 4px 9px;
   margin-left: 6px;
   font-size: 11px;
+  color: #bff8ea;
+}
+
+.ctl-btn,
+.chip-btn {
+  background-color: rgba(122, 162, 247, 0.16);
+  border: 1px solid rgba(122, 162, 247, 0.38);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-left: 6px;
+  color: #d6e2ff;
+}
+
+.ctl-btn:hover,
+.chip-btn:hover {
+  background-color: rgba(122, 162, 247, 0.34);
+}
+
+.chip-btn.danger {
+  background-color: rgba(255, 117, 127, 0.15);
+  border-color: rgba(255, 117, 127, 0.45);
 }
