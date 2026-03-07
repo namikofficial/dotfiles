@@ -113,6 +113,15 @@ fi
 if resolve_cmd swaync >/dev/null 2>&1; then
   run_once swaync swaync
   pkill -x dunst >/dev/null 2>&1 || true
+
+  # Ensure popups are not silently suppressed by stale DND/inhibitors.
+  if resolve_cmd swaync-client >/dev/null 2>&1; then
+    (
+      sleep 1
+      swaync-client -sw -df >/dev/null 2>&1 || true
+      swaync-client -sw -Ic >/dev/null 2>&1 || true
+    ) &
+  fi
 else
   run_once dunst dunst
 fi

@@ -120,7 +120,7 @@
     },
 
     "custom/notifications": {
-      "exec": "swaync-client -D >/dev/null 2>&1 && echo '󰂛' || echo '󰂚'",
+      "exec": "swaync-client -sw -D >/dev/null 2>&1 && echo '󰂛' || echo '󰂚'",
       "interval": 2,
       "return-type": "plain",
       "tooltip": true,

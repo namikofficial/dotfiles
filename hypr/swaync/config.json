@@ -19,10 +19,30 @@
   "transition-time": 180,
   "hide-on-clear": true,
   "hide-on-action": true,
+  "notification-visibility": {
+    "all-popups-enabled": {
+      "state": "enabled",
+      "app-name": ".*"
+    },
+    "hyprland-popups-enabled": {
+      "state": "enabled",
+      "app-name": "Hyprland"
+    }
+  },
   "scripts": {
-    "play-notify-sound": {
-      "exec": "sh -lc 'command -v canberra-gtk-play >/dev/null 2>&1 && canberra-gtk-play -i message-new-instant -d swaync >/dev/null 2>&1 || true'",
-      "app-name": ".*",
+    "play-notify-critical": {
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh critical'",
+      "urgency": "Critical",
+      "run-on": "receive"
+    },
+    "play-notify-message": {
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh message'",
+      "app-name": "(Telegram|org\\.telegram\\.desktop|Discord|discord|Slack|slack|Signal|signal|Element|element-desktop|WhatsApp|vesktop)",
+      "run-on": "receive"
+    },
+    "play-notify-system": {
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh system'",
+      "app-name": "(Hyprland|NetworkManager|nm-applet|blueman|Udiskie|powerprofilesctl|Power|systemd|Kernel|Bluetooth|WirePlumber|PipeWire)",
       "run-on": "receive"
     }
   },
