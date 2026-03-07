@@ -41,6 +41,11 @@ flowchart LR
 | `Super + Shift + N` | Open notes folder | `open-notes.sh` |
 | `Super + Alt + E` | Open notes folder | `open-notes.sh` |
 | `Super + D` | Quick actions menu (duplicate launcher utility key) | `quick-actions.sh` |
+| `Super + ,` | Open Settings Hub | `settings-hub.sh` |
+| `Super + Shift + ,` | Re-apply last selected settings section | `settings-hub.sh last` |
+| `Super + Ctrl + ,` | Quick settings toggle (notification sounds) | `settings-hub.sh quick` |
+| `Super + Alt + ,` | Toggle Eww detailed settings panel | `settings-eww.sh` |
+| `Super + Ctrl + Alt + ,` | Apply per-app routing to focused app | `app-routing-apply-focused.sh` |
 | `Super + Ctrl + Y` | Toggle Waybar/HyprPanel | `panel-switch.sh toggle` |
 | `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
 | `Super + Ctrl + Shift + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh` |

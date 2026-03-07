@@ -1,0 +1,96 @@
+{
+  "machine": {
+    "profile": "laptop"
+  },
+  "notifications": {
+    "enabled": true,
+    "timeout": 7,
+    "timeout_low": 4,
+    "timeout_critical": 0,
+    "sounds": {
+      "enabled": true,
+      "critical": "dialog-warning",
+      "message": "message-new-instant",
+      "system": "service-login"
+    }
+  },
+  "action_center": {
+    "sections": [
+      "title",
+      "buttons-grid#notif_tools",
+      "label#status_header",
+      "buttons-grid#status_grid",
+      "buttons-grid#actions_grid",
+      "dnd",
+      "mpris",
+      "volume",
+      "backlight",
+      "notifications"
+    ],
+    "width": 520,
+    "height": 720
+  },
+  "lock_screen": {
+    "blur_passes": 2,
+    "brightness": 0.8,
+    "vibrancy": 0.2
+  },
+  "wallpaper": {
+    "rotate_enabled": true,
+    "rotate_interval_minutes": 1440,
+    "theme_sync": true
+  },
+  "panel": {
+    "engine": "waybar",
+    "visible": true,
+    "desktop_widgets": false
+  },
+  "power": {
+    "default_profile": "balanced",
+    "auto_profile": true
+  },
+  "input": {
+    "kb_layout": "us",
+    "touchpad_natural_scroll": true,
+    "workspace_swipe": true
+  },
+  "privacy": {
+    "clipboard_history_enabled": true,
+    "screenshot_notify": true
+  },
+  "default_apps": {
+    "browser_desktop": "google-chrome.desktop",
+    "image_viewer_desktop": "org.kde.gwenview.desktop",
+    "editor_desktop": "code.desktop"
+  },
+  "app_routing": {
+    "rules": [
+      {
+        "app": "Discord",
+        "priority": "high",
+        "route": "both",
+        "sound": "message",
+        "audio_sink": "default",
+        "workspace": "4"
+      },
+      {
+        "app": "NetworkManager",
+        "priority": "normal",
+        "route": "action-center",
+        "sound": "system",
+        "audio_sink": "default",
+        "workspace": "special:sidepanel"
+      }
+    ]
+  },
+  "startup": {
+    "nm_applet_autostart": false,
+    "nvidia_settings_autoload": true
+  },
+  "shortcuts": {
+    "open_settings_hub": "SUPER, comma",
+    "open_last_settings": "SUPER SHIFT, comma",
+    "toggle_settings_quick": "SUPER CTRL, comma",
+    "open_settings_panel": "SUPER ALT, comma"
+  }
+}

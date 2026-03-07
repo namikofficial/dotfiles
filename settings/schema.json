@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Noxflow Settings Schema",
+  "type": "object",
+  "required": [
+    "machine",
+    "notifications",
+    "action_center",
+    "lock_screen",
+    "wallpaper",
+    "panel",
+    "power",
+    "input",
+    "app_routing",
+    "startup",
+    "shortcuts",
+    "privacy",
+    "default_apps"
+  ],
+  "properties": {
+    "machine": {
+      "type": "object",
+      "required": ["profile"],
+      "properties": {
+        "profile": { "type": "string", "enum": ["laptop", "dock", "safe-gpu", "performance"] }
+      }
+    },
+    "notifications": {
+      "type": "object",
+      "required": ["enabled", "timeout", "timeout_low", "timeout_critical", "sounds"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "timeout": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "timeout_low": { "type": "integer", "minimum": 1, "maximum": 120 },
+        "timeout_critical": { "type": "integer", "minimum": 0, "maximum": 300 },
+        "sounds": {
+          "type": "object",
+          "required": ["enabled", "critical", "message", "system"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "critical": { "type": "string" },
+            "message": { "type": "string" },
+            "system": { "type": "string" }
+          }
+        }
+      }
+    },
+    "action_center": {
+      "type": "object",
+      "required": ["sections", "width", "height"],
+      "properties": {
+        "sections": { "type": "array", "items": { "type": "string" }, "minItems": 3 },
+        "width": { "type": "integer", "minimum": 300, "maximum": 1000 },
+        "height": { "type": "integer", "minimum": 300, "maximum": 1400 }
+      }
+    },
+    "lock_screen": {
+      "type": "object",
+      "required": ["blur_passes", "brightness", "vibrancy"],
+      "properties": {
+        "blur_passes": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "brightness": { "type": "number", "minimum": 0.1, "maximum": 1.0 },
+        "vibrancy": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    },
+    "wallpaper": {
+      "type": "object",
+      "required": ["rotate_enabled", "rotate_interval_minutes", "theme_sync"],
+      "properties": {
+        "rotate_enabled": { "type": "boolean" },
+        "rotate_interval_minutes": { "type": "integer", "minimum": 5, "maximum": 1440 },
+        "theme_sync": { "type": "boolean" }
+      }
+    },
+    "panel": {
+      "type": "object",
+      "required": ["engine", "visible", "desktop_widgets"],
+      "properties": {
+        "engine": { "type": "string", "enum": ["waybar", "hyprpanel"] },
+        "visible": { "type": "boolean" },
+        "desktop_widgets": { "type": "boolean" }
+      }
+    },
+    "power": {
+      "type": "object",
+      "required": ["default_profile", "auto_profile"],
+      "properties": {
+        "default_profile": { "type": "string", "enum": ["power-saver", "balanced", "performance"] },
+        "auto_profile": { "type": "boolean" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["kb_layout", "touchpad_natural_scroll", "workspace_swipe"],
+      "properties": {
+        "kb_layout": { "type": "string" },
+        "touchpad_natural_scroll": { "type": "boolean" },
+        "workspace_swipe": { "type": "boolean" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["clipboard_history_enabled", "screenshot_notify"],
+      "properties": {
+        "clipboard_history_enabled": { "type": "boolean" },
+        "screenshot_notify": { "type": "boolean" }
+      }
+    },
+    "default_apps": {
+      "type": "object",
+      "required": ["browser_desktop", "image_viewer_desktop", "editor_desktop"],
+      "properties": {
+        "browser_desktop": { "type": "string" },
+        "image_viewer_desktop": { "type": "string" },
+        "editor_desktop": { "type": "string" }
+      }
+    },
+    "app_routing": {
+      "type": "object",
+      "required": ["rules"],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["app", "priority", "route", "sound", "audio_sink", "workspace"],
+            "properties": {
+              "app": { "type": "string" },
+              "priority": { "type": "string", "enum": ["critical", "high", "normal", "low", "silent"] },
+              "route": { "type": "string", "enum": ["popup", "action-center", "both", "mute"] },
+              "sound": { "type": "string" },
+              "audio_sink": { "type": "string" },
+              "workspace": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "startup": {
+      "type": "object",
+      "required": ["nm_applet_autostart", "nvidia_settings_autoload"],
+      "properties": {
+        "nm_applet_autostart": { "type": "boolean" },
+        "nvidia_settings_autoload": { "type": "boolean" }
+      }
+    },
+    "shortcuts": {
+      "type": "object",
+      "required": ["open_settings_hub", "open_last_settings", "toggle_settings_quick", "open_settings_panel"],
+      "properties": {
+        "open_settings_hub": { "type": "string" },
+        "open_last_settings": { "type": "string" },
+        "toggle_settings_quick": { "type": "string" },
+        "open_settings_panel": { "type": "string" }
+      }
+    }
+  }
+}

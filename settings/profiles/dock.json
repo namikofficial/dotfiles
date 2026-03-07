@@ -1,0 +1,7 @@
+{
+  "machine": { "profile": "dock" },
+  "power": { "default_profile": "balanced", "auto_profile": true },
+  "panel": { "engine": "hyprpanel", "visible": true, "desktop_widgets": false },
+  "startup": { "nm_applet_autostart": true },
+  "wallpaper": { "rotate_enabled": true, "rotate_interval_minutes": 720 }
+}

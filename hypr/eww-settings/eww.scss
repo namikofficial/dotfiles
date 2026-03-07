@@ -1,0 +1,28 @@
+* {
+  all: unset;
+}
+
+.settings-root {
+  background: rgba(17, 20, 28, 0.95);
+  border: 2px solid rgba(122, 162, 247, 0.6);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.title {
+  color: #c0caf5;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.section-btn {
+  color: #c0caf5;
+  background: rgba(49, 54, 74, 0.9);
+  border-radius: 8px;
+  padding: 9px;
+  margin-bottom: 8px;
+}
+
+.section-btn:hover {
+  background: rgba(122, 162, 247, 0.45);
+}

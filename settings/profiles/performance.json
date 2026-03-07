@@ -1,0 +1,7 @@
+{
+  "machine": { "profile": "performance" },
+  "power": { "default_profile": "performance", "auto_profile": false },
+  "panel": { "engine": "waybar", "visible": true, "desktop_widgets": false },
+  "wallpaper": { "rotate_enabled": false, "theme_sync": true },
+  "startup": { "nm_applet_autostart": true }
+}

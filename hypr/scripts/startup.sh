@@ -63,6 +63,11 @@ if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
   "$HOME/.config/hypr/scripts/launcher.sh" --warm-cache >/dev/null 2>&1 &
 fi
 
+# Apply generated settings overlays for Hypr/SwayNC at session start.
+if [ -x "$HOME/.config/hypr/scripts/settingsctl" ]; then
+  "$HOME/.config/hypr/scripts/settingsctl" apply all >/dev/null 2>&1 || true
+fi
+
 # Warm cheatsheet cache so Super+. opens immediately.
 if [ -x "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" ]; then
   "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" --mode all >/dev/null 2>&1 &

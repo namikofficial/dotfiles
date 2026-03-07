@@ -1,0 +1,25 @@
+(defwindow settings_panel
+  :monitor 0
+  :stacking "fg"
+  :focusable true
+  :geometry (geometry :x "40px" :y "80px" :width "420px" :height "640px" :anchor "top left")
+  (settings_root)
+)
+
+(defwidget section_button [label cmd]
+  (button :class "section-btn" :onclick cmd label))
+
+(defwidget settings_root []
+  (box :class "settings-root" :orientation "v" :space-evenly false
+    (label :class "title" :text "Noxflow Settings Panel")
+    (section_button :label "Apply All" :cmd "~/.config/hypr/scripts/settingsctl apply all")
+    (section_button :label "Open Settings Editor" :cmd "~/.config/hypr/scripts/settings/editor.sh")
+    (section_button :label "Open App Routing Editor" :cmd "~/.config/hypr/scripts/settings/app-routing-editor.sh")
+    (section_button :label "Pick Machine Profile" :cmd "~/.config/hypr/scripts/settings/profile-picker.sh")
+    (section_button :label "Toggle Notification Sounds" :cmd "~/.config/hypr/scripts/settingsctl toggle notifications.sounds.enabled && ~/.config/hypr/scripts/settingsctl apply sounds")
+    (section_button :label "Toggle Wallpaper Rotation" :cmd "~/.config/hypr/scripts/settingsctl toggle wallpaper.rotate_enabled && ~/.config/hypr/scripts/settingsctl apply wallpaper")
+    (section_button :label "Toggle Desktop Widgets" :cmd "~/.config/hypr/scripts/settingsctl toggle panel.desktop_widgets && ~/.config/hypr/scripts/settingsctl apply panel")
+    (section_button :label "Doctor Report" :cmd "kitty -e sh -lc '~/.config/hypr/scripts/settingsctl doctor; read -r -p \"Press enter to close\"'")
+    (section_button :label "Close" :cmd "eww -c ~/.config/eww-settings close settings_panel")
+  )
+)

@@ -1,0 +1,8 @@
+[Unit]
+Description=Noxflow Timeshift automatic snapshot
+Documentation=man:timeshift(1)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/timeshift --check --scripted

@@ -29,23 +29,7 @@
       "app-name": "Hyprland"
     }
   },
-  "scripts": {
-    "play-notify-critical": {
-      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh critical'",
-      "urgency": "Critical",
-      "run-on": "receive"
-    },
-    "play-notify-message": {
-      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh message'",
-      "app-name": "(Telegram|org\\.telegram\\.desktop|Discord|discord|Slack|slack|Signal|signal|Element|element-desktop|WhatsApp|vesktop)",
-      "run-on": "receive"
-    },
-    "play-notify-system": {
-      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh system'",
-      "app-name": "(Hyprland|NetworkManager|nm-applet|blueman|Udiskie|powerprofilesctl|Power|systemd|Kernel|Bluetooth|WirePlumber|PipeWire)",
-      "run-on": "receive"
-    }
-  },
+  "scripts": {},
   "widgets": [
     "title",
     "buttons-grid#notif_tools",
@@ -62,17 +46,17 @@
     "title": {
       "text": "Notifications",
       "clear-all-button": true,
-      "button-text": "\udb80\udec3"
+      "button-text": "󰋃"
     },
     "buttons-grid#notif_tools": {
       "buttons-per-row": 2,
       "actions": [
         {
-          "label": "\udb80\udfe2 Copy Hub",
+          "label": "󰏢 Copy Hub",
           "command": "sh -lc '$HOME/.config/hypr/scripts/notification-summary.sh copy'"
         },
         {
-          "label": "\udb80\uddb4 Clear All",
+          "label": "󰆴 Clear All",
           "command": "swaync-client -C"
         }
       ]
@@ -84,25 +68,25 @@
       "buttons-per-row": 2,
       "actions": [
         {
-          "label": "\udb82\udcae GPU Active",
+          "label": "󰢮 GPU Active",
           "command": "sh -lc '$HOME/.config/hypr/scripts/notification-summary.sh popup'",
           "type": "toggle",
           "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-gpu-active.sh'"
         },
         {
-          "label": "\udb81\udc0a Media Active",
+          "label": "󰐊 Media Active",
           "command": "playerctl play-pause",
           "type": "toggle",
           "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-media-active.sh'"
         },
         {
-          "label": "\udb81\udda9 Network Online",
+          "label": "󰖩 Network Online",
           "command": "nm-connection-editor",
           "type": "toggle",
           "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-network-online.sh'"
         },
         {
-          "label": "\udb80\udf79 Panel Visible",
+          "label": "󰍹 Panel Visible",
           "command": "sh -lc '$HOME/.config/hypr/scripts/panel-switch.sh toggle-view'",
           "type": "toggle",
           "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-panel-visible.sh'"
@@ -113,29 +97,29 @@
       "buttons-per-row": 2,
       "actions": [
         {
-          "label": "\udb85\udc0b Toggle DND",
+          "label": "󱐋 Toggle DND",
           "command": "swaync-client -d",
           "type": "toggle",
           "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-dnd.sh'"
         },
         {
-          "label": "\udb82\udecc Desktop Widgets",
+          "label": "󰫌 Desktop Widgets",
           "command": "sh -lc '$HOME/.config/hypr/scripts/eww-desktop-toggle.sh'",
           "type": "toggle",
           "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-desktop-widgets.sh'"
         },
         {
-          "label": "\udb81\uddaa Net Applet",
+          "label": "󰖪 Net Applet",
           "command": "sh -lc '$HOME/.config/hypr/scripts/nm-applet-toggle.sh'",
           "type": "toggle",
           "update-command": "sh -lc 'pgrep -x nm-applet >/dev/null && echo true || echo false'"
         },
         {
-          "label": "\udb81\udd6e Panel View",
+          "label": "󰕮 Panel View",
           "command": "sh -lc '$HOME/.config/hypr/scripts/panel-switch.sh toggle-view'"
         },
         {
-          "label": "\udb81\udda8 Restart Bar",
+          "label": "󰖨 Restart Bar",
           "command": "sh -lc '$HOME/.config/hypr/scripts/restart-waybar.sh'"
         }
       ]

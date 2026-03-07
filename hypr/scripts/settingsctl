@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+ROOT_DIR="$(cd "$(dirname "$SCRIPT_PATH")/../.." && pwd)"
+SETTINGS_DIR="$ROOT_DIR/settings"
+SCHEMA="$SETTINGS_DIR/schema.json"
+DEFAULTS="$SETTINGS_DIR/defaults.json"
+STATE="$SETTINGS_DIR/state.json"
+LOCAL_STATE="$SETTINGS_DIR/state.local.json"
+PROFILES_DIR="$SETTINGS_DIR/profiles"
+APPLY_SCRIPT="$ROOT_DIR/hypr/scripts/settings/apply.sh"
+DOCTOR_SCRIPT="$ROOT_DIR/hypr/scripts/settings/doctor.sh"
+KEYCHECK_SCRIPT="$ROOT_DIR/hypr/scripts/settings/keybind-check.sh"
+
+usage() {
+  cat <<USAGE
+Usage: settingsctl <command> [args]
+
+Commands:
+  list                              Print merged settings JSON
+  get <path>                        Read a value (dot path)
+  set <path> <json_value>           Set override with JSON literal
+  set-string <path> <string_value>  Set override with raw string
+  toggle <path>                     Toggle boolean value
+  profile list                      List available profiles
+  profile show                      Show active profile
+  profile apply <name>              Set active profile in local state
+  validate                          Validate JSON against schema (basic)
+  apply [section|all]               Apply settings to configs
+  doctor                            Run drift and environment checks
+  keycheck                          Check duplicate keybind mappings
+  export <file>                     Export merged settings to file
+  import <file>                     Replace state.json from file
+  reset                             Reset state overrides to {}
+USAGE
+}
+
+require_tools() {
+  command -v jq >/dev/null 2>&1 || { echo "jq is required" >&2; exit 1; }
+}
+
+ensure_state_files() {
+  [[ -f "$STATE" ]] || printf '{}\n' > "$STATE"
+}
+
+empty_json_file() {
+  local f
+  f="$(mktemp)"
+  printf '{}\n' > "$f"
+  printf '%s' "$f"
+}
+
+merged() {
+  ensure_state_files
+  local tmp_empty profile base profile_file
+  tmp_empty="$(empty_json_file)"
+
+  base="$(jq -s '.[0] * .[1] * .[2]' "$DEFAULTS" "$STATE" "${LOCAL_STATE:-$tmp_empty}" 2>/dev/null || jq -s '.[0] * .[1] * .[2]' "$DEFAULTS" "$STATE" "$tmp_empty")"
+  profile="$(jq -r '.machine.profile // "laptop"' <<<"$base")"
+  profile_file="$PROFILES_DIR/$profile.json"
+
+  if [[ -f "$profile_file" ]]; then
+    jq -s '.[0] * .[1] * .[2] * .[3]' "$DEFAULTS" "$profile_file" "$STATE" "${LOCAL_STATE:-$tmp_empty}" 2>/dev/null \
+      || jq -s '.[0] * .[1] * .[2] * .[3]' "$DEFAULTS" "$profile_file" "$STATE" "$tmp_empty"
+  else
+    jq -s '.[0] * .[1] * .[2]' "$DEFAULTS" "$STATE" "${LOCAL_STATE:-$tmp_empty}" 2>/dev/null \
+      || jq -s '.[0] * .[1] * .[2]' "$DEFAULTS" "$STATE" "$tmp_empty"
+  fi
+
+  rm -f "$tmp_empty"
+}
+
+to_jq_path() {
+  local path="$1"
+  IFS='.' read -r -a parts <<< "$path"
+  local out=""
+  for p in "${parts[@]}"; do
+    if [[ "$p" =~ ^[0-9]+$ ]]; then
+      out+="[$p]"
+    else
+      out+="[\"$p\"]"
+    fi
+  done
+  printf '%s' "$out"
+}
+
+set_in_file() {
+  local file="$1" path="$2" mode="$3" value="$4"
+  local jq_path tmp
+  jq_path="$(to_jq_path "$path")"
+  tmp="$(mktemp)"
+  if [[ "$mode" == "json" ]]; then
+    jq --argjson value "$value" ".$jq_path = \$value" "$file" > "$tmp"
+  else
+    jq --arg value "$value" ".$jq_path = \$value" "$file" > "$tmp"
+  fi
+  mv "$tmp" "$file"
+}
+
+cmd="${1:-}"
+[[ -n "$cmd" ]] || { usage; exit 1; }
+shift || true
+
+require_tools
+ensure_state_files
+
+case "$cmd" in
+  list)
+    merged | jq .
+    ;;
+  get)
+    path="${1:-}"
+    [[ -n "$path" ]] || { echo "get requires path" >&2; exit 1; }
+    jq_path="$(to_jq_path "$path")"
+    merged | jq -r ".$jq_path"
+    ;;
+  set)
+    path="${1:-}"
+    value="${2:-}"
+    [[ -n "$path" && -n "$value" ]] || { echo "set requires <path> <json_value>" >&2; exit 1; }
+    set_in_file "$STATE" "$path" json "$value"
+    ;;
+  set-string)
+    path="${1:-}"
+    value="${2:-}"
+    [[ -n "$path" ]] || { echo "set-string requires <path> <string_value>" >&2; exit 1; }
+    set_in_file "$STATE" "$path" string "$value"
+    ;;
+  toggle)
+    path="${1:-}"
+    [[ -n "$path" ]] || { echo "toggle requires path" >&2; exit 1; }
+    jq_path="$(to_jq_path "$path")"
+    current="$(merged | jq -r ".$jq_path")"
+    if [[ "$current" != "true" && "$current" != "false" ]]; then
+      echo "toggle target is not boolean: $path" >&2
+      exit 1
+    fi
+    next="true"
+    [[ "$current" == "true" ]] && next="false"
+    set_in_file "$STATE" "$path" json "$next"
+    ;;
+  profile)
+    sub="${1:-}"
+    case "$sub" in
+      list)
+        find "$PROFILES_DIR" -maxdepth 1 -type f -name '*.json' -printf '%f\n' | sed 's/\.json$//' | sort
+        ;;
+      show)
+        merged | jq -r '.machine.profile'
+        ;;
+      apply)
+        name="${2:-}"
+        [[ -n "$name" ]] || { echo "profile apply requires profile name" >&2; exit 1; }
+        [[ -f "$PROFILES_DIR/$name.json" ]] || { echo "unknown profile: $name" >&2; exit 1; }
+        [[ -f "$LOCAL_STATE" ]] || cp "$SETTINGS_DIR/state.local.example.json" "$LOCAL_STATE"
+        set_in_file "$LOCAL_STATE" "machine.profile" string "$name"
+        echo "Applied profile: $name"
+        ;;
+      *)
+        echo "Usage: settingsctl profile <list|show|apply>" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  validate)
+    jq empty "$DEFAULTS"
+    jq empty "$STATE"
+    jq empty "$SCHEMA"
+    merged >/dev/null
+    echo "Basic validation passed (JSON parse + merge)."
+    ;;
+  apply)
+    section="${1:-all}"
+    "$APPLY_SCRIPT" "$section"
+    ;;
+  doctor)
+    "$DOCTOR_SCRIPT"
+    ;;
+  keycheck)
+    "$KEYCHECK_SCRIPT"
+    ;;
+  export)
+    out_file="${1:-}"
+    [[ -n "$out_file" ]] || { echo "export requires file path" >&2; exit 1; }
+    merged > "$out_file"
+    echo "Exported merged settings to $out_file"
+    ;;
+  import)
+    in_file="${1:-}"
+    [[ -f "$in_file" ]] || { echo "import file not found: $in_file" >&2; exit 1; }
+    jq empty "$in_file"
+    cp "$in_file" "$STATE"
+    echo "Imported state from $in_file"
+    ;;
+  reset)
+    printf '{}\n' > "$STATE"
+    echo "Reset state overrides"
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

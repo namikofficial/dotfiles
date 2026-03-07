@@ -16,6 +16,8 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
 - `theme/` for GTK, Qt5/Qt6, and Kvantum visual consistency
 - `setup/` automation scripts for links and package installation
+- `settings/` schema-driven settings state (`settingsctl` + Settings Hub)
+- `kde/` + `mime/` managed KDE defaults and MIME handlers
 
 ## Quick start
 
@@ -31,8 +33,11 @@ That command:
 - links Atuin config into `~/.config/atuin/config.toml`
 - links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
 - links Eww and theme configs (`gtk`, `qt5ct`, `qt6ct`, `Kvantum`) into `~/.config`
+- links optional Eww settings panel config into `~/.config/eww-settings`
 - links swaync/wlogout/dunst configs into `~/.config`
 - links Chrome flags to `~/.config/chrome-flags.conf`
+- links KDE defaults (`kdeglobals`, `dolphinrc`, `kiorc`, `gwenviewrc`)
+- links MIME defaults (`~/.config/mimeapps.list`)
 - links your `~/Documents/code/scripts/bin/*` commands into `~/.local/bin`
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
 - installs/updates tmux plugins via TPM (`~/.tmux/plugins/tpm`)
@@ -93,6 +98,11 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - opener key again (`Super+Space` / `Super+A`): close launcher/actions
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)
+- `Super + ,`: open Settings Hub
+- `Super + Shift + ,`: re-apply last selected settings section
+- `Super + Ctrl + ,`: quick settings toggle (notification sounds)
+- `Super + Alt + ,`: toggle Eww detailed settings panel
+- `Super + Ctrl + Alt + ,`: apply per-app routing to focused app
 - `Super + .`: fullscreen dev cheatsheet overlay (searchable + tabbed)
 - `Super + F`: toggle floating on active window
 - `Super + M`: maximize/unmaximize active window
@@ -139,6 +149,25 @@ Launcher performance note:
 
 Full keybind tables: `docs/KEYBINDS.md`
 Wallpaper/theming pipeline: `docs/WALLPAPER_THEMING.md`
+
+## Settings Control Plane
+
+Use the settings controller for validated state updates and apply operations:
+
+```sh
+~/.config/hypr/scripts/settingsctl list
+~/.config/hypr/scripts/settingsctl set notifications.timeout 10
+~/.config/hypr/scripts/settingsctl apply notifications
+~/.config/hypr/scripts/settingsctl doctor
+~/.config/hypr/scripts/settingsctl profile list
+~/.config/hypr/scripts/settingsctl profile apply performance
+```
+
+Normalize existing copied files to symlinks:
+
+```sh
+./setup/normalize-links.sh
+```
 
 ## Shell UX highlights
 

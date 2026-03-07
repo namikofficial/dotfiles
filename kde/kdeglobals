@@ -1,0 +1,35 @@
+[General]
+ColorScheme=NoxflowDynamic
+
+[Icons]
+Theme=Papirus-Dark
+
+[KDE]
+widgetStyle=kvantum
+
+[Colors:Window]
+BackgroundNormal=16, 34, 52
+BackgroundAlternate=26, 43, 60
+ForegroundNormal=232, 238, 252
+ForegroundInactive=150, 160, 176
+ForegroundActive=151, 213, 95
+
+[Colors:View]
+BackgroundNormal=45, 61, 76
+BackgroundAlternate=26, 43, 60
+ForegroundNormal=232, 238, 252
+ForegroundInactive=150, 160, 176
+ForegroundActive=151, 213, 95
+DecorationFocus=151, 213, 95
+DecorationHover=165, 206, 226
+
+[Colors:Button]
+BackgroundNormal=26, 43, 60
+BackgroundAlternate=45, 61, 76
+ForegroundNormal=232, 238, 252
+ForegroundInactive=150, 160, 176
+ForegroundActive=151, 213, 95
+
+[Colors:Selection]
+BackgroundNormal=151, 213, 95
+ForegroundNormal=16, 34, 52
