@@ -21,6 +21,9 @@
 (defwidget chip [val]
   (label :class "chip" :text val))
 
+(defwidget pill_btn [label cmd]
+  (button :class "pill-btn" :onclick cmd (label :text label)))
+
 (defwidget settings_page []
   (box :class "root" :orientation "v" :space-evenly false
     (box :class "header" :orientation "h" :space-evenly false
@@ -29,10 +32,10 @@
         (label :class "subtitle" :text "High-contrast panel with full-height scrolling")
       )
       (box :class "header-right" :orientation "h" :space-evenly false
-        (chip :val "Profile")
-        (chip :val v_profile)
-        (chip :val "Notif")
-        (chip :val v_notif_count)
+        (pill_btn :label "Profile" :cmd "~/.config/hypr/scripts/settings/profile-picker.sh")
+        (pill_btn :label v_profile :cmd "~/.config/hypr/scripts/settings/profile-picker.sh")
+        (pill_btn :label "Notif" :cmd "swaync-client -t")
+        (pill_btn :label v_notif_count :cmd "~/.config/hypr/scripts/notification-summary.sh popup")
         (btn :label "Apply" :cmd "~/.config/hypr/scripts/settingsctl apply all" :cls "btn")
         (btn :label "Hub" :cmd "~/.config/hypr/scripts/settings-hub.sh" :cls "btn")
         (btn :label "Close" :cmd "eww -c ~/.config/eww-settings close settings_panel" :cls "btn danger")

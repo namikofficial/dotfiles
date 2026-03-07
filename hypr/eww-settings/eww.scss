@@ -125,6 +125,24 @@ window {
   font-weight: 800;
 }
 
+.root button.pill-btn {
+  background-color: rgba(17, 73, 86, 0.92);
+  border: 1px solid rgba(74, 204, 196, 0.78);
+  border-radius: 999px;
+  padding: 8px 12px;
+  margin-right: 8px;
+}
+
+.root button.pill-btn:hover {
+  background-color: rgba(25, 99, 111, 0.98);
+}
+
+.root button.pill-btn label,
+.root button.pill-btn * {
+  color: #d9fff7;
+  font-weight: 800;
+}
+
 .chip {
   background-color: rgba(80, 214, 190, 0.24);
   border: 1px solid rgba(80, 214, 190, 0.65);
