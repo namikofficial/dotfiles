@@ -86,34 +86,36 @@ window {
   margin-top: 1px;
 }
 
-button {
+.root button {
   border-radius: 9px;
 }
 
-button.btn {
-  background-color: rgba(122, 162, 247, 0.28);
-  border: 1px solid rgba(122, 162, 247, 0.68);
+.root button.btn {
+  background-color: rgba(44, 86, 168, 0.92);
+  border: 1px solid rgba(143, 182, 255, 0.9);
   padding: 8px 12px;
   margin-right: 8px;
 }
 
-button.btn:hover {
-  background-color: rgba(122, 162, 247, 0.46);
+.root button.btn:hover {
+  background-color: rgba(63, 108, 196, 0.98);
 }
 
-button.btn label {
-  color: #f6f9ff;
-  font-weight: 700;
+.root button.btn label,
+.root button.btn * {
+  color: #f7faff;
+  font-weight: 800;
 }
 
-button.danger {
-  background-color: rgba(255, 117, 127, 0.26);
-  border: 1px solid rgba(255, 117, 127, 0.7);
+.root button.danger {
+  background-color: rgba(173, 52, 71, 0.95);
+  border: 1px solid rgba(255, 157, 170, 0.95);
 }
 
-button.danger label {
-  color: #ffe9ed;
-  font-weight: 700;
+.root button.danger label,
+.root button.danger * {
+  color: #fff3f5;
+  font-weight: 800;
 }
 
 .chip {
