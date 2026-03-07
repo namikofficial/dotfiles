@@ -7,6 +7,8 @@
 (defpoll v_night :interval "2s" "~/.config/hypr/scripts/settings-ui-values.sh night.light")
 (defpoll v_notif_count :interval "2s" "~/.config/hypr/scripts/settings-ui-values.sh notifications.count")
 
+(defvar active_tab "notifications")
+
 (defwindow settings_panel
   :monitor 0
   :stacking "fg"
@@ -42,10 +44,16 @@
       )
     )
 
+    (box :class "tabbar" :orientation "h" :space-evenly false
+      (button :class { "tab-btn " + (active_tab == "notifications" ? "active" : "") } :onclick "eww -c ~/.config/eww-settings update active_tab=notifications" (label :text "Notifications"))
+      (button :class { "tab-btn " + (active_tab == "display" ? "active" : "") } :onclick "eww -c ~/.config/eww-settings update active_tab=display" (label :text "Display"))
+      (button :class { "tab-btn " + (active_tab == "apps" ? "active" : "") } :onclick "eww -c ~/.config/eww-settings update active_tab=apps" (label :text "Apps"))
+    )
+
     (scroll :vexpand true :hscroll false :vscroll true
       (box :class "content" :orientation "v" :space-evenly false :vexpand true
 
-        (box :class "card" :orientation "v" :space-evenly false
+        (box :class "card" :orientation "v" :space-evenly false :visible {active_tab == "notifications"}
           (label :class "card-title" :text "Notifications")
 
           (box :class "entry" :orientation "v" :space-evenly false
@@ -85,7 +93,7 @@
           )
         )
 
-        (box :class "card" :orientation "v" :space-evenly false
+        (box :class "card" :orientation "v" :space-evenly false :visible {active_tab == "display"}
           (label :class "card-title" :text "Display and Power")
 
           (box :class "entry" :orientation "v" :space-evenly false
@@ -125,7 +133,7 @@
           )
         )
 
-        (box :class "card" :orientation "v" :space-evenly false
+        (box :class "card" :orientation "v" :space-evenly false :visible {active_tab == "apps"}
           (label :class "card-title" :text "Apps and Groups")
 
           (box :class "entry" :orientation "v" :space-evenly false

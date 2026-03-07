@@ -43,6 +43,32 @@ window {
   padding-right: 2px;
 }
 
+.tabbar {
+  margin-bottom: 10px;
+}
+
+.root button.tab-btn {
+  background-color: rgba(20, 29, 46, 0.95);
+  border: 1px solid rgba(93, 118, 168, 0.45);
+  border-radius: 10px;
+  padding: 8px 14px;
+  margin-right: 8px;
+}
+
+.root button.tab-btn label {
+  color: #b7c6e8;
+  font-weight: 700;
+}
+
+.root button.tab-btn.active {
+  background-color: rgb(36, 79, 150);
+  border: 1px solid rgb(124, 171, 255);
+}
+
+.root button.tab-btn.active label {
+  color: #f7fbff;
+}
+
 .card {
   background-color: rgba(16, 22, 33, 0.96);
   border: 1px solid rgba(80, 214, 190, 0.35);
