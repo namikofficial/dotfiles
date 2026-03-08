@@ -8,14 +8,14 @@ window {
 }
 
 .root {
-  background-color: rgba(10, 14, 22, 0.98);
-  border: 1px solid rgba(122, 162, 247, 0.55);
-  border-radius: 16px;
-  padding: 12px;
+  background-color: rgba(10, 14, 22, 0.76);
+  border: 1px solid rgba(111, 148, 201, 0.18);
+  border-radius: 18px;
+  padding: 14px;
 }
 
 .header {
-  border-bottom: 1px solid rgba(122, 162, 247, 0.3);
+  border-bottom: 1px solid rgba(111, 148, 201, 0.18);
   padding-bottom: 10px;
   margin-bottom: 10px;
 }
@@ -48,8 +48,8 @@ window {
 }
 
 .root button.tab-btn {
-  background-color: rgba(20, 29, 46, 0.95);
-  border: 1px solid rgba(93, 118, 168, 0.45);
+  background-color: rgba(20, 29, 46, 0.62);
+  border: 1px solid rgba(93, 118, 168, 0.18);
   border-radius: 10px;
   padding: 8px 14px;
   margin-right: 8px;
@@ -61,8 +61,8 @@ window {
 }
 
 .root button.tab-btn.active {
-  background-color: rgb(36, 79, 150);
-  border: 1px solid rgb(124, 171, 255);
+  background-color: rgba(88, 125, 160, 0.72);
+  border: 1px solid rgba(158, 190, 216, 0.52);
 }
 
 .root button.tab-btn.active label {
@@ -70,9 +70,9 @@ window {
 }
 
 .card {
-  background-color: rgba(16, 22, 33, 0.96);
-  border: 1px solid rgba(80, 214, 190, 0.35);
-  border-radius: 12px;
+  background-color: rgba(16, 22, 33, 0.68);
+  border: 1px solid rgba(102, 194, 184, 0.16);
+  border-radius: 14px;
   padding: 10px;
   margin-bottom: 10px;
 }
@@ -80,13 +80,13 @@ window {
 .card-title {
   font-size: 17px;
   font-weight: 800;
-  color: #8fd5ff;
+  color: #8ac6cf;
   margin-bottom: 8px;
 }
 
 .entry {
-  background-color: rgba(10, 15, 24, 0.9);
-  border: 1px solid rgba(72, 94, 134, 0.55);
+  background-color: rgba(10, 15, 24, 0.58);
+  border: 1px solid rgba(72, 94, 134, 0.22);
   border-radius: 10px;
   padding: 9px;
   margin-bottom: 8px;
@@ -124,13 +124,13 @@ window {
 
 .root button,
 .root button.btn {
-  background-color: rgb(42, 82, 160);
-  border: 1px solid rgb(136, 176, 255);
+  background-color: rgba(88, 125, 160, 0.68);
+  border: 1px solid rgba(158, 190, 216, 0.48);
 }
 
 .root button:hover,
 .root button.btn:hover {
-  background-color: rgb(60, 104, 188);
+  background-color: rgba(101, 136, 182, 0.72);
 }
 
 .root button label,
@@ -152,15 +152,15 @@ window {
 }
 
 .root button.pill-btn {
-  background-color: rgba(17, 73, 86, 0.92);
-  border: 1px solid rgba(74, 204, 196, 0.78);
+  background-color: rgba(30, 82, 88, 0.76);
+  border: 1px solid rgba(102, 194, 184, 0.48);
   border-radius: 999px;
   padding: 8px 12px;
   margin-right: 8px;
 }
 
 .root button.pill-btn:hover {
-  background-color: rgba(25, 99, 111, 0.98);
+  background-color: rgba(42, 102, 108, 0.82);
 }
 
 .root button.pill-btn label,
@@ -170,8 +170,8 @@ window {
 }
 
 .chip {
-  background-color: rgba(80, 214, 190, 0.24);
-  border: 1px solid rgba(80, 214, 190, 0.65);
+  background-color: rgba(102, 194, 184, 0.16);
+  border: 1px solid rgba(102, 194, 184, 0.38);
   border-radius: 999px;
   color: #d2fff3;
   padding: 4px 10px;

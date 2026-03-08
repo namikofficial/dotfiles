@@ -3,8 +3,8 @@
 @define-color surface #1f2335;
 @define-color text #c8d3f5;
 @define-color muted #8a94b8;
-@define-color accent #7aa2f7;
-@define-color accent2 #4fd6be;
+@define-color accent #6f94c9;
+@define-color accent2 #66c2b8;
 @define-color warn #ff966c;
 @define-color danger #ff757f;
 @import url("/home/namik/.cache/hypr/theme-colors-swaync.css");
@@ -16,11 +16,11 @@
 }
 
 .control-center {
-  background: rgba(15, 17, 26, 0.94);
-  border: 1px solid rgba(122, 162, 247, 0.32);
-  border-radius: 14px;
+  background: rgba(15, 17, 26, 0.72);
+  border: 1px solid rgba(111, 148, 201, 0.18);
+  border-radius: 16px;
   padding: 12px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
 }
 
 .notification-row {
@@ -28,11 +28,11 @@
 }
 
 .notification {
-  border-radius: 11px;
+  border-radius: 13px;
   margin: 6px 0;
-  padding: 8px;
-  border: 1px solid rgba(122, 162, 247, 0.22);
-  background: rgba(31, 35, 53, 0.9);
+  padding: 9px;
+  border: 1px solid rgba(111, 148, 201, 0.12);
+  background: linear-gradient(180deg, rgba(31, 35, 53, 0.66), rgba(22, 26, 38, 0.62));
 }
 
 .notification-content {
@@ -78,8 +78,8 @@
 }
 
 .widget-buttons-grid flowboxchild > button.active {
-  background: rgba(79, 214, 190, 0.2);
-  border-color: rgba(79, 214, 190, 0.55);
+  background: rgba(102, 194, 184, 0.1);
+  border-color: rgba(102, 194, 184, 0.28);
   color: @accent2;
 }
 
@@ -94,8 +94,8 @@
   margin-left: 8px;
   padding: 1px 8px;
   border-radius: 7px;
-  border: 1px solid rgba(122, 162, 247, 0.22);
-  background: rgba(22, 26, 38, 0.88);
+  border: 1px solid rgba(111, 148, 201, 0.14);
+  background: rgba(22, 26, 38, 0.68);
 }
 
 .notification-row .notification-background .notification .notification-default-action .notification-content .text-box .body {
@@ -110,22 +110,22 @@
 .widget-mpris,
 .widget-volume,
 .widget-backlight {
-  border: 1px solid rgba(122, 162, 247, 0.3);
-  border-radius: 11px;
+  border: 1px solid rgba(111, 148, 201, 0.18);
+  border-radius: 13px;
   padding: 8px;
   margin: 4px 0;
-  background: rgba(31, 35, 53, 0.92);
+  background: rgba(31, 35, 53, 0.66);
 }
 
 button {
-  background: @bg_soft;
+  background: rgba(22, 26, 38, 0.58);
   color: @text;
-  border: 1px solid rgba(122, 162, 247, 0.24);
+  border: 1px solid rgba(111, 148, 201, 0.12);
   border-radius: 9px;
 }
 
 button:hover {
-  background: rgba(122, 162, 247, 0.2);
+  background: rgba(111, 148, 201, 0.1);
   color: @text;
 }
 

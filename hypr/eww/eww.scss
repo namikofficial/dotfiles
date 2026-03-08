@@ -1,10 +1,10 @@
-$bg: rgba(14, 16, 26, 0.94);
-$surface: rgba(28, 34, 53, 0.96);
-$border: rgba(122, 162, 247, 0.34);
+$bg: rgba(14, 16, 26, 0.76);
+$surface: rgba(28, 34, 53, 0.82);
+$border: rgba(111, 148, 201, 0.18);
 $text: #c0caf5;
 $muted: #9aa4c7;
-$accent: #7aa2f7;
-$accent2: #4fd6be;
+$accent: #6f94c9;
+$accent2: #66c2b8;
 @import "/home/namik/.cache/hypr/theme-colors-eww.scss";
 
 * {
@@ -14,16 +14,16 @@ $accent2: #4fd6be;
 }
 
 .quickpanel {
-  background: $bg;
-  border: 1px solid $border;
-  border-radius: 14px;
+  background: rgba(14, 16, 26, 0.7);
+  border: 1px solid rgba(111, 148, 201, 0.14);
+  border-radius: 16px;
   padding: 8px;
   min-width: 270px;
 }
 
 .hero {
-  background: linear-gradient(120deg, rgba(122, 162, 247, 0.2), rgba(79, 214, 190, 0.2));
-  border: 1px solid rgba(122, 162, 247, 0.22);
+  background: linear-gradient(120deg, rgba(111, 148, 201, 0.09), rgba(102, 194, 184, 0.09));
+  border: 1px solid rgba(111, 148, 201, 0.12);
   border-radius: 12px;
   padding: 8px 9px;
 }
@@ -44,9 +44,9 @@ $accent2: #4fd6be;
 }
 
 .card {
-  background: $surface;
-  border-radius: 11px;
-  border: 1px solid rgba(122, 162, 247, 0.16);
+  background: rgba(28, 34, 53, 0.7);
+  border-radius: 13px;
+  border: 1px solid rgba(111, 148, 201, 0.08);
   padding: 6px 8px;
 }
 
@@ -61,23 +61,23 @@ $accent2: #4fd6be;
 }
 
 .calendar {
-  background: $surface;
-  border-radius: 11px;
-  border: 1px solid rgba(122, 162, 247, 0.16);
+  background: rgba(28, 34, 53, 0.7);
+  border-radius: 13px;
+  border: 1px solid rgba(111, 148, 201, 0.08);
   padding: 8px;
 }
 
 .desktoppanel {
-  background: rgba(15, 18, 30, 0.72);
-  border: 1px solid rgba(122, 162, 247, 0.24);
+  background: rgba(15, 18, 30, 0.56);
+  border: 1px solid rgba(111, 148, 201, 0.14);
   border-radius: 12px;
   padding: 8px 9px;
   min-width: 260px;
 }
 
 .desk-hero {
-  background: linear-gradient(118deg, rgba(122, 162, 247, 0.22), rgba(79, 214, 190, 0.12));
-  border: 1px solid rgba(122, 162, 247, 0.22);
+  background: linear-gradient(118deg, rgba(111, 148, 201, 0.12), rgba(102, 194, 184, 0.08));
+  border: 1px solid rgba(111, 148, 201, 0.14);
   border-radius: 10px;
   padding: 7px 8px;
 }
@@ -85,7 +85,7 @@ $accent2: #4fd6be;
 .desk-grid {
   .card {
     padding: 5px 7px;
-    border-color: rgba(122, 162, 247, 0.14);
+    border-color: rgba(111, 148, 201, 0.08);
   }
   .card-icon {
     margin-right: 5px;
@@ -110,13 +110,13 @@ $accent2: #4fd6be;
 }
 
 .card-btn:hover .card-action {
-  border-color: rgba(122, 162, 247, 0.42);
-  background: rgba(44, 57, 88, 0.95);
+  border-color: rgba(111, 148, 201, 0.24);
+  background: rgba(44, 57, 88, 0.72);
 }
 
 .desk-btn {
-  background: rgba(33, 40, 62, 0.92);
-  border: 1px solid rgba(122, 162, 247, 0.24);
+  background: rgba(33, 40, 62, 0.66);
+  border: 1px solid rgba(111, 148, 201, 0.14);
   border-radius: 10px;
   padding: 5px 7px;
   font-size: 10px;
@@ -125,18 +125,18 @@ $accent2: #4fd6be;
 }
 
 .desk-btn:hover {
-  background: rgba(56, 72, 112, 0.92);
-  border-color: rgba(122, 162, 247, 0.5);
+  background: rgba(56, 72, 112, 0.72);
+  border-color: rgba(111, 148, 201, 0.28);
 }
 
 .desktoppanel-right {
-  background: rgba(13, 17, 29, 0.74);
-  border-color: rgba(79, 214, 190, 0.28);
+  background: rgba(13, 17, 29, 0.58);
+  border-color: rgba(102, 194, 184, 0.18);
 }
 
 .desktoppanel-right .desk-hero {
-  background: linear-gradient(118deg, rgba(79, 214, 190, 0.2), rgba(122, 162, 247, 0.12));
-  border-color: rgba(79, 214, 190, 0.24);
+  background: linear-gradient(118deg, rgba(102, 194, 184, 0.12), rgba(111, 148, 201, 0.08));
+  border-color: rgba(102, 194, 184, 0.16);
 }
 
 .desk-title {

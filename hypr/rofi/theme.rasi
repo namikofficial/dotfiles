@@ -1,16 +1,16 @@
 * {
     font: "JetBrainsMono Nerd Font 12";
 
-    bg: #0f1322ef;
-    bg-alt: #181f33ee;
+    bg: #0f1322cc;
+    bg-alt: #181f33bf;
     fg: #dbe4ff;
     fg-muted: #97a7d6;
-    accent: #7aa2f7;
-    good: #4fd6be;
+    accent: #6f94c9;
+    good: #66c2b8;
     bad: #ff757f;
 
     border: 2px;
-    radius: 16px;
+    radius: 18px;
 
     background-color: transparent;
     text-color: @fg;
@@ -23,10 +23,10 @@ window {
     anchor: center;
     width: 52%;
     border: @border;
-    border-color: @accent;
+    border-color: rgba(111, 148, 201, 0.72);
     border-radius: @radius;
     background-color: @bg;
-    padding: 12px;
+    padding: 14px;
 }
 
 mainbox {
@@ -42,7 +42,7 @@ inputbar {
     border-radius: 12px;
     background-color: @bg-alt;
     border: 1px;
-    border-color: #337aa2f7;
+    border-color: #2a6f94aa;
 }
 
 prompt {
@@ -71,7 +71,7 @@ listview {
 
 element {
     padding: 8px 12px;
-    border-radius: 9px;
+    border-radius: 11px;
     background-color: transparent;
     text-color: @fg-muted;
     orientation: horizontal;
@@ -89,7 +89,9 @@ element selected.urgent {
 }
 
 element selected.normal {
-    background-color: rgba(122, 162, 247, 0.88);
+    background-color: rgba(96, 144, 178, 0.52);
+    border: 1px;
+    border-color: rgba(102, 194, 184, 0.3);
     text-color: #0f111a;
 }
 
@@ -119,10 +121,10 @@ mode-switcher {
 button {
     padding: 8px 12px;
     border-radius: 10px;
-    background-color: @bg-alt;
+    background-color: rgba(24, 31, 51, 0.58);
     text-color: @fg-muted;
     border: 1px;
-    border-color: #2b7aa2f7;
+    border-color: #286f9499;
 }
 
 button selected {

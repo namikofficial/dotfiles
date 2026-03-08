@@ -10,9 +10,9 @@ window {
     width: 96%;
     height: 94%;
     border: 2px;
-    border-color: #4f7de6;
+    border-color: #6f94c9;
     border-radius: 18px;
-    background-color: #0b1224d6;
+    background-color: #0b1224c8;
     padding: 16px;
 }
 
@@ -26,13 +26,13 @@ inputbar {
     spacing: 12px;
     padding: 14px;
     border: 1px;
-    border-color: #3d6fd2;
+    border-color: #628ab9;
     border-radius: 14px;
-    background-color: #14203be8;
+    background-color: #14203bd0;
 }
 
 prompt {
-    text-color: #79a5ff;
+    text-color: #83b3d8;
     font: "JetBrainsMono Nerd Font Bold 13";
 }
 
@@ -59,13 +59,13 @@ button {
     border-radius: 11px;
     border: 1px;
     border-color: #2f4e96;
-    background-color: #151f37d9;
+    background-color: #151f37bf;
     text-color: #9eb0de;
 }
 
 button selected {
-    background-color: #5f87f1;
-    border-color: #8eb0ff;
+    background-color: #6f94c9;
+    border-color: #9ebed8;
     text-color: #0d1327;
 }
 
@@ -78,9 +78,9 @@ listview {
     spacing: 5px;
     scrollbar: true;
     border: 1px;
-    border-color: #253d75;
+    border-color: #39577c;
     border-radius: 14px;
-    background-color: #0f172dd1;
+    background-color: #0f172dbc;
     padding: 10px;
 }
 
@@ -97,7 +97,7 @@ element normal.normal {
 }
 
 element selected.normal {
-    background-color: #7aa2f7e0;
+    background-color: #6f94c9bc;
     text-color: #101726;
 }
 
@@ -111,6 +111,6 @@ scrollbar {
     width: 6px;
     border-radius: 100%;
     handle-width: 8px;
-    handle-color: #638de8;
-    background-color: #172648;
+    handle-color: #66c2b8;
+    background-color: #172648aa;
 }

@@ -105,8 +105,8 @@ for rgb in candidates:
     s = sat(rgb)
     l = lum(rgb)
     c_bg = contrast_ratio(rgb, bg)
-    # Bias toward vivid, readable, mid-light accents.
-    score = (s * 1.9) + (c_bg * 0.7) - abs(l - 0.56)
+    # Bias toward readable mid-light accents, not the most saturated swatch.
+    score = (s * 1.25) + (c_bg * 0.82) - abs(l - 0.56)
     if 0.16 <= l <= 0.88 and s >= 0.14 and c_bg >= 1.6:
         scored.append((score, rgb))
 
@@ -114,7 +114,7 @@ if scored:
     scored.sort(reverse=True, key=lambda x: x[0])
     accent = scored[0][1]
 else:
-    accent = (122, 162, 247)
+    accent = (111, 148, 201)
 
 accent_h = hue(accent)
 accent2 = None
@@ -128,13 +128,19 @@ for rgb in candidates:
     h = hue(rgb)
     dh = abs(h - accent_h)
     dh = min(dh, 1 - dh)
-    score = (dh * 2.2) + (s * 1.1) + (c_bg * 0.5) - abs(l - 0.54)
+    score = (dh * 2.0) + (s * 0.9) + (c_bg * 0.62) - abs(l - 0.54)
     if 0.14 <= l <= 0.9 and s >= 0.1 and c_bg >= 1.45 and score > best2:
         best2 = score
         accent2 = rgb
 
 if accent2 is None:
-    accent2 = (79, 214, 190)
+    accent2 = (102, 194, 184)
+
+# Soften the main accent so wallpaper sync does not skew the whole UI too blue
+# or too electric after a palette refresh.
+accent = blend(accent, surface, 0.22)
+accent = blend(accent, accent2, 0.16)
+accent2 = blend(accent2, surface, 0.14)
 
 # Enforce readability against dark background.
 if contrast_ratio(accent, bg) < 2.0:
@@ -236,9 +242,9 @@ cat > "$rofi_colors" <<EOF2
 EOF2
 
 cat > "$eww_colors" <<EOF2
-\$bg: rgba($(hex_to_rgb_csv "$bg"), 0.94);
-\$surface: rgba($(hex_to_rgb_csv "$surface"), 0.96);
-\$border: rgba($(hex_to_rgb_csv "$accent"), 0.34);
+\$bg: rgba($(hex_to_rgb_csv "$bg"), 0.78);
+\$surface: rgba($(hex_to_rgb_csv "$surface"), 0.84);
+\$border: rgba($(hex_to_rgb_csv "$accent"), 0.18);
 \$text: ${text};
 \$muted: ${muted};
 \$accent: ${accent};
