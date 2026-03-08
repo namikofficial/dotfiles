@@ -5,17 +5,19 @@
 }
 
 window {
-  background-color: rgba(17, 17, 27, 0.62);
+  background-color: rgba(10, 13, 20, 0.72);
 }
 
 button {
   color: #cdd6f4;
-  background-color: rgba(49, 50, 68, 0.68);
-  border: 2px solid #45475a;
-  border-radius: 14px;
+  background-color: rgba(26, 32, 46, 0.78);
+  border: 1px solid rgba(111, 148, 201, 0.22);
+  border-radius: 18px;
   margin: 14px;
-  padding: 24px 28px;
+  padding: 28px 30px;
   min-width: 160px;
+  min-height: 110px;
+  font-size: 18px;
 }
 
 button:hover,
@@ -27,6 +29,14 @@ button:focus {
 
 #lock {
   border-color: #a6e3a1;
+}
+
+#suspend {
+  border-color: #94e2d5;
+}
+
+#hibernate {
+  border-color: #cba6f7;
 }
 
 #logout {

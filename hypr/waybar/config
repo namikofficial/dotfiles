@@ -155,7 +155,9 @@
     "custom/power": {
       "format": "",
       "tooltip": false,
-      "on-click": "~/.config/hypr/scripts/power-menu.sh"
+      "on-click": "~/.config/hypr/scripts/power-menu.sh",
+      "on-click-right": "~/.config/hypr/scripts/power-menu.sh compact",
+      "on-click-middle": "~/.config/hypr/scripts/lock.sh"
     }
   }
 ]

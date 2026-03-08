@@ -37,6 +37,7 @@ button {
   box-shadow: none;
   text-shadow: none;
   background: transparent;
+  padding: 0;
 }
 
 #custom-launcher,
@@ -160,15 +161,21 @@ button {
 #custom-power,
 #tray {
   font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font", "Noto Sans", sans-serif;
-  font-size: 14px;
-  min-height: 22px;
-  padding-top: 1px;
-  padding-bottom: 1px;
+  font-size: 15px;
+  min-height: 24px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 #workspaces button label,
-#custom-notifications label {
-  margin-top: 1px;
+#custom-launcher label,
+#custom-overview label,
+#custom-layout label,
+#power-profiles-daemon label,
+#custom-notifications label,
+#custom-power label {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 #custom-notifications {
@@ -178,7 +185,9 @@ button {
 }
 
 #workspaces button {
-  min-height: 20px;
+  min-height: 22px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 #custom-launcher,
@@ -188,7 +197,14 @@ button {
 #custom-notifications,
 #custom-cliphist,
 #custom-power {
-  font-size: 14px;
+  min-width: 24px;
+}
+
+#custom-launcher,
+#custom-overview,
+#custom-power {
+  padding-left: 9px;
+  padding-right: 11px;
 }
 
 #clock,

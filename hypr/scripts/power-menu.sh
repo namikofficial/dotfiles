@@ -1,22 +1,45 @@
 #!/usr/bin/env sh
 set -eu
 
-if command -v wlogout >/dev/null 2>&1; then
-  exec wlogout
+mode="${1:-full}"
+
+show_compact_menu() {
+  choice="$(
+    printf '%s\n' \
+      "󰌾  Lock" \
+      "󰤄  Sleep" \
+      "󰒲  Hibernate" \
+      "󰍃  Logout" \
+      "󰜉  Reboot" \
+      "󰐥  Shutdown" \
+      "󰑐  Restart Waybar" \
+    | rofi -dmenu -i -p "Power" -theme "$HOME/.config/rofi/actions.rasi"
+  )"
+
+  case "$choice" in
+    "󰌾  Lock") ~/.config/hypr/scripts/lock.sh ;;
+    "󰤄  Sleep") systemctl suspend ;;
+    "󰒲  Hibernate") systemctl hibernate ;;
+    "󰍃  Logout") hyprctl dispatch exit ;;
+    "󰜉  Reboot") systemctl reboot ;;
+    "󰐥  Shutdown") systemctl poweroff ;;
+    "󰑐  Restart Waybar") ~/.config/hypr/scripts/restart-waybar.sh ;;
+    *) exit 0 ;;
+  esac
+}
+
+if [ "$mode" = "compact" ]; then
+  show_compact_menu
+  exit 0
 fi
 
-choice="$(
-  printf '%s\n' \
-    "󰌾  Lock" \
-    "󰍃  Logout" \
-    "󰜉  Reboot" \
-    "󰐥  Shutdown" \
-  | rofi -dmenu -i -p "Power" -theme "$HOME/.config/rofi/actions.rasi"
-)"
-case "$choice" in
-  "󰌾  Lock") ~/.config/hypr/scripts/lock.sh ;;
-  "󰍃  Logout") hyprctl dispatch exit ;;
-  "󰜉  Reboot") systemctl reboot ;;
-  "󰐥  Shutdown") systemctl poweroff ;;
-  *) exit 0 ;;
-esac
+if command -v wlogout >/dev/null 2>&1; then
+  exec wlogout \
+    --layout "$HOME/.config/wlogout/layout" \
+    --css "$HOME/.config/wlogout/style.css" \
+    --buttons-per-row 3 \
+    --column-spacing 20 \
+    --row-spacing 20
+fi
+
+show_compact_menu
