@@ -192,33 +192,69 @@ return {
     event = "InsertEnter",
     dependencies = {
       "hrsh7th/cmp-buffer",
+      "hrsh7th/cmp-cmdline",
       "hrsh7th/cmp-nvim-lsp",
       "hrsh7th/cmp-path",
       "saadparwaiz1/cmp_luasnip",
       "L3MON4D3/LuaSnip",
       "rafamadriz/friendly-snippets",
+      "zbirenbaum/copilot-cmp",
     },
     config = function()
       local cmp = require("cmp")
+      local luasnip = require("luasnip")
       require("luasnip.loaders.from_vscode").lazy_load()
       cmp.setup({
         snippet = {
           expand = function(args)
-            require("luasnip").lsp_expand(args.body)
+            luasnip.lsp_expand(args.body)
           end,
         },
         mapping = cmp.mapping.preset.insert({
           ["<C-Space>"] = cmp.mapping.complete(),
           ["<CR>"] = cmp.mapping.confirm({ select = true }),
-          ["<Tab>"] = cmp.mapping.select_next_item(),
-          ["<S-Tab>"] = cmp.mapping.select_prev_item(),
+          ["<Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+              luasnip.expand_or_jump()
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
+          ["<S-Tab>"] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+              cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+              luasnip.jump(-1)
+            else
+              fallback()
+            end
+          end, { "i", "s" }),
         }),
         sources = cmp.config.sources({
+          { name = "copilot", group_index = 1, priority = 1000 },
           { name = "nvim_lsp" },
           { name = "luasnip" },
           { name = "path" },
         }, {
           { name = "buffer" },
+        }),
+      })
+
+      cmp.setup.cmdline("/", {
+        mapping = cmp.mapping.preset.cmdline(),
+        sources = {
+          { name = "buffer" },
+        },
+      })
+
+      cmp.setup.cmdline(":", {
+        mapping = cmp.mapping.preset.cmdline(),
+        sources = cmp.config.sources({
+          { name = "path" },
+        }, {
+          { name = "cmdline" },
         }),
       })
     end,
@@ -240,37 +276,37 @@ return {
       end
 
       return {
-      notify_on_error = false,
-      formatters = {
-        prettierd = {
-          cwd = prettier_root,
+        notify_on_error = false,
+        formatters = {
+          prettierd = {
+            cwd = prettier_root,
+          },
+          prettier = {
+            cwd = prettier_root,
+          },
         },
-        prettier = {
-          cwd = prettier_root,
+        format_on_save = function(bufnr)
+          local disable_filetypes = { c = true, cpp = true }
+          return {
+            timeout_ms = 800,
+            lsp_format = disable_filetypes[vim.bo[bufnr].filetype] and "never" or "fallback",
+          }
+        end,
+        formatters_by_ft = {
+          go = { "gofmt", "goimports" },
+          javascript = { "prettierd", "prettier" },
+          javascriptreact = { "prettierd", "prettier" },
+          json = { "prettierd", "prettier" },
+          lua = { "stylua" },
+          markdown = { "prettierd", "prettier" },
+          python = { "isort", "black" },
+          rust = { "rustfmt" },
+          sh = { "shfmt" },
+          toml = { "taplo" },
+          typescript = { "prettierd", "prettier" },
+          typescriptreact = { "prettierd", "prettier" },
+          yaml = { "prettierd", "prettier" },
         },
-      },
-      format_on_save = function(bufnr)
-        local disable_filetypes = { c = true, cpp = true }
-        return {
-          timeout_ms = 800,
-          lsp_format = disable_filetypes[vim.bo[bufnr].filetype] and "never" or "fallback",
-        }
-      end,
-      formatters_by_ft = {
-        go = { "gofmt", "goimports" },
-        javascript = { "prettierd", "prettier" },
-        javascriptreact = { "prettierd", "prettier" },
-        json = { "prettierd", "prettier" },
-        lua = { "stylua" },
-        markdown = { "prettierd", "prettier" },
-        python = { "isort", "black" },
-        rust = { "rustfmt" },
-        sh = { "shfmt" },
-        toml = { "taplo" },
-        typescript = { "prettierd", "prettier" },
-        typescriptreact = { "prettierd", "prettier" },
-        yaml = { "prettierd", "prettier" },
-      },
       }
     end,
   },

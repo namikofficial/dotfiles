@@ -158,14 +158,24 @@
 ## Neovim Quickstart
 - Open editor: `nvim`
 - Leader key: `Space`
+- AI autocomplete: `:Copilot auth` once, then Copilot suggestions appear inside `nvim-cmp`
+- Save like VS Code: `<C-s>`
+- Find files like VS Code: `<C-p>`
 - Find files: `<leader>ff`
 - Live grep: `<leader>fg`
 - File explorer: `-`
+- Float terminal: `<leader>tt` or `<C-\>`
+- LazyGit UI: `<leader>gg`
 - LSP rename: `<leader>rn`
+- VS Code rename: `<F2>`
+- Go to definition: `<F12>`
 - Code actions: `<leader>ca`
 - Format buffer: `<leader>bf`
 - Line diagnostics: `<leader>cd`
 - Workspace symbols: `<leader>ws`
+- Debug continue / breakpoint / step: `<F5>` / `<F9>` / `<F10>` / `<F11>`
+- Debug UI / stop: `<leader>du` / `<leader>dx`
+- Terminal normal mode: `<Esc><Esc>`
 - NoxFlow apps picker: `<leader>na`
 - NoxFlow packages picker: `<leader>np`
 - NoxFlow repo search: `<leader>ns`

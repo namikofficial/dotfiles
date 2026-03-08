@@ -8,9 +8,11 @@ return {
         { "<leader>f", group = "find" },
         { "<leader>b", group = "buffer" },
         { "<leader>c", group = "code" },
+        { "<leader>d", group = "debug" },
         { "<leader>g", group = "git" },
         { "<leader>n", group = "noxflow" },
         { "<leader>s", group = "split" },
+        { "<leader>t", group = "terminal" },
       },
     },
   },
@@ -40,6 +42,7 @@ return {
       pcall(telescope.load_extension, "fzf")
 
       local builtin = require("telescope.builtin")
+      vim.keymap.set("n", "<C-p>", builtin.find_files, { desc = "Find files" })
       vim.keymap.set("n", "<leader>ff", builtin.find_files, { desc = "Find files" })
       vim.keymap.set("n", "<leader>fg", builtin.live_grep, { desc = "Live grep" })
       vim.keymap.set("n", "<leader>fb", builtin.buffers, { desc = "Find buffers" })
@@ -67,6 +70,51 @@ return {
     "lewis6991/gitsigns.nvim",
     event = "BufReadPre",
     opts = {},
+  },
+  {
+    "akinsho/toggleterm.nvim",
+    version = "*",
+    opts = {
+      direction = "float",
+      float_opts = {
+        border = "rounded",
+      },
+      open_mapping = [[<c-\>]],
+      shade_terminals = false,
+      start_in_insert = true,
+    },
+    config = function(_, opts)
+      require("toggleterm").setup(opts)
+
+      local Terminal = require("toggleterm.terminal").Terminal
+      local lazygit = Terminal:new({
+        cmd = "lazygit",
+        dir = "git_dir",
+        direction = "float",
+        hidden = true,
+      })
+
+      vim.keymap.set("n", "<leader>gg", function()
+        lazygit:toggle()
+      end, { desc = "LazyGit" })
+      vim.keymap.set("n", "<leader>tt", "<cmd>ToggleTerm<cr>", { desc = "Toggle terminal" })
+      vim.keymap.set("n", "<leader>tf", "<cmd>ToggleTerm direction=float<cr>", { desc = "Float terminal" })
+      vim.keymap.set("n", "<leader>th", "<cmd>ToggleTerm direction=horizontal<cr>", { desc = "Horizontal terminal" })
+      vim.keymap.set("n", "<leader>tv", "<cmd>ToggleTerm direction=vertical size=80<cr>", { desc = "Vertical terminal" })
+    end,
+  },
+  {
+    "kdheepak/lazygit.nvim",
+    dependencies = {
+      "akinsho/toggleterm.nvim",
+      "nvim-lua/plenary.nvim",
+    },
+    cmd = {
+      "LazyGit",
+      "LazyGitCurrentFile",
+      "LazyGitFilter",
+      "LazyGitFilterCurrentFile",
+    },
   },
   {
     "numToStr/Comment.nvim",

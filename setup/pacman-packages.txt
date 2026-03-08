@@ -36,7 +36,10 @@ pyright
 python-black
 python-isort
 ruff
+go
 gopls
+lldb
+rustup
 rust-analyzer
 yaml-language-server
 taplo-cli
