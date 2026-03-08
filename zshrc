@@ -462,9 +462,9 @@ for plugin in \
 done
 
 # Optional plugins (if installed)
-# Keep autocomplete disabled by default because autosuggestions is also enabled.
-# Set ENABLE_ZSH_AUTOCOMPLETE=1 if you prefer its menu/completion behavior.
-ENABLE_ZSH_AUTOCOMPLETE="${ENABLE_ZSH_AUTOCOMPLETE:-0}"
+# Enable zsh-autocomplete by default for live completion menus while typing.
+# Set ENABLE_ZSH_AUTOCOMPLETE=0 to disable it for a given session.
+ENABLE_ZSH_AUTOCOMPLETE="${ENABLE_ZSH_AUTOCOMPLETE:-1}"
 if [[ "$ENABLE_ZSH_AUTOCOMPLETE" == "1" ]]; then
   for plugin in \
     "$HOME/.local/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \

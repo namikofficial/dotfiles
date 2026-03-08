@@ -5,6 +5,7 @@ mode="${1:-apply}"
 night_from="${NOXFLOW_NIGHT_START_HOUR:-20}"
 day_from="${NOXFLOW_DAY_START_HOUR:-7}"
 night_temp="${HYPRSUNSET_NIGHT_TEMP:-4200}"
+auto_night_light="${HYPRSUNSET_AUTO:-false}"
 sync_script="$HOME/.config/hypr/scripts/theme-sync.sh"
 wall_cache="$HOME/.cache/current-wallpaper"
 
@@ -25,6 +26,13 @@ sync_accent() {
 
 apply_once() {
   sync_accent
+  case "$auto_night_light" in
+    1|true|yes|on)
+      ;;
+    *)
+      return 0
+      ;;
+  esac
   if is_night_now; then
     if ! pgrep -x hyprsunset >/dev/null 2>&1; then
       hyprsunset -t "$night_temp" >/dev/null 2>&1 &

@@ -9,4 +9,5 @@
 
 # Local project shortcuts.
 alias noxflow='cd ~/Documents/code/noxflow'
+alias wellvantage='cd ~/Documents/code/wellvantage'
 alias dotfiles='cd ~/Documents/code/dotfiles'
