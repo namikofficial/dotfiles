@@ -104,6 +104,8 @@
 - `Super + \\`: toggle side panel special workspace
 - `Super + Shift + \\`: move current window into side panel + open it
 - `Super + Ctrl + 9`: open logs workspace terminal (workspace 9)
+- `Super + Ctrl + 0`: open/focus telemetry dashboard on workspace `0` key slot (`Hyprland workspace 10`)
+- `Super + Ctrl + Shift + 0`: reset the telemetry tmux session and reopen it
 - `Super + D`: quick actions
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
@@ -152,6 +154,23 @@
 - Reload tmux config: `Prefix + r` or `treload`
 - Copy in copy-mode: `Prefix + [` then `v` select, `y` copy (uses `wl-copy`)
 - Install/update TPM plugins: `~/Documents/code/dotfiles/setup/install-tmux-plugins.sh`
+
+## Neovim Quickstart
+- Open editor: `nvim`
+- Leader key: `Space`
+- Find files: `<leader>ff`
+- Live grep: `<leader>fg`
+- File explorer: `-`
+- LSP rename: `<leader>rn`
+- Code actions: `<leader>ca`
+- Format buffer: `<leader>bf`
+- Line diagnostics: `<leader>cd`
+- Workspace symbols: `<leader>ws`
+- NoxFlow apps picker: `<leader>na`
+- NoxFlow packages picker: `<leader>np`
+- NoxFlow repo search: `<leader>ns`
+- NoxFlow repo test/lint/type-check/format: `<leader>nt` / `<leader>nl` / `<leader>nc` / `<leader>nF`
+- NoxFlow nearest package test/lint/type-check/dev: `<leader>npt` / `<leader>npl` / `<leader>npc` / `<leader>npd`
 
 ## Session Repair
 - Reload shell config: `exec zsh`

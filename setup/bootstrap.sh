@@ -119,6 +119,7 @@ link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
 link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
+link_path "$REPO_DIR/nvim" "$HOME/.config/nvim"
 
 mkdir -p "$HOME/.config/hypr" "$HOME/.config/kitty"
 link_path "$REPO_DIR/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"

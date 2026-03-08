@@ -85,6 +85,8 @@ flowchart LR
 |---|---|
 | `Super + 1..0` | Jump to workspace 1..10 |
 | `Super + Shift + 1..0` | Move active window to workspace |
+| `Super + Ctrl + 0` | Open/focus telemetry dashboard on workspace 10 (`0` key slot) |
+| `Super + Ctrl + Shift + 0` | Reset telemetry dashboard session and reopen it |
 | `Super + Ctrl + 9` | Open logs workspace launcher (workspace 9) |
 | `Super + Ctrl + Shift + 9` | Open logs workspace stack (journal + waybar logs) |
 | `Super + [` / `Super + ]` | Prev / next workspace |

@@ -6,6 +6,7 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 
 - `zshrc`, `aliases.zsh`, `aliases.local.zsh`, `SHELL_CHEATSHEET.md`
 - `tmux/tmux.conf` + `setup/install-tmux-plugins.sh` (TPM plugin sync)
+- `nvim/` Lua-based Neovim config managed in dotfiles
 - `atuin/config.toml` for consistent Atuin history UI/search defaults
 - `docs/KEYBINDS.md` full keybind tables + Mermaid map
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
@@ -30,6 +31,7 @@ That command:
 
 - links shell files (`~/.zshrc`, cheat sheet)
 - links tmux config (`~/.tmux.conf`)
+- links Neovim config (`~/.config/nvim`)
 - links Atuin config into `~/.config/atuin/config.toml`
 - links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
 - links Eww and theme configs (`gtk`, `qt5ct`, `qt6ct`, `Kvantum`) into `~/.config`
@@ -175,6 +177,7 @@ Normalize existing copied files to symlinks:
 - `Alt + C`: fuzzy zoxide directory jump
 - `zsh-vi-mode` is auto-loaded when installed via `setup/install-zsh-plugins.sh`
 - Tmux prefix is `Ctrl + A`; pane navigation is `Prefix + h/j/k/l`
+- Neovim config is in `nvim/` and bootstraps plugins with `lazy.nvim`
 
 ## Optional UI stack (AGS/HyprPanel)
 
