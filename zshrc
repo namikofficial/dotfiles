@@ -481,6 +481,16 @@ for plugin in \
 done
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#6c7086'
 
+# Keep TAB doing normal shell completion instead of autosuggestion capture.
+bindkey '^I' expand-or-complete
+bindkey -M emacs '^I' expand-or-complete 2>/dev/null || true
+bindkey -M viins '^I' expand-or-complete 2>/dev/null || true
+
+# Accept the current ghost suggestion with Ctrl-Space.
+bindkey '^ ' autosuggest-accept
+bindkey -M emacs '^ ' autosuggest-accept 2>/dev/null || true
+bindkey -M viins '^ ' autosuggest-accept 2>/dev/null || true
+
 # zsh-autopair
 for plugin in \
   "$HOME/.local/share/zsh/plugins/zsh-autopair/autopair.zsh" \
