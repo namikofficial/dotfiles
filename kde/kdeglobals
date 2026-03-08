@@ -8,28 +8,28 @@ Theme=Papirus-Dark
 widgetStyle=kvantum
 
 [Colors:Window]
-BackgroundNormal=18, 10, 29
-BackgroundAlternate=28, 20, 38
+BackgroundNormal=10, 12, 16
+BackgroundAlternate=20, 22, 26
 ForegroundNormal=232, 238, 252
-ForegroundInactive=151, 151, 167
-ForegroundActive=123, 107, 146
+ForegroundInactive=148, 152, 162
+ForegroundActive=96, 135, 170
 
 [Colors:View]
-BackgroundNormal=46, 39, 56
-BackgroundAlternate=28, 20, 38
+BackgroundNormal=39, 41, 45
+BackgroundAlternate=20, 22, 26
 ForegroundNormal=232, 238, 252
-ForegroundInactive=151, 151, 167
-ForegroundActive=123, 107, 146
-DecorationFocus=123, 107, 146
-DecorationHover=163, 158, 180
+ForegroundInactive=148, 152, 162
+ForegroundActive=96, 135, 170
+DecorationFocus=96, 135, 170
+DecorationHover=93, 173, 165
 
 [Colors:Button]
-BackgroundNormal=28, 20, 38
-BackgroundAlternate=46, 39, 56
+BackgroundNormal=20, 22, 26
+BackgroundAlternate=39, 41, 45
 ForegroundNormal=232, 238, 252
-ForegroundInactive=151, 151, 167
-ForegroundActive=123, 107, 146
+ForegroundInactive=148, 152, 162
+ForegroundActive=96, 135, 170
 
 [Colors:Selection]
-BackgroundNormal=123, 107, 146
-ForegroundNormal=18, 10, 29
+BackgroundNormal=96, 135, 170
+ForegroundNormal=10, 12, 16
