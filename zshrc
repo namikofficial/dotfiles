@@ -289,11 +289,38 @@ fi
 ZSH_LAZY_LOAD_HEAVY="${ZSH_LAZY_LOAD_HEAVY:-1}"
 
 # NVM init (lazy by default)
-export NVM_DIR="$HOME/.nvm"
-_load_nvm() {
-  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+resolve_nvm_dir() {
+  emulate -L zsh
+  local -a candidates
+  candidates=()
+
+  [ -n "${NVM_DIR:-}" ] && candidates+=("$NVM_DIR")
+  [ -n "${XDG_CONFIG_HOME:-}" ] && candidates+=("$XDG_CONFIG_HOME/nvm")
+  candidates+=("$HOME/.config/nvm" "$HOME/.nvm")
+
+  local dir
+  for dir in "${candidates[@]}"; do
+    [ -n "$dir" ] || continue
+    if [ -s "$dir/nvm.sh" ] || [ -L "$dir/nvm.sh" ] || [ -d "$dir/versions" ]; then
+      print -r -- "$dir"
+      return 0
+    fi
+  done
+
+  print -r -- "${XDG_CONFIG_HOME:-$HOME/.config}/nvm"
 }
-if [ -s "$NVM_DIR/nvm.sh" ]; then
+
+export NVM_DIR="$(resolve_nvm_dir)"
+unset -f resolve_nvm_dir
+
+_load_nvm() {
+  if [ -s "$NVM_DIR/nvm.sh" ]; then
+    . "$NVM_DIR/nvm.sh"
+  elif [ -r /usr/share/nvm/init-nvm.sh ]; then
+    . /usr/share/nvm/init-nvm.sh
+  fi
+}
+if [ -s "$NVM_DIR/nvm.sh" ] || [ -r /usr/share/nvm/init-nvm.sh ]; then
   if [[ "$ZSH_LAZY_LOAD_HEAVY" == "1" ]]; then
     nvm() {
       unset -f nvm
@@ -313,7 +340,7 @@ done
 find_codex_bin_dir() {
   emulate -L zsh
   typeset -a latest_node_dirs
-  latest_node_dirs=("$HOME"/.nvm/versions/node/*(N/om[1]))
+  latest_node_dirs=("$NVM_DIR"/versions/node/*(N/om[1]))
   if [ -n "${latest_node_dirs[1]}" ] && [ -x "${latest_node_dirs[1]}/bin/codex" ]; then
     print -r -- "${latest_node_dirs[1]}/bin"
     return 0

@@ -34,12 +34,13 @@ That command:
 - links Neovim config (`~/.config/nvim`)
 - links Atuin config into `~/.config/atuin/config.toml`
 - links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
-- links Eww and theme configs (`gtk`, `qt5ct`, `qt6ct`, `Kvantum`) into `~/.config`
+- links Eww and static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
 - links optional Eww settings panel config into `~/.config/eww-settings`
 - links swaync/wlogout/dunst configs into `~/.config`
 - links Chrome flags to `~/.config/chrome-flags.conf`
-- links KDE defaults (`kdeglobals`, `dolphinrc`, `kiorc`, `gwenviewrc`)
-- links MIME defaults (`~/.config/mimeapps.list`)
+- copies runtime-managed KDE/theme defaults (`kdeglobals`, `Kvantum`) into `~/.config` so wallpaper sync can update them without dirtying the repo
+- links KDE app defaults (`dolphinrc`, `kiorc`, `gwenviewrc`)
+- copies MIME defaults (`~/.config/mimeapps.list`) so local handler changes stay machine-specific
 - links your `~/Documents/code/scripts/bin/*` commands into `~/.local/bin`
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
 - installs/updates tmux plugins via TPM (`~/.tmux/plugins/tpm`)
@@ -52,7 +53,7 @@ cd ~/Documents/code/dotfiles
 ./setup/bootstrap.sh --scripts-dir "$HOME/Documents/code/scripts" --install-packages --with-aur
 ```
 
-NVIDIA users can force kernel/userspace driver packages:
+Base installs leave the existing NVIDIA stack untouched. NVIDIA users can opt in to repo-managed kernel/userspace driver packages:
 
 ```sh
 ./setup/bootstrap.sh --install-packages --with-aur --with-nvidia
@@ -64,7 +65,7 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 
 - `setup/pacman-packages.txt`: official repository packages
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
-- `setup/aur-packages.txt`: AUR packages (`google-chrome`, `pamac-aur`, `wlogout`, `eww`)
+- `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `eww`, `localsend`)
 - `setup/install-hypr-plugins.sh`: installs Hypr plugins via `hyprpm` (`hyprexpo` by default)
 
 Install packages only:
@@ -80,6 +81,7 @@ sudo rm -f /var/lib/pacman/db.lck
 ```
 
 The installer auto-skips packages that are not available in current repos.
+NVIDIA packages are opt-in only; hardware detection alone does not change your current driver stack.
 The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless you pass `--no-zsh-plugins`.
 The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless you pass `--no-tmux-plugins`.
 

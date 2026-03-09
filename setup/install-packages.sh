@@ -7,7 +7,8 @@ AUR_LIST="$SCRIPT_DIR/aur-packages.txt"
 NVIDIA_LIST="$SCRIPT_DIR/nvidia-packages.txt"
 WITH_AUR=0
 DRY_RUN=0
-WITH_NVIDIA=-1
+WITH_NVIDIA=0
+NONCONFIRM=0
 AS_USER="${SUDO_USER:-$USER}"
 
 for arg in "$@"; do
@@ -16,9 +17,10 @@ for arg in "$@"; do
     --dry-run) DRY_RUN=1 ;;
     --with-nvidia) WITH_NVIDIA=1 ;;
     --no-nvidia) WITH_NVIDIA=0 ;;
+    --noconfirm) NONCONFIRM=1 ;;
     *)
       echo "Unknown option: $arg" >&2
-      echo "Usage: $0 [--with-aur] [--with-nvidia|--no-nvidia] [--dry-run]" >&2
+      echo "Usage: $0 [--with-aur] [--with-nvidia|--no-nvidia] [--noconfirm] [--dry-run]" >&2
       exit 1
       ;;
   esac
@@ -67,10 +69,6 @@ run_yay() {
   else
     yay "$@"
   fi
-}
-
-has_nvidia_gpu() {
-  command -v lspci >/dev/null 2>&1 && lspci | grep -qi 'NVIDIA'
 }
 
 filter_pacman_packages() {
@@ -131,12 +129,15 @@ if (( ${#BASE_PACKAGES[@]} == 0 )); then
   exit 1
 fi
 
-if (( WITH_NVIDIA < 0 )); then
-  if has_nvidia_gpu; then
-    WITH_NVIDIA=1
-  else
-    WITH_NVIDIA=0
-  fi
+if (( WITH_NVIDIA == 0 )) && command -v lspci >/dev/null 2>&1 && lspci | grep -qi 'NVIDIA'; then
+  echo "info: NVIDIA hardware detected; leaving the current driver stack untouched (use --with-nvidia to opt in)." >&2
+fi
+
+PACMAN_FLAGS=()
+YAY_FLAGS=()
+if (( NONCONFIRM )); then
+  PACMAN_FLAGS+=(--noconfirm)
+  YAY_FLAGS+=(--noconfirm --answerclean None --answerdiff None)
 fi
 
 EXTRA_PACKAGES=()
@@ -149,9 +150,9 @@ mapfile -t PACMAN_PACKAGES < <(filter_pacman_packages "${BASE_PACKAGES[@]}" "${E
 if (( ${#PACMAN_PACKAGES[@]} > 0 )); then
   check_pacman_lock
   if (( DRY_RUN )); then
-    echo "[dry-run] sudo pacman -Syu --needed ${PACMAN_PACKAGES[*]}"
+    echo "[dry-run] sudo pacman -Syu --needed ${PACMAN_FLAGS[*]} ${PACMAN_PACKAGES[*]}"
   else
-    run_pacman -Syu --needed "${PACMAN_PACKAGES[@]}"
+    run_pacman -Syu --needed "${PACMAN_FLAGS[@]}" "${PACMAN_PACKAGES[@]}"
   fi
 else
   echo "No installable pacman packages after filtering."
@@ -175,9 +176,9 @@ if (( WITH_AUR )); then
     mapfile -t AUR_FILTERED < <(filter_aur_packages "${AUR_PACKAGES[@]}")
     if (( ${#AUR_FILTERED[@]} > 0 )); then
       if (( DRY_RUN )); then
-        echo "[dry-run] yay -S --needed ${AUR_FILTERED[*]}"
+        echo "[dry-run] yay -S --needed ${YAY_FLAGS[*]} ${AUR_FILTERED[*]}"
       else
-        run_yay -S --needed "${AUR_FILTERED[@]}"
+        run_yay -S --needed "${YAY_FLAGS[@]}" "${AUR_FILTERED[@]}"
       fi
     else
       echo "No installable AUR packages after filtering."

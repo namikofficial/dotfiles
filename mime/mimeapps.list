@@ -11,6 +11,18 @@ x-scheme-handler/http=google-chrome.desktop
 x-scheme-handler/https=google-chrome.desktop
 x-scheme-handler/about=google-chrome.desktop
 x-scheme-handler/unknown=google-chrome.desktop
+text/plain=code-oss.desktop
+text/markdown=code-oss.desktop
+application/json=code-oss.desktop
+application/javascript=code-oss.desktop
+text/javascript=code-oss.desktop
+text/x-python=code-oss.desktop
+text/x-shellscript=code-oss.desktop
+text/x-csrc=code-oss.desktop
+text/x-c++src=code-oss.desktop
+text/x-java=code-oss.desktop
+text/x-rustsrc=code-oss.desktop
+application/x-yaml=code-oss.desktop
 
 [Added Associations]
 image/png=org.kde.gwenview.desktop

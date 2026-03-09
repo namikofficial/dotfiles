@@ -92,7 +92,13 @@ fi
 run_once avizo-service avizo-service
 run_once waybar waybar
 ensure_single_process waybar
-run_once kanshi kanshi
+run_cmd_if_not "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh" "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh"
+# Let Hyprland's generic monitor rules handle displays by default.
+# Only start kanshi when the user has provided an explicit profile config.
+KANSHI_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+if [ -f "$KANSHI_CONFIG_HOME/kanshi/config" ]; then
+  run_once kanshi kanshi
+fi
 run_once hypridle hypridle
 run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
 

@@ -85,7 +85,7 @@
   },
   "startup": {
     "nm_applet_autostart": false,
-    "nvidia_settings_autoload": true
+    "nvidia_settings_autoload": false
   },
   "shortcuts": {
     "open_settings_hub": "SUPER, comma",

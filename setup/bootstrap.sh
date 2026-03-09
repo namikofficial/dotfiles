@@ -20,8 +20,8 @@ Usage: $0 [options]
   --scripts-dir PATH   Path to scripts repo (default: $HOME/Documents/code/scripts)
   --install-packages   Run setup/install-packages.sh after linking
   --with-aur           Include AUR packages (requires yay)
-  --with-nvidia        Force NVIDIA package installation
-  --no-nvidia          Skip NVIDIA packages even if GPU is detected
+  --with-nvidia        Opt in to repo-managed NVIDIA package installation
+  --no-nvidia          Skip repo-managed NVIDIA package installation
   --no-zsh-plugins     Skip optional zsh plugin sync
   --no-tmux-plugins    Skip optional tmux plugin sync
   --install-hypr-plugins  Install hyprexpo via hyprpm (must run in Hyprland session)
@@ -115,6 +115,27 @@ link_path() {
   fi
 }
 
+copy_path() {
+  local source="$1"
+  local target="$2"
+
+  if [ ! -e "$source" ] && [ ! -L "$source" ]; then
+    echo "Missing source: $source" >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$target")"
+
+  backup_if_needed "$target"
+
+  if (( DRY_RUN )); then
+    echo "[dry-run] cp -a '$source' '$target'"
+  else
+    cp -a "$source" "$target"
+    echo "copy $target <- $source"
+  fi
+}
+
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
 link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
@@ -136,8 +157,8 @@ link_path "$REPO_DIR/hypr/eww" "$HOME/.config/eww"
 link_path "$REPO_DIR/hypr/eww-settings" "$HOME/.config/eww-settings"
 link_path "$REPO_DIR/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
 link_path "$REPO_DIR/chrome/chrome-flags.conf" "$HOME/.config/chrome-flags.conf"
-link_path "$REPO_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
-link_path "$REPO_DIR/kde/kdeglobals" "$HOME/.config/kdeglobals"
+copy_path "$REPO_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
+copy_path "$REPO_DIR/kde/kdeglobals" "$HOME/.config/kdeglobals"
 link_path "$REPO_DIR/kde/dolphinrc" "$HOME/.config/dolphinrc"
 link_path "$REPO_DIR/kde/kiorc" "$HOME/.config/kiorc"
 link_path "$REPO_DIR/kde/gwenviewrc" "$HOME/.config/gwenviewrc"
@@ -145,7 +166,7 @@ link_path "$REPO_DIR/theme/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings
 link_path "$REPO_DIR/theme/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
 link_path "$REPO_DIR/theme/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf"
 link_path "$REPO_DIR/theme/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf"
-link_path "$REPO_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
+copy_path "$REPO_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
 
 if (( DRY_RUN )); then
   echo "[dry-run] mkdir -p '$HOME/.local/bin'"

@@ -23,15 +23,43 @@ check_link() {
   fi
 }
 
+check_copy_or_link() {
+  local target="$1"
+  local source="$2"
+  if [[ -L "$target" ]]; then
+    local t s
+    t="$(readlink -f "$target" || true)"
+    s="$(readlink -f "$source" || true)"
+    if [[ "$t" == "$s" ]]; then
+      echo "OK    link $target"
+    else
+      echo "WARN  wrong link $target -> $t"
+    fi
+    return
+  fi
+
+  if [[ ! -e "$target" ]]; then
+    echo "WARN  missing target: $target"
+    return
+  fi
+
+  if diff -qr "$target" "$source" >/dev/null 2>&1; then
+    echo "OK    copy $target"
+  else
+    echo "WARN  copy differs from repo: $target"
+  fi
+}
+
 check_link "$HOME/.config/hypr/hyprland.conf" "$ROOT_DIR/hypr/hyprland.conf"
 check_link "$HOME/.config/swaync" "$ROOT_DIR/hypr/swaync"
 check_link "$HOME/.config/waybar" "$ROOT_DIR/hypr/waybar"
 check_link "$HOME/.config/rofi" "$ROOT_DIR/hypr/rofi"
-check_link "$HOME/.config/kdeglobals" "$ROOT_DIR/kde/kdeglobals"
+check_copy_or_link "$HOME/.config/kdeglobals" "$ROOT_DIR/kde/kdeglobals"
 check_link "$HOME/.config/dolphinrc" "$ROOT_DIR/kde/dolphinrc"
 check_link "$HOME/.config/kiorc" "$ROOT_DIR/kde/kiorc"
 check_link "$HOME/.config/gwenviewrc" "$ROOT_DIR/kde/gwenviewrc"
-check_link "$HOME/.config/mimeapps.list" "$ROOT_DIR/mime/mimeapps.list"
+check_copy_or_link "$HOME/.config/mimeapps.list" "$ROOT_DIR/mime/mimeapps.list"
+check_copy_or_link "$HOME/.config/Kvantum" "$ROOT_DIR/theme/Kvantum"
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "WARN  jq is not installed"

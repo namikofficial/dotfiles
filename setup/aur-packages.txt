@@ -1,6 +1,5 @@
 # GUI package manager with AUR support
 google-chrome
-pamac-aur
 wlogout
 eww
 avizo
