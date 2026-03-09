@@ -125,7 +125,6 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + N`: copy notification/status summary to clipboard
 - `Super + Shift + N`: open notes folder
 - `Super + Alt + E`: open notes folder in editor
-- `Super + Alt + H`: toggle LG external monitor between desktop SDR and forced HDR
 - `Super + I`: color picker (copies hex)
 - `Super + Shift + I`: toggle night light (`hyprsunset`)
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
