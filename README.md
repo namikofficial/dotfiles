@@ -34,6 +34,7 @@ That command:
 - links Neovim config (`~/.config/nvim`)
 - links Atuin config into `~/.config/atuin/config.toml`
 - links UWSM compositor env (`~/.config/uwsm/env-hyprland`)
+- links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
 - links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
 - links Eww and static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
 - links optional Eww settings panel config into `~/.config/eww-settings`
