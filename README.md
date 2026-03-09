@@ -33,6 +33,7 @@ That command:
 - links tmux config (`~/.tmux.conf`)
 - links Neovim config (`~/.config/nvim`)
 - links Atuin config into `~/.config/atuin/config.toml`
+- links UWSM compositor env (`~/.config/uwsm/env-hyprland`)
 - links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
 - links Eww and static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
 - links optional Eww settings panel config into `~/.config/eww-settings`
@@ -328,7 +329,7 @@ sudo ./setup/fix-nvidia-proprietary-hybrid.sh
 sudo reboot
 ```
 
-If Hyprland crashes at login with `CBackend::create() failed`, check `AQ_DRM_DEVICES` in your Hyprland config. Do not use `/dev/dri/by-path/pci-0000:...` there because `AQ_DRM_DEVICES` is colon-separated; use `/dev/dri/cardN` instead.
+If Hyprland crashes at login with `CBackend::create() failed`, check `AQ_DRM_DEVICES` in `~/.config/uwsm/env-hyprland`. Do not use `/dev/dri/by-path/pci-0000:...` there because `AQ_DRM_DEVICES` is colon-separated; use `/dev/dri/cardN` instead.
 
 If your system hard-freezes during login with kernel messages about `kworker`, `nv_drm_dev_load`, or `nvidia-persiste`, use:
 

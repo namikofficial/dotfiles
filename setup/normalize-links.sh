@@ -28,6 +28,7 @@ force_copy() {
 }
 
 force_link "$ROOT_DIR/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"
+force_link "$ROOT_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
 force_link "$ROOT_DIR/theme/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf"
 force_link "$ROOT_DIR/theme/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf"
 force_copy "$ROOT_DIR/kde/kdeglobals" "$HOME/.config/kdeglobals"
