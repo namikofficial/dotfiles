@@ -17,6 +17,8 @@ LOG_FILE="$LOG_DIR/timeshift-setup-${TS}.log"
 LATEST_LINK="$LOG_DIR/timeshift-setup-latest.log"
 CONFIG_FILE="/etc/timeshift/timeshift.json"
 DEFAULT_FILE="/etc/timeshift/default.json"
+ROOT_DEVICE="$(findmnt -no SOURCE / || true)"
+ROOT_UUID=""
 
 exec > >(tee -a "$LOG_FILE") 2>&1
 
@@ -24,6 +26,13 @@ echo "=== Timeshift setup ($(date -u '+%F %T UTC')) ==="
 echo "repo: $REPO_DIR"
 echo "log:  $LOG_FILE"
 echo
+
+disable_timeshift_cron() {
+  if [[ -f /etc/cron.d/timeshift-hourly ]]; then
+    echo "Disabling distro hourly cron trigger (/etc/cron.d/timeshift-hourly)..."
+    mv /etc/cron.d/timeshift-hourly "/etc/cron.d/timeshift-hourly.disabled.${TS}"
+  fi
+}
 
 if ! command -v timeshift >/dev/null 2>&1; then
   echo "timeshift is not installed."
@@ -42,12 +51,17 @@ fi
 
 cp "$CONFIG_FILE" "${CONFIG_FILE}.bak.${TS}"
 
-python3 - "$CONFIG_FILE" <<'PY'
+if [[ -n "$ROOT_DEVICE" ]]; then
+  ROOT_UUID="$(blkid -s UUID -o value "$ROOT_DEVICE" 2>/dev/null || true)"
+fi
+
+python3 - "$CONFIG_FILE" "$ROOT_UUID" <<'PY'
 import json
 import pathlib
 import sys
 
 path = pathlib.Path(sys.argv[1])
+root_uuid = sys.argv[2]
 data = json.loads(path.read_text())
 updates = {
     "do_first_run": "false",
@@ -63,6 +77,8 @@ updates = {
     "count_boot": "0",
     "stop_cron_emails": "true",
 }
+if root_uuid and not data.get("backup_device_uuid"):
+    updates["backup_device_uuid"] = root_uuid
 data.update(updates)
 path.write_text(json.dumps(data, indent=2) + "\n")
 PY
@@ -75,10 +91,7 @@ echo "Installing systemd timer/service..."
 install -Dm644 "$SYSTEMD_DIR/noxflow-timeshift-auto.service" /etc/systemd/system/noxflow-timeshift-auto.service
 install -Dm644 "$SYSTEMD_DIR/noxflow-timeshift-auto.timer" /etc/systemd/system/noxflow-timeshift-auto.timer
 
-if [[ -f /etc/cron.d/timeshift-hourly ]]; then
-  echo "Disabling distro hourly cron trigger (/etc/cron.d/timeshift-hourly)..."
-  mv /etc/cron.d/timeshift-hourly "/etc/cron.d/timeshift-hourly.disabled.${TS}"
-fi
+disable_timeshift_cron
 
 systemctl daemon-reload
 systemctl enable --now noxflow-timeshift-auto.timer
@@ -87,6 +100,7 @@ echo
 
 echo "Running one scheduler check now..."
 timeshift --check --scripted || true
+disable_timeshift_cron
 echo
 
 echo "Next timer runs:"

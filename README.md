@@ -290,7 +290,7 @@ Notes path defaults:
 sudo ./setup/configure-timeshift.sh
 ```
 
-This sets Timeshift to daily snapshots only, keeps the latest 5 daily snapshots, installs `noxflow-timeshift-auto.timer`, and writes logs to `logs/timeshift-setup-latest.log`.
+This sets Timeshift to daily snapshots only, keeps the latest 5 daily snapshots, installs a daily `noxflow-timeshift-auto.timer`, and writes logs to `logs/timeshift-setup-latest.log`.
 
 ## SDDM login screen polish
 
