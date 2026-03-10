@@ -125,11 +125,11 @@ button {
 }
 
 #workspaces button {
-  font-family: "Noto Sans", "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
-  font-size: 14px;
+  font-family: "JetBrainsMono Nerd Font Mono", "Symbols Nerd Font", "Noto Sans", sans-serif;
+  font-size: 15px;
   color: alpha(@accent2, 0.58);
   margin: 1px 3px;
-  padding: 3px 10px;
+  padding: 3px 9px;
   border-radius: 11px;
   border: 1px solid alpha(@accent, 0.06);
   transition: all 130ms ease;
@@ -191,6 +191,12 @@ button {
   margin-bottom: 0;
 }
 
+#workspaces button label {
+  min-width: 1.1em;
+  margin-left: -1px;
+  margin-right: 0;
+}
+
 #custom-launcher label,
 #custom-overview label,
 #power-profiles-daemon label,
@@ -199,6 +205,7 @@ button {
 #custom-power label {
   margin-left: 0;
   margin-right: 0;
+  min-width: 1em;
 }
 
 #custom-notifications {
@@ -224,12 +231,8 @@ button {
 }
 
 #custom-overview {
-  padding-left: 12px;
-  padding-right: 10px;
-}
-
-#custom-overview label {
-  margin-left: 1px;
+  padding-left: 11px;
+  padding-right: 11px;
 }
 
 #power-profiles-daemon {
