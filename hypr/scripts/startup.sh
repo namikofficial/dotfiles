@@ -58,6 +58,12 @@ ensure_single_process() {
   done
 }
 
+loaded_hyprexpo_path() {
+  hypr_pid="$(pgrep -x Hyprland 2>/dev/null | head -n1 || true)"
+  [ -n "$hypr_pid" ] || return 1
+  awk '/\/.*hyprexpo\.so$/ { print $NF; exit }' "/proc/$hypr_pid/maps" 2>/dev/null
+}
+
 # Warm launcher cache first so Super+Space opens immediately.
 if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
   "$HOME/.config/hypr/scripts/launcher.sh" --warm-cache >/dev/null 2>&1 &
@@ -112,6 +118,23 @@ if resolve_cmd hyprpm >/dev/null 2>&1; then
   (
     sleep 3
     hyprpm reload >/dev/null 2>&1 || true
+  ) &
+fi
+
+# Load locally built hyprexpo when available. This avoids depending on hyprpm
+# version pins for every session and keeps Super+Tab on the expo path.
+hyprexpo_plugin="${XDG_DATA_HOME:-$HOME/.local/share}/hypr/plugins/hyprexpo/hyprexpo.so"
+if [ -f "$hyprexpo_plugin" ]; then
+  (
+    sleep 2
+    current_hyprexpo="$(loaded_hyprexpo_path || true)"
+    if [ -n "$current_hyprexpo" ] && [ "$current_hyprexpo" != "$hyprexpo_plugin" ]; then
+      hyprctl plugin unload "$current_hyprexpo" >/dev/null 2>&1 || true
+      sleep 1
+    fi
+    if ! hyprctl plugin list 2>/dev/null | grep -q 'Plugin hyprexpo'; then
+      hyprctl plugin load "$hyprexpo_plugin" >/dev/null 2>&1 || true
+    fi
   ) &
 fi
 

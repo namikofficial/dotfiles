@@ -24,7 +24,7 @@ Usage: $0 [options]
   --no-nvidia          Skip repo-managed NVIDIA package installation
   --no-zsh-plugins     Skip optional zsh plugin sync
   --no-tmux-plugins    Skip optional tmux plugin sync
-  --install-hypr-plugins  Install hyprexpo via hyprpm (must run in Hyprland session)
+  --install-hypr-plugins  Build/install hyprexpo locally (must run in Hyprland session)
   --dry-run            Print actions without writing changes
   --no-backup          Replace existing files without backup copy
 USAGE

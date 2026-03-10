@@ -68,7 +68,7 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 - `setup/pacman-packages.txt`: official repository packages
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `eww`, `localsend`)
-- `setup/install-hypr-plugins.sh`: installs Hypr plugins via `hyprpm` (`hyprexpo` by default)
+- `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
 
 Install packages only:
 
@@ -340,16 +340,14 @@ sudo reboot
 ./setup/install-hypr-plugins.sh
 ```
 
+This builds `hyprexpo` into `~/.local/share/hypr/plugins/hyprexpo/hyprexpo.so`.
+`startup.sh` will load it on session start, and `Super + Tab` will also load it
+on demand before falling back to the Rofi overview.
+
 Optional (can fail on some Hyprland versions):
 
 ```sh
 ./setup/install-hypr-plugins.sh --with-hyprspace
-```
-
-If `hyprpm` was previously run as root and plugin updates fail:
-
-```sh
-sudo chown -R "$USER:$USER" /var/cache/hyprpm/"$USER"
 ```
 
 If reboot itself hangs and you need a guaranteed stable baseline, force iGPU-only boot:

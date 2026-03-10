@@ -67,6 +67,8 @@ zellij
 hyperfine
 pipx|python-pipx
 shellcheck
+cmake
+cpio
 strace
 lsof
 sd
