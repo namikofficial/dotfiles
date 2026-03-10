@@ -82,6 +82,15 @@ if [ -x "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" ]; then
   "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" --warm-cache >/dev/null 2>&1 &
 fi
 
+# Warm desktop-app binaries/resources in page cache so first-launch latency is
+# less noticeable without keeping the apps visibly open all session.
+if [ "${HYPR_WARM_DESKTOP_APPS:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/app-warm-cache.sh" ]; then
+  (
+    sleep 6
+    "$HOME/.config/hypr/scripts/app-warm-cache.sh" --session >/dev/null 2>&1 || true
+  ) &
+fi
+
 # Re-apply preferred monitor layout and mode choices at session start.
 if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
   (

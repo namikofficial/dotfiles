@@ -16,7 +16,7 @@ if command -v gsettings >/dev/null 2>&1; then
 fi
 
 if command -v kvantummanager >/dev/null 2>&1; then
-  kvantummanager --set KvArcDark >/dev/null 2>&1 || true
+  kvantummanager --set NoxflowDynamic >/dev/null 2>&1 || true
 fi
 
 

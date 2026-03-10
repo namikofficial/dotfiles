@@ -487,8 +487,12 @@ if command -v kitty >/dev/null 2>&1; then
 fi
 
 # VSCode dynamic palette sync (JSONC-tolerant).
-if [ -f "$HOME/.config/Code/User/settings.json" ]; then
-  python3 - "$HOME/.config/Code/User/settings.json" "$bg" "$text" "$accent" "$muted" <<'PY'
+for vscode_settings in \
+  "$HOME/.config/Code/User/settings.json" \
+  "$HOME/.config/Code - OSS/User/settings.json"
+do
+  [ -f "$vscode_settings" ] || continue
+  python3 - "$vscode_settings" "$bg" "$text" "$accent" "$muted" <<'PY'
 import json
 import re
 import sys
@@ -540,7 +544,7 @@ cc.update(
 data["workbench.colorCustomizations"] = cc
 path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 PY
-fi
+done
 
 # Optional per-app hooks for extra utilities (btop, custom tools, etc.).
 if [ -d "$hooks_dir" ]; then
