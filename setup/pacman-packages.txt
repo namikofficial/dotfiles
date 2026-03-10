@@ -24,6 +24,7 @@ man-db
 man-pages
 git
 github-cli
+git-delta
 tmux
 neovim
 lua-language-server
@@ -50,7 +51,9 @@ lazygit
 lazydocker
 duf
 dust
+dua-cli
 procs
+bottom
 yazi
 ffmpegthumbnailer
 unarchiver
@@ -157,3 +160,6 @@ flatpak
 ufw
 mpv
 easyeffects
+qpwgraph
+android-udev
+scrcpy

@@ -137,6 +137,7 @@ copy_path() {
 }
 
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
+link_path "$REPO_DIR/git/gitconfig" "$HOME/.gitconfig"
 link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
@@ -149,6 +150,7 @@ link_path "$REPO_DIR/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"
 link_path "$REPO_DIR/hypr/hypridle.conf" "$HOME/.config/hypr/hypridle.conf"
 link_path "$REPO_DIR/hypr/hyprlock.conf" "$HOME/.config/hypr/hyprlock.conf"
 link_path "$REPO_DIR/hypr/hyprpaper.conf" "$HOME/.config/hypr/hyprpaper.conf"
+link_path "$REPO_DIR/hypr/hyprpanel/config.json" "$HOME/.config/hyprpanel/config.json"
 link_path "$REPO_DIR/hypr/scripts" "$HOME/.config/hypr/scripts"
 link_path "$REPO_DIR/hypr/waybar" "$HOME/.config/waybar"
 link_path "$REPO_DIR/hypr/rofi" "$HOME/.config/rofi"

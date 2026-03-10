@@ -3,5 +3,6 @@ google-chrome
 wlogout
 eww
 avizo
+hyprpanel-bin
 usql
 localsend-bin|localsend-appimage
