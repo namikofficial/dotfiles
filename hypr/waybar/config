@@ -2,7 +2,7 @@
   {
     "layer": "top",
     "position": "top",
-    "height": 54,
+    "height": 56,
     "spacing": 10,
     "margin-top": 8,
     "margin-left": 14,
@@ -78,12 +78,12 @@
     },
 
     "cpu": {
-      "format": " {usage}%",
+      "format": "  {usage}%",
       "interval": 3
     },
 
     "memory": {
-      "format": " {}%",
+      "format": "  {}%",
       "interval": 5
     },
 
@@ -95,7 +95,7 @@
     },
 
     "backlight": {
-      "format": "󰃠 {percent}%"
+      "format": "󰃠  {percent}%"
     },
 
     "battery": {
@@ -103,14 +103,14 @@
         "warning": 25,
         "critical": 12
       },
-      "format": "{icon} {capacity}%",
-      "format-charging": "󰂄 {capacity}%",
+      "format": "{icon}  {capacity}%",
+      "format-charging": "󰂄  {capacity}%",
       "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
     },
 
     "pulseaudio": {
-      "format": "{icon} {volume}%",
-      "format-muted": "󰝟 muted",
+      "format": "{icon}  {volume}%",
+      "format-muted": "󰝟  muted",
       "format-icons": {
         "default": ["󰕿", "󰖀", "󰕾"]
       },

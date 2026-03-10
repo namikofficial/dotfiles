@@ -127,24 +127,25 @@ button {
 #workspaces button {
   font-family: "Noto Sans", "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
   font-size: 14px;
-  color: @muted;
+  color: alpha(@accent2, 0.58);
   margin: 1px 3px;
   padding: 3px 10px;
   border-radius: 11px;
+  border: 1px solid alpha(@accent, 0.06);
   transition: all 130ms ease;
   opacity: 0.82;
 }
 
 #workspaces button.active {
-  color: #081018;
-  background: linear-gradient(120deg, rgba(111, 148, 201, 0.9), rgba(102, 194, 184, 0.84));
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+  color: @bg;
+  background: linear-gradient(120deg, alpha(@accent, 0.96), alpha(@accent2, 0.88));
+  box-shadow: 0 8px 18px alpha(@accent, 0.2);
   opacity: 1;
 }
 
 #workspaces button:hover {
   color: @text;
-  background: rgba(102, 194, 184, 0.1);
+  background: alpha(@accent2, 0.14);
 }
 
 #custom-media {
@@ -155,19 +156,28 @@ button {
   color: @warn;
 }
 
-#custom-launcher,
-#custom-overview,
 #custom-layout,
-#power-profiles-daemon,
-#custom-notifications,
-#custom-cliphist,
-#custom-power,
 #tray {
   font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font", "Noto Sans", sans-serif;
   font-size: 15px;
   min-height: 26px;
   padding-top: 1px;
   padding-bottom: 1px;
+}
+
+#custom-launcher,
+#custom-overview,
+#power-profiles-daemon,
+#custom-notifications,
+#custom-cliphist,
+#custom-power {
+  font-family: "Symbols Nerd Font Mono", "Symbols Nerd Font", "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+  font-size: 16px;
+  min-height: 26px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  padding-left: 11px;
+  padding-right: 11px;
 }
 
 #workspaces button label,
@@ -179,6 +189,16 @@ button {
 #custom-power label {
   margin-top: 0;
   margin-bottom: 0;
+}
+
+#custom-launcher label,
+#custom-overview label,
+#power-profiles-daemon label,
+#custom-notifications label,
+#custom-cliphist label,
+#custom-power label {
+  margin-left: -2px;
+  margin-right: 0;
 }
 
 #custom-notifications {
@@ -203,13 +223,6 @@ button {
   min-width: 24px;
 }
 
-#custom-launcher,
-#custom-overview,
-#custom-power {
-  padding-left: 10px;
-  padding-right: 12px;
-}
-
 #clock,
 #cpu,
 #memory,
@@ -224,6 +237,17 @@ button {
   font-size: 13px;
   padding-top: 3px;
   padding-bottom: 3px;
+}
+
+#custom-updates,
+#cpu,
+#memory,
+#network,
+#backlight,
+#battery,
+#pulseaudio {
+  padding-left: 14px;
+  padding-right: 14px;
 }
 
 #battery.warning,
