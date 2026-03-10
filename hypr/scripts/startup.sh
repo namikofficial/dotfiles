@@ -70,7 +70,12 @@ fi
 
 # Warm cheatsheet cache so Super+. opens immediately.
 if [ -x "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" ]; then
-  "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" --mode all >/dev/null 2>&1 &
+  "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" --warm-cache >/dev/null 2>&1 &
+fi
+
+# Re-apply preferred monitor layout and mode choices at session start.
+if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
+  "$HOME/.config/hypr/scripts/monitor-control.sh" apply >/dev/null 2>&1 || true
 fi
 
 # nm-applet can spam duplicate StatusNotifier warnings with Waybar on some setups.

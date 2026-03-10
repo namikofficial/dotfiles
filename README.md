@@ -109,6 +109,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + ,`: quick settings toggle (notification sounds)
 - `Super + Alt + ,`: toggle Eww detailed settings panel
 - `Super + Ctrl + Alt + ,`: apply per-app routing to focused app
+- `Super + Alt + P`: open monitor control/recovery menu
 - `Super + .`: fullscreen dev cheatsheet overlay (searchable + tabbed)
 - `Super + F`: toggle floating on active window
 - `Super + M`: maximize/unmaximize active window

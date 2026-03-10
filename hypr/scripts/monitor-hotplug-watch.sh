@@ -21,11 +21,14 @@ maybe_reload() {
   # Give the kernel a moment to settle on hotplug before reloading outputs.
   sleep 1
 
+  if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
+    "$HOME/.config/hypr/scripts/monitor-control.sh" recover >/dev/null 2>&1 || true
+    return 0
+  fi
+
+  hyprctl reload >/dev/null 2>&1 || true
   if printf '%s\n' "$status_blob" | grep -q 'connected'; then
-    hyprctl reload >/dev/null 2>&1 || true
     hyprctl dispatch dpms on >/dev/null 2>&1 || true
-  else
-    hyprctl reload >/dev/null 2>&1 || true
   fi
 }
 

@@ -63,19 +63,22 @@ bootstrap_defaults() {
 
 need_cache_rebuild() {
   [ -f "$cache_file" ] || return 0
+  [ ! -s "$cache_file" ] && return 0
   [ "$0" -nt "$cache_file" ] && return 0
 
-  local file
-  for file in "$config_dir"/*.yaml; do
-    [ -f "$file" ] || continue
-    [ "$file" -nt "$cache_file" ] && return 0
+  local file root
+  for root in "$default_dir" "$config_dir"; do
+    for file in "$root"/*.yaml; do
+      [ -f "$file" ] || continue
+      [ "$file" -nt "$cache_file" ] && return 0
+    done
   done
 
   return 1
 }
 
 build_cache() {
-  python3 - "$config_dir" "$cache_file" <<'PY'
+  python3 - "$config_dir" "$default_dir" "$cache_file" <<'PY'
 import csv
 import glob
 import os
@@ -88,7 +91,7 @@ except Exception as exc:
     print(f"dev-cheatsheet: python yaml module missing: {exc}", file=sys.stderr)
     sys.exit(1)
 
-config_dir, cache_file = sys.argv[1], sys.argv[2]
+config_dir, default_dir, cache_file = sys.argv[1], sys.argv[2], sys.argv[3]
 rows = []
 
 slugify_re = re.compile(r"[^a-z0-9_]+")
@@ -98,25 +101,44 @@ def slugify(value: str) -> str:
     value = slugify_re.sub("", value)
     return value or "custom"
 
-for path in sorted(glob.glob(os.path.join(config_dir, "*.yaml"))):
-    with open(path, "r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
+paths = {}
+for root in (default_dir, config_dir):
+    for path in glob.glob(os.path.join(root, "*.yaml")):
+        paths.setdefault(os.path.basename(path), []).append(path)
 
-    if not isinstance(data, dict):
-        continue
+for basename in sorted(paths):
+    merged_doc = {}
+    merged_entries = {}
 
-    file_slug = slugify(os.path.splitext(os.path.basename(path))[0])
-    category = str(data.get("category") or file_slug.replace("_", " ").title()).strip()
-    slug = slugify(str(data.get("slug") or file_slug))
-    entries = data.get("entries") or []
+    for path in paths[basename]:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
 
-    if not isinstance(entries, list):
-        continue
-
-    for item in entries:
-        if not isinstance(item, dict):
+        if not isinstance(data, dict):
             continue
 
+        merged_doc.update({k: v for k, v in data.items() if k != "entries"})
+
+        entries = data.get("entries") or []
+        if not isinstance(entries, list):
+            continue
+
+        for item in entries:
+            if not isinstance(item, dict):
+                continue
+            key = str(item.get("key", "")).strip()
+            if not key:
+                continue
+            merged_entries[key] = item
+
+    if not merged_doc and not merged_entries:
+        continue
+
+    file_slug = slugify(os.path.splitext(basename)[0])
+    category = str(merged_doc.get("category") or file_slug.replace("_", " ").title()).strip()
+    slug = slugify(str(merged_doc.get("slug") or file_slug))
+
+    for item in merged_entries.values():
         key = str(item.get("key", "")).strip()
         description = str(item.get("description", "")).strip()
         if not key or not description:
@@ -250,6 +272,12 @@ if [ "${1:-}" = "--mode" ]; then
   mode="${2:-all}"
   selected="${3:-}"
   handle_script_mode "$mode" "$selected"
+  exit 0
+fi
+
+if [ "${1:-}" = "--warm-cache" ]; then
+  bootstrap_defaults
+  need_cache_rebuild && build_cache
   exit 0
 fi
 

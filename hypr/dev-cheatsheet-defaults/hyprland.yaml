@@ -26,3 +26,7 @@ entries:
     description: Toggle panel engine
     copy: ~/.config/hypr/scripts/panel-switch.sh toggle
     source: ~/.config/hypr/hyprland.conf
+  - key: Super+Alt+P
+    description: Open monitor control and recovery menu
+    copy: ~/.config/hypr/scripts/monitor-control.sh menu
+    source: ~/.config/hypr/hyprland.conf
