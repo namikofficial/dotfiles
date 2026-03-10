@@ -332,6 +332,8 @@ sudo reboot
 
 If Hyprland crashes at login with `CBackend::create() failed`, check `AQ_DRM_DEVICES` in `~/.config/uwsm/env-hyprland`. Do not use `/dev/dri/by-path/pci-0000:...` there because `AQ_DRM_DEVICES` is colon-separated; use `/dev/dri/cardN` instead.
 
+If external HDMI/DP hotplug stops working on hybrid Intel + nouveau laptops, install `modprobe.d/nouveau-runtimepm.conf` into `/etc/modprobe.d/` and rebuild initramfs. That disables nouveau runtime PM so the dGPU keeps reporting external connectors after unplug/replug.
+
 If your system hard-freezes during login with kernel messages about `kworker`, `nv_drm_dev_load`, or `nvidia-persiste`, use:
 
 ```sh
