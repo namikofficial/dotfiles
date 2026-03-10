@@ -113,7 +113,7 @@ else
 fi
 echo
 
-echo "[7/8] Boot hang scan (current boot)"
+echo "[7/9] Boot hang scan (current boot)"
 hang_hits="$(journalctl -b -k --no-pager | rg -i 'blocked for more|task .*blocked|nv_drm_dev_load|nvidia-persiste|watchdog did not stop' || true)"
 if [[ -n "$hang_hits" ]]; then
   warn "Detected potential hang signatures in current boot"
@@ -123,7 +123,19 @@ else
 fi
 echo
 
-echo "[8/8] Convenience restart (quiet logging)"
+echo "[8/9] Cold-boot login blocker scan"
+wait_online_log="$(journalctl -b -u systemd-networkd-wait-online.service --no-pager 2>/dev/null || true)"
+if [[ -z "$wait_online_log" ]]; then
+  ok "networkd-wait-online not active this boot"
+elif printf '%s\n' "$wait_online_log" | rg -q 'Timeout occurred|Failed to start'; then
+  warn "networkd-wait-online timed out; this can block graphical.target and break UWSM logins"
+  networkctl list --no-pager || true
+else
+  ok "networkd-wait-online completed without blocking the boot"
+fi
+echo
+
+echo "[9/9] Convenience restart (quiet logging)"
 "$REPO_DIR/hypr/scripts/restart-waybar.sh" || true
 echo "waybar log: ${XDG_STATE_HOME:-$HOME/.local/state}/noxflow/waybar.log"
 echo

@@ -137,11 +137,13 @@ copy_path() {
 }
 
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
+link_path "$REPO_DIR/sddm/dmrc" "$HOME/.dmrc"
 link_path "$REPO_DIR/git/gitconfig" "$HOME/.gitconfig"
 link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
 link_path "$REPO_DIR/nvim" "$HOME/.config/nvim"
+link_path "$REPO_DIR/uwsm/default-id" "$HOME/.config/uwsm/default-id"
 link_path "$REPO_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
 link_path "$REPO_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
 

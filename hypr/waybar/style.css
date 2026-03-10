@@ -25,10 +25,10 @@ window#waybar {
 .modules-right {
   margin-top: 0;
   padding: 6px 12px;
-  border-radius: 20px;
-  border: 1px solid alpha(@accent, 0.2);
-  background: linear-gradient(180deg, alpha(@bg_soft, 0.94), alpha(@bg, 0.9));
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+  border-radius: 22px;
+  border: 1px solid alpha(@text, 0.05);
+  background: linear-gradient(180deg, alpha(@bg_soft, 0.86), alpha(@bg, 0.76));
+  box-shadow: inset 0 1px 0 alpha(@text, 0.04);
 }
 
 button {
@@ -64,9 +64,10 @@ button {
 #custom-power {
   margin: 2px 3px;
   padding: 4px 12px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, alpha(@surface, 0.86), alpha(@bg_soft, 0.76));
-  border: 1px solid alpha(@accent, 0.12);
+  border-radius: 13px;
+  background: linear-gradient(180deg, alpha(@surface, 0.74), alpha(@bg_soft, 0.58));
+  border: 1px solid alpha(@text, 0.05);
+  box-shadow: inset 0 1px 0 alpha(@text, 0.03);
 }
 
 #custom-launcher,
@@ -103,8 +104,8 @@ button {
 
 #window {
   color: alpha(@text, 0.95);
-  background: linear-gradient(180deg, alpha(@surface, 0.68), alpha(@bg_soft, 0.52));
-  border: 1px solid alpha(@accent, 0.08);
+  background: linear-gradient(180deg, alpha(@surface, 0.56), alpha(@bg_soft, 0.42));
+  border: 1px solid alpha(@text, 0.05);
   font-size: 12px;
   font-weight: 600;
   padding-left: 12px;
@@ -127,25 +128,30 @@ button {
 #workspaces button {
   font-family: "JetBrainsMono Nerd Font Mono", "Symbols Nerd Font", "Noto Sans", sans-serif;
   font-size: 15px;
-  color: alpha(@accent2, 0.58);
+  color: alpha(@accent2, 0.68);
   margin: 1px 3px;
   padding: 3px 9px;
   border-radius: 11px;
-  border: 1px solid alpha(@accent, 0.06);
+  border: 1px solid alpha(@text, 0.03);
+  background: alpha(@text, 0.01);
   transition: all 130ms ease;
-  opacity: 0.82;
+  opacity: 0.88;
 }
 
 #workspaces button.active {
   color: @bg;
-  background: linear-gradient(120deg, alpha(@accent, 0.96), alpha(@accent2, 0.88));
-  box-shadow: 0 8px 18px alpha(@accent, 0.2);
+  border: 1px solid alpha(@text, 0.12);
+  background: linear-gradient(180deg, alpha(@accent, 0.94), alpha(@accent2, 0.82));
+  box-shadow:
+    inset 0 1px 0 alpha(@text, 0.18),
+    0 5px 12px alpha(@accent, 0.1);
   opacity: 1;
 }
 
 #workspaces button:hover {
   color: @text;
-  background: alpha(@accent2, 0.14);
+  border: 1px solid alpha(@accent, 0.12);
+  background: linear-gradient(180deg, alpha(@surface, 0.76), alpha(@bg_soft, 0.56));
 }
 
 #custom-media {

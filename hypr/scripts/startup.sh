@@ -71,7 +71,10 @@ fi
 
 # Apply generated settings overlays for Hypr/SwayNC at session start.
 if [ -x "$HOME/.config/hypr/scripts/settingsctl" ]; then
-  "$HOME/.config/hypr/scripts/settingsctl" apply all >/dev/null 2>&1 || true
+  (
+    sleep 0.5
+    "$HOME/.config/hypr/scripts/settingsctl" apply all >/dev/null 2>&1 || true
+  ) &
 fi
 
 # Warm cheatsheet cache so Super+. opens immediately.
@@ -81,7 +84,10 @@ fi
 
 # Re-apply preferred monitor layout and mode choices at session start.
 if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
-  "$HOME/.config/hypr/scripts/monitor-control.sh" apply >/dev/null 2>&1 || true
+  (
+    sleep 1
+    "$HOME/.config/hypr/scripts/monitor-control.sh" apply >/dev/null 2>&1 || true
+  ) &
 fi
 
 # nm-applet can spam duplicate StatusNotifier warnings with Waybar on some setups.
@@ -113,8 +119,10 @@ fi
 run_once hypridle hypridle
 run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
 
-# Ensure enabled hyprpm plugins are actually loaded after compositor startup.
-if resolve_cmd hyprpm >/dev/null 2>&1; then
+# hyprpm currently fails its header refresh path on Hyprland 0.54.1
+# ("You need to run make all first"), which surfaces a false outdated-plugin
+# warning on login. Keep automatic hyprpm reload opt-in until that is fixed.
+if [ "${HYPR_USE_HYPRPM_RELOAD:-0}" = "1" ] && resolve_cmd hyprpm >/dev/null 2>&1; then
   (
     sleep 3
     hyprpm reload >/dev/null 2>&1 || true
@@ -213,7 +221,10 @@ fi
 
 # Set default wallpaper + sync theme after daemon boot.
 if [ -x "$HOME/.config/hypr/scripts/set-wallpaper.sh" ]; then
-  "$HOME/.config/hypr/scripts/set-wallpaper.sh" --init >/dev/null 2>&1 || true
+  (
+    sleep 1.5
+    "$HOME/.config/hypr/scripts/set-wallpaper.sh" --init >/dev/null 2>&1 || true
+  ) &
 fi
 
 if [ -x "$HOME/.config/hypr/scripts/dynamic-theme-sync.sh" ]; then
