@@ -23,8 +23,8 @@ entries:
     copy: hyprctl dispatch changegroupactive b
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Ctrl+Y
-    description: Toggle panel engine
-    copy: ~/.config/hypr/scripts/panel-switch.sh toggle
+    description: Restore Waybar panel
+    copy: ~/.config/hypr/scripts/panel-switch.sh waybar
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Alt+P
     description: Open monitor control and recovery menu

@@ -16,22 +16,33 @@ write_engine() {
   printf '%s\n' "$1" >"$engine_file"
 }
 
+alt_panel_enabled() {
+  [ "${NOXFLOW_ENABLE_HYPRPANEL:-0}" = "1" ]
+}
+
 read_engine() {
   if [ -f "$engine_file" ]; then
     saved="$(cat "$engine_file" 2>/dev/null || true)"
     case "$saved" in
-      waybar|hyprpanel)
+      waybar)
         printf '%s\n' "$saved"
         return 0
+        ;;
+      hyprpanel)
+        if alt_panel_enabled; then
+          printf '%s\n' "$saved"
+          return 0
+        fi
         ;;
     esac
   fi
 
-  if pgrep -x hyprpanel >/dev/null 2>&1; then
+  if alt_panel_enabled && pgrep -x hyprpanel >/dev/null 2>&1; then
     printf 'hyprpanel\n'
-  else
-    printf 'waybar\n'
+    return 0
   fi
+
+  printf 'waybar\n'
 }
 
 is_visible() {
@@ -47,6 +58,10 @@ start_waybar() {
 }
 
 start_hyprpanel() {
+  if ! alt_panel_enabled; then
+    notify "Alt panel disabled" "Waybar remains the default panel."
+    exit 1
+  fi
   if ! command -v hyprpanel >/dev/null 2>&1; then
     notify "HyprPanel not installed" "Run: yay -S hyprpanel"
     exit 1
@@ -91,10 +106,18 @@ case "$mode" in
   waybar) start_waybar ;;
   hyprpanel) start_hyprpanel ;;
   toggle)
-    if [ "$(read_engine)" = "hyprpanel" ]; then
-      start_waybar
+    if alt_panel_enabled && command -v hyprpanel >/dev/null 2>&1; then
+      if [ "$(read_engine)" = "hyprpanel" ]; then
+        start_waybar
+      else
+        start_hyprpanel
+      fi
     else
-      start_hyprpanel
+      if is_visible; then
+        hide_panel
+      else
+        start_waybar
+      fi
     fi
     ;;
   toggle-view)

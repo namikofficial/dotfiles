@@ -101,9 +101,9 @@
               (label :class "entry-title" :text "Panel Engine")
               (chip :val v_panel_engine)
             )
-            (label :class "entry-desc" :text "Waybar or HyprPanel")
+            (label :class "entry-desc" :text "Waybar panel controls")
             (box :class "entry-actions" :orientation "h" :space-evenly false
-              (btn :label "Cycle" :cmd "~/.config/hypr/scripts/settings/cycle.sh panel.engine waybar,hyprpanel panel" :cls "btn")
+              (btn :label "Restore Waybar" :cmd "~/.config/hypr/scripts/panel-switch.sh waybar" :cls "btn")
               (btn :label "Visibility" :cmd "~/.config/hypr/scripts/panel-switch.sh toggle-view" :cls "btn")
             )
           )

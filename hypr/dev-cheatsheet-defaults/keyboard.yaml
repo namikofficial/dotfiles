@@ -21,8 +21,8 @@ entries:
     copy: ~/.config/hypr/scripts/quick-actions.sh
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Tab
-    description: Mission control overview
-    copy: hyprctl dispatch hyprexpo:expo toggle
+    description: Workspace overview toggle
+    copy: ~/.config/hypr/scripts/workspace-overview-toggle.sh
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Q
     description: Close active window

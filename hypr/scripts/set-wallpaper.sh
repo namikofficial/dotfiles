@@ -1,9 +1,14 @@
 #!/usr/bin/env sh
 set -eu
 
-wall_dirs="${WALLPAPER_DIRS:-$HOME/Pictures/wallpaper:$HOME/Pictures/Wallpapers}"
+wall_dirs="${WALLPAPER_DIRS:-$HOME/Pictures/wallpaper/1080p:$HOME/Pictures/wallpaper/4k:$HOME/Pictures/wallpaper:$HOME/Pictures/Wallpapers}"
 fallback_wall="$HOME/.cache/wallpapers/fallback-4k.png"
-mkdir -p "$HOME/Pictures/wallpaper" "$HOME/Pictures/Wallpapers"
+mkdir -p \
+  "$HOME/Pictures/wallpaper/1080p" \
+  "$HOME/Pictures/wallpaper/4k" \
+  "$HOME/Pictures/wallpaper" \
+  "$HOME/Pictures/Wallpapers" \
+  "$HOME/Pictures/wallpaper-sources"
 
 ensure_fallback_wall() {
   mkdir -p "$HOME/.cache/wallpapers"
@@ -26,9 +31,13 @@ pick_wall() {
   IFS=':'
   for dir in $wall_dirs; do
     [ -d "$dir" ] || continue
-    find "$dir" -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \)
+    find "$dir" -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \)
   done | sort -u
   IFS="$old_ifs"
+}
+
+preferred_output_size() {
+  hyprctl monitors -j 2>/dev/null | jq -r '((map(select(.focused == true))[0] // .[0]) | "\(.width // 1920) \(.height // 1080)")' 2>/dev/null || echo "1920 1080"
 }
 
 pick_random_wall() {
@@ -94,7 +103,7 @@ apply_wallpaper() {
   transition_fps="${WALLPAPER_TRANSITION_FPS:-120}"
   transition_duration="${WALLPAPER_TRANSITION_DURATION:-1.3}"
   transition_step="${WALLPAPER_TRANSITION_STEP:-90}"
-  resize_mode="${WALLPAPER_RESIZE_MODE:-crop}"
+  resize_mode="${WALLPAPER_RESIZE_MODE:-fit}"
 
   prepared_wall="$(prepare_wall "$wall")"
 
@@ -115,36 +124,57 @@ apply_wallpaper() {
 
 prepare_wall() {
   src="$1"
-  ext="$(printf '%s' "${src##*.}" | tr '[:upper:]' '[:lower:]')"
+  read -r mon_w mon_h <<EOF_SIZE
+$(preferred_output_size)
+EOF_SIZE
+  case "$mon_w $mon_h" in
+    ''|'null null') mon_w=1920; mon_h=1080 ;;
+  esac
 
-  case "$ext" in
-    png|webp)
-      out_dir="$HOME/.cache/wallpapers/prepared"
-      mkdir -p "$out_dir"
-      key="$(printf '%s' "$src" | cksum | awk '{print $1}')"
-      out_file="$out_dir/${key}.jpg"
+  canvas_mode="${WALLPAPER_CANVAS_MODE:-blurpad}"
+  out_dir="$HOME/.cache/wallpapers/prepared"
+  mkdir -p "$out_dir"
+  key="$(printf '%s|%s|%s|%s' "$src" "$mon_w" "$mon_h" "$canvas_mode" | cksum | awk '{print $1}')"
+  out_file="$out_dir/${key}.jpg"
 
-      if [ ! -f "$out_file" ] || [ "$src" -nt "$out_file" ]; then
-        python3 - "$src" "$out_file" <<'PY'
-from PIL import Image
+  if [ ! -f "$out_file" ] || [ "$src" -nt "$out_file" ]; then
+    python3 - "$src" "$out_file" "$mon_w" "$mon_h" "$canvas_mode" <<'PY'
+from PIL import Image, ImageFilter, ImageOps
 import sys
 
 src, dst = sys.argv[1], sys.argv[2]
-im = Image.open(src)
-if "A" in im.getbands():
-    bg = Image.new("RGB", im.size, (11, 15, 24))
-    bg.paste(im, mask=im.getchannel("A"))
-    bg.save(dst, "JPEG", quality=95)
-else:
-    im.convert("RGB").save(dst, "JPEG", quality=95)
-PY
-      fi
-      printf '%s\n' "$out_file"
-      return 0
-      ;;
-  esac
+target_w, target_h = int(sys.argv[3]), int(sys.argv[4])
+canvas_mode = sys.argv[5]
 
-  printf '%s\n' "$src"
+with Image.open(src) as raw:
+    im = ImageOps.exif_transpose(raw)
+    if "A" in im.getbands():
+        flattened = Image.new("RGB", im.size, (11, 15, 24))
+        flattened.paste(im.convert("RGBA"), mask=im.getchannel("A"))
+        im = flattened
+    else:
+        im = im.convert("RGB")
+
+    if canvas_mode == "raw":
+        im.save(dst, "JPEG", quality=95)
+        raise SystemExit
+
+    bg = ImageOps.fit(im.copy(), (target_w, target_h), method=Image.Resampling.LANCZOS)
+    if canvas_mode == "blurpad":
+        bg = bg.filter(ImageFilter.GaussianBlur(radius=22))
+    else:
+        bg = Image.new("RGB", (target_w, target_h), (11, 15, 24))
+
+    fg = im.copy()
+    fg.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+    x = (target_w - fg.width) // 2
+    y = (target_h - fg.height) // 2
+    bg.paste(fg, (x, y))
+    bg.save(dst, "JPEG", quality=95)
+PY
+  fi
+
+  printf '%s\n' "$out_file"
 }
 
 wayland_ready() {

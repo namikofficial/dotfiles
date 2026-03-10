@@ -29,7 +29,7 @@ flowchart LR
 | `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + Y` | Workspace hub (primary path) | `workspace-overview-toggle.sh` |
 | `Super + W` | Workspace overview (direct Rofi path) | `workspace-overview.sh` |
-| `Super + Tab` | Mission control overview | `hyprexpo:expo toggle` |
+| `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `workspace-overview-toggle.sh` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
 | `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
@@ -46,7 +46,7 @@ flowchart LR
 | `Super + Ctrl + ,` | Quick settings toggle (notification sounds) | `settings-hub.sh quick` |
 | `Super + Alt + ,` | Toggle Eww detailed settings panel | `settings-eww.sh` |
 | `Super + Ctrl + Alt + ,` | Apply per-app routing to focused app | `app-routing-apply-focused.sh` |
-| `Super + Ctrl + Y` | Toggle Waybar/HyprPanel | `panel-switch.sh toggle` |
+| `Super + Ctrl + Y` | Restore Waybar panel | `panel-switch.sh waybar` |
 | `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
 | `Super + Ctrl + Shift + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh` |
 | `Super + Escape` | Power menu | `power-menu.sh` |

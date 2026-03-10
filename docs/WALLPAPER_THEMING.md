@@ -4,15 +4,18 @@
 
 `~/.config/hypr/scripts/set-wallpaper.sh` now does this on every change:
 
-1. Picks from both pools:
+1. Picks from the curated wallpaper pools:
+- `~/Pictures/wallpaper/1080p`
+- `~/Pictures/wallpaper/4k`
 - `~/Pictures/wallpaper`
 - `~/Pictures/Wallpapers`
 
 2. Applies wallpaper with safer defaults:
-- `WALLPAPER_RESIZE_MODE=crop` (default)
+- `WALLPAPER_RESIZE_MODE=fit` (default)
 - `WALLPAPER_TRANSITION_TYPE=fade` (default)
 - Clears frame before draw to avoid ghosting artifacts
 - Flattens transparent PNG/WEBP to prevent old wallpaper bleed-through
+- Builds a monitor-sized padded canvas first, so images are not cropped or stretched by default
 
 3. Triggers sync:
 - lockscreen wallpaper sync
@@ -61,7 +64,7 @@ Current default hooks:
 - Curate current rotating pool for your monitor ratio/resolution:
 `~/.config/hypr/scripts/wallpaper-curate.sh ~/Pictures/wallpaper`
 
-- Copy compatible wallpapers from source packs into rotating pool:
+- Copy compatible wallpapers from source packs into the curated 1080p/4k pool:
 `~/.config/hypr/scripts/wallpaper-copy-from-sources.sh ~/Pictures/wallpaper-sources ~/Pictures/wallpaper`
 
 - Download/update source packs:
@@ -69,7 +72,7 @@ Current default hooks:
 
 ## Environment knobs
 
-- `WALLPAPER_RESIZE_MODE` (`crop`, `fit`, `stretch`)
+- `WALLPAPER_RESIZE_MODE` (`fit`, `crop`, `stretch`)
 - `WALLPAPER_TRANSITION_TYPE` (default `fade`)
 - `WALLPAPER_TRANSITION_FPS`
 - `WALLPAPER_TRANSITION_DURATION`
@@ -79,6 +82,7 @@ Current default hooks:
 - `WALLPAPER_ROTATE_CHECK_INTERVAL` (seconds, daily mode check cadence, default `600`)
 - `WALLPAPER_ROTATE_INTERVAL` (seconds, interval mode only, default `1800`)
 - `WALLPAPER_ROTATE_STATE_FILE` (daily mode state file, default `~/.cache/hypr/wallpaper-last-rotate-date`)
+- `WALLPAPER_CANVAS_MODE` (`blurpad` default, `solidpad`, `raw`)
 - `WALL_SOURCE_ROOT` (for source downloader)
 - `WALL_GIT_TIMEOUT_SECONDS`
 - `WALL_UPDATE_EXISTING=1` to pull existing clones

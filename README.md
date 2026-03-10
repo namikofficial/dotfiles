@@ -91,8 +91,8 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 
 - `Super + Y`: primary workspace hub (`workspace-overview-toggle.sh`)
 - `Super + W`: workspace/window overview switcher (direct Rofi list)
-- `Super + Tab`: Mission-Control style overview (`hyprexpo`)
-- `Super + Shift + Tab`: force fallback Rofi overview
+- `Super + Tab`: overview toggle (`hyprexpo` if loaded, otherwise fallback Rofi overview)
+- `Super + Shift + Tab`: direct Rofi overview
 - `Super + Space`: ultra-fast app launcher (type-to-search, minimal chrome)
 - `Super + Shift + Space`: window/workspace search
 - `Super + Ctrl + Space`: command palette (quick actions)
@@ -134,7 +134,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
 - In-workspace-hub hotkeys: `Ctrl + Alt + R` rename, `Ctrl + Alt + Backspace` clear label, `Ctrl + Alt + F` favorite, `Ctrl + Alt + S` shortcuts, `Ctrl + Alt + M/O/P` window move/send actions
 - `Super + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
-- `Super + Ctrl + Y`: toggle panel engine (`waybar` <-> `hyprpanel`, if installed)
+- `Super + Ctrl + Y`: restore Waybar panel
 - `Super + Alt + Y`: toggle panel visibility only (show/hide current panel)
 - `Super + Ctrl + Shift + Y`: toggle desktop widgets (above wallpaper / below windows)
 - `Super + T`: toggle window group (tab-like stacks)
@@ -183,14 +183,6 @@ Normalize existing copied files to symlinks:
 - `zsh-vi-mode` is auto-loaded when installed via `setup/install-zsh-plugins.sh`
 - Tmux prefix is `Ctrl + A`; pane navigation is `Prefix + h/j/k/l`
 - Neovim config is in `nvim/` and bootstraps plugins with `lazy.nvim`
-
-## Optional UI stack (AGS/HyprPanel)
-
-```sh
-yay -S --needed aylurs-gtk-shell hyprpanel
-```
-
-Then toggle panels with `Super + Ctrl + Y`.
 
 Notification panel now includes sticky "System Hub" controls (GPU/media/network/panel status, copy summary, widget toggles, and quick controls) via SwayNC.
 

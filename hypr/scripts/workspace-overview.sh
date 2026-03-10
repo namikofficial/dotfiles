@@ -107,7 +107,7 @@ Super + Y (Primary) -> Open Workspace Hub
 Super + W -> Open Workspace Hub directly
 Super + Shift + Space -> Open Workspace Hub directly
 Super + Shift + Tab -> Open Workspace Hub directly
-Super + Tab -> Mission Control overview (hyprexpo)
+Super + Tab -> Overview toggle (hyprexpo if available, Rofi hub fallback)
 Super + Ctrl + Space + Ctrl + 4 -> Quick Actions path to Workspace Hub
 Super + / + Ctrl + 4 -> Quick Actions path to Workspace Hub
 Super + A + Ctrl + 4 -> Quick Actions path to Workspace Hub

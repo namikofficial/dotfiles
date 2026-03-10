@@ -94,8 +94,8 @@
 - `Super + Ctrl + /`: keybind helper overlay
 - In launcher/actions: `Ctrl + 1..0` quick-select, `Enter` run/open
 - `Super + W`: workspace overview picker (Rofi)
-- `Super + Tab`: Mission Control overview (`hyprexpo`)
-- `Super + Shift + Tab`: force Rofi overview
+- `Super + Tab`: overview toggle (`hyprexpo` if loaded, otherwise Rofi overview)
+- `Super + Shift + Tab`: direct Rofi overview
 - `Super + F`: toggle floating for active window
 - `Super + M`: maximize / unmaximize active window
 - `Super + G`: toggle `dwindle` / `master` layout
@@ -122,7 +122,7 @@
 - `Super + Shift + T`: OCR selected area to clipboard
 - `Super + Ctrl + R`: toggle screen recording
 - `Super + Y`: toggle widget panel (Eww)
-- `Super + Ctrl + Y`: toggle panel engine (`waybar`/`hyprpanel`)
+- `Super + Ctrl + Y`: restore Waybar panel
 - `Super + Alt + Y`: toggle panel visibility only
 - `Super + Ctrl + Shift + Y`: toggle desktop widgets
 - `Fn + 2/3/4/5`: AI helper (`ask`/`clipboard`/`shell`/`debug`)
