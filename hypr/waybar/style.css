@@ -24,11 +24,11 @@ window#waybar {
 .modules-center,
 .modules-right {
   margin-top: 0;
-  padding: 5px 9px;
-  border-radius: 18px;
-  border: 1px solid rgba(111, 148, 201, 0.2);
-  background: linear-gradient(180deg, rgba(16, 19, 28, 0.84), rgba(10, 13, 20, 0.88));
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid alpha(@accent, 0.2);
+  background: linear-gradient(180deg, alpha(@bg_soft, 0.94), alpha(@bg, 0.9));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
 }
 
 button {
@@ -62,11 +62,11 @@ button {
 #tray,
 #custom-cliphist,
 #custom-power {
-  margin: 2px 2px;
-  padding: 3px 11px;
-  border-radius: 11px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
-  border: 1px solid rgba(111, 148, 201, 0.12);
+  margin: 2px 3px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, alpha(@surface, 0.86), alpha(@bg_soft, 0.76));
+  border: 1px solid alpha(@accent, 0.12);
 }
 
 #custom-launcher,
@@ -102,40 +102,43 @@ button {
 }
 
 #window {
-  color: #dde7fb;
-  background: transparent;
-  font-size: 11px;
+  color: alpha(@text, 0.95);
+  background: linear-gradient(180deg, alpha(@surface, 0.68), alpha(@bg_soft, 0.52));
+  border: 1px solid alpha(@accent, 0.08);
+  font-size: 12px;
   font-weight: 600;
-  padding-left: 8px;
-  padding-right: 8px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 #clock {
   color: @text;
   font-weight: 800;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
+  padding-left: 14px;
+  padding-right: 14px;
 }
 
 #workspaces {
-  padding-left: 6px;
-  padding-right: 6px;
+  padding-left: 7px;
+  padding-right: 7px;
 }
 
 #workspaces button {
   font-family: "Noto Sans", "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
   font-size: 14px;
   color: @muted;
-  margin: 1px 2px;
-  padding: 2px 9px;
-  border-radius: 10px;
+  margin: 1px 3px;
+  padding: 3px 10px;
+  border-radius: 11px;
   transition: all 130ms ease;
-  opacity: 0.78;
+  opacity: 0.82;
 }
 
 #workspaces button.active {
   color: #081018;
   background: linear-gradient(120deg, rgba(111, 148, 201, 0.9), rgba(102, 194, 184, 0.84));
-  box-shadow: 0 0 10px rgba(102, 194, 184, 0.18);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
   opacity: 1;
 }
 
@@ -145,7 +148,7 @@ button {
 }
 
 #custom-media {
-  min-width: 172px;
+  min-width: 188px;
 }
 
 #custom-updates {
@@ -162,9 +165,9 @@ button {
 #tray {
   font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font", "Noto Sans", sans-serif;
   font-size: 15px;
-  min-height: 24px;
-  padding-top: 0;
-  padding-bottom: 0;
+  min-height: 26px;
+  padding-top: 1px;
+  padding-bottom: 1px;
 }
 
 #workspaces button label,
@@ -180,12 +183,12 @@ button {
 
 #custom-notifications {
   min-width: 22px;
-  padding-left: 7px;
-  padding-right: 7px;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 #workspaces button {
-  min-height: 22px;
+  min-height: 24px;
   padding-top: 0;
   padding-bottom: 0;
 }
@@ -203,8 +206,8 @@ button {
 #custom-launcher,
 #custom-overview,
 #custom-power {
-  padding-left: 9px;
-  padding-right: 11px;
+  padding-left: 10px;
+  padding-right: 12px;
 }
 
 #clock,
@@ -219,8 +222,8 @@ button {
 #custom-updates,
 #window {
   font-size: 13px;
-  padding-top: 2px;
-  padding-bottom: 2px;
+  padding-top: 3px;
+  padding-bottom: 3px;
 }
 
 #battery.warning,
@@ -231,8 +234,8 @@ button {
 }
 
 tooltip {
-  border-radius: 10px;
-  border: 1px solid rgba(111, 148, 201, 0.22);
-  background: rgba(10, 13, 20, 0.9);
+  border-radius: 12px;
+  border: 1px solid alpha(@accent, 0.22);
+  background: alpha(@bg, 0.94);
   color: @text;
 }

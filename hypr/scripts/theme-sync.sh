@@ -258,6 +258,15 @@ selection_foreground ${bg}
 selection_background ${accent}
 cursor ${accent}
 cursor_text_color ${bg}
+url_color ${accent2}
+active_border_color ${accent}
+inactive_border_color ${surface}
+bell_border_color ${warn}
+tab_bar_background ${bg}
+active_tab_foreground ${bg}
+active_tab_background ${accent}
+inactive_tab_foreground ${muted}
+inactive_tab_background ${bg_soft}
 color0  ${bg}
 color1  ${danger}
 color2  ${accent2}
