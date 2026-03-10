@@ -88,9 +88,9 @@
     },
 
     "network": {
-      "format-wifi": "  {signalStrength}%",
-      "format-ethernet": "󰈀 {ifname}",
-      "format-disconnected": "󰤮 down",
+      "format-wifi": "   {signalStrength}%",
+      "format-ethernet": "󰈀   {ifname}",
+      "format-disconnected": "󰤮   down",
       "tooltip-format": "{ifname} {ipaddr}/{cidr}"
     },
 

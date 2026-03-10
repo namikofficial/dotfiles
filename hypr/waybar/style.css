@@ -171,7 +171,7 @@ button {
 #custom-notifications,
 #custom-cliphist,
 #custom-power {
-  font-family: "Symbols Nerd Font Mono", "Symbols Nerd Font", "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
+  font-family: "JetBrainsMono Nerd Font Mono", "Symbols Nerd Font", "Font Awesome 7 Free Solid", "Noto Sans", sans-serif;
   font-size: 16px;
   min-height: 26px;
   padding-top: 1px;
@@ -197,7 +197,7 @@ button {
 #custom-notifications label,
 #custom-cliphist label,
 #custom-power label {
-  margin-left: -2px;
+  margin-left: 0;
   margin-right: 0;
 }
 
@@ -221,6 +221,25 @@ button {
 #custom-cliphist,
 #custom-power {
   min-width: 24px;
+}
+
+#custom-overview {
+  padding-left: 12px;
+  padding-right: 10px;
+}
+
+#custom-overview label {
+  margin-left: 1px;
+}
+
+#power-profiles-daemon {
+  font-size: 14px;
+  padding-left: 11px;
+  padding-right: 10px;
+}
+
+#power-profiles-daemon label {
+  margin-left: 1px;
 }
 
 #clock,

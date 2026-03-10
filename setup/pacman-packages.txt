@@ -123,10 +123,11 @@ seahorse
 
 # UI polish and fonts
 ttf-jetbrains-mono-nerd
-ttf-inter
+inter-font
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
+otf-font-awesome
 papirus-icon-theme
 fastfetch
 timeshift
