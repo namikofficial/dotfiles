@@ -10,23 +10,23 @@
 # Local project shortcuts.
 alias noxflow='cd ~/Documents/code/noxflow'
 alias wellvantage='cd ~/Documents/code/WellVantage'
-alias scripts='cd ~/Documents/code/scripts'
+alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
 
 vpn-connect() {
-  "${SCRIPTS_BIN:-$HOME/Documents/code/scripts/bin}/vpn-connect" "$@"
+  "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-connect" "$@"
 }
 
 vpn-disconnect() {
-  "${SCRIPTS_BIN:-$HOME/Documents/code/scripts/bin}/vpn-disconnect" "$@"
+  "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-disconnect" "$@"
 }
 
 vpn-logs() {
-  "${SCRIPTS_BIN:-$HOME/Documents/code/scripts/bin}/vpn-logs" "$@"
+  "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-logs" "$@"
 }
 
 vpn-status() {
-  "${SCRIPTS_BIN:-$HOME/Documents/code/scripts/bin}/vpn-status" "$@"
+  "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-status" "$@"
 }
 
 batroot() {

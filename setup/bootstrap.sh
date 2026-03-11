@@ -3,7 +3,18 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-SCRIPTS_DIR="${SCRIPTS_DIR:-$HOME/Documents/code/scripts}"
+DEFAULT_SCRIPTS_DIR=""
+for candidate in \
+  "$REPO_DIR/private/scripts" \
+  "$HOME/Documents/code/scripts" \
+  "$HOME/dev/personal-scripts"; do
+  if [ -d "$candidate" ]; then
+    DEFAULT_SCRIPTS_DIR="$candidate"
+    break
+  fi
+done
+DEFAULT_SCRIPTS_DIR="${DEFAULT_SCRIPTS_DIR:-$REPO_DIR/private/scripts}"
+SCRIPTS_DIR="${SCRIPTS_DIR:-$DEFAULT_SCRIPTS_DIR}"
 RUN_PACKAGES=0
 WITH_AUR=0
 WITH_NVIDIA=""
@@ -17,7 +28,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 usage() {
   cat <<USAGE
 Usage: $0 [options]
-  --scripts-dir PATH   Path to scripts repo (default: $HOME/Documents/code/scripts)
+  --scripts-dir PATH   Path to scripts repo (default: auto-detect private/scripts, then legacy locations)
   --install-packages   Run setup/install-packages.sh after linking
   --with-aur           Include AUR packages (requires yay)
   --with-nvidia        Opt in to repo-managed NVIDIA package installation
@@ -190,6 +201,8 @@ if [ -d "$SCRIPTS_DIR/bin" ]; then
   done < <(find "$SCRIPTS_DIR/bin" -maxdepth 1 -type f -print0)
 else
   echo "warning: scripts bin directory not found at $SCRIPTS_DIR/bin" >&2
+  echo "warning: public dotfiles setup will continue without private scripts" >&2
+  echo "warning: if you have access, run: git submodule update --init private/scripts" >&2
 fi
 
 if (( RUN_PACKAGES )); then

@@ -14,6 +14,8 @@ fi
 
 if [[ -z "${SCRIPTS_HOME:-}" ]]; then
   for scripts_candidate in \
+    "$DOTFILES_HOME/private/scripts" \
+    "$HOME/Documents/code/dotfiles/private/scripts" \
     "$HOME/Documents/code/scripts" \
     "$HOME/dev/personal-scripts"; do
     if [[ -d "$scripts_candidate" ]]; then
@@ -23,7 +25,7 @@ if [[ -z "${SCRIPTS_HOME:-}" ]]; then
   done
 fi
 
-SCRIPTS_HOME="${SCRIPTS_HOME:-$HOME/Documents/code/scripts}"
+SCRIPTS_HOME="${SCRIPTS_HOME:-$DOTFILES_HOME/private/scripts}"
 SCRIPTS_BIN="${SCRIPTS_BIN:-$SCRIPTS_HOME/bin}"
 export DOTFILES_HOME SCRIPTS_HOME SCRIPTS_BIN
 unset zshrc_source scripts_candidate

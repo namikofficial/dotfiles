@@ -82,7 +82,7 @@
 - `pay-respects` teaches a better command
 
 ## Included Scripts
-- `bin/dev-doctor`, `bin/jq-easy`, `bin/devlink-easy`, `bin/klogs-fzf`, etc., live in `~/Documents/code/scripts/bin` and back the aliases above.
+- `bin/dev-doctor`, `bin/jq-easy`, `bin/devlink-easy`, `bin/klogs-fzf`, etc., live in `~/Documents/code/dotfiles/private/scripts/bin` when the private scripts submodule is present.
 
 ## Hyprland Quick Keys
 - `Super + Return`: terminal (`kitty`)

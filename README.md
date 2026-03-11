@@ -24,8 +24,11 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 
 ```sh
 cd ~/Documents/code/dotfiles
-./setup/bootstrap.sh --scripts-dir "$HOME/Documents/code/scripts"
+git submodule update --init private/scripts
+./setup/bootstrap.sh
 ```
+
+If you do not have access to the private scripts repo, skip the `git submodule` step and the public dotfiles setup will still work.
 
 That command:
 
@@ -43,7 +46,7 @@ That command:
 - copies runtime-managed KDE/theme defaults (`kdeglobals`, `Kvantum`) into `~/.config` so wallpaper sync can update them without dirtying the repo
 - links KDE app defaults (`dolphinrc`, `kiorc`, `gwenviewrc`)
 - copies MIME defaults (`~/.config/mimeapps.list`) so local handler changes stay machine-specific
-- links your `~/Documents/code/scripts/bin/*` commands into `~/.local/bin`
+- links your private scripts commands into `~/.local/bin` when `private/scripts` (or another `--scripts-dir`) is available
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
 - installs/updates tmux plugins via TPM (`~/.tmux/plugins/tpm`)
 - creates timestamped backups when replacing existing configs
@@ -52,7 +55,7 @@ That command:
 
 ```sh
 cd ~/Documents/code/dotfiles
-./setup/bootstrap.sh --scripts-dir "$HOME/Documents/code/scripts" --install-packages --with-aur
+./setup/bootstrap.sh --install-packages --with-aur
 ```
 
 Base installs leave the existing NVIDIA stack untouched. NVIDIA users can opt in to repo-managed kernel/userspace driver packages:

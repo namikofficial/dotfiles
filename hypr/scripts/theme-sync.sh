@@ -50,36 +50,51 @@ import json
 import sys
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageEnhance
 
 wall = Path(sys.argv[1])
 out = Path(sys.argv[2])
 
 img = Image.open(wall).convert("RGB")
-img.thumbnail((500, 500))
-quant = img.quantize(colors=10, method=Image.Quantize.FASTOCTREE)
+img.thumbnail((640, 640))
+img = ImageEnhance.Color(img).enhance(1.18)
+img = ImageEnhance.Contrast(img).enhance(1.08)
+quant = img.quantize(colors=48, method=Image.Quantize.MEDIANCUT)
 pal = quant.getpalette()
-colors = []
-for count, idx in sorted(quant.getcolors() or [], reverse=True):
-    rgb = tuple(pal[idx * 3: idx * 3 + 3])
+entries = []
+color_rows = quant.getcolors() or []
+total = sum(count for count, _ in color_rows) or 1
+
+for count, idx in sorted(color_rows, reverse=True):
+    rgb = tuple(pal[idx * 3 : idx * 3 + 3])
     if len(rgb) != 3:
         continue
-    colors.append((count, rgb))
+    r, g, b = [c / 255 for c in rgb]
+    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    entries.append(
+        {
+            "count": count,
+            "fraction": count / total,
+            "rgb": rgb,
+            "h": h,
+            "s": s,
+            "v": v,
+            "lum": lum,
+            "chroma": (max(rgb) - min(rgb)) / 255,
+        }
+    )
 
-if not colors:
-    colors = [(1, (122, 162, 247)), (1, (79, 214, 190)), (1, (15, 18, 28))]
+if not entries:
+    entries = [
+        {"count": 1, "fraction": 1.0, "rgb": (122, 162, 247), "h": 0.61, "s": 0.50, "v": 0.97, "lum": 0.60, "chroma": 0.49},
+        {"count": 1, "fraction": 1.0, "rgb": (79, 214, 190), "h": 0.47, "s": 0.63, "v": 0.84, "lum": 0.70, "chroma": 0.53},
+        {"count": 1, "fraction": 1.0, "rgb": (15, 18, 28), "h": 0.63, "s": 0.46, "v": 0.11, "lum": 0.07, "chroma": 0.05},
+    ]
 
 def lum(rgb):
     r, g, b = [c / 255 for c in rgb]
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
-
-def sat(rgb):
-    r, g, b = [c / 255 for c in rgb]
-    return colorsys.rgb_to_hsv(r, g, b)[1]
-
-def hue(rgb):
-    r, g, b = [c / 255 for c in rgb]
-    return colorsys.rgb_to_hsv(r, g, b)[0]
 
 def blend(a, b, t):
     return tuple(int(round(a[i] * (1 - t) + b[i] * t)) for i in range(3))
@@ -93,69 +108,108 @@ def contrast_ratio(a, b):
     l1, l2 = (la, lb) if la >= lb else (lb, la)
     return (l1 + 0.05) / (l2 + 0.05)
 
-sorted_by_lum = sorted([rgb for _, rgb in colors], key=lum)
-bg_raw = sorted_by_lum[0]
-bg = blend(bg_raw, (10, 14, 24), 0.50)
-surface = blend(bg, (255, 255, 255), 0.12)
+def hue_distance(a, b):
+    diff = abs(a - b)
+    return min(diff, 1 - diff)
 
-candidates = [rgb for _, rgb in colors]
+def polish_accent(rgb, sat_target, val_target):
+    h, s, v = colorsys.rgb_to_hsv(*(c / 255 for c in rgb))
+    s = max(s, sat_target * 0.70)
+    s = min(0.76, s + max(0.0, sat_target - s) * 0.86)
+    v = max(v, val_target * 0.72)
+    v = min(0.90, v + max(0.0, val_target - v) * 0.62)
+    return tuple(int(round(channel * 255)) for channel in colorsys.hsv_to_rgb(h, s, v))
 
-scored = []
-for rgb in candidates:
-    s = sat(rgb)
-    l = lum(rgb)
+dark_candidates = [entry for entry in entries if entry["lum"] <= 0.28]
+if not dark_candidates:
+    dark_candidates = entries[:]
+
+def bg_score(entry):
+    return (
+        entry["fraction"] * 2.1
+        - abs(entry["lum"] - 0.12) * 1.45
+        - entry["s"] * 0.70
+        - entry["chroma"] * 0.35
+    )
+
+bg_seed = max(dark_candidates, key=bg_score)["rgb"]
+bg = blend(bg_seed, (10, 14, 24), 0.45)
+if lum(bg) > 0.20:
+    bg = blend(bg, (8, 11, 18), 0.28)
+surface = blend(bg, (255, 255, 255), 0.13)
+bg_soft = blend(bg, surface, 0.34)
+
+accent_candidates = []
+for entry in entries:
+    rgb = entry["rgb"]
     c_bg = contrast_ratio(rgb, bg)
-    # Bias toward readable mid-light accents, not the most saturated swatch.
-    score = (s * 1.25) + (c_bg * 0.82) - abs(l - 0.56)
-    if 0.16 <= l <= 0.88 and s >= 0.14 and c_bg >= 1.6:
-        scored.append((score, rgb))
-
-if scored:
-    scored.sort(reverse=True, key=lambda x: x[0])
-    accent = scored[0][1]
-else:
-    accent = (111, 148, 201)
-
-accent_h = hue(accent)
-accent2 = None
-best2 = -999.0
-for rgb in candidates:
-    if rgb == accent:
+    score = (
+        entry["s"] * 2.45
+        + entry["chroma"] * 1.25
+        + min(c_bg, 3.0) * 0.46
+        + min(entry["fraction"] * 5.0, 0.28)
+        - abs(entry["lum"] - 0.56) * 0.95
+    )
+    if entry["fraction"] > 0.16 and entry["s"] < 0.28:
+        score -= 0.45
+    if entry["lum"] < 0.16 or entry["lum"] > 0.86 or c_bg < 1.35:
         continue
-    s = sat(rgb)
-    l = lum(rgb)
-    c_bg = contrast_ratio(rgb, bg)
-    h = hue(rgb)
-    dh = abs(h - accent_h)
-    dh = min(dh, 1 - dh)
-    score = (dh * 2.0) + (s * 0.9) + (c_bg * 0.62) - abs(l - 0.54)
-    if 0.14 <= l <= 0.9 and s >= 0.1 and c_bg >= 1.45 and score > best2:
-        best2 = score
-        accent2 = rgb
+    if entry["s"] < 0.14 and entry["chroma"] < 0.10:
+        continue
+    accent_candidates.append((score, entry))
 
-if accent2 is None:
-    accent2 = (102, 194, 184)
+if accent_candidates:
+    accent_candidates.sort(reverse=True, key=lambda item: item[0])
+    accent_seed = accent_candidates[0][1]
+else:
+    accent_seed = {"rgb": (111, 148, 201), "h": 0.60, "s": 0.45, "v": 0.79, "lum": 0.54, "chroma": 0.35}
 
-# Soften the main accent so wallpaper sync does not skew the whole UI too blue
-# or too electric after a palette refresh.
-accent = blend(accent, surface, 0.22)
-accent = blend(accent, accent2, 0.16)
-accent2 = blend(accent2, surface, 0.14)
+accent = polish_accent(accent_seed["rgb"], 0.52, 0.82)
 
-# Enforce readability against dark background.
-if contrast_ratio(accent, bg) < 2.0:
-    accent = blend(accent, (255, 255, 255), 0.18)
-if contrast_ratio(accent2, bg) < 1.9:
-    accent2 = blend(accent2, (255, 255, 255), 0.16)
+secondary_pool = []
+for score, entry in accent_candidates[1:]:
+    dh = hue_distance(entry["h"], accent_seed["h"])
+    if dh < 0.10:
+        continue
+    secondary_score = score + dh * 2.20 - abs(entry["lum"] - 0.54) * 0.25
+    secondary_pool.append((secondary_score, entry))
+
+if secondary_pool:
+    secondary_pool.sort(reverse=True, key=lambda item: item[0])
+    accent2_seed = secondary_pool[0][1]
+    accent2 = polish_accent(accent2_seed["rgb"], 0.38, 0.76)
+else:
+    rotate = 0.17 if accent_seed["h"] < 0.5 else -0.17
+    h = (accent_seed["h"] + rotate) % 1.0
+    accent2 = tuple(
+        int(round(channel * 255))
+        for channel in colorsys.hsv_to_rgb(h, 0.34, max(0.62, accent_seed["v"]))
+    )
+
+accent = blend(accent, surface, 0.10)
+accent2 = blend(accent2, surface, 0.08)
+
+while contrast_ratio(accent, bg) < 2.35:
+    accent = blend(accent, (255, 255, 255), 0.12)
+while contrast_ratio(accent2, bg) < 2.05:
+    accent2 = blend(accent2, (255, 255, 255), 0.10)
+
+if hue_distance(
+    colorsys.rgb_to_hsv(*(c / 255 for c in accent))[0],
+    colorsys.rgb_to_hsv(*(c / 255 for c in accent2))[0],
+) < 0.10:
+    h, s, v = colorsys.rgb_to_hsv(*(c / 255 for c in accent2))
+    h = (h + 0.16) % 1.0
+    accent2 = tuple(int(round(channel * 255)) for channel in colorsys.hsv_to_rgb(h, max(s, 0.30), max(v, 0.70)))
 
 text = (232, 238, 252) if lum(bg) < 0.42 else (18, 24, 37)
 muted = blend(text, bg, 0.38)
-warn = (255, 150, 108)
+warn = (255, 166, 110)
 danger = (255, 117, 127)
 
 out_data = {
     "bg": to_hex(bg),
-    "bg_soft": to_hex(blend(bg, surface, 0.35)),
+    "bg_soft": to_hex(bg_soft),
     "surface": to_hex(surface),
     "text": to_hex(text),
     "muted": to_hex(muted),
