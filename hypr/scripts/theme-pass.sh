@@ -41,6 +41,8 @@ if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
   "$HOME/.config/hypr/scripts/launcher.sh" --rebuild-cache >/dev/null 2>&1 || true
 fi
 
+rm -f "$HOME/.local/share/applications/mimeinfo.cache" >/dev/null 2>&1 || true
+
 if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
 fi
@@ -50,4 +52,4 @@ if command -v kbuildsycoca6 >/dev/null 2>&1; then
   kbuildsycoca6 --noincremental >/dev/null 2>&1 || true
 fi
 
-notify "Theme pass applied" "GTK/Qt + panel + MIME/KDE caches refreshed"
+notify "Theme pass applied" "GTK/Qt + panel + desktop/MIME caches refreshed"
