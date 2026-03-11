@@ -1,12 +1,12 @@
 * {
     font: "JetBrainsMono Nerd Font 12";
 
-    bg: #0f1322cc;
-    bg-alt: #181f33bf;
-    fg: #dbe4ff;
-    fg-muted: #97a7d6;
-    accent: #6f94c9;
-    good: #66c2b8;
+    bg: #16181eef;
+    bg-alt: #22252dee;
+    fg: #e8eefc;
+    fg-muted: #a1a8b8;
+    accent: #ada12a;
+    good: #db912a;
     bad: #ff757f;
 
     border: 2px;
@@ -23,7 +23,7 @@ window {
     anchor: center;
     width: 52%;
     border: @border;
-    border-color: rgba(111, 148, 201, 0.72);
+    border-color: #ada12a94;
     border-radius: @radius;
     background-color: @bg;
     padding: 14px;
@@ -42,7 +42,7 @@ inputbar {
     border-radius: 12px;
     background-color: @bg-alt;
     border: 1px;
-    border-color: #2a6f94aa;
+    border-color: #ada12a6b;
 }
 
 prompt {
@@ -75,6 +75,8 @@ element {
     background-color: transparent;
     text-color: @fg-muted;
     orientation: horizontal;
+    border: 1px;
+    border-color: transparent;
 }
 
 element normal.normal {
@@ -89,17 +91,17 @@ element selected.urgent {
 }
 
 element selected.normal {
-    background-color: rgba(96, 144, 178, 0.52);
+    background-color: #22252df5;
     border: 1px;
-    border-color: rgba(102, 194, 184, 0.3);
-    text-color: #0f111a;
+    border-color: #ada12ae0;
+    text-color: @fg;
 }
 
 element-text {
     text-color: inherit;
     background-color: transparent;
     vertical-align: 0.5;
-    highlight: bold #0f111a;
+    highlight: bold #ada12a;
 }
 
 element-icon {
@@ -121,10 +123,10 @@ mode-switcher {
 button {
     padding: 8px 12px;
     border-radius: 10px;
-    background-color: rgba(24, 31, 51, 0.58);
+    background-color: #181a2094;
     text-color: @fg-muted;
     border: 1px;
-    border-color: #286f9499;
+    border-color: #ada12a57;
 }
 
 button selected {

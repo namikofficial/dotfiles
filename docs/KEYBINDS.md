@@ -50,7 +50,7 @@ flowchart LR
 | `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
 | `Super + Ctrl + Shift + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh` |
 | `Super + Escape` | Power menu | `power-menu.sh` |
-| `Super + L` | Lock screen | `lock.sh` |
+| `Super + Ctrl + L` | Lock screen | `lock.sh` |
 
 ## Window / Layout
 
