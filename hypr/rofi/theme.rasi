@@ -8,6 +8,9 @@
     accent: #ada12a;
     good: #db912a;
     bad: #ff757f;
+    selected-bg: @bg-alt;
+    selected-fg: @fg;
+    selected-border: @accent;
 
     border: 2px;
     radius: 18px;
@@ -23,7 +26,7 @@ window {
     anchor: center;
     width: 52%;
     border: @border;
-    border-color: #ada12a94;
+    border-color: @selected-border;
     border-radius: @radius;
     background-color: @bg;
     padding: 14px;
@@ -42,7 +45,7 @@ inputbar {
     border-radius: 12px;
     background-color: @bg-alt;
     border: 1px;
-    border-color: #ada12a6b;
+    border-color: @selected-border;
 }
 
 prompt {
@@ -91,17 +94,17 @@ element selected.urgent {
 }
 
 element selected.normal {
-    background-color: #22252df5;
+    background-color: @selected-bg;
     border: 1px;
-    border-color: #ada12ae0;
-    text-color: @fg;
+    border-color: @selected-border;
+    text-color: @selected-fg;
 }
 
 element-text {
     text-color: inherit;
     background-color: transparent;
     vertical-align: 0.5;
-    highlight: bold #ada12a;
+    highlight: bold #ffffff;
 }
 
 element-icon {
@@ -123,10 +126,10 @@ mode-switcher {
 button {
     padding: 8px 12px;
     border-radius: 10px;
-    background-color: #181a2094;
+    background-color: @bg-alt;
     text-color: @fg-muted;
     border: 1px;
-    border-color: #ada12a57;
+    border-color: @selected-border;
 }
 
 button selected {
