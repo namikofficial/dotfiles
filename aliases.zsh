@@ -141,7 +141,6 @@ alias hmonth="atuin stats 30d --count 20"
 # Directory navigation (common projects)
 alias dev="cd ~/dev"
 alias cdev="cd ~/Documents/code"
-alias scripts="cd $SCRIPTS_HOME"
 alias projects="cd ~/projects"
 alias ..="cd .."
 alias ...="cd ../.."

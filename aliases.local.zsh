@@ -10,6 +10,7 @@
 # Local project shortcuts.
 alias noxflow='cd ~/Documents/code/noxflow'
 alias wellvantage='cd ~/Documents/code/WellVantage'
+alias scripts='cd ~/Documents/code/scripts'
 alias dotfiles='cd ~/Documents/code/dotfiles'
 
 vpn-connect() {
