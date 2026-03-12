@@ -45,7 +45,6 @@ rust-analyzer
 yaml-language-server
 taplo-cli
 shfmt
-code
 helix
 lazygit
 lazydocker

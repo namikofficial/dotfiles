@@ -5,26 +5,26 @@ LastUsedVersion=210800
 MenuBar=Disabled
 
 [Recent Files]
-File1[$e]=$HOME/Pictures/wallpaper/nord.png
-File10[$e]=$HOME/Pictures/wallpaper/ogarart-blue-lighthouse-2019-01-13.jpg
-File2[$e]=$HOME/Pictures/wallpaper/nord3.png
-File3[$e]=$HOME/Pictures/wallpaper/nord4.png
-File4[$e]=$HOME/Pictures/wallpaper/Nordic-Heroin.png
-File5[$e]=$HOME/Pictures/wallpaper/nordic.png
-File6[$e]=$HOME/Pictures/wallpaper/Northern Lights1.jpg
-File7[$e]=$HOME/Pictures/wallpaper/nyarch-dark.png
-File8[$e]=$HOME/Pictures/wallpaper/odysee.jpg
-File9[$e]=$HOME/Pictures/wallpaper/ogarart-bitter-coast.jpg
-Name1[$e]=nord.png
-Name10[$e]=ogarart-blue-lighthouse-2019-01-13.jpg
-Name2[$e]=nord3.png
-Name3[$e]=nord4.png
-Name4[$e]=Nordic-Heroin.png
-Name5[$e]=nordic.png
-Name6[$e]=Northern Lights1.jpg
-Name7[$e]=nyarch-dark.png
-Name8[$e]=odysee.jpg
-Name9[$e]=ogarart-bitter-coast.jpg
+File1[$e]=$HOME/Pictures/wallpaper/4k/wano_vector.png
+File10[$e]=$HOME/Pictures/wallpaper/4k/catpuccin_landscape.png
+File2[$e]=$HOME/Pictures/wallpaper/4k/waves_dracula_flipped.png
+File3[$e]=$HOME/Pictures/wallpaper/4k/windows-black.png
+File4[$e]=$HOME/Pictures/wallpaper/4k/zorin-black-4k.png
+File5[$e]=$HOME/Pictures/wallpaper/4k/white_yinyang.jpg
+File6[$e]=$HOME/Pictures/wallpaper/4k/acrylic.jpg
+File7[$e]=$HOME/Pictures/wallpaper/4k/astronaut-nord.png
+File8[$e]=$HOME/Pictures/wallpaper/4k/aurora_v02.png
+File9[$e]=$HOME/Pictures/wallpaper/4k/black-white-girl.png
+Name1[$e]=wano_vector.png
+Name10[$e]=catpuccin_landscape.png
+Name2[$e]=waves_dracula_flipped.png
+Name3[$e]=windows-black.png
+Name4[$e]=zorin-black-4k.png
+Name5[$e]=white_yinyang.jpg
+Name6[$e]=acrylic.jpg
+Name7[$e]=astronaut-nord.png
+Name8[$e]=aurora_v02.png
+Name9[$e]=black-white-girl.png
 
 [SideBar]
 InformationSplitterSizes=214,249

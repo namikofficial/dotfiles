@@ -27,10 +27,10 @@ text/x-rustsrc=code.desktop
 application/x-yaml=code.desktop
 
 [Added Associations]
-inode/directory=org.kde.dolphin.desktop;kitty-open.desktop;
-image/png=org.kde.gwenview.desktop
-image/jpeg=org.kde.gwenview.desktop
-image/webp=org.kde.gwenview.desktop;firefox.desktop;google-chrome.desktop;
-image/gif=org.kde.gwenview.desktop;firefox.desktop;google-chrome.desktop;
-image/svg+xml=org.kde.gwenview.desktop;firefox.desktop;
+inode/directory=org.kde.dolphin.desktop;
+image/png=org.kde.gwenview.desktop;google-chrome.desktop;firefox.desktop;
+image/jpeg=org.kde.gwenview.desktop;google-chrome.desktop;firefox.desktop;
+image/webp=org.kde.gwenview.desktop;google-chrome.desktop;firefox.desktop;
+image/gif=org.kde.gwenview.desktop;google-chrome.desktop;firefox.desktop;
+image/svg+xml=org.kde.gwenview.desktop;google-chrome.desktop;firefox.desktop;
 x-scheme-handler/obsidian=obsidian.desktop;
