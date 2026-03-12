@@ -1,6 +1,5 @@
 #!/usr/bin/env sh
 
-# Start Hyprland with both DRM devices visible so HDMI hotplug works on this
-# hybrid Intel + nouveau laptop. This must be set in the compositor launch
-# environment, not in hyprland.conf client env.
-export AQ_DRM_DEVICES=/dev/dri/card1:/dev/dri/card0
+# Keep Hyprland on the Intel display GPU on hybrid Intel + NVIDIA laptops.
+# The dGPU remains available for PRIME/render offload workloads.
+export AQ_DRM_DEVICES=/dev/dri/card1

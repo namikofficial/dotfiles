@@ -61,6 +61,13 @@ Current default hooks:
 - Apply next wallpaper:
 `~/.config/hypr/scripts/set-wallpaper.sh --next`
 
+- Reload the current wallpaper-derived theme stack without changing wallpaper:
+`~/.config/hypr/scripts/theme-pass.sh`
+
+- Hyprland shortcuts:
+  `Super + Shift + O` -> next wallpaper
+  `Super + Shift + Y` -> reload theme, Kitty, Hyprland, panel, and caches
+
 - Curate current rotating pool for your monitor ratio/resolution:
 `~/.config/hypr/scripts/wallpaper-curate.sh ~/Pictures/wallpaper`
 

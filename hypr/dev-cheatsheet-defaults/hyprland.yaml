@@ -1,13 +1,81 @@
 category: Hyprland
 slug: hyprland
 entries:
+  - key: Super+Return
+    description: Open terminal
+    copy: kitty
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+Space
+    description: Open launcher
+    copy: ~/.config/hypr/scripts/launcher.sh
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+Shift+Space
+    description: Open workspace overview
+    copy: ~/.config/hypr/scripts/workspace-overview.sh
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+Space
+    description: Open quick actions
+    copy: ~/.config/hypr/scripts/quick-actions.sh
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+,
+    description: Open settings hub
+    copy: ~/.config/hypr/scripts/settings-hub.sh
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+,
+    description: Open quick settings
+    copy: ~/.config/hypr/scripts/settings-hub.sh quick
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Escape
+    description: Open power menu
+    copy: ~/.config/hypr/scripts/power-menu.sh
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+L
+    description: Lock screen
+    copy: ~/.config/hypr/scripts/lock.sh
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+Alt+L
+    description: Start visual screensaver and inhibit sleep
+    copy: ~/.config/hypr/scripts/screensaver-awake.sh
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+Tab
+    description: Toggle workspace overview
+    copy: ~/.config/hypr/scripts/workspace-overview-toggle.sh
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+Y
+    description: Open workspace overview
+    copy: ~/.config/hypr/scripts/workspace-overview.sh
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Shift+Y
+    description: Reload theme, kitty, hyprland, panel, and caches
+    copy: ~/.config/hypr/scripts/theme-pass.sh
+    source: ~/.config/hypr/hyprland.conf
   - key: Super+.
     description: Open dev cheatsheet overlay
     copy: ~/.config/hypr/scripts/dev-cheatsheet.sh
     source: ~/.config/hypr/hyprland.conf
     tags: [daily]
+  - key: Super+O
+    description: Pick wallpaper
+    copy: ~/.config/hypr/scripts/set-wallpaper.sh --pick
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Shift+O
+    description: Next wallpaper
+    copy: ~/.config/hypr/scripts/set-wallpaper.sh --next
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+P
+    description: Toggle pseudotile for active window
+    copy: hyprctl dispatch pseudo
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+J
+    description: Toggle split direction in dwindle layout
+    copy: hyprctl dispatch layoutmsg togglesplit
+    source: ~/.config/hypr/hyprland.conf
   - key: Super+T
-    description: Toggle grouped/tabbed window stack
+    description: Toggle grouped window stack
     copy: hyprctl dispatch togglegroup
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Ctrl+T
@@ -15,18 +83,39 @@ entries:
     copy: hyprctl dispatch moveoutofgroup
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Alt+.
-    description: Next tab in grouped stack
+    description: Select next window in group
     copy: hyprctl dispatch changegroupactive f
     source: ~/.config/hypr/hyprland.conf
-  - key: Super+Alt+,
-    description: Previous tab in grouped stack
+  - key: Super+Alt+;
+    description: Select previous window in group
     copy: hyprctl dispatch changegroupactive b
     source: ~/.config/hypr/hyprland.conf
-  - key: Super+Ctrl+Y
-    description: Restore Waybar panel
-    copy: ~/.config/hypr/scripts/panel-switch.sh waybar
-    source: ~/.config/hypr/hyprland.conf
   - key: Super+Alt+P
-    description: Open monitor control and recovery menu
+    description: Open monitor control menu
     copy: ~/.config/hypr/scripts/monitor-control.sh menu
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+N
+    description: Toggle notification center
+    copy: swaync-client -t
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Alt+N
+    description: Toggle Do Not Disturb
+    copy: swaync-client -d
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Shift+S
+    description: Screenshot area
+    copy: ~/.config/hypr/scripts/screenshot.sh area
+    source: ~/.config/hypr/hyprland.conf
+    tags: [daily]
+  - key: Super+Ctrl+Shift+S
+    description: Screenshot full display
+    copy: ~/.config/hypr/scripts/screenshot.sh full
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+R
+    description: Toggle screen recording
+    copy: ~/.config/hypr/scripts/screen-record-toggle.sh
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+I
+    description: Pick and copy screen color
+    copy: hyprpicker -a
     source: ~/.config/hypr/hyprland.conf

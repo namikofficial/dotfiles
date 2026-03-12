@@ -142,14 +142,16 @@ flowchart LR
 | Keybind | Action |
 |---|---|
 | `Ctrl + Shift + T` | New tab (inherits current working directory) |
-| `Ctrl + Shift + Q` | Close current tab |
-| `Ctrl + Shift + W` | Close current split/window |
+| `Ctrl + Shift + Q` | Close current split/window |
+| `Ctrl + Shift + W` | Close current tab |
 | `Ctrl + Shift + [` / `Ctrl + Shift + ]` | Previous / next tab |
 | `Ctrl + Shift + Enter` | New terminal window (same cwd) |
 | `Ctrl + Shift + O` / `Ctrl + Shift + E` | Split horizontal / vertical |
 | `Ctrl + Shift + H/J/K/L` | Focus left/down/up/right split |
 | `Ctrl + Shift + Alt + H/J/K/L` | Resize split (narrow/short/tall/wide) |
 | `Ctrl + Shift + F5` | Reload kitty config |
+| `Super + Shift + Y` | Reload theme, Kitty, Hyprland, panel, and caches |
+| `Super + Shift + O` | Switch to next wallpaper |
 | Select text | Auto-copy to clipboard (`copy_on_select`) |
 
 ## Rofi Menus (Launcher + Quick Actions)
