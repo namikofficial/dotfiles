@@ -29,6 +29,15 @@ kvantum_theme_svg="$kvantum_theme_dir/NoxflowDynamic.svg"
 kvantum_main_conf="$kvantum_dir/kvantum.kvconfig"
 waybar_before_hash=""
 waybar_after_hash=""
+kitty_runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+
+kitty_remote_all() {
+  command -v kitty >/dev/null 2>&1 || return 0
+  for sock in "$kitty_runtime_dir"/kitty-control*; do
+    [ -S "$sock" ] || continue
+    kitty @ --to "unix:$sock" "$@" >/dev/null 2>&1 || true
+  done
+}
 
 if [ -f "$waybar_colors" ]; then
   waybar_before_hash="$(sha256sum "$waybar_colors" | awk '{print $1}')"
@@ -427,6 +436,7 @@ set_qtct_value "$qt6_conf" "icon_theme" "Papirus-Dark"
 cat > "$kdeglobals" <<EOF2
 [General]
 ColorScheme=NoxflowDynamic
+TerminalApplication=kitty
 
 [Icons]
 Theme=Papirus-Dark
@@ -536,9 +546,7 @@ if command -v eww >/dev/null 2>&1 && [ -d "$HOME/.config/eww" ]; then
   eww --config "$HOME/.config/eww" reload >/dev/null 2>&1 || true
 fi
 
-if command -v kitty >/dev/null 2>&1; then
-  kitty @ set-colors -a "$kitty_colors" >/dev/null 2>&1 || true
-fi
+kitty_remote_all set-colors -a "$kitty_colors"
 
 # VSCode dynamic palette sync (JSONC-tolerant).
 for vscode_settings in \

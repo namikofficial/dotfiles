@@ -199,7 +199,7 @@ AI helper behavior:
 exec zsh
 hyprctl reload
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
-~/.config/hypr/scripts/theme-pass.sh
+~/.config/hypr/scripts/theme-pass.sh   # same reload flow as Super+Shift+Y
 ~/.config/hypr/scripts/restart-waybar.sh
 ~/.config/hypr/scripts/launcher.sh --warm-cache
 ```
@@ -278,6 +278,21 @@ Set default editor MIME handlers:
 Notes path defaults:
 - Folder: `~/Documents/notes`
 - Scratch file: `~/Documents/notes/inbox.md`
+- `open-notes.sh` prefers Obsidian when it is installed, then falls back to VS Code/Codium.
+
+## KDE companion apps on Hyprland
+
+For a Hyprland-first setup with native KDE file management, image viewing, and a GUI settings app:
+
+```sh
+sudo pacman -S --needed gwenview systemsettings ark
+```
+
+If you want a full Plasma session installed alongside Hyprland later, keep it separate from the base dotfiles install:
+
+```sh
+sudo pacman -S --needed plasma-desktop plasma-workspace
+```
 
 ## Timeshift daily auto snapshots (keep latest 5)
 

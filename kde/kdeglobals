@@ -1,5 +1,6 @@
 [General]
 ColorScheme=NoxflowDynamic
+TerminalApplication=kitty
 
 [Icons]
 Theme=Papirus-Dark

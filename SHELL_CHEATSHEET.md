@@ -132,14 +132,16 @@
 
 ## Kitty Keymaps
 - New tab (same cwd): `Ctrl + Shift + T`
-- Close tab: `Ctrl + Shift + Q`
-- Close split/window: `Ctrl + Shift + W`
+- Close split/window: `Ctrl + Shift + Q`
+- Close tab: `Ctrl + Shift + W`
 - Previous / next tab: `Ctrl + Shift + [` / `Ctrl + Shift + ]`
 - New window (same cwd): `Ctrl + Shift + Enter`
 - Split horizontal / vertical: `Ctrl + Shift + O` / `Ctrl + Shift + E`
 - Focus left/right/up/down split: `Ctrl + Shift + H/J/K/L`
 - Resize split: `Ctrl + Shift + Alt + H/J/K/L`
 - Reload kitty config: `Ctrl + Shift + F5`
+- Reload theme + Kitty + Hyprland + panel: `Super + Shift + Y`
+- Next wallpaper: `Super + Shift + O`
 - Clipboard: selecting text copies automatically (`copy_on_select`)
 
 ## Tmux Quickstart
