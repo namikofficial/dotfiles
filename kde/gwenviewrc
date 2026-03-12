@@ -5,26 +5,26 @@ LastUsedVersion=210800
 MenuBar=Disabled
 
 [Recent Files]
-File1[$e]=$HOME/Pictures/wallpaper/4k/waves_dracula_flipped.png
-File10[$e]=$HOME/Pictures/wallpaper/4k/polar_catppuccin.png
-File2[$e]=$HOME/Pictures/wallpaper/4k/windows-black.png
-File3[$e]=$HOME/Pictures/wallpaper/4k/zorin-black-4k.png
-File4[$e]=$HOME/Pictures/wallpaper/4k/white_yinyang.jpg
-File5[$e]=$HOME/Pictures/wallpaper/4k/acrylic.jpg
-File6[$e]=$HOME/Pictures/wallpaper/4k/astronaut-nord.png
-File7[$e]=$HOME/Pictures/wallpaper/4k/aurora_v02.png
-File8[$e]=$HOME/Pictures/wallpaper/4k/black-white-girl.png
-File9[$e]=$HOME/Pictures/wallpaper/4k/catpuccin_landscape.png
-Name1[$e]=waves_dracula_flipped.png
-Name10[$e]=polar_catppuccin.png
-Name2[$e]=windows-black.png
-Name3[$e]=zorin-black-4k.png
-Name4[$e]=white_yinyang.jpg
-Name5[$e]=acrylic.jpg
-Name6[$e]=astronaut-nord.png
-Name7[$e]=aurora_v02.png
-Name8[$e]=black-white-girl.png
-Name9[$e]=catpuccin_landscape.png
+File1[$e]=$HOME/Pictures/wallpaper/4k/windows-black.png
+File10[$e]=$HOME/Pictures/wallpaper/1080p/abandoned.jpg
+File2[$e]=$HOME/Pictures/wallpaper/4k/zorin-black-4k.png
+File3[$e]=$HOME/Pictures/wallpaper/4k/white_yinyang.jpg
+File4[$e]=$HOME/Pictures/wallpaper/4k/acrylic.jpg
+File5[$e]=$HOME/Pictures/wallpaper/4k/astronaut-nord.png
+File6[$e]=$HOME/Pictures/wallpaper/4k/aurora_v02.png
+File7[$e]=$HOME/Pictures/wallpaper/4k/black-white-girl.png
+File8[$e]=$HOME/Pictures/wallpaper/4k/catpuccin_landscape.png
+File9[$e]=$HOME/Pictures/wallpaper/4k/polar_catppuccin.png
+Name1[$e]=windows-black.png
+Name10[$e]=abandoned.jpg
+Name2[$e]=zorin-black-4k.png
+Name3[$e]=white_yinyang.jpg
+Name4[$e]=acrylic.jpg
+Name5[$e]=astronaut-nord.png
+Name6[$e]=aurora_v02.png
+Name7[$e]=black-white-girl.png
+Name8[$e]=catpuccin_landscape.png
+Name9[$e]=polar_catppuccin.png
 
 [SideBar]
 InformationSplitterSizes=214,249
