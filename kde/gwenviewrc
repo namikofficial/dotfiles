@@ -1,30 +1,36 @@
 [General]
 LastUsedVersion=210800
+SideBarPage=operations
+ThumbnailBarIsVisible=true
+
+[ImageView]
+ThumbnailSplitterSizes=699,200
 
 [MainWindow]
 MenuBar=Disabled
 
 [Recent Files]
-File1[$e]=$HOME/Pictures/wallpaper/4k/windows-black.png
-File10[$e]=$HOME/Pictures/wallpaper/1080p/abandoned.jpg
-File2[$e]=$HOME/Pictures/wallpaper/4k/zorin-black-4k.png
-File3[$e]=$HOME/Pictures/wallpaper/4k/white_yinyang.jpg
-File4[$e]=$HOME/Pictures/wallpaper/4k/acrylic.jpg
-File5[$e]=$HOME/Pictures/wallpaper/4k/astronaut-nord.png
-File6[$e]=$HOME/Pictures/wallpaper/4k/aurora_v02.png
-File7[$e]=$HOME/Pictures/wallpaper/4k/black-white-girl.png
-File8[$e]=$HOME/Pictures/wallpaper/4k/catpuccin_landscape.png
-File9[$e]=$HOME/Pictures/wallpaper/4k/polar_catppuccin.png
-Name1[$e]=windows-black.png
-Name10[$e]=abandoned.jpg
-Name2[$e]=zorin-black-4k.png
-Name3[$e]=white_yinyang.jpg
-Name4[$e]=acrylic.jpg
-Name5[$e]=astronaut-nord.png
-Name6[$e]=aurora_v02.png
-Name7[$e]=black-white-girl.png
-Name8[$e]=catpuccin_landscape.png
-Name9[$e]=polar_catppuccin.png
+File1[$e]=$HOME/Pictures/wallpaper/4k/catpuccin_landscape.png
+File10[$e]=$HOME/Downloads/wallhaven-o5rkwl.png
+File2[$e]=$HOME/Pictures/wallpaper/4k/polar_catppuccin.png
+File3[$e]=$HOME/Pictures/wallpaper/1080p/abandoned.jpg
+File4[$e]=$HOME/Downloads/wallhaven-zx12wj.png
+File5[$e]=$HOME/Downloads/wallhaven-vgv7jm.png
+File6[$e]=$HOME/Downloads/wallhaven-rrljr7.png
+File7[$e]=$HOME/Downloads/wallhaven-jxq8yp.png
+File8[$e]=$HOME/Downloads/wallhaven-mpoogm.jpg
+File9[$e]=$HOME/Downloads/wallhaven-n6l5ln.jpg
+Name1[$e]=catpuccin_landscape.png
+Name10[$e]=wallhaven-o5rkwl.png
+Name2[$e]=polar_catppuccin.png
+Name3[$e]=abandoned.jpg
+Name4[$e]=wallhaven-zx12wj.png
+Name5[$e]=wallhaven-vgv7jm.png
+Name6[$e]=wallhaven-rrljr7.png
+Name7[$e]=wallhaven-jxq8yp.png
+Name8[$e]=wallhaven-mpoogm.jpg
+Name9[$e]=wallhaven-n6l5ln.jpg
 
 [SideBar]
 InformationSplitterSizes=214,249
+SideBarSplitterSizes=229,698
