@@ -129,6 +129,18 @@ def polish_accent(rgb, sat_target, val_target):
     v = min(0.90, v + max(0.0, val_target - v) * 0.62)
     return tuple(int(round(channel * 255)) for channel in colorsys.hsv_to_rgb(h, s, v))
 
+def lift_contrast(seed_rgb, bg_rgb, target_ratio, mix=0.12, max_steps=24):
+    """Raise contrast against bg without risking unbounded loops."""
+    color = seed_rgb
+    for _ in range(max_steps):
+        if contrast_ratio(color, bg_rgb) >= target_ratio:
+            break
+        nxt = blend(color, (255, 255, 255), mix)
+        if nxt == color:
+            break
+        color = nxt
+    return color
+
 dark_candidates = [entry for entry in entries if entry["lum"] <= 0.28]
 if not dark_candidates:
     dark_candidates = entries[:]
@@ -198,10 +210,8 @@ else:
 accent = blend(accent, surface, 0.10)
 accent2 = blend(accent2, surface, 0.08)
 
-while contrast_ratio(accent, bg) < 2.35:
-    accent = blend(accent, (255, 255, 255), 0.12)
-while contrast_ratio(accent2, bg) < 2.05:
-    accent2 = blend(accent2, (255, 255, 255), 0.10)
+accent = lift_contrast(accent, bg, 2.35, mix=0.12, max_steps=24)
+accent2 = lift_contrast(accent2, bg, 2.05, mix=0.10, max_steps=24)
 
 if hue_distance(
     colorsys.rgb_to_hsv(*(c / 255 for c in accent))[0],
