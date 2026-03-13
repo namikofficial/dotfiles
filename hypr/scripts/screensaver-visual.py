@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import math
+import os
 import random
 import time
 
 import cairo
 import gi
 
+gi.require_version("Gdk", "4.0")
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gtk4LayerShell", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Gtk4LayerShell
@@ -21,6 +23,10 @@ ACCENT_2 = (0.40, 0.76, 0.72)
 WARN = (1.0, 0.59, 0.42)
 PINK = (1.0, 0.46, 0.50)
 
+FPS = int(os.environ.get("NOXFLOW_SCREENSAVER_FPS", "30") or "30")
+FPS = max(1, min(240, FPS))
+FRAME_MS = max(1, int(round(1000 / FPS)))
+
 
 class ScreenSaverWindow(Gtk.ApplicationWindow):
     def __init__(self, app: Gtk.Application) -> None:
@@ -30,17 +36,7 @@ class ScreenSaverWindow(Gtk.ApplicationWindow):
         self.set_decorated(False)
         self.set_resizable(False)
         self.set_default_size(1920, 1080)
-        Gtk4LayerShell.init_for_window(self)
-        Gtk4LayerShell.set_layer(self, Gtk4LayerShell.Layer.OVERLAY)
-        Gtk4LayerShell.set_keyboard_mode(self, Gtk4LayerShell.KeyboardMode.ON_DEMAND)
-        Gtk4LayerShell.auto_exclusive_zone_enable(self)
-        for edge in (
-            Gtk4LayerShell.Edge.TOP,
-            Gtk4LayerShell.Edge.RIGHT,
-            Gtk4LayerShell.Edge.BOTTOM,
-            Gtk4LayerShell.Edge.LEFT,
-        ):
-            Gtk4LayerShell.set_anchor(self, edge, True)
+        self._setup_layer_shell()
 
         overlay = Gtk.Overlay()
         overlay.set_hexpand(True)
@@ -125,7 +121,30 @@ class ScreenSaverWindow(Gtk.ApplicationWindow):
 
         self.connect("close-request", self.on_close_request)
 
-        GLib.timeout_add(33, self.tick)
+        GLib.timeout_add(FRAME_MS, self.tick)
+
+    def _setup_layer_shell(self) -> None:
+        if os.environ.get("NOXFLOW_USE_LAYER_SHELL", "1").lower() in ("0", "false", "no"):
+            return
+        if not Gtk4LayerShell.is_supported():
+            return
+        try:
+            Gtk4LayerShell.init_for_window(self)
+            if not Gtk4LayerShell.is_layer_window(self):
+                return
+            Gtk4LayerShell.set_layer(self, Gtk4LayerShell.Layer.OVERLAY)
+            Gtk4LayerShell.set_keyboard_mode(self, Gtk4LayerShell.KeyboardMode.ON_DEMAND)
+            Gtk4LayerShell.auto_exclusive_zone_enable(self)
+            for edge in (
+                Gtk4LayerShell.Edge.TOP,
+                Gtk4LayerShell.Edge.RIGHT,
+                Gtk4LayerShell.Edge.BOTTOM,
+                Gtk4LayerShell.Edge.LEFT,
+            ):
+                Gtk4LayerShell.set_anchor(self, edge, True)
+        except Exception:
+            # Fallback: fullscreen GTK window without layer-shell integration.
+            return
 
     def _build_stars(self):
         rng = random.Random(11)
