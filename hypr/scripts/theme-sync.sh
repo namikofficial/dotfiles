@@ -364,6 +364,14 @@ cat > "$hyprlock_colors" <<EOF2
 \$lock_accent = rgb(${accent#\#})
 EOF2
 
+# Hyprland active/inactive border colours sourced at reload time.
+cat > "$cache_dir/theme-colors-hyprland.conf" <<EOF2
+general {
+    col.active_border = rgba(${accent#\#}ff) rgba(${accent2#\#}ff) 45deg
+    col.inactive_border = rgba(${surface#\#}cc)
+}
+EOF2
+
 mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
 cat > "$gtk3_css" <<EOF2
 @define-color theme_bg_color ${bg};
