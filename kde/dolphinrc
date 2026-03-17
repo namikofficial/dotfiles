@@ -1,4 +1,5 @@
 [General]
+ShowStatusBar=FullWidth
 Version=202
 ViewPropsTimestamp=2026,3,4,5,18,51.469
 
@@ -9,5 +10,11 @@ Places Icons Static Size=22
 [MainWindow]
 MenuBar=Disabled
 
+[PreviewSettings]
+Plugins=ffmpegthumbnailer,appimagethumbnail,audiothumbnail,glycin-heif,comicbookthumbnail,cursorthumbnail,djvuthumbnail,ebookthumbnail,exrthumbnail,directorythumbnail,fontthumbnail,imagethumbnail,glycin-image-rs,jpegthumbnail,glycin-jxl,kraorathumbnail,windowsexethumbnail,windowsimagethumbnail,opendocumentthumbnail,glycin-svg,svgthumbnail,ffmpegthumbs
+
 [UiSettings]
 ColorScheme=BreezeDark
+
+[VersionControl]
+enabledPlugins=Bazaar
