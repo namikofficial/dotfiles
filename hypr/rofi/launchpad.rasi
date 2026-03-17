@@ -17,13 +17,13 @@ inputbar {
 }
 
 prompt {
-    text-color: @accent2;
-    font: "JetBrainsMono Nerd Font 13";
+    text-color: @accent;
+    font: "JetBrainsMono Nerd Font Bold 13";
 }
 
 entry {
     placeholder: "type to filter…";
-    placeholder-color: @muted;
+    placeholder-color: @fg-muted;
 }
 
 listview {
@@ -42,12 +42,14 @@ element {
 
 element normal.normal {
     background-color: transparent;
-    text-color: @text;
+    text-color: @fg;
 }
 
 element selected.normal {
-    background-color: @surface;
-    text-color: @accent;
+    background-color: @selected-bg;
+    border: 1px;
+    border-color: @selected-border;
+    text-color: @selected-fg;
 }
 
 element-text {
