@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# tmux-sessions — fzf-powered session/window manager
+# Called via: Prefix+s  (replaces choose-tree)
+#
+# Keybindings (shown in hint bar, never clash with search typing):
+#   Ctrl+D  — kill session or window (with y/n confirmation)
+#   Ctrl+E  — rename session or window
+#   Ctrl+A  — create new named session (starts in ~)
+#   Enter   — switch to selection
+#   Esc     — close picker
+
+set -euo pipefail
+
+current_session="$(tmux display-message -p '#S')"
+
+# ── Build list ───────────────────────────────────────────────────────────────
+# Each line is tab-separated:  TYPE \t DISPLAY \t SESSION \t WIN_IDX
+list_items() {
+  while IFS= read -r sess; do
+    local marker="  "
+    [ "$sess" = "$current_session" ] && marker="● "
+    printf 'session\t%s%s\t%s\t\n' "$marker" "$sess" "$sess"
+    while IFS= read -r line; do
+      local idx="${line%%:*}" name="${line#*:}"
+      printf 'window\t    󰖯  %s\t%s\t%s\n' "$name" "$sess" "$idx"
+    done < <(tmux list-windows -t "$sess" -F '#{window_index}:#{window_name}' 2>/dev/null)
+  done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null)
+}
+
+# ── fzf — --expect puts the pressed key on line 1, selection on line 2 ──────
+hint="  Ctrl+D:kill   Ctrl+E:rename   Ctrl+A:new session   Enter:switch"
+
+output="$(list_items | fzf \
+  --with-nth=2 \
+  --delimiter=$'\t' \
+  --ansi \
+  --prompt="  sessions › " \
+  --pointer="▶" \
+  --header="$hint" \
+  --header-first \
+  --height=100% \
+  --layout=reverse \
+  --expect=ctrl-d,ctrl-e,ctrl-a \
+  2>/dev/null)" || true
+
+[ -n "$output" ] || exit 0
+
+key="$(printf '%s' "$output"    | head -1)"          # ctrl-d / ctrl-e / ctrl-a / "" (Enter)
+result="$(printf '%s' "$output" | tail -n +2)"        # the selected line (empty if Ctrl+A)
+
+# ── Parse selection ──────────────────────────────────────────────────────────
+parse_result() {
+  type="$(printf '%s' "$result"  | cut -f1)"
+  sess="$(printf '%s' "$result"  | cut -f3)"
+  win="$(printf '%s'  "$result"  | cut -f4)"
+  label="$(printf '%s' "$result" | cut -f2 | sed 's/^[[:space:]]*//')"
+}
+
+# ── Actions (inline prompts — we're already in the popup) ───────────────────
+
+do_switch() {
+  if [ "$type" = "window" ]; then
+    tmux switch-client -t "${sess}:${win}"
+  else
+    tmux switch-client -t "$sess"
+  fi
+}
+
+do_kill() {
+  if [ "$type" = "window" ]; then
+    printf '\nKill window "%s"? (y/n) ' "$label"
+  else
+    printf '\nKill session "%s"? (y/n) ' "$label"
+  fi
+  local ans
+  read -r -n1 ans; echo
+  [ "$ans" = "y" ] || { echo "Cancelled."; sleep 0.6; exit 0; }
+  if [ "$type" = "window" ]; then
+    tmux kill-window  -t "${sess}:${win}" 2>/dev/null || true
+  else
+    tmux kill-session -t "$sess" 2>/dev/null || true
+  fi
+  echo "Killed."; sleep 0.4
+}
+
+do_rename() {
+  if [ "$type" = "window" ]; then
+    printf '\nNew window name: '
+  else
+    printf '\nNew session name: '
+  fi
+  local new_name
+  read -r new_name
+  [ -n "$new_name" ] || return 0
+  if [ "$type" = "window" ]; then
+    tmux rename-window  -t "${sess}:${win}" "$new_name" 2>/dev/null || true
+  else
+    tmux rename-session -t "$sess" "$new_name" 2>/dev/null || true
+  fi
+}
+
+do_new() {
+  printf '\nNew session name: '
+  local name
+  read -r name
+  [ -n "$name" ] || return 0
+  if tmux new-session -d -s "$name" -c "$HOME" 2>/dev/null; then
+    tmux switch-client -t "$name"
+  else
+    echo "Session '$name' already exists or name invalid."; sleep 1
+  fi
+}
+
+# ── Main loop — stays open until Enter (switch) or Esc ───────────────────────
+
+while true; do
+
+output="$(list_items | fzf \
+  --with-nth=2 \
+  --delimiter=$'\t' \
+  --ansi \
+  --prompt="  sessions › " \
+  --pointer="▶" \
+  --header="$hint" \
+  --header-first \
+  --height=100% \
+  --layout=reverse \
+  --expect=ctrl-d,ctrl-e,ctrl-a \
+  2>/dev/null)" || true
+
+[ -n "$output" ] || exit 0   # Esc / Ctrl+C
+
+key="$(printf '%s' "$output"    | head -1)"
+result="$(printf '%s' "$output" | tail -n +2)"
+
+# ── Dispatch ─────────────────────────────────────────────────────────────────
+
+case "$key" in
+  ctrl-a)
+    do_new
+    ;;
+  ctrl-d)
+    [ -n "$result" ] || continue
+    parse_result
+    do_kill
+    ;;
+  ctrl-e)
+    [ -n "$result" ] || continue
+    parse_result
+    do_rename
+    ;;
+  *)  # Enter — switch and close
+    [ -n "$result" ] || exit 0
+    parse_result
+    do_switch
+    exit 0
+    ;;
+esac
+
+done
+
