@@ -647,7 +647,7 @@ update_compact_rprompt() {
     [ -n "$node_v" ] && segs+=("node:${node_v#v}")
   fi
 
-  RPROMPT="%F{8}${(j: | :)segs}%f"
+  RPROMPT="%F{7}${(j: | :)segs}%f"
 }
 
 precmd_update_prompt_timing() {

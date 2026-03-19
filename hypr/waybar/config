@@ -2,15 +2,15 @@
   {
     "layer": "top",
     "position": "top",
-    "height": 46,
-    "spacing": 8,
+    "height": 44,
+    "spacing": 6,
     "margin-top": 8,
-    "margin-left": 12,
-    "margin-right": 12,
+    "margin-left": 10,
+    "margin-right": 10,
 
     "modules-left": ["hyprland/workspaces", "custom/layout", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": ["power-profiles-daemon", "custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "tray", "custom/power"],
+    "modules-right": ["custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "tray", "custom/power"],
 
     "hyprland/workspaces": {
       "all-outputs": true,
@@ -25,7 +25,7 @@
     },
 
     "hyprland/window": {
-      "max-length": 34,
+      "max-length": 24,
       "separate-outputs": true,
       "tooltip": true,
       "rewrite": {
@@ -44,8 +44,8 @@
     },
 
     "clock": {
-      "format": "󰥔  {:%a %d %b  %H:%M}",
-      "tooltip-format": "{:%Y-%m-%d}\n{:%H:%M:%S %Z}"
+      "format": "󰥔  {:%a %d %b %H:%M}",
+      "tooltip-format": "{:%A, %d %B %Y | %H:%M:%S %Z}"
     },
 
     "power-profiles-daemon": {

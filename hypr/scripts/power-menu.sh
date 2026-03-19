@@ -121,8 +121,8 @@ if command -v wlogout >/dev/null 2>&1; then
     --layout "$HOME/.config/wlogout/layout" \
     --css "$runtime_css" \
     --buttons-per-row 3 \
-    --column-spacing 10 \
-    --row-spacing 10
+    --column-spacing 8 \
+    --row-spacing 8
 fi
 
 show_compact_menu

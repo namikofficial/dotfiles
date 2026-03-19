@@ -221,7 +221,19 @@ if hue_distance(
     h = (h + 0.16) % 1.0
     accent2 = tuple(int(round(channel * 255)) for channel in colorsys.hsv_to_rgb(h, max(s, 0.30), max(v, 0.70)))
 
-text = (232, 238, 252) if lum(bg) < 0.42 else (18, 24, 37)
+light_text = (232, 238, 252)
+dark_text = (18, 24, 37)
+
+def text_score(candidate):
+    return min(
+        contrast_ratio(candidate, bg),
+        contrast_ratio(candidate, bg_soft),
+        contrast_ratio(candidate, surface),
+    )
+
+text = light_text if text_score(light_text) >= text_score(dark_text) else dark_text
+if text_score(text) < 4.5:
+    text = (245, 248, 255) if text_score((245, 248, 255)) >= text_score((10, 14, 22)) else (10, 14, 22)
 muted = blend(text, bg, 0.38)
 warn = (255, 166, 110)
 danger = (255, 117, 127)
@@ -348,7 +360,7 @@ color4  ${accent}
 color5  ${accent2}
 color6  ${accent}
 color7  ${text}
-color8  ${bg_soft}
+color8  ${muted}
 color9  ${danger}
 color10 ${accent2}
 color11 ${warn}
