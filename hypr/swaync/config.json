@@ -125,6 +125,16 @@
           "update-command": "sh -lc 'pgrep -x nm-applet >/dev/null && echo true || echo false'"
         },
         {
+          "label": "󰂯 Bluetooth",
+          "command": "sh -lc 'if bluetoothctl show | grep -q \"Powered: yes\"; then bluetoothctl power off; else bluetoothctl power on; fi'",
+          "type": "toggle",
+          "update-command": "sh -lc 'bluetoothctl show 2>/dev/null | grep -q \"Powered: yes\" && echo true || echo false'"
+        },
+        {
+          "label": "󰂰 BT Manager",
+          "command": "blueman-manager"
+        },
+        {
           "label": "󰕮 Panel View",
           "command": "sh -lc '$HOME/.config/hypr/scripts/panel-switch.sh toggle-view'"
         },

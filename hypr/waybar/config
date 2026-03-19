@@ -8,9 +8,9 @@
     "margin-left": 12,
     "margin-right": 12,
 
-    "modules-left": ["custom/launcher", "custom/overview", "hyprland/workspaces", "custom/layout", "hyprland/window"],
+    "modules-left": ["hyprland/workspaces", "custom/layout", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": ["custom/notifications", "custom/vpn", "custom/weather", "power-profiles-daemon", "custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "tray", "custom/power"],
+    "modules-right": ["power-profiles-daemon", "custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "tray", "custom/power"],
 
     "hyprland/workspaces": {
       "all-outputs": true,
@@ -70,8 +70,8 @@
     "custom/vpn": {
       "exec": "~/.config/waybar/scripts/vpn.sh",
       "interval": 8,
-      "return-type": "plain",
-      "tooltip": false,
+      "return-type": "json",
+      "tooltip": true,
       "on-click": "nm-connection-editor"
     },
 

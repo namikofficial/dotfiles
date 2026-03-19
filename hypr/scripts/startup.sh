@@ -104,7 +104,10 @@ fi
 if [ "${HYPR_ENABLE_NM_APPLET:-0}" = "1" ]; then
   run_once nm-applet nm-applet
 fi
-run_once blueman-applet blueman-applet
+# Keep Bluetooth tray icon opt-in; control it from Super+N panel by default.
+if [ "${HYPR_ENABLE_BLUEMAN_APPLET:-0}" = "1" ]; then
+  run_once blueman-applet blueman-applet
+fi
 run_cmd_if_not '(^|/)udiskie( .*)?$' udiskie --smart-tray --menu nested --no-appindicator
 ensure_single_process udiskie
 
