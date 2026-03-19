@@ -1,6 +1,6 @@
 * {
-  font-family: "Inter", "Noto Sans", "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
-  font-size: 13px;
+  font-family: "JetBrainsMono Nerd Font", "Noto Sans", "Symbols Nerd Font", sans-serif;
+  font-size: 12px;
   min-height: 0;
 }
 
@@ -23,12 +23,14 @@ window#waybar {
 .modules-left,
 .modules-center,
 .modules-right {
-  margin-top: 0;
-  padding: 6px 12px;
-  border-radius: 22px;
-  border: 1px solid alpha(@text, 0.05);
-  background: linear-gradient(180deg, alpha(@bg_soft, 0.86), alpha(@bg, 0.76));
-  box-shadow: inset 0 1px 0 alpha(@text, 0.04);
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 16px;
+  border: 1px solid alpha(@surface, 0.72);
+  background: linear-gradient(180deg, alpha(@bg_soft, 0.9), alpha(@bg, 0.8));
+  box-shadow:
+    inset 0 1px 0 alpha(@text, 0.03),
+    0 4px 10px alpha(@bg, 0.25);
 }
 
 button {
@@ -62,12 +64,14 @@ button {
 #tray,
 #custom-cliphist,
 #custom-power {
-  margin: 2px 3px;
-  padding: 4px 12px;
-  border-radius: 13px;
-  background: linear-gradient(180deg, alpha(@surface, 0.74), alpha(@bg_soft, 0.58));
-  border: 1px solid alpha(@text, 0.05);
-  box-shadow: inset 0 1px 0 alpha(@text, 0.03);
+  margin: 0 3px;
+  padding: 0 12px;
+  min-height: 28px;
+  border-radius: 11px;
+  background: linear-gradient(180deg, alpha(@surface, 0.72), alpha(@bg_soft, 0.56));
+  border: 1px solid alpha(@surface, 0.9);
+  box-shadow: inset 0 1px 0 alpha(@text, 0.025);
+  transition: background 170ms ease, border-color 170ms ease, color 170ms ease;
 }
 
 #custom-launcher,
@@ -103,59 +107,57 @@ button {
 }
 
 #window {
-  color: alpha(@text, 0.95);
-  background: linear-gradient(180deg, alpha(@surface, 0.56), alpha(@bg_soft, 0.42));
-  border: 1px solid alpha(@text, 0.05);
+  color: alpha(@text, 0.92);
+  background: linear-gradient(180deg, alpha(@surface, 0.48), alpha(@bg_soft, 0.36));
+  border: 1px solid alpha(@surface, 0.72);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   padding-left: 12px;
   padding-right: 12px;
+  min-width: 240px;
 }
 
 #clock {
   color: @text;
   font-weight: 800;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   padding-left: 14px;
   padding-right: 14px;
+  border: 1px solid alpha(@accent, 0.2);
+  background: linear-gradient(180deg, alpha(@surface, 0.78), alpha(@bg_soft, 0.62));
 }
 
 #workspaces {
-  padding-left: 7px;
-  padding-right: 7px;
+  padding-left: 6px;
+  padding-right: 6px;
 }
 
 #workspaces button {
   font-family: "JetBrainsMono Nerd Font Mono", "Symbols Nerd Font", "Noto Sans", sans-serif;
-  font-size: 15px;
-  color: alpha(@accent2, 0.68);
-  margin: 1px 3px;
-  padding: 3px 9px;
-  border-radius: 11px;
-  border: 1px solid alpha(@text, 0.03);
-  background: alpha(@text, 0.01);
-  transition: all 130ms ease;
-  opacity: 0.88;
+  font-size: 14px;
+  color: alpha(@muted, 0.74);
+  margin: 0 2px;
+  padding: 0 8px;
+  min-height: 26px;
+  border-radius: 10px;
+  border: 1px solid alpha(@surface, 0.55);
+  background: alpha(@bg_soft, 0.28);
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
 #workspaces button.active {
   color: @bg;
-  border: 1px solid alpha(@text, 0.12);
+  border: 1px solid alpha(@accent, 0.72);
   background: linear-gradient(180deg, alpha(@accent, 0.94), alpha(@accent2, 0.82));
   box-shadow:
-    inset 0 1px 0 alpha(@text, 0.18),
-    0 5px 12px alpha(@accent, 0.1);
-  opacity: 1;
+    inset 0 1px 0 alpha(@text, 0.2),
+    0 3px 8px alpha(@accent, 0.14);
 }
 
 #workspaces button:hover {
-  color: @text;
-  border: 1px solid alpha(@accent, 0.12);
-  background: linear-gradient(180deg, alpha(@surface, 0.76), alpha(@bg_soft, 0.56));
-}
-
-#custom-media {
-  min-width: 188px;
+  color: alpha(@text, 0.95);
+  border: 1px solid alpha(@accent, 0.35);
+  background: linear-gradient(180deg, alpha(@surface, 0.74), alpha(@bg_soft, 0.56));
 }
 
 #custom-updates {
@@ -178,12 +180,12 @@ button {
 #custom-cliphist,
 #custom-power {
   font-family: "JetBrainsMono Nerd Font Mono", "Symbols Nerd Font", "Font Awesome 7 Free Solid", "Noto Sans", sans-serif;
-  font-size: 16px;
-  min-height: 26px;
-  padding-top: 1px;
-  padding-bottom: 1px;
-  padding-left: 11px;
-  padding-right: 11px;
+  font-size: 15px;
+  min-height: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 #workspaces button label,
@@ -236,14 +238,9 @@ button {
   min-width: 24px;
 }
 
-#custom-overview {
-  padding-left: 11px;
-  padding-right: 11px;
-}
-
 #power-profiles-daemon {
   font-size: 14px;
-  padding-left: 11px;
+  padding-left: 10px;
   padding-right: 10px;
 }
 
@@ -262,9 +259,9 @@ button {
 #custom-vpn,
 #custom-updates,
 #window {
-  font-size: 13px;
-  padding-top: 3px;
-  padding-bottom: 3px;
+  font-size: 12px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 #custom-updates,
@@ -274,8 +271,8 @@ button {
 #backlight,
 #battery,
 #pulseaudio {
-  padding-left: 14px;
-  padding-right: 14px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 #battery.warning,
@@ -285,9 +282,30 @@ button {
   color: @danger;
 }
 
+#custom-launcher:hover,
+#custom-overview:hover,
+#custom-layout:hover,
+#custom-updates:hover,
+#power-profiles-daemon:hover,
+#cpu:hover,
+#memory:hover,
+#network:hover,
+#backlight:hover,
+#battery:hover,
+#pulseaudio:hover,
+#custom-notifications:hover,
+#custom-weather:hover,
+#custom-vpn:hover,
+#custom-cliphist:hover,
+#custom-power:hover,
+#window:hover {
+  border: 1px solid alpha(@accent, 0.34);
+  background: linear-gradient(180deg, alpha(@surface, 0.82), alpha(@bg_soft, 0.62));
+}
+
 tooltip {
   border-radius: 12px;
-  border: 1px solid alpha(@accent, 0.22);
+  border: 1px solid alpha(@accent, 0.28);
   background: alpha(@bg, 0.94);
   color: @text;
 }
