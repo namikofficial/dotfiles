@@ -1,36 +1,36 @@
 {
     "label": "lock",
     "action": "~/.config/hypr/scripts/lock.sh",
-    "text": "Lock",
+    "text": "",
     "keybind": "l"
 }
 {
     "label": "suspend",
     "action": "systemctl suspend",
-    "text": "Sleep",
+    "text": "",
     "keybind": "u"
 }
 {
     "label": "hibernate",
     "action": "systemctl hibernate",
-    "text": "Hibernate",
+    "text": "",
     "keybind": "h"
 }
 {
     "label": "logout",
     "action": "hyprctl dispatch exit",
-    "text": "Logout",
+    "text": "",
     "keybind": "e"
 }
 {
     "label": "reboot",
     "action": "systemctl reboot",
-    "text": "Reboot",
+    "text": "",
     "keybind": "r"
 }
 {
     "label": "shutdown",
     "action": "systemctl poweroff",
-    "text": "Shutdown",
+    "text": "",
     "keybind": "s"
 }

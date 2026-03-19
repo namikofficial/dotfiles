@@ -5,7 +5,7 @@
 }
 
 window {
-  background-color: rgba(26, 27, 31, 0.82);
+  background-color: rgba(8,11,16, 0.82);
   background-image: url("background-abstract.svg");
   background-size: cover;
   background-repeat: no-repeat;
@@ -13,8 +13,8 @@ window {
 
 button {
   color: transparent;
-  background-color: rgba(36, 37, 41, 0.9);
-  border: 1px solid rgba(56, 57, 60, 0.75);
+  background-color: rgba(19,22,27, 0.9);
+  border: 1px solid rgba(40,43,47, 0.75);
   border-radius: 18px;
   margin: 7px;
   padding: 0;
@@ -30,9 +30,9 @@ button {
 
 button:hover,
 button:focus {
-  background-color: rgba(56, 57, 60, 0.82);
+  background-color: rgba(40,43,47, 0.82);
   color: #ffffff;
-  border: 1px solid #ae775b;
+  border: 1px solid #d34b52;
 }
 
 #lock {
@@ -72,7 +72,7 @@ button:focus {
 
 #shutdown {
   color: transparent;
-  background-color: rgba(255, 117, 127, 0.28);
+  background-color: rgba(255,117,127, 0.28);
   border: 1px solid #ff757f;
   background-image:
     url("/usr/share/wlogout/icons/shutdown.png"),
@@ -83,6 +83,6 @@ button:focus {
 #shutdown:hover,
 #shutdown:focus {
   color: #ffffff;
-  background-color: rgba(255, 117, 127, 0.4);
+  background-color: rgba(255,117,127, 0.4);
   border: 1px solid #ff757f;
 }
