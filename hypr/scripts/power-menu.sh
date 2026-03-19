@@ -34,12 +34,18 @@ if [ "$mode" = "compact" ]; then
 fi
 
 if command -v wlogout >/dev/null 2>&1; then
+  # Toggle behavior: if already open, close it instead of spawning another one.
+  if pgrep -x wlogout >/dev/null 2>&1; then
+    pkill -x wlogout
+    exit 0
+  fi
+
   exec wlogout \
     --layout "$HOME/.config/wlogout/layout" \
     --css "$HOME/.config/wlogout/style.css" \
     --buttons-per-row 3 \
-    --column-spacing 20 \
-    --row-spacing 20
+    --column-spacing 12 \
+    --row-spacing 12
 fi
 
 show_compact_menu

@@ -1,52 +1,84 @@
 * {
-  font-family: "JetBrains Mono", monospace;
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
   background-image: none;
   box-shadow: none;
 }
 
 window {
-  background-color: rgba(9, 10, 14, 0.46);
+  background-color: rgba(9, 12, 18, 0.74);
 }
 
 button {
-  color: #e8eefc;
-  background-color: rgba(22, 24, 30, 0.68);
-  border: 1px solid rgba(173, 161, 42, 0.2);
-  border-radius: 18px;
-  margin: 14px;
-  padding: 28px 30px;
-  min-width: 160px;
-  min-height: 110px;
-  font-size: 18px;
+  color: #eff4ff;
+  background-color: rgba(24, 32, 46, 0.96);
+  border: 2px solid rgba(120, 170, 236, 0.28);
+  border-radius: 24px;
+  margin: 9px;
+  padding: 112px 18px 18px 18px;
+  min-width: 244px;
+  min-height: 172px;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  background-repeat: no-repeat;
+  background-position: center 28%, center 82%;
+  background-size: 72px, 94px 42px;
 }
 
 button:hover,
 button:focus {
-  background-color: rgba(34, 37, 45, 0.92);
-  color: #fff5cf;
-  border-color: rgba(219, 145, 42, 0.9);
+  background-color: rgba(33, 46, 68, 0.98);
+  color: #ffffff;
+  border: 2px solid rgba(132, 206, 255, 0.96);
 }
 
 #lock {
-  border-color: rgba(219, 145, 42, 0.42);
+  border: 2px solid rgba(219, 145, 42, 0.55);
+  background-image:
+    url("/usr/share/wlogout/icons/lock.png"),
+    url("icons/key-L.svg");
 }
 
 #suspend {
-  border-color: rgba(205, 173, 84, 0.32);
+  border: 2px solid rgba(100, 184, 165, 0.58);
+  background-image:
+    url("/usr/share/wlogout/icons/suspend.png"),
+    url("icons/key-U.svg");
 }
 
 #hibernate {
-  border-color: rgba(173, 161, 42, 0.28);
+  border: 2px solid rgba(132, 150, 212, 0.56);
+  background-image:
+    url("/usr/share/wlogout/icons/hibernate.png"),
+    url("icons/key-H.svg");
 }
 
 #logout {
-  border-color: rgba(173, 161, 42, 0.24);
+  border: 2px solid rgba(142, 168, 228, 0.56);
+  background-image:
+    url("/usr/share/wlogout/icons/logout.png"),
+    url("icons/key-E.svg");
 }
 
 #reboot {
-  border-color: rgba(219, 145, 42, 0.36);
+  border: 2px solid rgba(228, 185, 96, 0.62);
+  background-image:
+    url("/usr/share/wlogout/icons/reboot.png"),
+    url("icons/key-R.svg");
 }
 
 #shutdown {
-  border-color: rgba(255, 117, 127, 0.38);
+  color: #ffe7ea;
+  background-color: rgba(68, 20, 32, 0.98);
+  border: 2px solid rgba(255, 112, 132, 0.96);
+  background-image:
+    url("/usr/share/wlogout/icons/shutdown.png"),
+    url("icons/key-S.svg");
+}
+
+#shutdown:hover,
+#shutdown:focus {
+  color: #ffffff;
+  background-color: rgba(108, 28, 42, 1);
+  border: 2px solid rgba(255, 148, 162, 1);
 }
