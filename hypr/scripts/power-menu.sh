@@ -2,6 +2,17 @@
 set -eu
 
 mode="${1:-full}"
+css_file="$HOME/.config/wlogout/style.css"
+
+if [ "$mode" = "futuristic" ]; then
+  mode="full"
+  css_file="$HOME/.config/wlogout/style-futuristic.css"
+fi
+
+if [ "$mode" = "minimal" ]; then
+  mode="full"
+  css_file="$HOME/.config/wlogout/style.css"
+fi
 
 show_compact_menu() {
   choice="$(
@@ -42,10 +53,10 @@ if command -v wlogout >/dev/null 2>&1; then
 
   exec wlogout \
     --layout "$HOME/.config/wlogout/layout" \
-    --css "$HOME/.config/wlogout/style.css" \
+    --css "$css_file" \
     --buttons-per-row 3 \
-    --column-spacing 12 \
-    --row-spacing 12
+    --column-spacing 10 \
+    --row-spacing 10
 fi
 
 show_compact_menu
