@@ -32,8 +32,17 @@ print_ldd_files() {
 }
 
 chrome_files() {
-  local root="/opt/google/chrome"
-  print_if_readable "$root/chrome"
+  local root=""
+  for candidate in /opt/google/chrome /usr/lib/chromium; do
+    [[ -x "$candidate/chrome" ]] || [[ -x "$candidate/chromium" ]] || continue
+    root="$candidate"
+    break
+  done
+  [[ -n "$root" ]] || return 0
+
+  local bin="$root/chrome"
+  [[ -x "$bin" ]] || bin="$root/chromium"
+  print_if_readable "$bin"
   print_if_readable "$root/resources.pak"
   print_if_readable "$root/chrome_100_percent.pak"
   print_if_readable "$root/icudtl.dat"
@@ -42,7 +51,8 @@ chrome_files() {
   print_if_readable "$root/libGLESv2.so"
   print_if_readable "$root/libvulkan.so.1"
   print_if_readable "$root/locales/en-US.pak"
-  print_ldd_files "$root/chrome"
+  print_if_readable "$root/locales/en-GB.pak"
+  print_ldd_files "$bin"
 }
 
 code_files() {
@@ -62,6 +72,44 @@ code_files() {
   print_ldd_files "$electron_root/electron"
 }
 
+obsidian_files() {
+  local root=""
+  local bin=""
+
+  for candidate in /usr/lib/obsidian /opt/obsidian /opt/Obsidian; do
+    [[ -d "$candidate" ]] || continue
+    root="$candidate"
+    break
+  done
+
+  if [[ -n "$root" ]]; then
+    for candidate in "$root/obsidian" "$root/Obsidian"; do
+      [[ -x "$candidate" ]] || continue
+      bin="$candidate"
+      break
+    done
+  fi
+
+  if [[ -z "$bin" ]]; then
+    bin="$(command -v obsidian 2>/dev/null || true)"
+    [[ -x "$bin" ]] || return 0
+  fi
+
+  print_if_readable "$bin"
+  [[ -n "$root" ]] || root="$(cd -- "$(dirname -- "$bin")" && pwd)"
+  print_if_readable "$root/resources.pak"
+  print_if_readable "$root/chrome_100_percent.pak"
+  print_if_readable "$root/chrome_200_percent.pak"
+  print_if_readable "$root/icudtl.dat"
+  print_if_readable "$root/v8_context_snapshot.bin"
+  print_if_readable "$root/libEGL.so"
+  print_if_readable "$root/libGLESv2.so"
+  print_if_readable "$root/libffmpeg.so"
+  print_if_readable "$root/locales/en-US.pak"
+  print_if_readable "$root/app.asar"
+  print_ldd_files "$bin"
+}
+
 warm_stream() {
   sort -zu \
     | while IFS= read -r -d '' file; do
@@ -76,14 +124,18 @@ case "${1:-all}" in
   code)
     code_files | warm_stream
     ;;
+  obsidian)
+    obsidian_files | warm_stream
+    ;;
   all|--session)
     {
       chrome_files
       code_files
+      obsidian_files
     } | warm_stream
     ;;
   *)
-    echo "usage: $0 [chrome|code|all|--session]" >&2
+    echo "usage: $0 [chrome|code|obsidian|all|--session]" >&2
     exit 2
     ;;
 esac

@@ -289,6 +289,14 @@ fi
 
 # Startup behavior controls
 ZSH_LAZY_LOAD_HEAVY="${ZSH_LAZY_LOAD_HEAVY:-1}"
+ZSH_FAST_STARTUP="${ZSH_FAST_STARTUP:-1}"
+if [[ -z "${ZSH_ENABLE_EXTRA_PLUGINS:-}" ]]; then
+  if [[ "$ZSH_FAST_STARTUP" == "1" ]]; then
+    ZSH_ENABLE_EXTRA_PLUGINS=0
+  else
+    ZSH_ENABLE_EXTRA_PLUGINS=1
+  fi
+fi
 
 # NVM init (lazy by default)
 resolve_nvm_dir() {
@@ -428,8 +436,10 @@ if [ -f "$HOME/.cache/hypr/theme-shell.zsh" ]; then
 fi
 
 # fzf-git.sh (Ctrl-g shortcuts for git objects)
-if [ -f "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh" ]; then
-  source "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh"
+if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
+  if [ -f "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh" ]; then
+    source "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh"
+  fi
 fi
 
 # fzf-tab (interactive fuzzy completion menu)
@@ -463,7 +473,15 @@ load_atuin_integration() {
   _atuin_loaded=1
 }
 if command -v atuin >/dev/null 2>&1; then
-  load_atuin_integration
+  if [[ "$ZSH_FAST_STARTUP" == "1" ]]; then
+    atuin() {
+      unset -f atuin
+      load_atuin_integration
+      command atuin "$@"
+    }
+  else
+    load_atuin_integration
+  fi
 fi
 
 # pay-respects (modern command correction + command-not-found)
@@ -472,28 +490,32 @@ if command -v pay-respects >/dev/null 2>&1; then
 fi
 
 # zsh-you-should-use (teaches aliases)
-for plugin in \
-  "$HOME/.local/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh" \
-  /usr/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh; do
-  [ -f "$plugin" ] || continue
-  # NOTE: plugin enables hardcore if the variable merely exists (even "0")
-  unset YSU_HARDCORE
-  export YSU_MODE=BESTMATCH
-  source "$plugin"
-  break
-done
+if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
+  for plugin in \
+    "$HOME/.local/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh" \
+    /usr/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh; do
+    [ -f "$plugin" ] || continue
+    # NOTE: plugin enables hardcore if the variable merely exists (even "0")
+    unset YSU_HARDCORE
+    export YSU_MODE=BESTMATCH
+    source "$plugin"
+    break
+  done
+fi
 
 # zsh-vi-mode (Vim motions in command line editing)
-for plugin in \
-  "$HOME/.local/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh" \
-  /usr/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh; do
-  [ -f "$plugin" ] && source "$plugin" && break
-done
+if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
+  for plugin in \
+    "$HOME/.local/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh" \
+    /usr/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh; do
+    [ -f "$plugin" ] && source "$plugin" && break
+  done
+fi
 
 # Optional plugins (if installed)
 # Enable zsh-autocomplete by default for live completion menus while typing.
 # Set ENABLE_ZSH_AUTOCOMPLETE=0 to disable it for a given session.
-ENABLE_ZSH_AUTOCOMPLETE="${ENABLE_ZSH_AUTOCOMPLETE:-1}"
+ENABLE_ZSH_AUTOCOMPLETE="${ENABLE_ZSH_AUTOCOMPLETE:-0}"
 if [[ "$ENABLE_ZSH_AUTOCOMPLETE" == "1" ]]; then
   for plugin in \
     "$HOME/.local/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
@@ -541,11 +563,13 @@ for plugin in \
 done
 
 # forgit (widgets / keybindings)
-for plugin in \
-  "$HOME/.local/share/zsh/plugins/forgit/forgit.plugin.zsh" \
-  /usr/share/zsh/plugins/forgit/forgit.plugin.zsh; do
-  [ -f "$plugin" ] && source "$plugin" && break
-done
+if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
+  for plugin in \
+    "$HOME/.local/share/zsh/plugins/forgit/forgit.plugin.zsh" \
+    /usr/share/zsh/plugins/forgit/forgit.plugin.zsh; do
+    [ -f "$plugin" ] && source "$plugin" && break
+  done
+fi
 
 typeset -gi __nox_syntax_highlight_loaded=0
 for plugin in \

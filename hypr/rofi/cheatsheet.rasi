@@ -10,9 +10,9 @@ window {
     width: 96%;
     height: 94%;
     border: 2px;
-    border-color: #6f94c9;
+    border-color: @accent;
     border-radius: 18px;
-    background-color: #0b1224c8;
+    background-color: @bg;
     padding: 16px;
 }
 
@@ -26,26 +26,26 @@ inputbar {
     spacing: 12px;
     padding: 14px;
     border: 1px;
-    border-color: #628ab9;
+    border-color: @accent;
     border-radius: 14px;
-    background-color: #14203bd0;
+    background-color: @bg-alt;
 }
 
 prompt {
-    text-color: #83b3d8;
+    text-color: @accent;
     font: "JetBrainsMono Nerd Font Bold 13";
 }
 
 entry {
-    text-color: #dbe4ff;
+    text-color: @fg;
     placeholder: "Type to filter commands, aliases, plugins, configs...";
-    placeholder-color: #93a2d6;
+    placeholder-color: @fg-muted;
     font: "JetBrainsMono Nerd Font 12";
 }
 
 message {
     padding: 0px 4px 8px 4px;
-    text-color: #9eb2eb;
+    text-color: @fg-muted;
     font: "JetBrainsMono Nerd Font 11";
 }
 
@@ -58,15 +58,15 @@ button {
     padding: 9px 12px;
     border-radius: 11px;
     border: 1px;
-    border-color: #2f4e96;
-    background-color: #151f37bf;
-    text-color: #9eb0de;
+    border-color: @accent;
+    background-color: @bg-alt;
+    text-color: @fg-muted;
 }
 
 button selected {
-    background-color: #6f94c9;
-    border-color: #9ebed8;
-    text-color: #0d1327;
+    background-color: @accent;
+    border-color: @accent;
+    text-color: @bg;
 }
 
 listview {
@@ -78,9 +78,9 @@ listview {
     spacing: 5px;
     scrollbar: true;
     border: 1px;
-    border-color: #39577c;
+    border-color: @accent;
     border-radius: 14px;
-    background-color: #0f172dbc;
+    background-color: @bg-alt;
     padding: 10px;
 }
 
@@ -88,29 +88,29 @@ element {
     padding: 8px 12px;
     border-radius: 9px;
     background-color: transparent;
-    text-color: #9aaad6;
+    text-color: @fg-muted;
 }
 
 element normal.normal {
     background-color: transparent;
-    text-color: #9aaad6;
+    text-color: @fg-muted;
 }
 
 element selected.normal {
-    background-color: #6f94c9bc;
-    text-color: #101726;
+    background-color: @accent;
+    text-color: @bg;
 }
 
 element-text {
     text-color: inherit;
     background-color: transparent;
-    highlight: bold #101726;
+    highlight: bold @bg;
 }
 
 scrollbar {
     width: 6px;
     border-radius: 100%;
     handle-width: 8px;
-    handle-color: #66c2b8;
-    background-color: #172648aa;
+    handle-color: @good;
+    background-color: @bg-alt;
 }

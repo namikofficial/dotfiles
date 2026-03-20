@@ -91,6 +91,19 @@ if [ "${HYPR_WARM_DESKTOP_APPS:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/
   ) &
 fi
 
+# Optional cold-start improvement: keep browser process hot in background.
+if [ "${HYPR_PRELAUNCH_BROWSER:-1}" = "1" ] && ! pgrep -x 'chrome|google-chrome|google-chrome-stable|chromium|chromium-browser' >/dev/null 2>&1; then
+  (
+    sleep 10
+    for browser in google-chrome-stable google-chrome chromium chromium-browser; do
+      bin="$(resolve_cmd "$browser" || true)"
+      [ -n "$bin" ] || continue
+      "$bin" --no-startup-window >/dev/null 2>&1 &
+      break
+    done
+  ) &
+fi
+
 # Re-apply preferred monitor layout and mode choices at session start.
 if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
   (
