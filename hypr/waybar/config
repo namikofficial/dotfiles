@@ -14,13 +14,9 @@
 
     "hyprland/workspaces": {
       "all-outputs": true,
-      "format": "{icon}",
+      "format": "{id}",
       "disable-scroll": true,
       "sort-by-number": true,
-      "format-icons": {
-        "active": "",
-        "default": ""
-      },
       "on-click": "activate"
     },
 

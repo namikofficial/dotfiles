@@ -35,8 +35,8 @@ window#waybar {
 }
 
 .modules-left {
-  padding-left: 7px;
-  padding-right: 8px;
+  padding-left: 9px;
+  padding-right: 9px;
 }
 
 button {
@@ -131,21 +131,29 @@ button {
 }
 
 #workspaces {
-  padding-left: 6px;
-  padding-right: 6px;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 #workspaces button {
-  font-family: "JetBrainsMono Nerd Font Mono", "Symbols Nerd Font", "Noto Sans", sans-serif;
-  font-size: 14px;
+  font-family: "JetBrains Mono", "Noto Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
   color: alpha(@muted, 0.72);
-  margin: 0 2px;
-  padding: 0 8px;
+  margin: 0 3px;
+  padding: 0;
+  min-width: 28px;
   min-height: 24px;
   border-radius: 9px;
   border: 1px solid alpha(@surface, 0.56);
   background: alpha(@bg_soft, 0.26);
   transition: background 190ms cubic-bezier(0.2, 0.9, 0.12, 1), border-color 190ms cubic-bezier(0.2, 0.9, 0.12, 1), color 190ms ease, box-shadow 190ms cubic-bezier(0.2, 0.9, 0.12, 1);
+}
+
+#workspaces button label {
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
 
 #workspaces button.active {
