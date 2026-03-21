@@ -123,8 +123,8 @@
 - `Super + Ctrl + R`: toggle screen recording
 - `Super + Y`: toggle widget panel (Eww)
 - `Super + Ctrl + Y`: restore Waybar panel
-- `Super + Alt + Y`: toggle panel visibility only
-- `Super + Ctrl + Shift + Y`: toggle desktop widgets
+- `Super + Shift + Y`: toggle panel visibility only
+- `Super + Ctrl + Alt + Y`: toggle desktop widgets
 - `Fn + 2/3/4/5`: AI helper (`ask`/`clipboard`/`shell`/`debug`)
 - `Super + Ctrl + Arrow`: move active floating window
 - `Super + Ctrl + Shift + Arrow`: resize active floating window
@@ -140,7 +140,7 @@
 - Focus left/right/up/down split: `Ctrl + Shift + H/J/K/L`
 - Resize split: `Ctrl + Shift + Alt + H/J/K/L`
 - Reload kitty config: `Ctrl + Shift + F5`
-- Reload theme + Kitty + Hyprland + panel: `Super + Shift + Y`
+- Reload theme + Kitty + Hyprland + panel: `Super + Ctrl + Shift + Y`
 - Next wallpaper: `Super + Shift + O`
 - Clipboard: selecting text copies automatically (`copy_on_select`)
 

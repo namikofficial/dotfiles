@@ -66,7 +66,7 @@ Current default hooks:
 
 - Hyprland shortcuts:
   `Super + Shift + O` -> next wallpaper
-  `Super + Shift + Y` -> reload theme, Kitty, Hyprland, panel, and caches
+  `Super + Ctrl + Shift + Y` -> reload theme, Kitty, Hyprland, panel, and caches
 
 - Curate current rotating pool for your monitor ratio/resolution:
 `~/.config/hypr/scripts/wallpaper-curate.sh ~/Pictures/wallpaper`

@@ -104,7 +104,7 @@ element selected.normal {
 element-text {
     text-color: inherit;
     background-color: transparent;
-    highlight: bold @bg;
+    highlight: bold;
 }
 
 scrollbar {

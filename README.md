@@ -136,10 +136,10 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
 - `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
 - In-workspace-hub hotkeys: `Ctrl + Alt + R` rename, `Ctrl + Alt + Backspace` clear label, `Ctrl + Alt + F` favorite, `Ctrl + Alt + S` shortcuts, `Ctrl + Alt + M/O/P` window move/send actions
-- `Super + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
+- `Super + Ctrl + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
 - `Super + Ctrl + Y`: restore Waybar panel
-- `Super + Alt + Y`: toggle panel visibility only (show/hide current panel)
-- `Super + Ctrl + Shift + Y`: toggle desktop widgets (above wallpaper / below windows)
+- `Super + Shift + Y`: toggle panel visibility only (show/hide current panel)
+- `Super + Ctrl + Alt + Y`: toggle desktop widgets (above wallpaper / below windows)
 - `Super + T`: toggle window group (tab-like stacks)
 - `Super + Ctrl + T`: move active window out of group
 - `Super + Alt + ;` / `Super + Alt + .`: previous/next tab in group
@@ -199,7 +199,7 @@ AI helper behavior:
 exec zsh
 hyprctl reload
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
-~/.config/hypr/scripts/theme-pass.sh   # same reload flow as Super+Shift+Y
+~/.config/hypr/scripts/theme-pass.sh   # same reload flow as Super+Ctrl+Shift+Y
 ~/.config/hypr/scripts/restart-waybar.sh
 ~/.config/hypr/scripts/launcher.sh --warm-cache
 ```

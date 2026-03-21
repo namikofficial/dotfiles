@@ -47,8 +47,8 @@ flowchart LR
 | `Super + Alt + ,` | Toggle Eww detailed settings panel | `settings-eww.sh` |
 | `Super + Ctrl + Alt + ,` | Apply per-app routing to focused app | `app-routing-apply-focused.sh` |
 | `Super + Ctrl + Y` | Restore Waybar panel | `panel-switch.sh waybar` |
-| `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
-| `Super + Ctrl + Shift + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh` |
+| `Super + Shift + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
+| `Super + Ctrl + Alt + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh toggle` |
 | `Super + Escape` | Power menu | `power-menu.sh` |
 | `Super + Ctrl + L` | Lock screen | `lock.sh` |
 
@@ -150,7 +150,7 @@ flowchart LR
 | `Ctrl + Shift + H/J/K/L` | Focus left/down/up/right split |
 | `Ctrl + Shift + Alt + H/J/K/L` | Resize split (narrow/short/tall/wide) |
 | `Ctrl + Shift + F5` | Reload kitty config |
-| `Super + Shift + Y` | Reload theme, Kitty, Hyprland, panel, and caches |
+| `Super + Ctrl + Shift + Y` | Reload theme, Kitty, Hyprland, panel, and caches |
 | `Super + Shift + O` | Switch to next wallpaper |
 | Select text | Auto-copy to clipboard (`copy_on_select`) |
 

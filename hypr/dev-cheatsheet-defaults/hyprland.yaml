@@ -50,8 +50,16 @@ entries:
     copy: ~/.config/hypr/scripts/workspace-overview.sh
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Shift+Y
+    description: Toggle panel visibility (waybar view)
+    copy: ~/.config/hypr/scripts/panel-switch.sh toggle-view
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+Shift+Y
     description: Reload theme, kitty, hyprland, panel, and caches
     copy: ~/.config/hypr/scripts/theme-pass.sh
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+Alt+Y
+    description: Toggle desktop widgets
+    copy: ~/.config/hypr/scripts/eww-desktop-toggle.sh toggle
     source: ~/.config/hypr/hyprland.conf
   - key: Super+.
     description: Open dev cheatsheet overlay

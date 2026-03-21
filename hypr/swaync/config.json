@@ -45,6 +45,8 @@
     "buttons-grid#notif_tools",
     "label#status_header",
     "buttons-grid#status_grid",
+    "label#connectivity_header",
+    "buttons-grid#connectivity_grid",
     "buttons-grid#actions_grid",
     "dnd",
     "mpris",
@@ -75,7 +77,7 @@
       "text": "System Hub"
     },
     "buttons-grid#status_grid": {
-      "buttons-per-row": 2,
+      "buttons-per-row": 3,
       "actions": [
         {
           "label": "󰢮 GPU Active",
@@ -100,6 +102,46 @@
           "command": "sh -lc '$HOME/.config/hypr/scripts/panel-switch.sh toggle-view'",
           "type": "toggle",
           "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-panel-visible.sh'"
+        },
+        {
+          "label": "󱐋 TLP Status",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/open-tlp-status.sh'",
+          "type": "toggle",
+          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-tlp-ac.sh'"
+        }
+      ]
+    },
+    "label#connectivity_header": {
+      "text": "Connectivity"
+    },
+    "buttons-grid#connectivity_grid": {
+      "buttons-per-row": 3,
+      "actions": [
+        {
+          "label": "󰖩 Wi-Fi",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/wifi-toggle.sh'",
+          "type": "toggle",
+          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-wifi-enabled.sh'"
+        },
+        {
+          "label": "󰂯 Bluetooth",
+          "command": "sh -lc 'if bluetoothctl show | grep -q \"Powered: yes\"; then bluetoothctl power off; else bluetoothctl power on; fi'",
+          "type": "toggle",
+          "update-command": "sh -lc 'bluetoothctl show 2>/dev/null | grep -q \"Powered: yes\" && echo true || echo false'"
+        },
+        {
+          "label": "󰖂 VPN",
+          "command": "sh -lc '$HOME/.config/hypr/scripts/vpn-toggle.sh'",
+          "type": "toggle",
+          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-vpn-active.sh'"
+        },
+        {
+          "label": "󰖪 Network",
+          "command": "nm-connection-editor"
+        },
+        {
+          "label": "󰂰 BT Manager",
+          "command": "blueman-manager"
         }
       ]
     },
@@ -123,16 +165,6 @@
           "command": "sh -lc '$HOME/.config/hypr/scripts/nm-applet-toggle.sh'",
           "type": "toggle",
           "update-command": "sh -lc 'pgrep -x nm-applet >/dev/null && echo true || echo false'"
-        },
-        {
-          "label": "󰂯 Bluetooth",
-          "command": "sh -lc 'if bluetoothctl show | grep -q \"Powered: yes\"; then bluetoothctl power off; else bluetoothctl power on; fi'",
-          "type": "toggle",
-          "update-command": "sh -lc 'bluetoothctl show 2>/dev/null | grep -q \"Powered: yes\" && echo true || echo false'"
-        },
-        {
-          "label": "󰂰 BT Manager",
-          "command": "blueman-manager"
         },
         {
           "label": "󰕮 Panel View",
