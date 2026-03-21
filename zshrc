@@ -142,6 +142,35 @@ warn_missing_tools_once() {
 }
 warn_missing_tools_once
 
+# Run a lightweight weekly environment health check.
+run_weekly_dev_doctor_check() {
+  emulate -L zsh
+  [[ -o interactive ]] || return 0
+
+  local doctor_bin=""
+  if [ -x "${SCRIPTS_BIN:-}/dev-doctor" ]; then
+    doctor_bin="${SCRIPTS_BIN}/dev-doctor"
+  elif command -v dev-doctor >/dev/null 2>&1; then
+    doctor_bin="$(command -v dev-doctor)"
+  else
+    return 0
+  fi
+
+  local cache_dir="$HOME/.cache/zsh"
+  local stamp_file="${cache_dir}/.dev-doctor-weekly-$(date +%G%V)"
+  mkdir -p "$cache_dir"
+  [ -f "$stamp_file" ] && return 0
+
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 12s "$doctor_bin" >/dev/null 2>&1 || print -P "%F{yellow}zsh:%f weekly dev-doctor found issues (run: dev-doctor)"
+  else
+    "$doctor_bin" >/dev/null 2>&1 || print -P "%F{yellow}zsh:%f weekly dev-doctor found issues (run: dev-doctor)"
+  fi
+
+  : >| "$stamp_file"
+}
+run_weekly_dev_doctor_check
+
 # Small TTL cache for expensive shell lookups.
 zsh_cache_run() {
   emulate -L zsh
@@ -369,14 +398,6 @@ if ! command -v codex >/dev/null 2>&1; then
   [ -n "$codex_bin_dir" ] && path=("$codex_bin_dir" $path)
 fi
 
-# Default Codex behavior across projects:
-# typing `codex ...` implicitly uses search + full access + on-request approvals.
-if [[ -o interactive ]]; then
-  codex() {
-    command codex --search -s danger-full-access -a on-request "$@"
-  }
-fi
-
 # GitHub Copilot shell aliases (safe no-op when not installed).
 if command -v gh >/dev/null 2>&1; then
   if gh extension list 2>/dev/null | rg -q 'github/gh-copilot'; then
@@ -473,23 +494,47 @@ if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
 fi
 
+# Keep Up/Down arrow history behavior stable even if plugins (e.g. Atuin) rebind keys.
+rebind_history_navigation_keys() {
+  emulate -L zsh
+
+  local fallback_up="up-line-or-history"
+  local fallback_down="down-line-or-history"
+  if zle -l | command grep -Eq '^history-substring-search-up([[:space:]]|$)'; then
+    fallback_up="history-substring-search-up"
+    fallback_down="history-substring-search-down"
+  fi
+
+  local keymap
+  for keymap in emacs viins vicmd; do
+    local up_widget="$fallback_up"
+    local down_widget="$fallback_down"
+
+    if [[ "$keymap" == "viins" ]] && zle -l | command grep -Eq '^atuin-up-search-viins([[:space:]]|$)'; then
+      up_widget="atuin-up-search-viins"
+    elif [[ "$keymap" == "vicmd" ]] && zle -l | command grep -Eq '^atuin-up-search-vicmd([[:space:]]|$)'; then
+      up_widget="atuin-up-search-vicmd"
+    elif zle -l | command grep -Eq '^atuin-up-search([[:space:]]|$)'; then
+      up_widget="atuin-up-search"
+    fi
+
+    bindkey -M "$keymap" '^[[A' "$up_widget" 2>/dev/null || true
+    bindkey -M "$keymap" '^[OA' "$up_widget" 2>/dev/null || true
+    bindkey -M "$keymap" '^[[B' "$down_widget" 2>/dev/null || true
+    bindkey -M "$keymap" '^[OB' "$down_widget" 2>/dev/null || true
+  done
+}
+
 # atuin (better shell history)
 _atuin_loaded=0
 load_atuin_integration() {
   (( _atuin_loaded )) && return 0
   eval "$(command atuin init zsh)"
+  rebind_history_navigation_keys
   _atuin_loaded=1
 }
 if command -v atuin >/dev/null 2>&1; then
-  if [[ "$ZSH_FAST_STARTUP" == "1" ]]; then
-    atuin() {
-      unset -f atuin
-      load_atuin_integration
-      command atuin "$@"
-    }
-  else
-    load_atuin_integration
-  fi
+  load_atuin_integration
 fi
 
 # pay-respects (modern command correction + command-not-found)
@@ -567,6 +612,7 @@ for plugin in \
   bindkey '^[[B' history-substring-search-down
   bindkey '^P' history-substring-search-up
   bindkey '^N' history-substring-search-down
+  rebind_history_navigation_keys
   break
 done
 
@@ -638,6 +684,45 @@ if [[ -o interactive ]]; then
   bindkey '^[c' fzf_jump_widget
   bindkey -M emacs '^[c' fzf_jump_widget 2>/dev/null || true
   bindkey -M viins '^[c' fzf_jump_widget 2>/dev/null || true
+
+  recent_projects_list() {
+    emulate -L zsh
+    command -v zoxide >/dev/null 2>&1 || return 0
+
+    local dir root
+    typeset -A seen_roots
+    while IFS= read -r dir; do
+      [ -d "$dir" ] || continue
+      root="$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || true)"
+      [ -n "$root" ] || continue
+      if [[ -n "${seen_roots[$root]:-}" ]]; then
+        continue
+      fi
+      seen_roots[$root]=1
+      print -r -- "$root"
+    done < <(zoxide query -l 2>/dev/null)
+  }
+
+  fzf_projects_widget() {
+    emulate -L zsh
+    command -v fzf >/dev/null 2>&1 || return 0
+
+    local target
+    target="$(
+      recent_projects_list |
+        fzf --height=45% --layout=reverse --prompt='project> ' \
+          --preview='ls -la --color=always {} 2>/dev/null | head -n 80'
+    )"
+    [ -n "$target" ] || return 0
+    cd "$target" || return 0
+    zle reset-prompt
+  }
+  zle -N fzf_projects_widget
+  bindkey '^[p' fzf_projects_widget
+  bindkey -M emacs '^[p' fzf_projects_widget 2>/dev/null || true
+  bindkey -M viins '^[p' fzf_projects_widget 2>/dev/null || true
+
+  rebind_history_navigation_keys
 fi
 
 # Compact RPROMPT with command duration + context (optional).
