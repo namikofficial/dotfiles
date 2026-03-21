@@ -568,7 +568,7 @@ fi
 # Optional plugins (if installed)
 # Enable zsh-autocomplete by default for live completion menus while typing.
 # Set ENABLE_ZSH_AUTOCOMPLETE=0 to disable it for a given session.
-ENABLE_ZSH_AUTOCOMPLETE="${ENABLE_ZSH_AUTOCOMPLETE:-0}"
+ENABLE_ZSH_AUTOCOMPLETE="${ENABLE_ZSH_AUTOCOMPLETE:-1}"
 if [[ "$ENABLE_ZSH_AUTOCOMPLETE" == "1" ]]; then
   for plugin in \
     "$HOME/.local/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
@@ -583,6 +583,10 @@ for plugin in \
   /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh; do
   [ -f "$plugin" ] && source "$plugin" && break
 done
+# Prefer Atuin, but always fall back to normal history suggestions while typing.
+typeset -ga ZSH_AUTOSUGGEST_STRATEGY
+ZSH_AUTOSUGGEST_STRATEGY=(atuin history completion)
+ZSH_AUTOSUGGEST_USE_ASYNC=1
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#6c7086'
 
 # Keep TAB doing normal shell completion instead of autosuggestion capture.
