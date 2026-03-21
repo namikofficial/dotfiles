@@ -31,13 +31,16 @@
   },
   "scripts": {
     "play-notify-critical": {
-      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh critical dialog-warning'"
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh critical dialog-warning'",
+      "urgency": "Critical"
     },
     "play-notify-message": {
-      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh message message-new-instant'"
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh message message-new-instant'",
+      "urgency": "Normal"
     },
     "play-notify-system": {
-      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh system service-login'"
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh system service-login'",
+      "urgency": "Low"
     }
   },
   "widgets": [
@@ -45,8 +48,6 @@
     "buttons-grid#notif_tools",
     "label#status_header",
     "buttons-grid#status_grid",
-    "label#connectivity_header",
-    "buttons-grid#connectivity_grid",
     "buttons-grid#actions_grid",
     "dnd",
     "mpris",
@@ -192,7 +193,6 @@
       "label": "Brightness"
     },
     "notifications": {
-      "show-scrollbar": true,
       "vexpand": true
     }
   }
