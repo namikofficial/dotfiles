@@ -175,6 +175,16 @@ button {
   opacity: 0.84;
 }
 
+#custom-media.hidden {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0;
+}
+
 #custom-cpu,
 #custom-memory {
   min-width: 64px;
