@@ -132,8 +132,20 @@ if command -v gnome-keyring-daemon >/dev/null 2>&1; then
 fi
 
 run_once avizo-service avizo-service
-run_once waybar waybar
+# Keep a single panel engine active by default to avoid tray/DND duplication.
+pkill -x hyprpanel >/dev/null 2>&1 || true
+pkill -x ags >/dev/null 2>&1 || true
+"$HOME/.config/hypr/scripts/restart-waybar.sh" >/dev/null 2>&1 || true
 ensure_single_process waybar
+
+# Optional desktop-widget layer (Eww) for richer visual dashboard.
+if [ "${HYPR_ENABLE_EWW_DESKTOP:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/eww-desktop-toggle.sh" ]; then
+  (
+    sleep 2
+    "$HOME/.config/hypr/scripts/eww-desktop-toggle.sh" show >/dev/null 2>&1 || true
+  ) &
+fi
+
 run_cmd_if_not "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh" "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh"
 # Let Hyprland's generic monitor rules handle displays by default.
 # Only start kanshi when the user has provided an explicit profile config.
