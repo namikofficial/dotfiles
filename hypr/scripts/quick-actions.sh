@@ -76,6 +76,7 @@ actions=(
   "Open Notes"
   "Open Notes Folder"
   "Open Settings Hub"
+  "Monitor Control"
   "Run Weekly Health Check"
 )
 
@@ -205,6 +206,7 @@ case "$choice_index" in
   44) ~/.config/hypr/scripts/open-notes.sh ;;
   45) ~/.config/hypr/scripts/open-notes.sh ;;
   46) ~/.config/hypr/scripts/settings-hub.sh ;;
-  47) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;
+  47) ~/.config/hypr/scripts/monitor-control.sh menu ;;
+  48) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;
   *) exit 0 ;;
 esac

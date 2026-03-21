@@ -2,3 +2,5 @@ logs/*.log
 logs/*-latest.log
 settings/state.local.json
 settings/export/
+hypr/hyprland.conf.bak*
+hypr/hyprland.conf.pre-*

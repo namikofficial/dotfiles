@@ -15,6 +15,7 @@ Open Settings Panel (Eww)|eww|none
 Open Quick Editor (Rofi)|editor|none
 Open App Routing Editor|routing|none
 Pick Machine Profile|profile|none
+Displays|display|none
 Notifications|apply|notifications
 Action Center|apply|action-center
 Notification Sounds|apply|sounds
@@ -71,6 +72,9 @@ case "$action" in
     ;;
   profile)
     "$ROOT_DIR/hypr/scripts/settings/profile-picker.sh"
+    ;;
+  display)
+    "$ROOT_DIR/hypr/scripts/monitor-control.sh" menu
     ;;
   eww)
     "$ROOT_DIR/hypr/scripts/settings-eww.sh"

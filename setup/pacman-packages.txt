@@ -24,6 +24,7 @@ man-db
 man-pages
 git
 github-cli
+git-delta
 tmux
 neovim
 lua-language-server
@@ -44,13 +45,14 @@ rust-analyzer
 yaml-language-server
 taplo-cli
 shfmt
-code
 helix
 lazygit
 lazydocker
 duf
 dust
+dua-cli
 procs
+bottom
 yazi
 ffmpegthumbnailer
 unarchiver
@@ -60,10 +62,13 @@ chafa
 xh
 pgcli
 obsidian
+rofi-calc
 zellij
 hyperfine
 pipx|python-pipx
 shellcheck
+cmake
+cpio
 strace
 lsof
 sd
@@ -71,6 +76,25 @@ curl
 wget
 unzip
 zip
+
+# KDE / Plasma companion apps (minimal Plasma alongside Hyprland)
+dolphin
+gwenview
+ark
+kcalc
+spectacle
+okular
+kdeconnect
+systemsettings
+kde-cli-tools
+plasma-desktop
+plasma-workspace
+plasma-nm
+plasma-pa
+bluedevil
+kscreen
+dolphin-plugins
+ffmpegthumbs
 
 # Hyprland / Wayland stack
 hyprland
@@ -118,10 +142,11 @@ seahorse
 
 # UI polish and fonts
 ttf-jetbrains-mono-nerd
-ttf-inter
+inter-font
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
+otf-font-awesome
 papirus-icon-theme
 fastfetch
 timeshift
@@ -157,3 +182,6 @@ flatpak
 ufw
 mpv
 easyeffects
+qpwgraph
+android-udev
+scrcpy

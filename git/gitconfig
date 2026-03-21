@@ -1,0 +1,35 @@
+[core]
+	pager = delta
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true
+	side-by-side = true
+	line-numbers = true
+	hyperlinks = true
+
+[merge]
+	conflictstyle = zdiff3
+
+[diff]
+	colorMoved = default
+[credential "https://github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[user]
+	email = namikofficial@gmail.com
+	name = namikofficial
+	signingkey = /home/namik/.ssh/id_ed25519.pub
+[gpg]
+	format = ssh
+[commit]
+	gpgsign = true
+[tag]
+	gpgSign = true
+[gpg "ssh"]
+	allowedSignersFile = /home/namik/.config/git/allowed_signers

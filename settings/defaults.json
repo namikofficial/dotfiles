@@ -31,9 +31,9 @@
     "height": 720
   },
   "lock_screen": {
-    "blur_passes": 2,
-    "brightness": 0.8,
-    "vibrancy": 0.2
+    "blur_passes": 4,
+    "brightness": 0.72,
+    "vibrancy": 0.24
   },
   "wallpaper": {
     "rotate_enabled": true,
@@ -85,7 +85,7 @@
   },
   "startup": {
     "nm_applet_autostart": false,
-    "nvidia_settings_autoload": true
+    "nvidia_settings_autoload": false
   },
   "shortcuts": {
     "open_settings_hub": "SUPER, comma",

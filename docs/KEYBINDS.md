@@ -29,7 +29,7 @@ flowchart LR
 | `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + Y` | Workspace hub (primary path) | `workspace-overview-toggle.sh` |
 | `Super + W` | Workspace overview (direct Rofi path) | `workspace-overview.sh` |
-| `Super + Tab` | Mission control overview | `hyprexpo:expo toggle` |
+| `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `workspace-overview-toggle.sh` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
 | `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
@@ -46,11 +46,11 @@ flowchart LR
 | `Super + Ctrl + ,` | Quick settings toggle (notification sounds) | `settings-hub.sh quick` |
 | `Super + Alt + ,` | Toggle Eww detailed settings panel | `settings-eww.sh` |
 | `Super + Ctrl + Alt + ,` | Apply per-app routing to focused app | `app-routing-apply-focused.sh` |
-| `Super + Ctrl + Y` | Toggle Waybar/HyprPanel | `panel-switch.sh toggle` |
-| `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
-| `Super + Ctrl + Shift + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh` |
+| `Super + Ctrl + Y` | Restore Waybar panel | `panel-switch.sh waybar` |
+| `Super + Shift + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
+| `Super + Ctrl + Alt + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh toggle` |
 | `Super + Escape` | Power menu | `power-menu.sh` |
-| `Super + L` | Lock screen | `lock.sh` |
+| `Super + Ctrl + L` | Lock screen | `lock.sh` |
 
 ## Window / Layout
 
@@ -142,14 +142,16 @@ flowchart LR
 | Keybind | Action |
 |---|---|
 | `Ctrl + Shift + T` | New tab (inherits current working directory) |
-| `Ctrl + Shift + Q` | Close current tab |
-| `Ctrl + Shift + W` | Close current split/window |
+| `Ctrl + Shift + Q` | Close current split/window |
+| `Ctrl + Shift + W` | Close current tab |
 | `Ctrl + Shift + [` / `Ctrl + Shift + ]` | Previous / next tab |
 | `Ctrl + Shift + Enter` | New terminal window (same cwd) |
 | `Ctrl + Shift + O` / `Ctrl + Shift + E` | Split horizontal / vertical |
 | `Ctrl + Shift + H/J/K/L` | Focus left/down/up/right split |
 | `Ctrl + Shift + Alt + H/J/K/L` | Resize split (narrow/short/tall/wide) |
 | `Ctrl + Shift + F5` | Reload kitty config |
+| `Super + Ctrl + Shift + Y` | Reload theme, Kitty, Hyprland, panel, and caches |
+| `Super + Shift + O` | Switch to next wallpaper |
 | Select text | Auto-copy to clipboard (`copy_on_select`) |
 
 ## Rofi Menus (Launcher + Quick Actions)

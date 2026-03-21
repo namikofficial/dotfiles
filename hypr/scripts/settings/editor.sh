@@ -20,7 +20,7 @@ Set Lock Blur Passes|set lock_screen.blur_passes|lock-screen
 Set Lock Brightness|set lock_screen.brightness|lock-screen
 Set Wallpaper Interval (minutes)|set wallpaper.rotate_interval_minutes|wallpaper
 Toggle Wallpaper Rotate|toggle wallpaper.rotate_enabled|wallpaper
-Set Panel Engine (waybar/hyprpanel)|set-string panel.engine|panel
+Restore Waybar Panel|apply panel|panel
 Set Power Profile (power-saver/balanced/performance)|set-string power.default_profile|power
 Set Keyboard Layout|set-string input.kb_layout|input
 Toggle Touchpad Natural Scroll|toggle input.touchpad_natural_scroll|input
@@ -43,6 +43,11 @@ MENU
 
   if [[ "$action" == "toggle" ]]; then
     "$SETTINGSCTL" toggle "$path"
+    "$SETTINGSCTL" apply "$section"
+    continue
+  fi
+
+  if [[ "$action" == "apply" ]]; then
     "$SETTINGSCTL" apply "$section"
     continue
   fi

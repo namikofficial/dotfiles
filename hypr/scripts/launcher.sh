@@ -528,6 +528,11 @@ run_fast_launcher() {
   launch_desktop_id "$desktop_id"
 }
 
+calc_mode_supported() {
+  command -v rofi >/dev/null 2>&1 || return 1
+  rofi -help 2>/dev/null | grep -qi '\<calc\>'
+}
+
 # Cache maintenance entrypoints.
 if [ "${1:-}" = "--rebuild-cache" ]; then
   build_cache
@@ -575,10 +580,23 @@ if [ "$launch_mode" = "fast" ]; then
   exit 0
 fi
 
+rofi_show_mode="frequent"
+rofi_modes="frequent:$0 --mode frequent,apps:$0 --mode all"
+rofi_combi_args=()
+rofi_message='Top: frequent 5 | Apps: full list | Ctrl+Tab switches tabs'
+
+if calc_mode_supported; then
+  rofi_show_mode="combi"
+  rofi_modes="${rofi_modes},calc,combi"
+  rofi_combi_args=(-combi-modi 'frequent,apps,calc')
+  rofi_message='Apps + calculator | Type app name or 2*2 | Ctrl+Tab switches modes'
+fi
+
 set +e
 rofi \
-  -show frequent \
-  -modi "frequent:$0 --mode frequent,apps:$0 --mode all" \
+  -show "$rofi_show_mode" \
+  -modi "$rofi_modes" \
+  "${rofi_combi_args[@]}" \
   -no-sort \
   -show-icons \
   -icon-theme 'Papirus-Dark' \
@@ -593,7 +611,7 @@ rofi \
   -kb-select-9 'Control+9,Super+9' \
   -kb-select-10 'Control+0,Super+0' \
   -kb-cancel 'Escape,Control+g,Super+space' \
-  -mesg 'Top: frequent 5 | Apps: full list | Ctrl+Tab switches tabs' \
+  -mesg "$rofi_message" \
   -theme "$ROFI_THEME" \
   -pid "$PID_FILE"
 rofi_status=$?

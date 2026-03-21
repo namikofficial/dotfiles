@@ -10,7 +10,7 @@ elif command -v yay >/dev/null 2>&1; then
 fi
 
 if [ "${count:-0}" -gt 0 ] 2>/dev/null; then
-  printf '󰏗 %s\n' "$count"
+  printf '󰏗  %s\n' "$count"
 else
-  echo "󰏖 0"
+  echo "󰏖  0"
 fi

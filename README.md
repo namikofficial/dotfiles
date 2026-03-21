@@ -24,8 +24,11 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 
 ```sh
 cd ~/Documents/code/dotfiles
-./setup/bootstrap.sh --scripts-dir "$HOME/Documents/code/scripts"
+git submodule update --init private/scripts
+./setup/bootstrap.sh
 ```
+
+If you do not have access to the private scripts repo, skip the `git submodule` step and the public dotfiles setup will still work.
 
 That command:
 
@@ -33,14 +36,17 @@ That command:
 - links tmux config (`~/.tmux.conf`)
 - links Neovim config (`~/.config/nvim`)
 - links Atuin config into `~/.config/atuin/config.toml`
+- links UWSM compositor env (`~/.config/uwsm/env-hyprland`)
+- links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
 - links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
-- links Eww and theme configs (`gtk`, `qt5ct`, `qt6ct`, `Kvantum`) into `~/.config`
+- links Eww and static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
 - links optional Eww settings panel config into `~/.config/eww-settings`
 - links swaync/wlogout/dunst configs into `~/.config`
 - links Chrome flags to `~/.config/chrome-flags.conf`
-- links KDE defaults (`kdeglobals`, `dolphinrc`, `kiorc`, `gwenviewrc`)
-- links MIME defaults (`~/.config/mimeapps.list`)
-- links your `~/Documents/code/scripts/bin/*` commands into `~/.local/bin`
+- copies runtime-managed KDE/theme defaults (`kdeglobals`, `Kvantum`) into `~/.config` so wallpaper sync can update them without dirtying the repo
+- links KDE app defaults (`dolphinrc`, `kiorc`, `gwenviewrc`)
+- copies MIME defaults (`~/.config/mimeapps.list`) so local handler changes stay machine-specific
+- links your private scripts commands into `~/.local/bin` when `private/scripts` (or another `--scripts-dir`) is available
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
 - installs/updates tmux plugins via TPM (`~/.tmux/plugins/tpm`)
 - creates timestamped backups when replacing existing configs
@@ -49,10 +55,10 @@ That command:
 
 ```sh
 cd ~/Documents/code/dotfiles
-./setup/bootstrap.sh --scripts-dir "$HOME/Documents/code/scripts" --install-packages --with-aur
+./setup/bootstrap.sh --install-packages --with-aur
 ```
 
-NVIDIA users can force kernel/userspace driver packages:
+Base installs leave the existing NVIDIA stack untouched. NVIDIA users can opt in to repo-managed kernel/userspace driver packages:
 
 ```sh
 ./setup/bootstrap.sh --install-packages --with-aur --with-nvidia
@@ -64,8 +70,8 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 
 - `setup/pacman-packages.txt`: official repository packages
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
-- `setup/aur-packages.txt`: AUR packages (`google-chrome`, `pamac-aur`, `wlogout`, `eww`)
-- `setup/install-hypr-plugins.sh`: installs Hypr plugins via `hyprpm` (`hyprexpo` by default)
+- `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `eww`, `localsend`)
+- `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
 
 Install packages only:
 
@@ -80,6 +86,7 @@ sudo rm -f /var/lib/pacman/db.lck
 ```
 
 The installer auto-skips packages that are not available in current repos.
+NVIDIA packages are opt-in only; hardware detection alone does not change your current driver stack.
 The bootstrap script automatically runs `setup/install-zsh-plugins.sh` unless you pass `--no-zsh-plugins`.
 The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless you pass `--no-tmux-plugins`.
 
@@ -87,8 +94,8 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 
 - `Super + Y`: primary workspace hub (`workspace-overview-toggle.sh`)
 - `Super + W`: workspace/window overview switcher (direct Rofi list)
-- `Super + Tab`: Mission-Control style overview (`hyprexpo`)
-- `Super + Shift + Tab`: force fallback Rofi overview
+- `Super + Tab`: overview toggle (`hyprexpo` if loaded, otherwise fallback Rofi overview)
+- `Super + Shift + Tab`: direct Rofi overview
 - `Super + Space`: ultra-fast app launcher (type-to-search, minimal chrome)
 - `Super + Shift + Space`: window/workspace search
 - `Super + Ctrl + Space`: command palette (quick actions)
@@ -105,6 +112,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + ,`: quick settings toggle (notification sounds)
 - `Super + Alt + ,`: toggle Eww detailed settings panel
 - `Super + Ctrl + Alt + ,`: apply per-app routing to focused app
+- `Super + Alt + P`: open monitor control/recovery menu
 - `Super + .`: fullscreen dev cheatsheet overlay (searchable + tabbed)
 - `Super + F`: toggle floating on active window
 - `Super + M`: maximize/unmaximize active window
@@ -128,10 +136,10 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
 - `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
 - In-workspace-hub hotkeys: `Ctrl + Alt + R` rename, `Ctrl + Alt + Backspace` clear label, `Ctrl + Alt + F` favorite, `Ctrl + Alt + S` shortcuts, `Ctrl + Alt + M/O/P` window move/send actions
-- `Super + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
-- `Super + Ctrl + Y`: toggle panel engine (`waybar` <-> `hyprpanel`, if installed)
-- `Super + Alt + Y`: toggle panel visibility only (show/hide current panel)
-- `Super + Ctrl + Shift + Y`: toggle desktop widgets (above wallpaper / below windows)
+- `Super + Ctrl + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
+- `Super + Ctrl + Y`: restore Waybar panel
+- `Super + Shift + Y`: toggle panel visibility only (show/hide current panel)
+- `Super + Ctrl + Alt + Y`: toggle desktop widgets (above wallpaper / below windows)
 - `Super + T`: toggle window group (tab-like stacks)
 - `Super + Ctrl + T`: move active window out of group
 - `Super + Alt + ;` / `Super + Alt + .`: previous/next tab in group
@@ -179,14 +187,6 @@ Normalize existing copied files to symlinks:
 - Tmux prefix is `Ctrl + A`; pane navigation is `Prefix + h/j/k/l`
 - Neovim config is in `nvim/` and bootstraps plugins with `lazy.nvim`
 
-## Optional UI stack (AGS/HyprPanel)
-
-```sh
-yay -S --needed aylurs-gtk-shell hyprpanel
-```
-
-Then toggle panels with `Super + Ctrl + Y`.
-
 Notification panel now includes sticky "System Hub" controls (GPU/media/network/panel status, copy summary, widget toggles, and quick controls) via SwayNC.
 
 AI helper behavior:
@@ -199,7 +199,7 @@ AI helper behavior:
 exec zsh
 hyprctl reload
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
-~/.config/hypr/scripts/theme-pass.sh
+~/.config/hypr/scripts/theme-pass.sh   # same reload flow as Super+Ctrl+Shift+Y
 ~/.config/hypr/scripts/restart-waybar.sh
 ~/.config/hypr/scripts/launcher.sh --warm-cache
 ```
@@ -278,6 +278,21 @@ Set default editor MIME handlers:
 Notes path defaults:
 - Folder: `~/Documents/notes`
 - Scratch file: `~/Documents/notes/inbox.md`
+- `open-notes.sh` prefers Obsidian when it is installed, then falls back to VS Code/Codium.
+
+## KDE companion apps on Hyprland
+
+For a Hyprland-first setup with native KDE file management, image viewing, and a GUI settings app:
+
+```sh
+sudo pacman -S --needed gwenview systemsettings ark
+```
+
+If you want a full Plasma session installed alongside Hyprland later, keep it separate from the base dotfiles install:
+
+```sh
+sudo pacman -S --needed plasma-desktop plasma-workspace
+```
 
 ## Timeshift daily auto snapshots (keep latest 5)
 
@@ -285,7 +300,7 @@ Notes path defaults:
 sudo ./setup/configure-timeshift.sh
 ```
 
-This sets Timeshift to daily snapshots only, keeps the latest 5 daily snapshots, installs `noxflow-timeshift-auto.timer`, and writes logs to `logs/timeshift-setup-latest.log`.
+This sets Timeshift to daily snapshots only, keeps the latest 5 daily snapshots, installs a daily `noxflow-timeshift-auto.timer`, and writes logs to `logs/timeshift-setup-latest.log`.
 
 ## SDDM login screen polish
 
@@ -326,7 +341,9 @@ sudo ./setup/fix-nvidia-proprietary-hybrid.sh
 sudo reboot
 ```
 
-If Hyprland crashes at login with `CBackend::create() failed`, check `AQ_DRM_DEVICES` in your Hyprland config. Do not use `/dev/dri/by-path/pci-0000:...` there because `AQ_DRM_DEVICES` is colon-separated; use `/dev/dri/cardN` instead.
+If Hyprland crashes at login with `CBackend::create() failed`, check `AQ_DRM_DEVICES` in `~/.config/uwsm/env-hyprland`. Do not use `/dev/dri/by-path/pci-0000:...` there because `AQ_DRM_DEVICES` is colon-separated; use `/dev/dri/cardN` instead.
+
+If external HDMI/DP hotplug stops working on hybrid Intel + nouveau laptops, install `modprobe.d/nouveau-runtimepm.conf` into `/etc/modprobe.d/` and rebuild initramfs. That disables nouveau runtime PM so the dGPU keeps reporting external connectors after unplug/replug.
 
 If your system hard-freezes during login with kernel messages about `kworker`, `nv_drm_dev_load`, or `nvidia-persiste`, use:
 
@@ -341,16 +358,14 @@ sudo reboot
 ./setup/install-hypr-plugins.sh
 ```
 
+This builds `hyprexpo` into `~/.local/share/hypr/plugins/hyprexpo/hyprexpo.so`.
+`startup.sh` will load it on session start, and `Super + Tab` will also load it
+on demand before falling back to the Rofi overview.
+
 Optional (can fail on some Hyprland versions):
 
 ```sh
 ./setup/install-hypr-plugins.sh --with-hyprspace
-```
-
-If `hyprpm` was previously run as root and plugin updates fail:
-
-```sh
-sudo chown -R "$USER:$USER" /var/cache/hyprpm/"$USER"
 ```
 
 If reboot itself hangs and you need a guaranteed stable baseline, force iGPU-only boot:

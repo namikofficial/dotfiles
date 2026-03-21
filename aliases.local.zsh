@@ -9,5 +9,32 @@
 
 # Local project shortcuts.
 alias noxflow='cd ~/Documents/code/noxflow'
-alias wellvantage='cd ~/Documents/code/wellvantage'
+alias wellvantage='cd ~/Documents/code/WellVantage'
+alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
+
+vpn-connect() {
+  "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-connect" "$@"
+}
+
+vpn-disconnect() {
+  "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-disconnect" "$@"
+}
+
+vpn-logs() {
+  "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-logs" "$@"
+}
+
+vpn-status() {
+  "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-status" "$@"
+}
+
+batroot() {
+  if command -v bat >/dev/null 2>&1; then
+    sudo bat --paging=never --style=plain "$@"
+  elif command -v batcat >/dev/null 2>&1; then
+    sudo batcat --paging=never --style=plain "$@"
+  else
+    sudo cat "$@"
+  fi
+}

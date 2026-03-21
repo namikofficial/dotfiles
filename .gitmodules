@@ -1,0 +1,3 @@
+[submodule "private/scripts"]
+	path = private/scripts
+	url = git@github.com:namikofficial/scripts.git

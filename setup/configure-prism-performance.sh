@@ -3,6 +3,7 @@ set -euo pipefail
 
 prism_dir="${PRISM_DIR:-$HOME/.local/share/PrismLauncher}"
 apps_dir="$HOME/.local/share/applications"
+wrapper="$HOME/.config/hypr/scripts/prism-launcher.sh"
 mkdir -p "$apps_dir"
 
 jvm_args='-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=50 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=20 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=16M -XX:G1ReservePercent=15 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=20 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1'
@@ -32,14 +33,14 @@ if [ -d "$prism_dir/instances" ]; then
   done < <(find "$prism_dir/instances" -maxdepth 3 -type f -name 'instance.cfg' -print0)
 fi
 
-cat > "$apps_dir/org.prismlauncher.PrismLauncher.desktop" <<'DESKTOP'
+cat > "$apps_dir/org.prismlauncher.PrismLauncher.desktop" <<DESKTOP
 [Desktop Entry]
 Version=1.0
 Name=Prism Launcher
 Comment=Discover, manage, and play Minecraft instances
 Type=Application
 Terminal=false
-Exec=/home/namik/.config/hypr/scripts/prism-launcher.sh %U
+Exec=$wrapper %U
 StartupNotify=true
 Icon=org.prismlauncher.PrismLauncher
 Categories=Game;ActionGame;AdventureGame;Simulation;PackageManager;
@@ -48,14 +49,14 @@ StartupWMClass=PrismLauncher
 MimeType=application/zip;application/x-modrinth-modpack+zip;x-scheme-handler/curseforge;x-scheme-handler/prismlauncher;
 DESKTOP
 
-cat > "$apps_dir/prism-mc.desktop" <<'DESKTOP'
+cat > "$apps_dir/prism-mc.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Version=1.0
 Name=Prism MC Performance
 GenericName=Minecraft Launcher
-Comment=Launch Prism Launcher with NVIDIA offload + GameMode
-Exec=/home/namik/.config/hypr/scripts/prism-launcher.sh
+Comment=Launch Prism Launcher with discrete-GPU preferences + GameMode
+Exec=$wrapper
 Icon=org.prismlauncher.PrismLauncher
 Terminal=false
 Categories=Game;

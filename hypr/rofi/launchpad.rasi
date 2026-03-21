@@ -1,0 +1,58 @@
+@theme "theme.rasi"
+
+window {
+    width: 44%;
+    border-radius: 18px;
+}
+
+mainbox {
+    spacing: 10px;
+    padding: 14px 16px;
+}
+
+inputbar {
+    padding: 11px 14px;
+    border-radius: 12px;
+    spacing: 10px;
+}
+
+prompt {
+    text-color: @accent;
+    font: "JetBrainsMono Nerd Font Bold 13";
+}
+
+entry {
+    placeholder: "type to filter…";
+    placeholder-color: @fg-muted;
+}
+
+listview {
+    lines: 11;
+    spacing: 5px;
+    scrollbar: false;
+    border: 0;
+}
+
+element {
+    padding: 10px 14px;
+    border-radius: 10px;
+    spacing: 12px;
+    orientation: horizontal;
+}
+
+element normal.normal {
+    background-color: transparent;
+    text-color: @fg;
+}
+
+element selected.normal {
+    background-color: @selected-bg;
+    border: 1px;
+    border-color: @selected-border;
+    text-color: @selected-fg;
+}
+
+element-text {
+    vertical-align: 0.5;
+    font: "JetBrainsMono Nerd Font 12";
+}

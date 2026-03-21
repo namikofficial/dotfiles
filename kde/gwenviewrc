@@ -1,30 +1,36 @@
 [General]
 LastUsedVersion=210800
+SideBarPage=operations
+ThumbnailBarIsVisible=true
+
+[ImageView]
+ThumbnailSplitterSizes=699,200
 
 [MainWindow]
 MenuBar=Disabled
 
 [Recent Files]
-File1[$e]=$HOME/Pictures/wallpaper/nord.png
-File10[$e]=$HOME/Pictures/wallpaper/ogarart-blue-lighthouse-2019-01-13.jpg
-File2[$e]=$HOME/Pictures/wallpaper/nord3.png
-File3[$e]=$HOME/Pictures/wallpaper/nord4.png
-File4[$e]=$HOME/Pictures/wallpaper/Nordic-Heroin.png
-File5[$e]=$HOME/Pictures/wallpaper/nordic.png
-File6[$e]=$HOME/Pictures/wallpaper/Northern Lights1.jpg
-File7[$e]=$HOME/Pictures/wallpaper/nyarch-dark.png
-File8[$e]=$HOME/Pictures/wallpaper/odysee.jpg
-File9[$e]=$HOME/Pictures/wallpaper/ogarart-bitter-coast.jpg
-Name1[$e]=nord.png
-Name10[$e]=ogarart-blue-lighthouse-2019-01-13.jpg
-Name2[$e]=nord3.png
-Name3[$e]=nord4.png
-Name4[$e]=Nordic-Heroin.png
-Name5[$e]=nordic.png
-Name6[$e]=Northern Lights1.jpg
-Name7[$e]=nyarch-dark.png
-Name8[$e]=odysee.jpg
-Name9[$e]=ogarart-bitter-coast.jpg
+File1[$e]=$HOME/Pictures/wallpaper/4k/catpuccin_landscape.png
+File10[$e]=$HOME/Downloads/wallhaven-o5rkwl.png
+File2[$e]=$HOME/Pictures/wallpaper/4k/polar_catppuccin.png
+File3[$e]=$HOME/Pictures/wallpaper/1080p/abandoned.jpg
+File4[$e]=$HOME/Downloads/wallhaven-zx12wj.png
+File5[$e]=$HOME/Downloads/wallhaven-vgv7jm.png
+File6[$e]=$HOME/Downloads/wallhaven-rrljr7.png
+File7[$e]=$HOME/Downloads/wallhaven-jxq8yp.png
+File8[$e]=$HOME/Downloads/wallhaven-mpoogm.jpg
+File9[$e]=$HOME/Downloads/wallhaven-n6l5ln.jpg
+Name1[$e]=catpuccin_landscape.png
+Name10[$e]=wallhaven-o5rkwl.png
+Name2[$e]=polar_catppuccin.png
+Name3[$e]=abandoned.jpg
+Name4[$e]=wallhaven-zx12wj.png
+Name5[$e]=wallhaven-vgv7jm.png
+Name6[$e]=wallhaven-rrljr7.png
+Name7[$e]=wallhaven-jxq8yp.png
+Name8[$e]=wallhaven-mpoogm.jpg
+Name9[$e]=wallhaven-n6l5ln.jpg
 
 [SideBar]
 InformationSplitterSizes=214,249
+SideBarSplitterSizes=229,698

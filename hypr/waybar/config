@@ -2,30 +2,33 @@
   {
     "layer": "top",
     "position": "top",
-    "height": 34,
-    "spacing": 8,
-    "margin-top": 4,
+    "height": 44,
+    "spacing": 6,
+    "margin-top": 8,
     "margin-left": 10,
     "margin-right": 10,
 
-    "modules-left": ["custom/launcher", "custom/overview", "hyprland/workspaces", "custom/layout", "hyprland/window"],
+    "modules-left": ["hyprland/workspaces", "custom/updates", "hyprland/window", "custom/cpu", "custom/memory"],
     "modules-center": ["clock"],
-    "modules-right": ["power-profiles-daemon", "custom/updates", "cpu", "memory", "network", "backlight", "battery", "pulseaudio", "tray", "custom/power"],
+    "modules-right": ["custom/weather", "network", "pulseaudio", "backlight", "battery", "custom/fn1", "custom/media"],
 
     "hyprland/workspaces": {
       "all-outputs": true,
-      "format": "{icon}",
-      "format-icons": {
-        "active": "●",
-        "default": "●"
-      },
+      "format": "{id}",
+      "disable-scroll": true,
+      "sort-by-number": true,
       "on-click": "activate"
     },
 
     "hyprland/window": {
-      "max-length": 16,
+      "max-length": 24,
       "separate-outputs": true,
-      "tooltip": true
+      "tooltip": true,
+      "rewrite": {
+        "(.*) - Google Chrome": "$1",
+        "(.*) — Visual Studio Code": "$1",
+        "(.*) - YouTube": "YouTube"
+      }
     },
 
     "custom/layout": {
@@ -37,35 +40,31 @@
     },
 
     "clock": {
-      "format": "󰥔 {:%a %d %b  %H:%M}",
-      "tooltip-format": "{:%Y-%m-%d %H:%M:%S %Z}"
-    },
-
-    "power-profiles-daemon": {
-      "format": "{icon}",
-      "format-icons": {
-        "default": "",
-        "performance": "",
-        "balanced": "",
-        "power-saver": "",
-        "unknown": ""
+      "format": "󰥔  {:%a %d %b %H:%M}",
+      "tooltip-format": "<tt><span weight='700'>{:%A, %d %B %Y}</span>\n\n{calendar}</tt>",
+      "calendar": {
+        "mode": "month",
+        "weeks-pos": "",
+        "on-scroll": 1,
+        "format": {
+          "months": "<span weight='700'>  {}  </span>",
+          "weekdays": "<span weight='700'>{}</span>",
+          "today": "<span weight='700' underline='single'>{}</span>"
+        }
       },
-      "tooltip": true
+      "actions": {
+        "on-click-right": "mode",
+        "on-click-middle": "mode",
+        "on-scroll-up": "shift_up",
+        "on-scroll-down": "shift_down"
+      }
     },
 
     "custom/weather": {
       "exec": "~/.config/waybar/scripts/weather.sh",
-      "interval": 900,
+      "interval": 1200,
       "return-type": "plain",
-      "tooltip": false
-    },
-
-    "custom/vpn": {
-      "exec": "~/.config/waybar/scripts/vpn.sh",
-      "interval": 5,
-      "return-type": "plain",
-      "tooltip": false,
-      "on-click": "nm-connection-editor"
+      "tooltip": true
     },
 
     "custom/updates": {
@@ -77,25 +76,46 @@
       "on-click": "kitty -e sh -lc 'yay -Syu; read -r -p \"Press enter to close\"'"
     },
 
-    "cpu": {
-      "format": " {usage}%",
-      "interval": 3
+    "custom/media": {
+      "exec": "~/.config/waybar/scripts/media.sh",
+      "interval": 3,
+      "return-type": "json",
+      "max-length": 34,
+      "tooltip": true,
+      "on-click": "~/.config/hypr/scripts/widget-actions.sh music"
     },
 
-    "memory": {
-      "format": " {}%",
-      "interval": 5
+    "custom/fn1": {
+      "exec": "~/.config/waybar/scripts/fn-hint.sh",
+      "interval": 30,
+      "return-type": "json",
+      "tooltip": true,
+      "on-click": "~/.config/hypr/scripts/hypr-binds.sh"
+    },
+
+    "custom/cpu": {
+      "exec": "~/.config/waybar/scripts/cpu-compact.sh",
+      "interval": 3,
+      "return-type": "json",
+      "tooltip": true,
+      "on-click": "~/.config/hypr/scripts/open-system-monitor.sh"
+    },
+
+    "custom/memory": {
+      "exec": "~/.config/waybar/scripts/memory-compact.sh",
+      "interval": 3,
+      "return-type": "json",
+      "tooltip": true,
+      "on-click": "~/.config/hypr/scripts/open-system-monitor.sh"
     },
 
     "network": {
-      "format-wifi": "  {signalStrength}%",
-      "format-ethernet": "󰈀 {ifname}",
-      "format-disconnected": "󰤮 down",
-      "tooltip-format": "{ifname} {ipaddr}/{cidr}"
-    },
-
-    "backlight": {
-      "format": "󰃠 {percent}%"
+      "format-wifi": "󰖩 {signalStrength}%",
+      "format-ethernet": "󰈀",
+      "format-linked": "󰌘",
+      "format-disconnected": "󰤮",
+      "tooltip-format": "{ifname}\n{ipaddr}/{cidr}\nSignal: {signalStrength}%",
+      "on-click": "nm-connection-editor"
     },
 
     "battery": {
@@ -105,59 +125,27 @@
       },
       "format": "{icon} {capacity}%",
       "format-charging": "󰂄 {capacity}%",
+      "tooltip-format": "Battery {capacity}%\n{timeTo}",
       "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+    },
+
+    "backlight": {
+      "format": "󰃠 {percent}%",
+      "tooltip-format": "Brightness {percent}%",
+      "on-scroll-up": "~/.config/hypr/scripts/brightness-control.sh up",
+      "on-scroll-down": "~/.config/hypr/scripts/brightness-control.sh down"
     },
 
     "pulseaudio": {
       "format": "{icon} {volume}%",
-      "format-muted": "󰝟 muted",
+      "format-muted": "󰝟",
+      "tooltip-format": "Volume {volume}%",
       "format-icons": {
         "default": ["󰕿", "󰖀", "󰕾"]
       },
       "on-click": "pavucontrol",
       "on-scroll-up": "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 2%+",
       "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"
-    },
-
-    "custom/notifications": {
-      "exec": "swaync-client -sw -D >/dev/null 2>&1 && echo '󰂛' || echo '󰂚'",
-      "interval": 2,
-      "return-type": "plain",
-      "tooltip": true,
-      "tooltip-format": "Notifications",
-      "on-click": "swaync-client -t",
-      "on-click-middle": "~/.config/hypr/scripts/notification-summary.sh copy",
-      "on-click-right": "swaync-client -d"
-    },
-
-    "tray": {
-      "spacing": 8
-    },
-
-    "custom/launcher": {
-      "format": "󰣇",
-      "tooltip": false,
-      "on-click": "~/.config/hypr/scripts/launcher.sh"
-    },
-
-    "custom/overview": {
-      "format": "󰍹",
-      "tooltip": "Workspace overview",
-      "on-click": "~/.config/hypr/scripts/workspace-overview.sh"
-    },
-
-    "custom/cliphist": {
-      "format": "󱘛",
-      "tooltip": "Clipboard history",
-      "on-click": "~/.config/hypr/scripts/cliphist-rofi.sh"
-    },
-
-    "custom/power": {
-      "format": "",
-      "tooltip": false,
-      "on-click": "~/.config/hypr/scripts/power-menu.sh",
-      "on-click-right": "~/.config/hypr/scripts/power-menu.sh compact",
-      "on-click-middle": "~/.config/hypr/scripts/lock.sh"
     }
   }
 ]

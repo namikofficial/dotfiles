@@ -3,7 +3,18 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-SCRIPTS_DIR="${SCRIPTS_DIR:-$HOME/Documents/code/scripts}"
+DEFAULT_SCRIPTS_DIR=""
+for candidate in \
+  "$REPO_DIR/private/scripts" \
+  "$HOME/Documents/code/scripts" \
+  "$HOME/dev/personal-scripts"; do
+  if [ -d "$candidate" ]; then
+    DEFAULT_SCRIPTS_DIR="$candidate"
+    break
+  fi
+done
+DEFAULT_SCRIPTS_DIR="${DEFAULT_SCRIPTS_DIR:-$REPO_DIR/private/scripts}"
+SCRIPTS_DIR="${SCRIPTS_DIR:-$DEFAULT_SCRIPTS_DIR}"
 RUN_PACKAGES=0
 WITH_AUR=0
 WITH_NVIDIA=""
@@ -17,14 +28,14 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 usage() {
   cat <<USAGE
 Usage: $0 [options]
-  --scripts-dir PATH   Path to scripts repo (default: $HOME/Documents/code/scripts)
+  --scripts-dir PATH   Path to scripts repo (default: auto-detect private/scripts, then legacy locations)
   --install-packages   Run setup/install-packages.sh after linking
   --with-aur           Include AUR packages (requires yay)
-  --with-nvidia        Force NVIDIA package installation
-  --no-nvidia          Skip NVIDIA packages even if GPU is detected
+  --with-nvidia        Opt in to repo-managed NVIDIA package installation
+  --no-nvidia          Skip repo-managed NVIDIA package installation
   --no-zsh-plugins     Skip optional zsh plugin sync
   --no-tmux-plugins    Skip optional tmux plugin sync
-  --install-hypr-plugins  Install hyprexpo via hyprpm (must run in Hyprland session)
+  --install-hypr-plugins  Build/install hyprexpo locally (must run in Hyprland session)
   --dry-run            Print actions without writing changes
   --no-backup          Replace existing files without backup copy
 USAGE
@@ -115,11 +126,39 @@ link_path() {
   fi
 }
 
+copy_path() {
+  local source="$1"
+  local target="$2"
+
+  if [ ! -e "$source" ] && [ ! -L "$source" ]; then
+    echo "Missing source: $source" >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$target")"
+
+  backup_if_needed "$target"
+
+  if (( DRY_RUN )); then
+    echo "[dry-run] cp -a '$source' '$target'"
+  else
+    cp -a "$source" "$target"
+    echo "copy $target <- $source"
+  fi
+}
+
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
+link_path "$REPO_DIR/sddm/dmrc" "$HOME/.dmrc"
+link_path "$REPO_DIR/git/gitconfig" "$HOME/.gitconfig"
 link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
+link_path "$REPO_DIR/tmux/tmux-help" "$HOME/.local/bin/tmux-help"
+link_path "$REPO_DIR/tmux/tmux-sessions" "$HOME/.local/bin/tmux-sessions"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
 link_path "$REPO_DIR/nvim" "$HOME/.config/nvim"
+link_path "$REPO_DIR/uwsm/default-id" "$HOME/.config/uwsm/default-id"
+link_path "$REPO_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
+link_path "$REPO_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
 
 mkdir -p "$HOME/.config/hypr" "$HOME/.config/kitty"
 link_path "$REPO_DIR/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"
@@ -136,8 +175,8 @@ link_path "$REPO_DIR/hypr/eww" "$HOME/.config/eww"
 link_path "$REPO_DIR/hypr/eww-settings" "$HOME/.config/eww-settings"
 link_path "$REPO_DIR/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
 link_path "$REPO_DIR/chrome/chrome-flags.conf" "$HOME/.config/chrome-flags.conf"
-link_path "$REPO_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
-link_path "$REPO_DIR/kde/kdeglobals" "$HOME/.config/kdeglobals"
+copy_path "$REPO_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
+copy_path "$REPO_DIR/kde/kdeglobals" "$HOME/.config/kdeglobals"
 link_path "$REPO_DIR/kde/dolphinrc" "$HOME/.config/dolphinrc"
 link_path "$REPO_DIR/kde/kiorc" "$HOME/.config/kiorc"
 link_path "$REPO_DIR/kde/gwenviewrc" "$HOME/.config/gwenviewrc"
@@ -145,7 +184,7 @@ link_path "$REPO_DIR/theme/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings
 link_path "$REPO_DIR/theme/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
 link_path "$REPO_DIR/theme/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf"
 link_path "$REPO_DIR/theme/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf"
-link_path "$REPO_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
+copy_path "$REPO_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
 
 if (( DRY_RUN )); then
   echo "[dry-run] mkdir -p '$HOME/.local/bin'"
@@ -164,6 +203,8 @@ if [ -d "$SCRIPTS_DIR/bin" ]; then
   done < <(find "$SCRIPTS_DIR/bin" -maxdepth 1 -type f -print0)
 else
   echo "warning: scripts bin directory not found at $SCRIPTS_DIR/bin" >&2
+  echo "warning: public dotfiles setup will continue without private scripts" >&2
+  echo "warning: if you have access, run: git submodule update --init private/scripts" >&2
 fi
 
 if (( RUN_PACKAGES )); then

@@ -14,6 +14,8 @@ fi
 
 if [[ -z "${SCRIPTS_HOME:-}" ]]; then
   for scripts_candidate in \
+    "$DOTFILES_HOME/private/scripts" \
+    "$HOME/Documents/code/dotfiles/private/scripts" \
     "$HOME/Documents/code/scripts" \
     "$HOME/dev/personal-scripts"; do
     if [[ -d "$scripts_candidate" ]]; then
@@ -23,7 +25,7 @@ if [[ -z "${SCRIPTS_HOME:-}" ]]; then
   done
 fi
 
-SCRIPTS_HOME="${SCRIPTS_HOME:-$HOME/Documents/code/scripts}"
+SCRIPTS_HOME="${SCRIPTS_HOME:-$DOTFILES_HOME/private/scripts}"
 SCRIPTS_BIN="${SCRIPTS_BIN:-$SCRIPTS_HOME/bin}"
 export DOTFILES_HOME SCRIPTS_HOME SCRIPTS_BIN
 unset zshrc_source scripts_candidate
@@ -65,9 +67,9 @@ fi
 mkdir -p "$HOME/.cache/zsh"
 
 # Completion list behavior:
-# - LISTMAX=0 asks only when list output would scroll off-screen.
-# - Keep completion UIs compact by default.
-LISTMAX=0
+# - Use a high positive LISTMAX so completion results list immediately.
+# - This avoids the "do you wish to see all ... possibilities" prompt.
+LISTMAX=1000
 
 # zsh-completions (must be in fpath before compinit)
 if [ -d "$HOME/.local/share/zsh/plugins/zsh-completions/src" ]; then
@@ -139,6 +141,35 @@ warn_missing_tools_once() {
   : >| "$stamp_file"
 }
 warn_missing_tools_once
+
+# Run a lightweight weekly environment health check.
+run_weekly_dev_doctor_check() {
+  emulate -L zsh
+  [[ -o interactive ]] || return 0
+
+  local doctor_bin=""
+  if [ -x "${SCRIPTS_BIN:-}/dev-doctor" ]; then
+    doctor_bin="${SCRIPTS_BIN}/dev-doctor"
+  elif command -v dev-doctor >/dev/null 2>&1; then
+    doctor_bin="$(command -v dev-doctor)"
+  else
+    return 0
+  fi
+
+  local cache_dir="$HOME/.cache/zsh"
+  local stamp_file="${cache_dir}/.dev-doctor-weekly-$(date +%G%V)"
+  mkdir -p "$cache_dir"
+  [ -f "$stamp_file" ] && return 0
+
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 12s "$doctor_bin" >/dev/null 2>&1 || print -P "%F{yellow}zsh:%f weekly dev-doctor found issues (run: dev-doctor)"
+  else
+    "$doctor_bin" >/dev/null 2>&1 || print -P "%F{yellow}zsh:%f weekly dev-doctor found issues (run: dev-doctor)"
+  fi
+
+  : >| "$stamp_file"
+}
+run_weekly_dev_doctor_check
 
 # Small TTL cache for expensive shell lookups.
 zsh_cache_run() {
@@ -287,13 +318,48 @@ fi
 
 # Startup behavior controls
 ZSH_LAZY_LOAD_HEAVY="${ZSH_LAZY_LOAD_HEAVY:-1}"
+ZSH_FAST_STARTUP="${ZSH_FAST_STARTUP:-1}"
+if [[ -z "${ZSH_ENABLE_EXTRA_PLUGINS:-}" ]]; then
+  if [[ "$ZSH_FAST_STARTUP" == "1" ]]; then
+    ZSH_ENABLE_EXTRA_PLUGINS=0
+  else
+    ZSH_ENABLE_EXTRA_PLUGINS=1
+  fi
+fi
 
 # NVM init (lazy by default)
-export NVM_DIR="$HOME/.nvm"
-_load_nvm() {
-  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+resolve_nvm_dir() {
+  emulate -L zsh
+  local -a candidates
+  candidates=()
+
+  [ -n "${NVM_DIR:-}" ] && candidates+=("$NVM_DIR")
+  [ -n "${XDG_CONFIG_HOME:-}" ] && candidates+=("$XDG_CONFIG_HOME/nvm")
+  candidates+=("$HOME/.config/nvm" "$HOME/.nvm")
+
+  local dir
+  for dir in "${candidates[@]}"; do
+    [ -n "$dir" ] || continue
+    if [ -s "$dir/nvm.sh" ] || [ -L "$dir/nvm.sh" ] || [ -d "$dir/versions" ]; then
+      print -r -- "$dir"
+      return 0
+    fi
+  done
+
+  print -r -- "${XDG_CONFIG_HOME:-$HOME/.config}/nvm"
 }
-if [ -s "$NVM_DIR/nvm.sh" ]; then
+
+export NVM_DIR="$(resolve_nvm_dir)"
+unset -f resolve_nvm_dir
+
+_load_nvm() {
+  if [ -s "$NVM_DIR/nvm.sh" ]; then
+    . "$NVM_DIR/nvm.sh"
+  elif [ -r /usr/share/nvm/init-nvm.sh ]; then
+    . /usr/share/nvm/init-nvm.sh
+  fi
+}
+if [ -s "$NVM_DIR/nvm.sh" ] || [ -r /usr/share/nvm/init-nvm.sh ]; then
   if [[ "$ZSH_LAZY_LOAD_HEAVY" == "1" ]]; then
     nvm() {
       unset -f nvm
@@ -313,7 +379,7 @@ done
 find_codex_bin_dir() {
   emulate -L zsh
   typeset -a latest_node_dirs
-  latest_node_dirs=("$HOME"/.nvm/versions/node/*(N/om[1]))
+  latest_node_dirs=("$NVM_DIR"/versions/node/*(N/om[1]))
   if [ -n "${latest_node_dirs[1]}" ] && [ -x "${latest_node_dirs[1]}/bin/codex" ]; then
     print -r -- "${latest_node_dirs[1]}/bin"
     return 0
@@ -399,8 +465,10 @@ if [ -f "$HOME/.cache/hypr/theme-shell.zsh" ]; then
 fi
 
 # fzf-git.sh (Ctrl-g shortcuts for git objects)
-if [ -f "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh" ]; then
-  source "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh"
+if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
+  if [ -f "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh" ]; then
+    source "$HOME/.local/share/zsh/plugins/fzf-git.sh/fzf-git.sh"
+  fi
 fi
 
 # fzf-tab (interactive fuzzy completion menu)
@@ -426,11 +494,43 @@ if command -v direnv >/dev/null 2>&1; then
   eval "$(direnv hook zsh)"
 fi
 
+# Keep Up/Down arrow history behavior stable even if plugins (e.g. Atuin) rebind keys.
+rebind_history_navigation_keys() {
+  emulate -L zsh
+
+  local fallback_up="up-line-or-history"
+  local fallback_down="down-line-or-history"
+  if zle -l | command grep -Eq '^history-substring-search-up([[:space:]]|$)'; then
+    fallback_up="history-substring-search-up"
+    fallback_down="history-substring-search-down"
+  fi
+
+  local keymap
+  for keymap in emacs viins vicmd; do
+    local up_widget="$fallback_up"
+    local down_widget="$fallback_down"
+
+    if [[ "$keymap" == "viins" ]] && zle -l | command grep -Eq '^atuin-up-search-viins([[:space:]]|$)'; then
+      up_widget="atuin-up-search-viins"
+    elif [[ "$keymap" == "vicmd" ]] && zle -l | command grep -Eq '^atuin-up-search-vicmd([[:space:]]|$)'; then
+      up_widget="atuin-up-search-vicmd"
+    elif zle -l | command grep -Eq '^atuin-up-search([[:space:]]|$)'; then
+      up_widget="atuin-up-search"
+    fi
+
+    bindkey -M "$keymap" '^[[A' "$up_widget" 2>/dev/null || true
+    bindkey -M "$keymap" '^[OA' "$up_widget" 2>/dev/null || true
+    bindkey -M "$keymap" '^[[B' "$down_widget" 2>/dev/null || true
+    bindkey -M "$keymap" '^[OB' "$down_widget" 2>/dev/null || true
+  done
+}
+
 # atuin (better shell history)
 _atuin_loaded=0
 load_atuin_integration() {
   (( _atuin_loaded )) && return 0
   eval "$(command atuin init zsh)"
+  rebind_history_navigation_keys
   _atuin_loaded=1
 }
 if command -v atuin >/dev/null 2>&1; then
@@ -443,23 +543,27 @@ if command -v pay-respects >/dev/null 2>&1; then
 fi
 
 # zsh-you-should-use (teaches aliases)
-for plugin in \
-  "$HOME/.local/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh" \
-  /usr/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh; do
-  [ -f "$plugin" ] || continue
-  # NOTE: plugin enables hardcore if the variable merely exists (even "0")
-  unset YSU_HARDCORE
-  export YSU_MODE=BESTMATCH
-  source "$plugin"
-  break
-done
+if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
+  for plugin in \
+    "$HOME/.local/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh" \
+    /usr/share/zsh/plugins/zsh-you-should-use/you-should-use.plugin.zsh; do
+    [ -f "$plugin" ] || continue
+    # NOTE: plugin enables hardcore if the variable merely exists (even "0")
+    unset YSU_HARDCORE
+    export YSU_MODE=BESTMATCH
+    source "$plugin"
+    break
+  done
+fi
 
 # zsh-vi-mode (Vim motions in command line editing)
-for plugin in \
-  "$HOME/.local/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh" \
-  /usr/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh; do
-  [ -f "$plugin" ] && source "$plugin" && break
-done
+if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
+  for plugin in \
+    "$HOME/.local/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh" \
+    /usr/share/zsh/plugins/zsh-vi-mode/zsh-vi-mode.plugin.zsh; do
+    [ -f "$plugin" ] && source "$plugin" && break
+  done
+fi
 
 # Optional plugins (if installed)
 # Enable zsh-autocomplete by default for live completion menus while typing.
@@ -479,6 +583,10 @@ for plugin in \
   /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh; do
   [ -f "$plugin" ] && source "$plugin" && break
 done
+# Prefer Atuin, but always fall back to normal history suggestions while typing.
+typeset -ga ZSH_AUTOSUGGEST_STRATEGY
+ZSH_AUTOSUGGEST_STRATEGY=(atuin history completion)
+ZSH_AUTOSUGGEST_USE_ASYNC=1
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#6c7086'
 
 # Keep TAB doing normal shell completion instead of autosuggestion capture.
@@ -508,15 +616,18 @@ for plugin in \
   bindkey '^[[B' history-substring-search-down
   bindkey '^P' history-substring-search-up
   bindkey '^N' history-substring-search-down
+  rebind_history_navigation_keys
   break
 done
 
 # forgit (widgets / keybindings)
-for plugin in \
-  "$HOME/.local/share/zsh/plugins/forgit/forgit.plugin.zsh" \
-  /usr/share/zsh/plugins/forgit/forgit.plugin.zsh; do
-  [ -f "$plugin" ] && source "$plugin" && break
-done
+if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
+  for plugin in \
+    "$HOME/.local/share/zsh/plugins/forgit/forgit.plugin.zsh" \
+    /usr/share/zsh/plugins/forgit/forgit.plugin.zsh; do
+    [ -f "$plugin" ] && source "$plugin" && break
+  done
+fi
 
 typeset -gi __nox_syntax_highlight_loaded=0
 for plugin in \
@@ -577,6 +688,45 @@ if [[ -o interactive ]]; then
   bindkey '^[c' fzf_jump_widget
   bindkey -M emacs '^[c' fzf_jump_widget 2>/dev/null || true
   bindkey -M viins '^[c' fzf_jump_widget 2>/dev/null || true
+
+  recent_projects_list() {
+    emulate -L zsh
+    command -v zoxide >/dev/null 2>&1 || return 0
+
+    local dir root
+    typeset -A seen_roots
+    while IFS= read -r dir; do
+      [ -d "$dir" ] || continue
+      root="$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || true)"
+      [ -n "$root" ] || continue
+      if [[ -n "${seen_roots[$root]:-}" ]]; then
+        continue
+      fi
+      seen_roots[$root]=1
+      print -r -- "$root"
+    done < <(zoxide query -l 2>/dev/null)
+  }
+
+  fzf_projects_widget() {
+    emulate -L zsh
+    command -v fzf >/dev/null 2>&1 || return 0
+
+    local target
+    target="$(
+      recent_projects_list |
+        fzf --height=45% --layout=reverse --prompt='project> ' \
+          --preview='ls -la --color=always {} 2>/dev/null | head -n 80'
+    )"
+    [ -n "$target" ] || return 0
+    cd "$target" || return 0
+    zle reset-prompt
+  }
+  zle -N fzf_projects_widget
+  bindkey '^[p' fzf_projects_widget
+  bindkey -M emacs '^[p' fzf_projects_widget 2>/dev/null || true
+  bindkey -M viins '^[p' fzf_projects_widget 2>/dev/null || true
+
+  rebind_history_navigation_keys
 fi
 
 # Compact RPROMPT with command duration + context (optional).
@@ -618,7 +768,7 @@ update_compact_rprompt() {
     [ -n "$node_v" ] && segs+=("node:${node_v#v}")
   fi
 
-  RPROMPT="%F{8}${(j: | :)segs}%f"
+  RPROMPT="%F{7}${(j: | :)segs}%f"
 }
 
 precmd_update_prompt_timing() {

@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# tmux-help — keybinding cheatsheet shown via: Prefix + ?
+set -euo pipefail
+
+B=$'\033[1m'
+D=$'\033[2m'
+RST=$'\033[0m'
+CYN=$'\033[36m'
+GRN=$'\033[32m'
+YLW=$'\033[33m'
+MAG=$'\033[35m'
+BLU=$'\033[34m'
+RED=$'\033[31m'
+
+line() { printf "${CYN}"; printf '─%.0s' {1..54}; printf "${RST}\n"; }
+
+section() {
+  echo
+  printf "${B}${YLW}  %-50s${RST}\n" "$1"
+  line
+}
+
+kv() { printf "  ${GRN}%-24s${RST}  ${BLU}%s${RST}\n" "$1" "$2"; }
+
+{
+  echo
+  printf "${B}${MAG}  ╔══════════════════════════════════════════════╗${RST}\n"
+  printf "${B}${MAG}  ║        tmux  keybinding  cheatsheet          ║${RST}\n"
+  printf "${B}${MAG}  ║   Prefix = Ctrl+Space  (press then release)  ║${RST}\n"
+  printf "${B}${MAG}  ╚══════════════════════════════════════════════╝${RST}\n"
+
+  section "SESSIONS"
+  kv "Prefix  s"          "list/switch sessions (interactive)"
+  kv "Prefix  \$"         "rename current session"
+  kv "Prefix  d"          "detach (keep session running)"
+  kv "Prefix  q"          "kill current session (asks y/n)"
+  kv "ta [name]"          "shell: attach or create session"
+  kv "tls"                "shell: list all sessions"
+
+  section "WINDOWS  (like browser tabs)"
+  kv "Prefix  c"          "new window (opens in current dir)"
+  kv "Prefix  ,"          "rename window"
+  kv "Prefix  X"          "kill window"
+  kv "Prefix  1-9"        "jump to window by number"
+  kv "Prefix  Tab"        "go to next window"
+  kv "Alt + h / l"        "prev/next window  ← no prefix needed!"
+  kv "Prefix  w"          "visual window tree"
+
+  section "PANES  (splits inside a window)"
+  kv "Prefix  |"          "split right (new pane on right)"
+  kv "Prefix  -"          "split down (new pane below)"
+  kv "Prefix  h/j/k/l"    "move between panes (vim keys)"
+  kv "Prefix  H/J/K/L"    "resize pane (hold, repeat)"
+  kv "Prefix  z"          "zoom pane to full / unzoom"
+  kv "Prefix  x"          "kill current pane"
+  kv "Prefix  Space"      "cycle through pane layouts"
+  kv "Prefix  q"          "show pane numbers (then press one)"
+
+  section "COPY MODE  (scrollback + text selection)"
+  kv "Prefix  ["          "enter copy mode"
+  kv "v"                  "start selection"
+  kv "Ctrl+v"             "rectangle / block selection"
+  kv "y  or  Enter"       "copy selection → clipboard"
+  kv "F"                  "smart-pick: URLs, paths, hashes…  (tmux-thumbs)"
+  kv "q  or  Escape"      "exit copy mode"
+  kv "/ or ?"             "search forward / backward"
+
+  section "POPUPS & TOOLS"
+  kv "Prefix  t"          "scratch terminal popup (80%×80%)"
+  kv "Prefix  g"          "lazygit popup  (needs lazygit)"
+  kv "Prefix  u"          "FZF URL picker from scrollback"
+  kv "Prefix  \\"         "context menu  (menus — great for new users!)"
+  kv "Prefix  F"          "tmux-fzf session/window/pane picker"
+  kv "Prefix  ?"          "this cheatsheet"
+
+  section "SESSION MANAGEMENT  (tmux-sessionist)"
+  kv "Prefix  g"          "go-to / switch session interactively"
+  kv "Prefix  C"          "new session (prompted)"
+  kv "Prefix  X"          "kill current session (no prompt)"
+  kv "Prefix  @"          "promote pane → new session"
+
+  section "SESSION PERSISTENCE"
+  kv "Prefix  Ctrl+s"     "save session manually"
+  kv "Prefix  Ctrl+r"     "restore saved session"
+  kv "(auto)"             "sessions auto-save every 15 min"
+  kv "(auto)"             "desktop notification when long cmd (>15s) finishes"
+
+  section "CONFIG & PLUGINS"
+  kv "Prefix  r"          "reload ~/.tmux.conf"
+  kv "Prefix  I"          "install new plugins  (TPM)"
+  kv "Prefix  U"          "update plugins  (TPM)"
+  kv "Prefix  Ctrl+A"     "send prefix to a nested tmux"
+
+  echo
+  printf "  ${D}Tip: run  tmux list-keys  in a shell for the full list.${RST}\n"
+  echo
+
+} | less -R -X -F

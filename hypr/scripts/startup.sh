@@ -58,6 +58,12 @@ ensure_single_process() {
   done
 }
 
+loaded_hyprexpo_path() {
+  hypr_pid="$(pgrep -x Hyprland 2>/dev/null | head -n1 || true)"
+  [ -n "$hypr_pid" ] || return 1
+  awk '/\/.*hyprexpo\.so$/ { print $NF; exit }' "/proc/$hypr_pid/maps" 2>/dev/null
+}
+
 # Warm launcher cache first so Super+Space opens immediately.
 if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
   "$HOME/.config/hypr/scripts/launcher.sh" --warm-cache >/dev/null 2>&1 &
@@ -65,12 +71,45 @@ fi
 
 # Apply generated settings overlays for Hypr/SwayNC at session start.
 if [ -x "$HOME/.config/hypr/scripts/settingsctl" ]; then
-  "$HOME/.config/hypr/scripts/settingsctl" apply all >/dev/null 2>&1 || true
+  (
+    sleep 0.5
+    "$HOME/.config/hypr/scripts/settingsctl" apply all >/dev/null 2>&1 || true
+  ) &
 fi
 
 # Warm cheatsheet cache so Super+. opens immediately.
 if [ -x "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" ]; then
-  "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" --mode all >/dev/null 2>&1 &
+  "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" --warm-cache >/dev/null 2>&1 &
+fi
+
+# Warm desktop-app binaries/resources in page cache so first-launch latency is
+# less noticeable without keeping the apps visibly open all session.
+if [ "${HYPR_WARM_DESKTOP_APPS:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/app-warm-cache.sh" ]; then
+  (
+    sleep 6
+    "$HOME/.config/hypr/scripts/app-warm-cache.sh" --session >/dev/null 2>&1 || true
+  ) &
+fi
+
+# Optional cold-start improvement: keep browser process hot in background.
+if [ "${HYPR_PRELAUNCH_BROWSER:-1}" = "1" ] && ! pgrep -x 'chrome|google-chrome|google-chrome-stable|chromium|chromium-browser' >/dev/null 2>&1; then
+  (
+    sleep 10
+    for browser in google-chrome-stable google-chrome chromium chromium-browser; do
+      bin="$(resolve_cmd "$browser" || true)"
+      [ -n "$bin" ] || continue
+      "$bin" --no-startup-window >/dev/null 2>&1 &
+      break
+    done
+  ) &
+fi
+
+# Re-apply preferred monitor layout and mode choices at session start.
+if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
+  (
+    sleep 1
+    "$HOME/.config/hypr/scripts/monitor-control.sh" apply >/dev/null 2>&1 || true
+  ) &
 fi
 
 # nm-applet can spam duplicate StatusNotifier warnings with Waybar on some setups.
@@ -78,7 +117,10 @@ fi
 if [ "${HYPR_ENABLE_NM_APPLET:-0}" = "1" ]; then
   run_once nm-applet nm-applet
 fi
-run_once blueman-applet blueman-applet
+# Keep Bluetooth tray icon opt-in; control it from Super+N panel by default.
+if [ "${HYPR_ENABLE_BLUEMAN_APPLET:-0}" = "1" ]; then
+  run_once blueman-applet blueman-applet
+fi
 run_cmd_if_not '(^|/)udiskie( .*)?$' udiskie --smart-tray --menu nested --no-appindicator
 ensure_single_process udiskie
 
@@ -90,17 +132,54 @@ if command -v gnome-keyring-daemon >/dev/null 2>&1; then
 fi
 
 run_once avizo-service avizo-service
-run_once waybar waybar
+# Keep a single panel engine active by default to avoid tray/DND duplication.
+pkill -x hyprpanel >/dev/null 2>&1 || true
+pkill -x ags >/dev/null 2>&1 || true
+"$HOME/.config/hypr/scripts/restart-waybar.sh" >/dev/null 2>&1 || true
 ensure_single_process waybar
-run_once kanshi kanshi
+
+# Optional desktop-widget layer (Eww) for richer visual dashboard.
+if [ "${HYPR_ENABLE_EWW_DESKTOP:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/eww-desktop-toggle.sh" ]; then
+  (
+    sleep 2
+    "$HOME/.config/hypr/scripts/eww-desktop-toggle.sh" show >/dev/null 2>&1 || true
+  ) &
+fi
+
+run_cmd_if_not "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh" "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh"
+# Let Hyprland's generic monitor rules handle displays by default.
+# Only start kanshi when the user has provided an explicit profile config.
+KANSHI_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+if [ -f "$KANSHI_CONFIG_HOME/kanshi/config" ]; then
+  run_once kanshi kanshi
+fi
 run_once hypridle hypridle
 run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
 
-# Ensure enabled hyprpm plugins are actually loaded after compositor startup.
-if resolve_cmd hyprpm >/dev/null 2>&1; then
+# hyprpm currently fails its header refresh path on Hyprland 0.54.1
+# ("You need to run make all first"), which surfaces a false outdated-plugin
+# warning on login. Keep automatic hyprpm reload opt-in until that is fixed.
+if [ "${HYPR_USE_HYPRPM_RELOAD:-0}" = "1" ] && resolve_cmd hyprpm >/dev/null 2>&1; then
   (
     sleep 3
     hyprpm reload >/dev/null 2>&1 || true
+  ) &
+fi
+
+# Load locally built hyprexpo when available. This avoids depending on hyprpm
+# version pins for every session and keeps Super+Tab on the expo path.
+hyprexpo_plugin="${XDG_DATA_HOME:-$HOME/.local/share}/hypr/plugins/hyprexpo/hyprexpo.so"
+if [ -f "$hyprexpo_plugin" ]; then
+  (
+    sleep 2
+    current_hyprexpo="$(loaded_hyprexpo_path || true)"
+    if [ -n "$current_hyprexpo" ] && [ "$current_hyprexpo" != "$hyprexpo_plugin" ]; then
+      hyprctl plugin unload "$current_hyprexpo" >/dev/null 2>&1 || true
+      sleep 1
+    fi
+    if ! hyprctl plugin list 2>/dev/null | grep -q 'Plugin hyprexpo'; then
+      hyprctl plugin load "$hyprexpo_plugin" >/dev/null 2>&1 || true
+    fi
   ) &
 fi
 
@@ -179,7 +258,10 @@ fi
 
 # Set default wallpaper + sync theme after daemon boot.
 if [ -x "$HOME/.config/hypr/scripts/set-wallpaper.sh" ]; then
-  "$HOME/.config/hypr/scripts/set-wallpaper.sh" --init >/dev/null 2>&1 || true
+  (
+    sleep 1.5
+    "$HOME/.config/hypr/scripts/set-wallpaper.sh" --init >/dev/null 2>&1 || true
+  ) &
 fi
 
 if [ -x "$HOME/.config/hypr/scripts/dynamic-theme-sync.sh" ]; then

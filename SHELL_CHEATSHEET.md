@@ -82,7 +82,7 @@
 - `pay-respects` teaches a better command
 
 ## Included Scripts
-- `bin/dev-doctor`, `bin/jq-easy`, `bin/devlink-easy`, `bin/klogs-fzf`, etc., live in `~/Documents/code/scripts/bin` and back the aliases above.
+- `bin/dev-doctor`, `bin/jq-easy`, `bin/devlink-easy`, `bin/klogs-fzf`, etc., live in `~/Documents/code/dotfiles/private/scripts/bin` when the private scripts submodule is present.
 
 ## Hyprland Quick Keys
 - `Super + Return`: terminal (`kitty`)
@@ -94,8 +94,8 @@
 - `Super + Ctrl + /`: keybind helper overlay
 - In launcher/actions: `Ctrl + 1..0` quick-select, `Enter` run/open
 - `Super + W`: workspace overview picker (Rofi)
-- `Super + Tab`: Mission Control overview (`hyprexpo`)
-- `Super + Shift + Tab`: force Rofi overview
+- `Super + Tab`: overview toggle (`hyprexpo` if loaded, otherwise Rofi overview)
+- `Super + Shift + Tab`: direct Rofi overview
 - `Super + F`: toggle floating for active window
 - `Super + M`: maximize / unmaximize active window
 - `Super + G`: toggle `dwindle` / `master` layout
@@ -122,9 +122,9 @@
 - `Super + Shift + T`: OCR selected area to clipboard
 - `Super + Ctrl + R`: toggle screen recording
 - `Super + Y`: toggle widget panel (Eww)
-- `Super + Ctrl + Y`: toggle panel engine (`waybar`/`hyprpanel`)
-- `Super + Alt + Y`: toggle panel visibility only
-- `Super + Ctrl + Shift + Y`: toggle desktop widgets
+- `Super + Ctrl + Y`: restore Waybar panel
+- `Super + Shift + Y`: toggle panel visibility only
+- `Super + Ctrl + Alt + Y`: toggle desktop widgets
 - `Fn + 2/3/4/5`: AI helper (`ask`/`clipboard`/`shell`/`debug`)
 - `Super + Ctrl + Arrow`: move active floating window
 - `Super + Ctrl + Shift + Arrow`: resize active floating window
@@ -132,14 +132,16 @@
 
 ## Kitty Keymaps
 - New tab (same cwd): `Ctrl + Shift + T`
-- Close tab: `Ctrl + Shift + Q`
-- Close split/window: `Ctrl + Shift + W`
+- Close split/window: `Ctrl + Shift + Q`
+- Close tab: `Ctrl + Shift + W`
 - Previous / next tab: `Ctrl + Shift + [` / `Ctrl + Shift + ]`
 - New window (same cwd): `Ctrl + Shift + Enter`
 - Split horizontal / vertical: `Ctrl + Shift + O` / `Ctrl + Shift + E`
 - Focus left/right/up/down split: `Ctrl + Shift + H/J/K/L`
 - Resize split: `Ctrl + Shift + Alt + H/J/K/L`
 - Reload kitty config: `Ctrl + Shift + F5`
+- Reload theme + Kitty + Hyprland + panel: `Super + Ctrl + Shift + Y`
+- Next wallpaper: `Super + Shift + O`
 - Clipboard: selecting text copies automatically (`copy_on_select`)
 
 ## Tmux Quickstart

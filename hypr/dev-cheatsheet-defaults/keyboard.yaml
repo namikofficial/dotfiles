@@ -21,10 +21,10 @@ entries:
     copy: ~/.config/hypr/scripts/quick-actions.sh
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Tab
-    description: Mission control overview
-    copy: hyprctl dispatch hyprexpo:expo toggle
+    description: Workspace overview toggle
+    copy: ~/.config/hypr/scripts/workspace-overview-toggle.sh
     source: ~/.config/hypr/hyprland.conf
-  - key: Super+Q
+  - key: Super+Shift+Q
     description: Close active window
     copy: hyprctl dispatch killactive
     source: ~/.config/hypr/hyprland.conf
@@ -34,6 +34,26 @@ entries:
     copy: new_tab_with_cwd
     source: ~/.config/kitty/kitty.conf
     tags: [daily]
+  - key: Ctrl+Shift+Q
+    description: Kitty close current split only
+    copy: close_window
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+W
+    description: Kitty close current tab only
+    copy: close_tab
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+[ / Ctrl+Shift+]
+    description: Kitty previous or next tab
+    copy: previous_tab | next_tab
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+Alt+[ / Ctrl+Shift+Alt+]
+    description: Kitty move current tab left or right
+    copy: move_tab_backward | move_tab_forward
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+Enter
+    description: Kitty new window in current tab and cwd
+    copy: launch --cwd=current
+    source: ~/.config/kitty/kitty.conf
   - key: Ctrl+Shift+O
     description: Kitty split horizontally
     copy: launch --location=hsplit --cwd=current
@@ -45,6 +65,18 @@ entries:
   - key: Ctrl+Shift+H/J/K/L
     description: Kitty focus split left/down/up/right
     copy: neighboring_window left|down|up|right
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+U
+    description: Kitty URL hints picker
+    copy: kitten hints --type=url
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+P
+    description: Kitty path hints picker
+    copy: kitten hints --type=path
+    source: ~/.config/kitty/kitty.conf
+  - key: Ctrl+Shift+G
+    description: Kitty show scrollback
+    copy: show_scrollback
     source: ~/.config/kitty/kitty.conf
   - key: Ctrl+Shift+Alt+H/J/K/L
     description: Kitty resize split

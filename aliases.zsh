@@ -89,6 +89,20 @@ fi
 if command -v lazygit >/dev/null 2>&1; then
   alias lg='lazygit'
 fi
+if command -v kitty >/dev/null 2>&1; then
+  alias icat='kitty +kitten icat'
+  alias kdiff='kitty +kitten diff'
+  alias khints='kitty +kitten hints'
+  alias kthemes='kitty +kitten themes'
+  alias kssh='kitty +kitten ssh'
+fi
+if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
+  alias panel='$HOME/.config/hypr/scripts/panel-switch.sh'
+  alias pwaybar='$HOME/.config/hypr/scripts/panel-switch.sh waybar'
+fi
+if command -v qpwgraph >/dev/null 2>&1; then
+  alias qpw='qpwgraph'
+fi
 if command -v eza >/dev/null 2>&1; then
   alias lli='eza --tree --level=3 -lh --icons=auto --group-directories-first --git --git-ignore --ignore-glob=.git --time-style=long-iso'
 fi
@@ -127,7 +141,6 @@ alias hmonth="atuin stats 30d --count 20"
 # Directory navigation (common projects)
 alias dev="cd ~/dev"
 alias cdev="cd ~/Documents/code"
-alias scripts="cd $SCRIPTS_HOME"
 alias projects="cd ~/projects"
 alias ..="cd .."
 alias ...="cd ../.."

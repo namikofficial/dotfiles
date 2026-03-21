@@ -1,4 +1,5 @@
 [Default Applications]
+inode/directory=org.kde.dolphin.desktop
 image/png=org.kde.gwenview.desktop
 image/jpeg=org.kde.gwenview.desktop
 image/webp=org.kde.gwenview.desktop
@@ -11,10 +12,25 @@ x-scheme-handler/http=google-chrome.desktop
 x-scheme-handler/https=google-chrome.desktop
 x-scheme-handler/about=google-chrome.desktop
 x-scheme-handler/unknown=google-chrome.desktop
+x-scheme-handler/obsidian=obsidian.desktop
+text/plain=code.desktop
+text/markdown=code.desktop
+application/json=code.desktop
+application/javascript=code.desktop
+text/javascript=code.desktop
+text/x-python=code.desktop
+text/x-shellscript=code.desktop
+text/x-csrc=code.desktop
+text/x-c++src=code.desktop
+text/x-java=code.desktop
+text/x-rustsrc=code.desktop
+application/x-yaml=code.desktop
 
 [Added Associations]
+inode/directory=org.kde.dolphin.desktop;
 image/png=org.kde.gwenview.desktop
 image/jpeg=org.kde.gwenview.desktop
-image/webp=org.kde.gwenview.desktop;firefox.desktop;google-chrome.desktop;
-image/gif=org.kde.gwenview.desktop;firefox.desktop;google-chrome.desktop;
-image/svg+xml=org.kde.gwenview.desktop;firefox.desktop;
+image/webp=org.kde.gwenview.desktop;google-chrome.desktop;firefox.desktop;
+image/gif=org.kde.gwenview.desktop;google-chrome.desktop;firefox.desktop;
+image/svg+xml=org.kde.gwenview.desktop;google-chrome.desktop;firefox.desktop;
+x-scheme-handler/obsidian=obsidian.desktop;

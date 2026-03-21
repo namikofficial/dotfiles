@@ -4,6 +4,16 @@ set -eu
 notes_dir="${NOXFLOW_NOTES_DIR:-$HOME/Documents/notes}"
 mkdir -p "$notes_dir"
 
+if [ -x "$HOME/.config/hypr/scripts/obsidian-launcher.sh" ] && command -v obsidian >/dev/null 2>&1; then
+  "$HOME/.config/hypr/scripts/obsidian-launcher.sh" "$notes_dir" >/dev/null 2>&1 &
+  exit 0
+fi
+
+if command -v obsidian >/dev/null 2>&1; then
+  obsidian "$notes_dir" >/dev/null 2>&1 &
+  exit 0
+fi
+
 if [ -x "$HOME/.config/hypr/scripts/vscode-launcher.sh" ]; then
   "$HOME/.config/hypr/scripts/vscode-launcher.sh" "$notes_dir" >/dev/null 2>&1 &
   exit 0
@@ -16,11 +26,6 @@ fi
 
 if command -v codium >/dev/null 2>&1; then
   codium "$notes_dir" >/dev/null 2>&1 &
-  exit 0
-fi
-
-if command -v obsidian >/dev/null 2>&1; then
-  obsidian "$notes_dir" >/dev/null 2>&1 &
   exit 0
 fi
 

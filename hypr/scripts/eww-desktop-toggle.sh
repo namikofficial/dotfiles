@@ -3,6 +3,11 @@ set -eu
 
 cfg="$HOME/.config/eww"
 err_file="${XDG_RUNTIME_DIR:-/tmp}/eww-desktop-toggle.err"
+left_id="desktop-left"
+right_id="desktop-right"
+left_open="desktoppanel:${left_id}"
+right_open="desktoppanel_right:${right_id}"
+action="${1:-toggle}"
 
 notify() {
   command -v notify-send >/dev/null 2>&1 || return 0
@@ -12,7 +17,7 @@ notify() {
 run_eww() {
   tries=0
   while [ "$tries" -lt 5 ]; do
-    if eww --config "$cfg" "$@" >/dev/null 2>"$err_file"; then
+    if eww --config "$cfg" "$@" 2>"$err_file"; then
       return 0
     fi
     if grep -qi "Resource temporarily unavailable" "$err_file" 2>/dev/null; then
@@ -26,22 +31,30 @@ run_eww() {
 }
 
 ensure_eww() {
-  if ! run_eww ping; then
+  if ! run_eww ping >/dev/null; then
     eww --config "$cfg" daemon >/dev/null 2>&1 &
     sleep 1
   fi
 
-  if ! run_eww ping; then
+  if ! run_eww ping >/dev/null; then
     notify "Eww daemon unavailable" "Unable to start desktop widgets."
     exit 1
   fi
+}
 
-  if ! run_eww reload; then
-    first_line="$(sed -n '1p' "$err_file" 2>/dev/null || true)"
-    [ -n "$first_line" ] || first_line="Check ~/.config/eww/eww.scss and eww.yuck"
-    notify "Eww config error" "$first_line"
-    exit 1
-  fi
+is_open() {
+  run_eww active-windows 2>/dev/null | grep -q "^${left_id}:"
+}
+
+open_widgets() {
+  run_eww open-many "$left_open" "$right_open"
+}
+
+close_widgets() {
+  run_eww close "$left_id" >/dev/null 2>&1 || true
+  run_eww close "$right_id" >/dev/null 2>&1 || true
+  run_eww close desktoppanel >/dev/null 2>&1 || true
+  run_eww close desktoppanel_right >/dev/null 2>&1 || true
 }
 
 if ! command -v eww >/dev/null 2>&1; then
@@ -55,5 +68,34 @@ if [ ! -f "$cfg/eww.yuck" ]; then
 fi
 
 ensure_eww
-run_eww open-many --toggle "desktoppanel:desktop-left" "desktoppanel_right:desktop-right"
-notify "Desktop widgets toggled"
+
+case "$action" in
+  toggle)
+    if is_open; then
+      close_widgets
+      notify "Desktop widgets" "Hidden"
+    else
+      open_widgets
+      notify "Desktop widgets" "Shown"
+    fi
+    ;;
+  show)
+    if ! is_open; then
+      open_widgets
+    fi
+    ;;
+  hide)
+    close_widgets
+    ;;
+  status)
+    if is_open; then
+      echo "shown"
+    else
+      echo "hidden"
+    fi
+    ;;
+  *)
+    echo "usage: $0 [toggle|show|hide|status]" >&2
+    exit 1
+    ;;
+esac

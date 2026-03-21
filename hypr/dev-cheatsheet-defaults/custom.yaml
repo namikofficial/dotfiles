@@ -10,8 +10,8 @@ entries:
     description: run weekly workstation audit script
     copy: ~/Documents/code/dotfiles/setup/weekly-health-check.sh
     source: ~/Documents/code/dotfiles/setup/weekly-health-check.sh
-  - key: Theme pass
-    description: sync theme settings across components
+  - key: Reload
+    description: reload theme, kitty, hyprland, panel, and caches
     copy: ~/.config/hypr/scripts/theme-pass.sh
     source: ~/.config/hypr/scripts/theme-pass.sh
   - key: Restart panel

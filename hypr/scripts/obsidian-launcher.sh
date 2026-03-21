@@ -15,4 +15,11 @@ fi
 export ELECTRON_OZONE_PLATFORM_HINT=auto
 export OZONE_PLATFORM=wayland
 
-exec "$obs_bin" "$@"
+default_flags=(
+  --ozone-platform-hint=auto
+  --enable-features=UseOzonePlatform,WaylandWindowDecorations
+  --enable-gpu-rasterization
+  --enable-zero-copy
+)
+
+exec "$obs_bin" "${default_flags[@]}" "$@"

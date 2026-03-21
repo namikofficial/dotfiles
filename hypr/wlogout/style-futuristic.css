@@ -1,0 +1,98 @@
+* {
+  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+  background-image: none;
+  box-shadow: none;
+}
+
+window {
+  background-color: rgba(10, 15, 28, 0.88);
+  background-image: url("background-abstract-futuristic.svg");
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+button {
+  color: transparent;
+  background-color: rgba(18, 31, 52, 0.9);
+  border: 1px solid rgba(92, 130, 175, 0.66);
+  border-radius: 16px;
+  margin: 6px;
+  padding: 0;
+  min-width: 194px;
+  min-height: 110px;
+  font-size: 1px;
+  letter-spacing: 0;
+  background-repeat: no-repeat;
+  background-position: 50% 39%, 50% 58%, 92% 10px;
+  background-size: 44px, 110px 30px, 68px 26px;
+  box-shadow:
+    inset 0 1px 0 rgba(170, 220, 255, 0.05),
+    0 10px 18px rgba(0, 0, 0, 0.22);
+  transition:
+    background-color 210ms cubic-bezier(0.2, 0.9, 0.12, 1),
+    border-color 210ms cubic-bezier(0.2, 0.9, 0.12, 1),
+    box-shadow 210ms cubic-bezier(0.2, 0.9, 0.12, 1);
+}
+
+button:hover,
+button:focus {
+  background-color: rgba(21, 38, 64, 0.95);
+  border: 1px solid rgba(134, 212, 247, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(92, 208, 255, 0.25),
+    inset 0 10px 26px rgba(49, 146, 183, 0.08),
+    0 12px 20px rgba(0, 0, 0, 0.28);
+}
+
+#lock {
+  background-image:
+    url("/usr/share/wlogout/icons/lock.png"),
+    url("labels/lock.svg"),
+    url("icons/key-L.svg");
+}
+
+#suspend {
+  background-image:
+    url("/usr/share/wlogout/icons/suspend.png"),
+    url("labels/sleep.svg"),
+    url("icons/key-U.svg");
+}
+
+#hibernate {
+  background-image:
+    url("/usr/share/wlogout/icons/hibernate.png"),
+    url("labels/hibernate.svg"),
+    url("icons/key-H.svg");
+}
+
+#logout {
+  background-image:
+    url("/usr/share/wlogout/icons/logout.png"),
+    url("labels/logout.svg"),
+    url("icons/key-E.svg");
+}
+
+#reboot {
+  background-image:
+    url("/usr/share/wlogout/icons/reboot.png"),
+    url("labels/reboot.svg"),
+    url("icons/key-R.svg");
+}
+
+#shutdown {
+  background-color: rgba(255, 117, 127, 0.29);
+  border: 1px solid #ff757f;
+  background-image:
+    url("/usr/share/wlogout/icons/shutdown.png"),
+    url("labels/shutdown.svg"),
+    url("icons/key-S.svg");
+}
+
+#shutdown:hover,
+#shutdown:focus {
+  background-color: rgba(255, 117, 127, 0.4);
+  border: 1px solid #ff757f;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 142, 162, 0.34),
+    0 12px 20px rgba(43, 9, 13, 0.36);
+}

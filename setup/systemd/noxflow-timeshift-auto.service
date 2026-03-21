@@ -6,3 +6,4 @@ After=local-fs.target
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/timeshift --check --scripted
+ExecStartPost=/usr/bin/rm -f /etc/cron.d/timeshift-hourly

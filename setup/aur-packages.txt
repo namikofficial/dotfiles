@@ -1,6 +1,6 @@
 # GUI package manager with AUR support
 google-chrome
-pamac-aur
+visual-studio-code-bin
 wlogout
 eww
 avizo

@@ -15,24 +15,4 @@ if [ ! -d "$src" ]; then
   exit 1
 fi
 
-mkdir -p "$dst"
-
-count=0
-while IFS= read -r -d '' file; do
-  base="$(basename "$file")"
-  target="$dst/$base"
-
-  if [ -e "$target" ]; then
-    stem="${base%.*}"
-    ext="${base##*.}"
-    i=1
-    while [ -e "$dst/${stem}-${i}.${ext}" ]; do
-      i=$((i + 1))
-    done
-    target="$dst/${stem}-${i}.${ext}"
-  fi
-
-  cp -n "$file" "$target" && count=$((count + 1))
-done < <(find "$src" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) -print0)
-
-echo "Imported $count wallpapers into: $dst"
+exec "$HOME/.config/hypr/scripts/wallpaper-copy-from-sources.sh" "$src" "$dst"

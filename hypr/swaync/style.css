@@ -1,8 +1,8 @@
 @define-color bg #0f111a;
-@define-color bg_soft #161a26;
-@define-color surface #1f2335;
-@define-color text #c8d3f5;
-@define-color muted #8a94b8;
+@define-color bg_soft #171b2a;
+@define-color surface #20263a;
+@define-color text #f3f7ff;
+@define-color muted #c7d3eb;
 @define-color accent #6f94c9;
 @define-color accent2 #66c2b8;
 @define-color warn #ff966c;
@@ -10,17 +10,18 @@
 @import url("/home/namik/.cache/hypr/theme-colors-swaync.css");
 
 * {
-  font-family: "Inter", "Noto Sans", "JetBrainsMono Nerd Font", sans-serif;
+  font-family: "JetBrainsMono Nerd Font", "Noto Sans", sans-serif;
   font-size: 12px;
   color: @text;
 }
 
 .control-center {
-  background: rgba(15, 17, 26, 0.72);
-  border: 1px solid rgba(111, 148, 201, 0.18);
-  border-radius: 16px;
+  background: rgba(15, 17, 26, 0.78);
+  border: 1px solid rgba(111, 148, 201, 0.2);
+  border-radius: 14px;
   padding: 12px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
+  transition: background 220ms cubic-bezier(0.2, 0.9, 0.12, 1), border-color 220ms cubic-bezier(0.2, 0.9, 0.12, 1), box-shadow 220ms cubic-bezier(0.2, 0.9, 0.12, 1);
 }
 
 .notification-row {
@@ -28,11 +29,12 @@
 }
 
 .notification {
-  border-radius: 13px;
-  margin: 6px 0;
+  border-radius: 12px;
+  margin: 5px 0;
   padding: 9px;
-  border: 1px solid rgba(111, 148, 201, 0.12);
-  background: linear-gradient(180deg, rgba(31, 35, 53, 0.66), rgba(22, 26, 38, 0.62));
+  border: 1px solid rgba(111, 148, 201, 0.16);
+  background: linear-gradient(180deg, rgba(31, 35, 53, 0.72), rgba(23, 27, 42, 0.62));
+  transition: background 210ms cubic-bezier(0.2, 0.9, 0.12, 1), border-color 210ms cubic-bezier(0.2, 0.9, 0.12, 1), box-shadow 210ms cubic-bezier(0.2, 0.9, 0.12, 1);
 }
 
 .notification-content {
@@ -48,7 +50,7 @@
 .widget-title > button {
   min-width: 34px;
   min-height: 28px;
-  border-radius: 8px;
+  border-radius: 9px;
   font-weight: 700;
 }
 
@@ -56,7 +58,7 @@
   margin: 2px 0;
   padding: 2px 2px 3px 2px;
   font-size: 11px;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
 }
 
 .widget-buttons-grid {
@@ -67,19 +69,28 @@
   margin: 2px 0 8px 0;
 }
 
-.widget-buttons-grid#notif_tools flowboxchild > button {
-  min-height: 30px;
-  font-weight: 700;
+.widget-buttons-grid#connectivity_grid {
+  margin: 2px 0 9px 0;
 }
 
 .widget-buttons-grid flowboxchild > button {
-  min-height: 32px;
+  min-height: 31px;
+  border-radius: 9px;
+  padding: 0 8px;
+  font-size: 11px;
+  transition: background 200ms cubic-bezier(0.2, 0.9, 0.12, 1), border-color 200ms cubic-bezier(0.2, 0.9, 0.12, 1), color 200ms ease, box-shadow 200ms cubic-bezier(0.2, 0.9, 0.12, 1);
+}
+
+.widget-buttons-grid#connectivity_grid flowboxchild > button {
+  min-height: 33px;
   border-radius: 10px;
+  background: rgba(28, 34, 53, 0.72);
+  border: 1px solid rgba(111, 148, 201, 0.2);
 }
 
 .widget-buttons-grid flowboxchild > button.active {
-  background: rgba(102, 194, 184, 0.1);
-  border-color: rgba(102, 194, 184, 0.28);
+  background: rgba(102, 194, 184, 0.12);
+  border-color: rgba(102, 194, 184, 0.34);
   color: @accent2;
 }
 
@@ -92,10 +103,10 @@
   color: @muted;
   font-size: 11px;
   margin-left: 8px;
-  padding: 1px 8px;
+  padding: 1px 7px;
   border-radius: 7px;
-  border: 1px solid rgba(111, 148, 201, 0.14);
-  background: rgba(22, 26, 38, 0.68);
+  border: 1px solid rgba(111, 148, 201, 0.16);
+  background: rgba(23, 27, 42, 0.72);
 }
 
 .notification-row .notification-background .notification .notification-default-action .notification-content .text-box .body {
@@ -111,21 +122,23 @@
 .widget-volume,
 .widget-backlight {
   border: 1px solid rgba(111, 148, 201, 0.18);
-  border-radius: 13px;
+  border-radius: 12px;
   padding: 8px;
   margin: 4px 0;
-  background: rgba(31, 35, 53, 0.66);
+  background: rgba(31, 35, 53, 0.7);
 }
 
 button {
-  background: rgba(22, 26, 38, 0.58);
+  background: rgba(23, 27, 42, 0.62);
   color: @text;
-  border: 1px solid rgba(111, 148, 201, 0.12);
+  border: 1px solid rgba(111, 148, 201, 0.16);
   border-radius: 9px;
+  transition: background 200ms cubic-bezier(0.2, 0.9, 0.12, 1), border-color 200ms cubic-bezier(0.2, 0.9, 0.12, 1), color 200ms ease, box-shadow 200ms cubic-bezier(0.2, 0.9, 0.12, 1);
 }
 
 button:hover {
-  background: rgba(111, 148, 201, 0.1);
+  background: rgba(111, 148, 201, 0.12);
+  border-color: rgba(111, 148, 201, 0.34);
   color: @text;
 }
 
@@ -135,8 +148,8 @@ button:hover {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  background: rgba(255, 117, 127, 0.14);
-  border-color: rgba(255, 117, 127, 0.5);
+  background: rgba(255, 117, 127, 0.16);
+  border-color: rgba(255, 117, 127, 0.52);
   color: @danger;
 }
 

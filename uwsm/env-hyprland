@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+# Keep Hyprland on the Intel display GPU on hybrid Intel + NVIDIA laptops.
+# The dGPU remains available for PRIME/render offload workloads.
+export AQ_DRM_DEVICES=/dev/dri/card1

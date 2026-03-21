@@ -193,7 +193,7 @@ apply_startup() {
   autostart_file="$HOME/.config/autostart/nvidia-settings-load.desktop"
   enabled="$(jq -r '.startup.nvidia_settings_autoload' <<<"$json")"
 
-  if [[ "$enabled" == "true" ]]; then
+  if [[ "$enabled" == "true" ]] && command -v nvidia-settings >/dev/null 2>&1; then
     mkdir -p "$(dirname "$autostart_file")"
     cat > "$autostart_file" <<EOD
 [Desktop Entry]
