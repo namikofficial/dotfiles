@@ -369,6 +369,14 @@ if ! command -v codex >/dev/null 2>&1; then
   [ -n "$codex_bin_dir" ] && path=("$codex_bin_dir" $path)
 fi
 
+# Default Codex behavior across projects:
+# typing `codex ...` implicitly uses search + full access + on-request approvals.
+if [[ -o interactive ]]; then
+  codex() {
+    command codex --search -s danger-full-access -a on-request "$@"
+  }
+fi
+
 # GitHub Copilot shell aliases (safe no-op when not installed).
 if command -v gh >/dev/null 2>&1; then
   if gh extension list 2>/dev/null | rg -q 'github/gh-copilot'; then
