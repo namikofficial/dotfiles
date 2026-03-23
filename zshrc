@@ -498,6 +498,8 @@ fi
 rebind_history_navigation_keys() {
   emulate -L zsh
 
+  # Prefer history substring widgets when available (better Atuin flow).
+  # Fall back to default line-history navigation otherwise.
   local fallback_up="up-line-or-history"
   local fallback_down="down-line-or-history"
   if zle -l | command grep -Eq '^history-substring-search-up([[:space:]]|$)'; then
