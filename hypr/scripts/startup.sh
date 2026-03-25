@@ -69,6 +69,12 @@ if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
   "$HOME/.config/hypr/scripts/launcher.sh" --warm-cache >/dev/null 2>&1 &
 fi
 
+# Initialize notification cache/state early so downstream scripts can emit
+# events safely during session bootstrap.
+if [ -x "$HOME/.config/hypr/scripts/lib/log.sh" ]; then
+  "$HOME/.config/hypr/scripts/lib/log.sh" --init >/dev/null 2>&1 || true
+fi
+
 # Apply generated settings overlays for Hypr/SwayNC at session start.
 if [ -x "$HOME/.config/hypr/scripts/settingsctl" ]; then
   (
@@ -193,21 +199,25 @@ if resolve_cmd waybar >/dev/null 2>&1; then
   ) &
 fi
 
-# Notifications: prefer swaync, fallback dunst.
-if resolve_cmd swaync >/dev/null 2>&1; then
-  run_once swaync swaync
-  pkill -x dunst >/dev/null 2>&1 || true
-
-  # Ensure popups are not silently suppressed by stale DND/inhibitors.
-  if resolve_cmd swaync-client >/dev/null 2>&1; then
-    (
-      sleep 1
-      swaync-client -sw -df >/dev/null 2>&1 || true
-      swaync-client -sw -Ic >/dev/null 2>&1 || true
-    ) &
+# Notifications: custom mode by default; swaync as manual fallback mode.
+if [ -x "$HOME/.config/hypr/scripts/notif-mode.sh" ]; then
+  (
+    sleep 0.8
+    "$HOME/.config/hypr/scripts/notif-mode.sh" "${HYPR_NOTIF_MODE:-custom}" >/dev/null 2>&1 || true
+  ) &
+  if [ "${HYPR_NOTIF_MODE:-custom}" = "custom" ] && [ -x "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" ]; then
+    run_cmd_if_not "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" "$HOME/.config/hypr/scripts/notif-toast-daemon.sh"
+  fi
+  if [ "${HYPR_NOTIF_MODE:-custom}" = "custom" ] && [ -x "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" ]; then
+    run_cmd_if_not "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh"
   fi
 else
-  run_once dunst dunst
+  if resolve_cmd swaync >/dev/null 2>&1; then
+    run_once swaync swaync
+    pkill -x dunst >/dev/null 2>&1 || true
+  else
+    run_once dunst dunst
+  fi
 fi
 
 if resolve_cmd swww >/dev/null 2>&1; then

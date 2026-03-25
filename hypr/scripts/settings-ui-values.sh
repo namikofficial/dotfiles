@@ -46,7 +46,9 @@ case "$path" in
     [[ "$v" == "true" ]] && echo "ON" || echo "OFF"
     ;;
   dnd)
-    if command -v swaync-client >/dev/null 2>&1; then
+    if [ -x "$HOME/.config/hypr/scripts/notif-peek.sh" ]; then
+      "$HOME/.config/hypr/scripts/notif-peek.sh" dnd
+    elif command -v swaync-client >/dev/null 2>&1; then
       v="$(swaync-client -D 2>/dev/null || echo false)"
       [[ "$v" == "true" ]] && echo "ON" || echo "OFF"
     else
@@ -69,7 +71,9 @@ case "$path" in
     fi
     ;;
   notifications.count)
-    if command -v swaync-client >/dev/null 2>&1; then
+    if [ -x "$HOME/.config/hypr/scripts/notif-peek.sh" ]; then
+      "$HOME/.config/hypr/scripts/notif-peek.sh" count
+    elif command -v swaync-client >/dev/null 2>&1; then
       c="$(swaync-client -c 2>/dev/null || echo 0)"
       echo "$c"
     else

@@ -58,9 +58,9 @@ actions=(
   "Apply Theme Pass"
   "Pick Color"
   "Toggle Night Light"
-  "Toggle Notifications"
-  "Toggle DND"
-  "Clear All Notifications"
+  "Toggle Notification Center"
+  "Toggle Notification DND"
+  "Clear Custom Notifications"
   "Power Saver Profile"
   "Performance Profile"
   "System Monitor"
@@ -74,7 +74,7 @@ actions=(
   "Open Obsidian"
   "Open Terminal"
   "Open Notes"
-  "Open Notes Folder"
+  "Toggle Notif Mode (Custom/SwayNC)"
   "Open Settings Hub"
   "Monitor Control"
   "Run Weekly Health Check"
@@ -188,9 +188,9 @@ case "$choice_index" in
   26) ~/.config/hypr/scripts/theme-pass.sh ;;
   27) hyprpicker -a ;;
   28) ~/.config/hypr/scripts/night-light-toggle.sh ;;
-  29) swaync-client -t ;;
-  30) swaync-client -d ;;
-  31) swaync-client -C ;;
+  29) ~/.config/hypr/scripts/notif-center-toggle.sh ;;
+  30) ~/.config/hypr/scripts/notif-dnd-toggle.sh ;;
+  31) ~/.config/hypr/scripts/notif-clear.sh ;;
   32) powerprofilesctl set power-saver ;;
   33) powerprofilesctl set performance ;;
   34) kitty -e btop ;;
@@ -204,7 +204,7 @@ case "$choice_index" in
   42) obsidian >/dev/null 2>&1 & ;;
   43) kitty >/dev/null 2>&1 & ;;
   44) ~/.config/hypr/scripts/open-notes.sh ;;
-  45) ~/.config/hypr/scripts/open-notes.sh ;;
+  45) ~/.config/hypr/scripts/notif-mode.sh toggle ;;
   46) ~/.config/hypr/scripts/settings-hub.sh ;;
   47) ~/.config/hypr/scripts/monitor-control.sh menu ;;
   48) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;

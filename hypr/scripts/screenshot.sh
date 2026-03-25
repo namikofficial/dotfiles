@@ -7,6 +7,15 @@ mkdir -p "$out_dir"
 file="$out_dir/$(date +%Y-%m-%d_%H-%M-%S).png"
 tmp_file="$(mktemp --suffix=.png)"
 
+emit() {
+  level="$1"
+  title="$2"
+  body="${3:-}"
+  if [ -x "$HOME/.config/hypr/scripts/lib/log.sh" ]; then
+    "$HOME/.config/hypr/scripts/lib/log.sh" --emit "$level" screenshot "$title" "$body" "" "$body" >/dev/null 2>&1 || true
+  fi
+}
+
 cleanup() {
   rm -f "$tmp_file"
 }
@@ -44,3 +53,4 @@ fi
 if command -v notify-send >/dev/null 2>&1; then
   notify-send "Screenshot saved" "$file"
 fi
+emit info "Screenshot saved" "$file"

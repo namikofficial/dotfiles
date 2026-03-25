@@ -7,6 +7,12 @@ cfg="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/config"
 css="${XDG_CONFIG_HOME:-$HOME/.config}/waybar/style.css"
 mkdir -p "$state_dir"
 
+emit_event() {
+  if [ -x "$HOME/.config/hypr/scripts/lib/log.sh" ]; then
+    "$HOME/.config/hypr/scripts/lib/log.sh" --emit "$1" restart-waybar "$2" "${3:-}" "${4:-}" "${5:-}" >/dev/null 2>&1 || true
+  fi
+}
+
 pkill -x waybar >/dev/null 2>&1 || true
 
 # Wait briefly so old tray hosts fully disconnect.
@@ -36,6 +42,9 @@ if [ "$started" -ne 1 ]; then
     echo "XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-}"
     echo "HYPRLAND_INSTANCE_SIGNATURE=${HYPRLAND_INSTANCE_SIGNATURE:-}"
   } >>"$log_file"
+  emit_event error "Waybar failed to start" "See $log_file"
   command -v notify-send >/dev/null 2>&1 && notify-send -a Waybar "Waybar failed to start" "See: $log_file" || true
   exit 1
 fi
+
+emit_event info "Waybar restarted" "Waybar is running"

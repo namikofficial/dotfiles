@@ -10,6 +10,12 @@ mkdir -p \
   "$HOME/Pictures/Wallpapers" \
   "$HOME/Pictures/wallpaper-sources"
 
+emit_event() {
+  if [ -x "$HOME/.config/hypr/scripts/lib/log.sh" ]; then
+    "$HOME/.config/hypr/scripts/lib/log.sh" --emit "$1" wallpaper "$2" "${3:-}" "${4:-}" "${5:-}" >/dev/null 2>&1 || true
+  fi
+}
+
 ensure_fallback_wall() {
   mkdir -p "$HOME/.cache/wallpapers"
   if [ ! -f "$fallback_wall" ]; then
@@ -145,6 +151,7 @@ write_wall_cache() {
   wall="$1"
   printf '%s' "$wall" > "$HOME/.cache/current-wallpaper"
   ensure_theme_sync "$wall"
+  emit_event info "Wallpaper applied" "$wall"
 }
 
 apply_wallpaper() {
@@ -180,6 +187,7 @@ apply_wallpaper() {
   if command -v notify-send >/dev/null 2>&1; then
     notify-send -a Wallpaper "Wallpaper backend unavailable" "Install/start swww or hyprpaper."
   fi
+  emit_event error "Wallpaper backend unavailable" "Install/start swww or hyprpaper."
   return 1
 }
 

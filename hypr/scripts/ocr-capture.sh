@@ -6,9 +6,19 @@ notify() {
   notify-send -a OCR "$1" "${2:-}"
 }
 
+emit() {
+  level="$1"
+  title="$2"
+  body="${3:-}"
+  if [ -x "$HOME/.config/hypr/scripts/lib/log.sh" ]; then
+    "$HOME/.config/hypr/scripts/lib/log.sh" --emit "$level" ocr "$title" "$body" "" "$body" >/dev/null 2>&1 || true
+  fi
+}
+
 for cmd in grim slurp tesseract wl-copy python3; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     notify "Missing dependency" "Install: $cmd"
+    emit error "OCR dependency missing" "Install: $cmd"
     exit 1
   fi
 done
@@ -51,6 +61,7 @@ tesseract "$img_proc" stdout -l eng --oem 1 --psm 3 2>/dev/null >"$txt" || true
 cleaned="$(sed 's/[[:space:]]\+$//; /^[[:space:]]*$/d' "$txt" | tr -s '\n')"
 if [ -z "$cleaned" ]; then
   notify "No text detected" "Try selecting a region with clearer contrast"
+  emit warn "OCR no text detected" "Try selecting a region with clearer contrast"
   exit 0
 fi
 
@@ -58,4 +69,4 @@ printf '%s' "$cleaned" | wl-copy
 char_count="$(printf '%s' "$cleaned" | wc -c)"
 preview="$(printf '%s' "$cleaned" | head -c 120)"
 notify "OCR copied  (${char_count} chars)" "$preview"
-
+emit info "OCR copied (${char_count} chars)" "$preview"
