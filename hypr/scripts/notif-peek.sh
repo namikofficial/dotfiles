@@ -17,6 +17,7 @@ case "$mode" in
   count) jq -r '(.events // []) | length' "$state_file" ;;
   dnd) jq -r 'if (.dnd // false) then "ON" else "OFF" end' "$state_file" ;;
   mode) jq -r '.mode // "custom"' "$state_file" ;;
+  selected_index) jq -r '(.selected_index // 0 | tostring)' "$state_file" ;;
   severity) jq -r '.events[(.selected_index // 0)].severity // "info"' "$state_file" ;;
   title) jq -r '.events[(.selected_index // 0)].title // "No notifications"' "$state_file" ;;
   body) jq -r '.events[(.selected_index // 0)].body // "All clear."' "$state_file" ;;

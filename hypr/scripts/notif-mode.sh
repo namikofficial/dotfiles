@@ -25,14 +25,21 @@ fi
 
 case "$mode" in
   custom)
+    # Custom mode: only Eww/custom pipeline, no native popup daemon.
     pkill -x swaync >/dev/null 2>&1 || true
-    if command -v mako >/dev/null 2>&1 && ! pgrep -x mako >/dev/null 2>&1; then
-      mako >/dev/null 2>&1 &
+    pkill -x mako >/dev/null 2>&1 || true
+    pkill -x dunst >/dev/null 2>&1 || true
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl --user stop swaync.service >/dev/null 2>&1 || true
+      systemctl --user stop dunst.service >/dev/null 2>&1 || true
+      systemctl --user stop mako.service >/dev/null 2>&1 || true
     fi
-    if [ -x "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" ] && ! pgrep -f "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" >/dev/null 2>&1; then
+    pkill -f "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" >/dev/null 2>&1 || true
+    pkill -f "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" >/dev/null 2>&1 || true
+    if [ -x "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" ]; then
       "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" >/dev/null 2>&1 &
     fi
-    if [ -x "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" ] && ! pgrep -f "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" >/dev/null 2>&1; then
+    if [ -x "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" ]; then
       "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" >/dev/null 2>&1 &
     fi
     if command -v eww >/dev/null 2>&1; then

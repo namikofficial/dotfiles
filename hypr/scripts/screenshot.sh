@@ -7,6 +7,11 @@ mkdir -p "$out_dir"
 file="$out_dir/$(date +%Y-%m-%d_%H-%M-%S).png"
 tmp_file="$(mktemp --suffix=.png)"
 
+is_custom_mode() {
+  [ -x "$HOME/.config/hypr/scripts/notif-peek.sh" ] && \
+    [ "$("$HOME/.config/hypr/scripts/notif-peek.sh" mode 2>/dev/null || echo custom)" = "custom" ]
+}
+
 emit() {
   level="$1"
   title="$2"
@@ -50,7 +55,7 @@ if command -v wl-copy >/dev/null 2>&1; then
   wl-copy < "$file"
 fi
 
-if command -v notify-send >/dev/null 2>&1; then
+if ! is_custom_mode && command -v notify-send >/dev/null 2>&1; then
   notify-send "Screenshot saved" "$file"
 fi
 emit info "Screenshot saved" "$file"
