@@ -65,6 +65,10 @@ pick_random_wall() {
 }
 
 ensure_daemon() {
+  if ! command -v swww >/dev/null 2>&1 || ! command -v swww-daemon >/dev/null 2>&1; then
+    return 1
+  fi
+
   if swww query >/dev/null 2>&1; then
     return 0
   fi
@@ -82,6 +86,53 @@ ensure_daemon() {
   done
 
   return 1
+}
+
+apply_with_hyprpaper() {
+  wall_path="$1"
+  command -v hyprctl >/dev/null 2>&1 || return 1
+  command -v hyprpaper >/dev/null 2>&1 || return 1
+
+  if ! pgrep -x hyprpaper >/dev/null 2>&1; then
+    pkill -x hyprpaper >/dev/null 2>&1 || true
+    hyprpaper >/dev/null 2>&1 &
+
+    i=0
+    while [ "$i" -lt 10 ]; do
+      sleep 0.2
+      if pgrep -x hyprpaper >/dev/null 2>&1; then
+        break
+      fi
+      i=$((i + 1))
+    done
+
+    pgrep -x hyprpaper >/dev/null 2>&1 || return 1
+  fi
+
+  # Preload is optional; some setups still accept wallpaper even if preload
+  # fails for a given file/state.
+  hyprctl hyprpaper preload "$wall_path" >/dev/null 2>&1 || true
+
+  monitors="$(hyprctl monitors -j 2>/dev/null | jq -r '.[].name' 2>/dev/null || true)"
+  success=1
+  if [ -n "$monitors" ]; then
+    old_ifs="$IFS"
+    IFS='
+'
+    for mon in $monitors; do
+      [ -n "$mon" ] || continue
+      if hyprctl hyprpaper wallpaper "$mon,$wall_path" >/dev/null 2>&1; then
+        success=0
+      fi
+    done
+    IFS="$old_ifs"
+    if [ "$success" -eq 0 ]; then
+      return 0
+    fi
+  fi
+
+  hyprctl hyprpaper wallpaper ",$wall_path" >/dev/null 2>&1 || return 1
+  return 0
 }
 
 ensure_theme_sync() {
@@ -107,19 +158,29 @@ apply_wallpaper() {
 
   prepared_wall="$(prepare_wall "$wall")"
 
-  if [ "$transition" = "init" ]; then
-    swww clear 000000 >/dev/null 2>&1 || true
-    swww img "$prepared_wall" --resize "$resize_mode" --transition-type fade --transition-fps "$transition_fps" --transition-duration 1
+  if ensure_daemon; then
+    if [ "$transition" = "init" ]; then
+      swww img "$prepared_wall" --resize "$resize_mode" --transition-type fade --transition-fps "$transition_fps" --transition-duration 1
+      return 0
+    fi
+
+    swww img "$prepared_wall" \
+      --resize "$resize_mode" \
+      --transition-type "$transition_type" \
+      --transition-step "$transition_step" \
+      --transition-fps "$transition_fps" \
+      --transition-duration "$transition_duration" && return 0
+  fi
+
+  # Fallback for environments where swww is unavailable/broken.
+  if apply_with_hyprpaper "$prepared_wall" || apply_with_hyprpaper "$wall"; then
     return 0
   fi
 
-  swww clear 000000 >/dev/null 2>&1 || true
-  swww img "$prepared_wall" \
-    --resize "$resize_mode" \
-    --transition-type "$transition_type" \
-    --transition-step "$transition_step" \
-    --transition-fps "$transition_fps" \
-    --transition-duration "$transition_duration"
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send -a Wallpaper "Wallpaper backend unavailable" "Install/start swww or hyprpaper."
+  fi
+  return 1
 }
 
 prepare_wall() {
@@ -186,9 +247,6 @@ if [ "${1:-}" = "--init" ]; then
   if ! wayland_ready; then
     exit 0
   fi
-  if ! ensure_daemon; then
-    exit 0
-  fi
   wall=""
 
   if [ -f "$HOME/.cache/current-wallpaper" ]; then
@@ -237,10 +295,6 @@ else
 fi
 
 if ! wayland_ready; then
-  exit 0
-fi
-
-if ! ensure_daemon; then
   exit 0
 fi
 
