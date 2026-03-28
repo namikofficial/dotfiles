@@ -35,8 +35,12 @@ case "$mode" in
       systemctl --user stop mako.service >/dev/null 2>&1 || true
     fi
     pkill -f "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" >/dev/null 2>&1 || true
+    pkill -f "$HOME/.config/hypr/scripts/notif-dbus-owner.py" >/dev/null 2>&1 || true
     pkill -f "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" >/dev/null 2>&1 || true
-    if [ -x "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" ]; then
+    if [ -x "$HOME/.config/hypr/scripts/notif-dbus-owner.py" ]; then
+      "$HOME/.config/hypr/scripts/notif-dbus-owner.py" >/dev/null 2>&1 &
+    elif [ -x "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" ]; then
+      # Fallback only when the DBus owner is unavailable.
       "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" >/dev/null 2>&1 &
     fi
     if [ -x "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" ]; then
@@ -50,6 +54,7 @@ case "$mode" in
     ;;
   swaync)
     pkill -f "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" >/dev/null 2>&1 || true
+    pkill -f "$HOME/.config/hypr/scripts/notif-dbus-owner.py" >/dev/null 2>&1 || true
     pkill -f "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" >/dev/null 2>&1 || true
     if command -v swaync >/dev/null 2>&1 && ! pgrep -x swaync >/dev/null 2>&1; then
       swaync >/dev/null 2>&1 &
