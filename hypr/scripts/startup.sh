@@ -205,12 +205,6 @@ if [ -x "$HOME/.config/hypr/scripts/notif-mode.sh" ]; then
     sleep 0.8
     "$HOME/.config/hypr/scripts/notif-mode.sh" "${HYPR_NOTIF_MODE:-custom}" >/dev/null 2>&1 || true
   ) &
-  if [ "${HYPR_NOTIF_MODE:-custom}" = "custom" ] && [ -x "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" ]; then
-    run_cmd_if_not "$HOME/.config/hypr/scripts/notif-toast-daemon.sh" "$HOME/.config/hypr/scripts/notif-toast-daemon.sh"
-  fi
-  if [ "${HYPR_NOTIF_MODE:-custom}" = "custom" ] && [ -x "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" ]; then
-    run_cmd_if_not "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh" "$HOME/.config/hypr/scripts/notif-bridge-dbus.sh"
-  fi
 else
   if resolve_cmd swaync >/dev/null 2>&1; then
     run_once swaync swaync
