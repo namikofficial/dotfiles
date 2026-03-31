@@ -32,6 +32,7 @@ run_daily_mode() {
     check_interval=60
   fi
 
+  first_cycle=1
   while :; do
     today="$(date +%F)"
     last=""
@@ -43,10 +44,17 @@ run_daily_mode() {
       # First run: initialize state without forcing an immediate rotation.
       printf '%s\n' "$today" > "$state_file"
     elif [ "$last" != "$today" ]; then
-      rotate_next
-      printf '%s\n' "$today" > "$state_file"
+      if [ "$first_cycle" = "1" ]; then
+        # Session just started and init wallpaper already ran; avoid a second
+        # immediate change/notification at cold boot.
+        printf '%s\n' "$today" > "$state_file"
+      else
+        rotate_next
+        printf '%s\n' "$today" > "$state_file"
+      fi
     fi
 
+    first_cycle=0
     sleep "$check_interval"
   done
 }
