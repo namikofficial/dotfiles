@@ -14,6 +14,7 @@ OBJ_PATH = "/org/freedesktop/Notifications"
 IFACE = "org.freedesktop.Notifications"
 
 LOG_HELPER = os.path.expanduser("~/.config/hypr/scripts/lib/log.sh")
+SOUND_HELPER = os.path.expanduser("~/.config/hypr/scripts/notify-sound.sh")
 STATE_FILE = os.path.expanduser("~/.cache/hypr/notif/state.json")
 
 _next_id = 1
@@ -91,6 +92,38 @@ def severity_from_hints(hints) -> str:
   return "warn"
 
 
+def sound_kind_from_hints(hints) -> str:
+  urgency = hints.get("urgency", 1)
+  urgency = unwrap_variant(urgency)
+  if isinstance(urgency, bytes) and urgency:
+    urgency = urgency[0]
+  try:
+    urgency = int(urgency)
+  except Exception:
+    urgency = 1
+
+  if urgency >= 2:
+    return "critical"
+  if urgency == 0:
+    return "system"
+  return "message"
+
+
+def play_sound(hints) -> None:
+  if not os.path.isfile(SOUND_HELPER) or not os.access(SOUND_HELPER, os.X_OK):
+    return
+
+  try:
+    subprocess.Popen(
+      [SOUND_HELPER, sound_kind_from_hints(hints or {})],
+      stdout=subprocess.DEVNULL,
+      stderr=subprocess.DEVNULL,
+      start_new_session=True,
+    )
+  except Exception:
+    pass
+
+
 def emit_event(app_name: str, summary: str, body: str, hints) -> None:
   if not os.path.isfile(LOG_HELPER) or not os.access(LOG_HELPER, os.X_OK):
     return
@@ -117,6 +150,8 @@ def emit_event(app_name: str, summary: str, body: str, hints) -> None:
     subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
   except Exception:
     pass
+
+  play_sound(hints)
 
 
 def on_method_call(
