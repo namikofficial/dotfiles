@@ -82,6 +82,14 @@ entries:
     description: Toggle split direction in dwindle layout
     copy: hyprctl dispatch layoutmsg togglesplit
     source: ~/.config/hypr/hyprland.conf
+  - key: Super+Shift+Up
+    description: Move active window up
+    copy: hyprctl dispatch movewindow u
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Shift+Down
+    description: Move active window down
+    copy: hyprctl dispatch movewindow d
+    source: ~/.config/hypr/hyprland.conf
   - key: Super+T
     description: Toggle grouped window stack
     copy: hyprctl dispatch togglegroup
