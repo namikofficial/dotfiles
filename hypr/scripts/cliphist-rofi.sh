@@ -3,9 +3,15 @@ set -eu
 
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 gtk_browser="$script_dir/cliphist-ui.py"
+daemon_ctl="$script_dir/cliphist-daemon.sh"
+ipc="$script_dir/cliphist-ipc.py"
 
 if [ "${1:-}" != "--rofi" ] && command -v python3 >/dev/null 2>&1 && [ -f "$gtk_browser" ]; then
   if python3 -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1")' >/dev/null 2>&1; then
+    if [ -x "$daemon_ctl" ] && [ -f "$ipc" ]; then
+      "$daemon_ctl" start >/dev/null 2>&1 || true
+      python3 "$ipc" show >/dev/null 2>&1 && exit 0
+    fi
     python3 "$gtk_browser" "$@" && exit 0
   fi
 fi

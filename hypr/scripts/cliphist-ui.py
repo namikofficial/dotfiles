@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
+import argparse
 import hashlib
 import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -22,6 +25,8 @@ from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango
 
 APP_ID = "dev.noxflow.ClipboardBrowser"
 PREVIEW_WIDTH = 320
+IPC_DIR = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "noxflow"
+IPC_SOCKET_PATH = IPC_DIR / "clipboard-ui.sock"
 STATE_PATH = (
     Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
     / "noxflow"
@@ -320,6 +325,15 @@ def run_command(args, input_bytes=None, check=True):
     )
 
 
+def find_paste_backend():
+    if shutil.which("wtype") is not None:
+        return {
+            "name": "wtype",
+            "command": ["wtype", "-M", "ctrl", "-k", "v", "-m", "ctrl"],
+        }
+    return None
+
+
 def notify_send(summary, body=""):
     if shutil.which("notify-send") is None:
         return
@@ -361,11 +375,11 @@ def classify_text_preview(text):
         "def ",
         "function ",
         "#include",
-        "SELECT ",
+        "select ",
         "</",
     ]
     line_count = text.count("\n") + 1
-    if line_count > 1 and any(marker in text for marker in code_markers):
+    if line_count > 1 and any(marker in lowered for marker in code_markers):
         return "code"
     if text.startswith("```") or text.startswith("#!/"):
         return "code"
@@ -437,6 +451,63 @@ class ClipEntry:
         if self.pinned:
             parts.append("Pinned")
         return "  ".join(parts)
+
+
+class IPCServer(threading.Thread):
+    def __init__(self, app_window):
+        super().__init__(daemon=True)
+        self.app_window = app_window
+        self.sock = None
+        self.running = True
+
+    def run(self):
+        IPC_DIR.mkdir(parents=True, exist_ok=True)
+        try:
+            if IPC_SOCKET_PATH.exists():
+                IPC_SOCKET_PATH.unlink()
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.bind(str(IPC_SOCKET_PATH))
+            IPC_SOCKET_PATH.chmod(0o600)
+            sock.listen(8)
+            self.sock = sock
+        except OSError:
+            return
+
+        while self.running:
+            try:
+                conn, _addr = self.sock.accept()
+            except OSError:
+                break
+            with conn:
+                try:
+                    payload = conn.recv(128)
+                except OSError:
+                    continue
+                command = payload.decode("utf-8", errors="replace").strip() or "ping"
+                GLib.idle_add(self.app_window.handle_ipc_command, command)
+                try:
+                    conn.sendall(b"ok\n")
+                except OSError:
+                    continue
+
+        self.cleanup()
+
+    def stop(self):
+        self.running = False
+        if self.sock is not None:
+            try:
+                self.sock.close()
+            except OSError:
+                pass
+            self.sock = None
+        self.cleanup()
+
+    def cleanup(self):
+        try:
+            if IPC_SOCKET_PATH.exists():
+                IPC_SOCKET_PATH.unlink()
+        except OSError:
+            pass
 
 
 class SectionHeaderRow(Gtk.ListBoxRow):
@@ -602,8 +673,9 @@ class ClipRow(Gtk.ListBoxRow):
 
 
 class ClipboardWindow(Adw.ApplicationWindow):
-    def __init__(self, app):
+    def __init__(self, app, daemon_mode=False):
         super().__init__(application=app)
+        self.daemon_mode = daemon_mode
         self.state = load_state()
         self.settings = self.state["settings"]
         self.pins = set(self.state["pins"])
@@ -618,9 +690,12 @@ class ClipboardWindow(Adw.ApplicationWindow):
         self.current_filter = "all"
         self.filter_buttons = {}
         self.editing_entry = None
+        self.paste_backend = find_paste_backend()
+        self.loading_entries = False
+        self.ipc_server = None
 
         self.set_title("Clipboard Browser")
-        self.set_default_size(1260, 780)
+        self.set_default_size(1160, 740)
         self.set_resizable(True)
         self.set_decorated(False)
         self.add_css_class("clipboard-window")
@@ -684,8 +759,12 @@ class ClipboardWindow(Adw.ApplicationWindow):
         key_controller.connect("key-pressed", self.on_key_pressed)
         self.add_controller(key_controller)
 
-        self.reload_entries()
-        self.present()
+        self.show_loading_state()
+        GLib.idle_add(self.start_async_reload)
+        if self.daemon_mode:
+            self.start_ipc_server()
+        if not self.daemon_mode:
+            self.present()
 
     def build_topbar(self):
         topbar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
@@ -712,10 +791,16 @@ class ClipboardWindow(Adw.ApplicationWindow):
         top_row.append(hint)
 
         self.shortcut_label = Gtk.Label(
-            label="j/k move   Enter copy   Shift+Enter paste   x delete   p pin"
+            label="j/k move   Enter copy   Shift+Enter paste   Esc close   x delete   p pin"
         )
         self.shortcut_label.add_css_class("shortcut-hint")
         top_row.append(self.shortcut_label)
+
+        close_button = Gtk.Button()
+        close_button.set_tooltip_text("Close")
+        close_button.set_child(Gtk.Image.new_from_icon_name("window-close-symbolic"))
+        close_button.connect("clicked", lambda *_: self.close())
+        top_row.append(close_button)
 
         settings_button = Gtk.MenuButton()
         settings_button.set_child(Gtk.Image.new_from_icon_name("emblem-system-symbolic"))
@@ -815,6 +900,10 @@ class ClipboardWindow(Adw.ApplicationWindow):
         self.preview_meta_chip = Gtk.Label(label="Hover a row to inspect it.")
         self.preview_meta_chip.add_css_class("preview-chip")
         chips.append(self.preview_meta_chip)
+
+        self.preview_detail_chip = Gtk.Label(label="No payload")
+        self.preview_detail_chip.add_css_class("preview-chip")
+        chips.append(self.preview_detail_chip)
         header.append(chips)
 
         self.preview_title = Gtk.Label(xalign=0, label="No selection")
@@ -918,6 +1007,11 @@ class ClipboardWindow(Adw.ApplicationWindow):
         self.paste_button.connect("clicked", lambda *_: self.paste_selected())
         bar.append(self.paste_button)
 
+        self.open_link_button = Gtk.Button(label="Open link")
+        self.open_link_button.add_css_class("action-button")
+        self.open_link_button.connect("clicked", lambda *_: self.open_active_link())
+        bar.append(self.open_link_button)
+
         self.edit_button = Gtk.Button(label="Edit")
         self.edit_button.add_css_class("action-button")
         self.edit_button.connect("clicked", lambda *_: self.start_edit())
@@ -946,8 +1040,24 @@ class ClipboardWindow(Adw.ApplicationWindow):
         self.update_action_bar()
         return bar
 
+    def show_loading_state(self):
+        self.history_summary.set_text("Loading clipboard history...")
+        self.preview_stack.set_visible_child_name("placeholder")
+        self.preview_title.set_text("Loading clipboard history")
+        self.preview_summary.set_text("Opening the overlay first, then filling history in the background.")
+        self.preview_meta_chip.set_text("Starting up")
+        self.preview_detail_chip.set_text("Loading")
+        self.selection_label.set_text("Loading...")
+
+    def start_async_reload(self):
+        self.reload_entries()
+        return False
+
     def on_close_request(self, *_args):
-        self.cleanup_temp_files()
+        if self.daemon_mode:
+            self.hide_overlay()
+            return True
+        self.shutdown_runtime()
         return False
 
     def cleanup_temp_files(self):
@@ -957,6 +1067,47 @@ class ClipboardWindow(Adw.ApplicationWindow):
                 os.unlink(path)
             except OSError:
                 continue
+
+    def shutdown_runtime(self):
+        self.cleanup_temp_files()
+        if self.ipc_server is not None:
+            self.ipc_server.stop()
+            self.ipc_server = None
+
+    def start_ipc_server(self):
+        if self.ipc_server is not None:
+            return
+        self.ipc_server = IPCServer(self)
+        self.ipc_server.start()
+
+    def handle_ipc_command(self, command):
+        if command == "toggle":
+            if self.get_visible():
+                self.hide_overlay()
+            else:
+                self.show_overlay()
+        elif command == "show":
+            self.show_overlay()
+        elif command == "hide":
+            self.hide_overlay()
+        elif command == "refresh":
+            self.reload_entries()
+        elif command == "quit":
+            self.shutdown_runtime()
+            app = self.get_application()
+            if app is not None:
+                app.quit()
+        return False
+
+    def show_overlay(self):
+        self.present()
+        self.reload_entries(
+            preserve_fingerprint=self.preview_entry_item.fingerprint if self.preview_entry_item is not None else None
+        )
+
+    def hide_overlay(self):
+        self.cleanup_temp_files()
+        self.hide()
 
     def add_toast(self, title, timeout=2):
         toast = Adw.Toast.new(title)
@@ -979,6 +1130,20 @@ class ClipboardWindow(Adw.ApplicationWindow):
 
     def focus_search(self):
         self.search_entry.grab_focus()
+
+    def update_filter_labels(self):
+        counts = {
+            "all": len(self.entries),
+            "text": 0,
+            "images": 0,
+            "code": 0,
+            "links": 0,
+        }
+        for entry in self.entries:
+            counts[entry.kind] += 1
+        for filter_name, button in self.filter_buttons.items():
+            base = TYPE_LABELS.get(filter_name, "All")
+            button.set_label(f"{base} {counts.get(filter_name, 0)}")
 
     def on_filter_toggled(self, button, filter_name):
         if not button.get_active():
@@ -1040,10 +1205,28 @@ class ClipboardWindow(Adw.ApplicationWindow):
         return entries
 
     def reload_entries(self, preserve_fingerprint=None):
-        self.entries = self.fetch_entries()
         if preserve_fingerprint is None and self.preview_entry_item is not None:
             preserve_fingerprint = self.preview_entry_item.fingerprint
+        if self.loading_entries:
+            return
+        self.loading_entries = True
+        worker = threading.Thread(
+            target=self._reload_entries_worker,
+            args=(preserve_fingerprint,),
+            daemon=True,
+        )
+        worker.start()
+
+    def _reload_entries_worker(self, preserve_fingerprint):
+        entries = self.fetch_entries()
+        GLib.idle_add(self.finish_reload_entries, entries, preserve_fingerprint)
+
+    def finish_reload_entries(self, entries, preserve_fingerprint):
+        self.loading_entries = False
+        self.entries = entries
+        self.update_filter_labels()
         self.apply_filters(prefer_fingerprint=preserve_fingerprint)
+        return False
 
     def apply_filters(self, prefer_fingerprint=None):
         search_query, forced_filter = self.parse_search()
@@ -1094,6 +1277,7 @@ class ClipboardWindow(Adw.ApplicationWindow):
             self.preview_title.set_text("No matching clips")
             self.preview_summary.set_text("Change the filter, clear the search, or copy something new.")
             self.preview_type_chip.set_text("Empty")
+            self.preview_detail_chip.set_text("No payload")
             self.preview_type_chip.remove_css_class("text")
             self.preview_type_chip.remove_css_class("images")
             self.preview_type_chip.remove_css_class("code")
@@ -1205,6 +1389,7 @@ class ClipboardWindow(Adw.ApplicationWindow):
             self.ensure_payload(entry)
             if entry.payload_error or not entry.payload:
                 self.preview_binary_label.set_text(entry.payload_error or "Unable to decode image clip.")
+                self.preview_detail_chip.set_text("Image preview unavailable")
                 self.preview_stack.set_visible_child_name("binary")
                 self.update_action_bar()
                 return
@@ -1220,19 +1405,39 @@ class ClipboardWindow(Adw.ApplicationWindow):
                 handle.close()
                 self.temp_files.append(handle.name)
                 self.preview_image.set_filename(handle.name)
+                self.preview_detail_chip.set_text(clamp_text(entry.summary.replace("[[ binary data ", "").replace(" ]]", ""), 56))
                 self.preview_stack.set_visible_child_name("image")
             except OSError as exc:
                 self.preview_binary_label.set_text(f"Unable to render image preview: {exc}")
+                self.preview_detail_chip.set_text("Image preview unavailable")
                 self.preview_stack.set_visible_child_name("binary")
         else:
             text = self.ensure_text_payload(entry)
             buffer_ = self.preview_text.get_buffer()
             buffer_.set_text(text)
             self.preview_text.set_monospace(entry.kind == "code")
+            lines = max(1, text.count("\n") + 1)
+            self.preview_detail_chip.set_text(f"{len(text)} chars   {lines} lines")
             self.preview_stack.set_visible_child_name("text")
         self.update_action_bar()
 
     def update_action_bar(self):
+        if self.loading_entries:
+            self.selection_label.set_text("Loading...")
+            self.copy_button.set_sensitive(False)
+            self.paste_button.set_sensitive(False)
+            self.open_link_button.set_sensitive(False)
+            self.edit_button.set_sensitive(False)
+            self.delete_button.set_sensitive(False)
+            self.pin_button.set_sensitive(False)
+            self.save_edit_button.set_visible(False)
+            self.cancel_edit_button.set_visible(False)
+            self.copy_button.set_visible(True)
+            self.paste_button.set_visible(True)
+            self.open_link_button.set_visible(False)
+            self.edit_button.set_visible(True)
+            return
+
         selected = self.selected_entries()
         total = len(self.filtered_entries)
         if not selected:
@@ -1244,9 +1449,13 @@ class ClipboardWindow(Adw.ApplicationWindow):
 
         active = self.active_entry()
         text_like = active is not None and active.kind in {"text", "code", "links"}
-        paste_available = False
+        paste_available = self.paste_backend is not None
         self.copy_button.set_sensitive(active is not None)
         self.paste_button.set_sensitive(active is not None and paste_available)
+        self.paste_button.set_tooltip_text(
+            "Paste with Ctrl+V using wtype" if paste_available else "Install with: sudo pacman -S --noconfirm wtype"
+        )
+        self.open_link_button.set_sensitive(active is not None and active.kind == "links")
         self.edit_button.set_sensitive(text_like and len(selected) <= 1 and self.editing_entry is None)
         self.delete_button.set_sensitive(bool(selected))
         self.pin_button.set_sensitive(bool(selected))
@@ -1257,9 +1466,14 @@ class ClipboardWindow(Adw.ApplicationWindow):
         self.cancel_edit_button.set_visible(editing)
         self.copy_button.set_visible(not editing)
         self.paste_button.set_visible(not editing)
+        self.open_link_button.set_visible(not editing and active is not None and active.kind == "links")
         self.edit_button.set_visible(not editing)
         if active is None:
             self.preview_meta_chip.set_text("Hover or select")
+            self.preview_detail_chip.set_text("No payload")
+
+    def write_clipboard(self, payload):
+        subprocess.run(["wl-copy"], input=payload, check=True)
 
     def copy_entry(self, entry, close_after):
         self.ensure_payload(entry)
@@ -1268,7 +1482,7 @@ class ClipboardWindow(Adw.ApplicationWindow):
             notify_send("Clipboard Browser", entry.payload_error)
             return
         try:
-            subprocess.run(["wl-copy"], input=entry.payload or b"", check=True)
+            self.write_clipboard(entry.payload or b"")
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
             self.add_toast("wl-copy failed")
             notify_send("Clipboard Browser", str(exc))
@@ -1278,7 +1492,10 @@ class ClipboardWindow(Adw.ApplicationWindow):
             GLib.timeout_add(120, self.close_after_copy)
 
     def close_after_copy(self):
-        self.close()
+        if self.daemon_mode:
+            self.hide_overlay()
+        else:
+            self.close()
         return False
 
     def copy_selected(self, close_after):
@@ -1383,7 +1600,7 @@ class ClipboardWindow(Adw.ApplicationWindow):
         end = buffer_.get_end_iter()
         text = buffer_.get_text(start, end, True)
         try:
-            subprocess.run(["wl-copy"], input=text.encode("utf-8"), check=True)
+            self.write_clipboard(text.encode("utf-8"))
         except (subprocess.CalledProcessError, FileNotFoundError) as exc:
             self.add_toast("Edit save failed")
             notify_send("Clipboard Browser", str(exc))
@@ -1403,6 +1620,12 @@ class ClipboardWindow(Adw.ApplicationWindow):
         if not re.match(r"^[a-z]+://", text, flags=re.IGNORECASE):
             text = f"https://{text}"
         Gio.AppInfo.launch_default_for_uri(text, None)
+
+    def open_active_link(self):
+        entry = self.active_entry()
+        if entry is None or entry.kind != "links":
+            return
+        self.open_link(entry)
 
     def move_selection(self, delta):
         if not self.item_rows:
@@ -1426,7 +1649,26 @@ class ClipboardWindow(Adw.ApplicationWindow):
         next_row.grab_focus()
 
     def paste_selected(self):
-        self.add_toast("Paste needs a keystroke injector such as wtype or ydotool")
+        entry = self.active_entry()
+        if entry is None:
+            return
+        if self.paste_backend is None:
+            self.add_toast("Install wtype with: sudo pacman -S --noconfirm wtype", timeout=3)
+            return
+        self.ensure_payload(entry)
+        if entry.payload_error is not None:
+            self.add_toast("Copy failed")
+            notify_send("Clipboard Browser", entry.payload_error)
+            return
+        try:
+            self.write_clipboard(entry.payload or b"")
+            subprocess.run(self.paste_backend["command"], check=True)
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            self.add_toast("Paste failed")
+            notify_send("Clipboard Browser", str(exc))
+            return
+        self.add_toast("Pasted clipboard")
+        GLib.timeout_add(120, self.close_after_copy)
 
     def on_key_pressed(self, _controller, keyval, _keycode, state):
         focus = self.get_focus()
@@ -1437,7 +1679,10 @@ class ClipboardWindow(Adw.ApplicationWindow):
             if self.editing_entry is not None:
                 self.stop_edit()
                 return True
-            self.close()
+            if self.daemon_mode:
+                self.hide_overlay()
+            else:
+                self.close()
             return True
 
         if keyval == Gdk.KEY_slash and not search_focused:
@@ -1446,6 +1691,13 @@ class ClipboardWindow(Adw.ApplicationWindow):
 
         if search_focused or editor_focused:
             return False
+
+        if keyval == Gdk.KEY_a and state & Gdk.ModifierType.CONTROL_MASK:
+            self.listbox.unselect_all()
+            for row in self.item_rows:
+                self.listbox.select_row(row)
+            self.add_toast(f"Selected {len(self.item_rows)} clips")
+            return True
 
         if keyval == Gdk.KEY_j:
             self.move_selection(1)
@@ -1475,15 +1727,19 @@ class ClipboardWindow(Adw.ApplicationWindow):
 
 
 class ClipboardApplication(Adw.Application):
-    def __init__(self):
+    def __init__(self, daemon_mode=False):
         super().__init__(application_id=APP_ID)
+        self.daemon_mode = daemon_mode
+        if daemon_mode:
+            self.hold()
         self.connect("activate", self.on_activate)
 
     def on_activate(self, app):
         window = self.props.active_window
         if window is None:
-            window = ClipboardWindow(app)
-        window.present()
+            window = ClipboardWindow(app, daemon_mode=self.daemon_mode)
+        if not self.daemon_mode:
+            window.present()
 
 
 def install_css():
@@ -1499,7 +1755,14 @@ def install_css():
     )
 
 
+def parse_args(argv):
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--daemon", action="store_true")
+    return parser.parse_known_args(argv[1:])
+
+
 def main():
+    args, remaining = parse_args(sys.argv)
     if shutil.which("cliphist") is None:
         notify_send("Clipboard Browser", "cliphist is not installed.")
         return 0
@@ -1513,8 +1776,8 @@ def main():
 
     Adw.init()
     install_css()
-    app = ClipboardApplication()
-    return app.run(sys.argv)
+    app = ClipboardApplication(daemon_mode=args.daemon)
+    return app.run([sys.argv[0], *remaining])
 
 
 if __name__ == "__main__":

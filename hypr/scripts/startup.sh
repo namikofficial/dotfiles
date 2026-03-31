@@ -88,6 +88,14 @@ if [ -x "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" ]; then
   "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" --warm-cache >/dev/null 2>&1 &
 fi
 
+# Keep the clipboard browser daemon warm so clipboard UI opens on the hot path.
+if [ -x "$HOME/.config/hypr/scripts/cliphist-daemon.sh" ]; then
+  (
+    sleep 3
+    "$HOME/.config/hypr/scripts/cliphist-daemon.sh" start >/dev/null 2>&1 || true
+  ) &
+fi
+
 # Warm desktop-app binaries/resources in page cache so first-launch latency is
 # less noticeable without keeping the apps visibly open all session.
 if [ "${HYPR_WARM_DESKTOP_APPS:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/app-warm-cache.sh" ]; then
