@@ -1,6 +1,15 @@
 #!/usr/bin/env sh
 set -eu
 
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+gtk_browser="$script_dir/cliphist-ui.py"
+
+if [ "${1:-}" != "--rofi" ] && command -v python3 >/dev/null 2>&1 && [ -f "$gtk_browser" ]; then
+  if python3 -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1")' >/dev/null 2>&1; then
+    python3 "$gtk_browser" "$@" && exit 0
+  fi
+fi
+
 if ! command -v cliphist >/dev/null 2>&1; then
   exit 0
 fi
@@ -8,7 +17,7 @@ fi
 tmp="${XDG_RUNTIME_DIR:-/tmp}/cliphist-rofi.$$"
 trap 'rm -f "$tmp"' EXIT INT TERM
 
-cliphist list | awk -F '\t' '
+cliphist -preview-width 320 list | awk -F '\t' '
   {
     id=$1
     $1=""

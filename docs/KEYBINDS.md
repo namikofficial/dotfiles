@@ -96,7 +96,8 @@ flowchart LR
 
 | Keybind | Action |
 |---|---|
-| `Super + Ctrl + V` | Clipboard history picker |
+| `Super + Ctrl + V` | Clipboard history browser |
+| `Super + Shift + V` | Clipboard history browser with preview, filters, and pinning |
 | `Super + Shift + S` | Screenshot area |
 | `Super + Ctrl + Shift + S` | Screenshot full |
 | `Super + Shift + T` | OCR selected area -> clipboard |

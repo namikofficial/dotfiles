@@ -132,6 +132,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Shift + N`: open notes folder
 - `Super + Alt + E`: open notes folder in editor
 - `Super + I`: color picker (copies hex)
+- `Super + Ctrl + V` / `Super + Shift + V`: clipboard browser with pinning, filters, and split preview
 - `Super + Shift + I`: toggle night light (`hyprsunset`)
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
 - `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
