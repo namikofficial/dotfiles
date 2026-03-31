@@ -1,5 +1,5 @@
 * {
-  font-family: "JetBrains Mono", monospace;
+  font-family: "Noto Sans", "JetBrains Mono", monospace;
   color: #e7ecff;
 }
 
@@ -8,24 +8,24 @@ window {
 }
 
 .root {
-  background-color: rgba(10, 14, 22, 0.76);
-  border: 1px solid rgba(111, 148, 201, 0.18);
-  border-radius: 18px;
-  padding: 14px;
+  background-color: rgba(10, 14, 22, 0.8);
+  border: 1px solid rgba(111, 148, 201, 0.2);
+  border-radius: 20px;
+  padding: 16px;
 }
 
 .header {
   border-bottom: 1px solid rgba(111, 148, 201, 0.18);
-  padding-bottom: 10px;
-  margin-bottom: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
 }
 
 .header-left {
-  min-width: 360px;
+  min-width: 372px;
 }
 
 .title {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 800;
   color: #f2f6ff;
 }
@@ -44,14 +44,14 @@ window {
 }
 
 .tabbar {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .root button.tab-btn {
   background-color: rgba(20, 29, 46, 0.62);
   border: 1px solid rgba(93, 118, 168, 0.18);
-  border-radius: 10px;
-  padding: 8px 14px;
+  border-radius: 11px;
+  padding: 9px 14px;
   margin-right: 8px;
 }
 
@@ -70,26 +70,26 @@ window {
 }
 
 .card {
-  background-color: rgba(16, 22, 33, 0.68);
+  background-color: rgba(16, 22, 33, 0.72);
   border: 1px solid rgba(102, 194, 184, 0.16);
-  border-radius: 14px;
-  padding: 10px;
-  margin-bottom: 10px;
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
 }
 
 .card-title {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
   color: #8ac6cf;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .entry {
   background-color: rgba(10, 15, 24, 0.58);
   border: 1px solid rgba(72, 94, 134, 0.22);
-  border-radius: 10px;
-  padding: 9px;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 9px;
 }
 
 .entry-head {
@@ -113,12 +113,12 @@ window {
 }
 
 .root button {
-  border-radius: 9px;
+  border-radius: 10px;
   background-image: none;
   box-shadow: none;
   text-shadow: none;
   outline: none;
-  padding: 8px 12px;
+  padding: 8px 13px;
   margin-right: 8px;
 }
 
@@ -155,7 +155,7 @@ window {
   background-color: rgba(30, 82, 88, 0.76);
   border: 1px solid rgba(102, 194, 184, 0.48);
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 8px 13px;
   margin-right: 8px;
 }
 
