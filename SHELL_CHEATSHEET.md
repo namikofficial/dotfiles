@@ -137,8 +137,11 @@
 - Previous / next tab: `Ctrl + Shift + [` / `Ctrl + Shift + ]`
 - New window (same cwd): `Ctrl + Shift + Enter`
 - Split horizontal / vertical: `Ctrl + Shift + O` / `Ctrl + Shift + E`
+- Smart split (layout decides best side): `Ctrl + Shift + S`
 - Focus left/right/up/down split: `Ctrl + Shift + H/J/K/L`
 - Resize split: `Ctrl + Shift + Alt + H/J/K/L`
+- Rotate current split tree (vertical <-> horizontal): `Ctrl + Shift + R`
+- Zoom/unzoom current pane (stack layout toggle): `Ctrl + Shift + X`
 - Reload kitty config: `Ctrl + Shift + F5`
 - Reload theme + Kitty + Hyprland + panel: `Super + Ctrl + Shift + Y`
 - Next wallpaper: `Super + Shift + O`

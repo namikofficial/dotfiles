@@ -4,33 +4,33 @@ SideBarPage=operations
 ThumbnailBarIsVisible=true
 
 [ImageView]
-ThumbnailSplitterSizes=699,200
+ThumbnailSplitterSizes=716,205
 
 [MainWindow]
 MenuBar=Disabled
 
 [Recent Files]
-File1[$e]=$HOME/Pictures/wallpaper/4k/catpuccin_landscape.png
-File10[$e]=$HOME/Downloads/wallhaven-o5rkwl.png
-File2[$e]=$HOME/Pictures/wallpaper/4k/polar_catppuccin.png
-File3[$e]=$HOME/Pictures/wallpaper/1080p/abandoned.jpg
-File4[$e]=$HOME/Downloads/wallhaven-zx12wj.png
-File5[$e]=$HOME/Downloads/wallhaven-vgv7jm.png
-File6[$e]=$HOME/Downloads/wallhaven-rrljr7.png
-File7[$e]=$HOME/Downloads/wallhaven-jxq8yp.png
-File8[$e]=$HOME/Downloads/wallhaven-mpoogm.jpg
-File9[$e]=$HOME/Downloads/wallhaven-n6l5ln.jpg
-Name1[$e]=catpuccin_landscape.png
-Name10[$e]=wallhaven-o5rkwl.png
-Name2[$e]=polar_catppuccin.png
-Name3[$e]=abandoned.jpg
-Name4[$e]=wallhaven-zx12wj.png
-Name5[$e]=wallhaven-vgv7jm.png
-Name6[$e]=wallhaven-rrljr7.png
-Name7[$e]=wallhaven-jxq8yp.png
-Name8[$e]=wallhaven-mpoogm.jpg
-Name9[$e]=wallhaven-n6l5ln.jpg
+File1[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/anime-water.png
+File10[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-peace.png
+File2[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/Antman.jpg
+File3[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/apple_gruvbox.jpg
+File4[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch_purple.png
+File5[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-chan_to.png
+File6[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-eagle.png
+File7[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-nord-dark.png
+File8[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-nord-light.png
+File9[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/art-lake.png
+Name1[$e]=anime-water.png
+Name10[$e]=arch-peace.png
+Name2[$e]=Antman.jpg
+Name3[$e]=apple_gruvbox.jpg
+Name4[$e]=arch_purple.png
+Name5[$e]=arch-chan_to.png
+Name6[$e]=arch-eagle.png
+Name7[$e]=arch-nord-dark.png
+Name8[$e]=arch-nord-light.png
+Name9[$e]=art-lake.png
 
 [SideBar]
-InformationSplitterSizes=214,249
+InformationSplitterSizes=220,255
 SideBarSplitterSizes=229,698

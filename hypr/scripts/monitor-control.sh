@@ -4,6 +4,7 @@ set -euo pipefail
 STATE_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/monitor-layout.json"
 ROFI_THEME="$HOME/.config/rofi/actions.rasi"
 INTERNAL_MONITOR="eDP-1"
+LOG_LIB="$HOME/.config/hypr/scripts/lib/log.sh"
 
 ensure_state() {
   mkdir -p "$(dirname "$STATE_FILE")"
@@ -33,6 +34,15 @@ notify() {
   local body="$2"
   command -v notify-send >/dev/null 2>&1 || return 0
   notify-send -a "Monitor Control" "$title" "$body"
+}
+
+emit_event() {
+  local sev="$1"
+  local title="$2"
+  local body="${3:-}"
+  if [[ -x "$LOG_LIB" ]]; then
+    "$LOG_LIB" --emit "$sev" monitor-control "$title" "$body" "" "" >/dev/null 2>&1 || true
+  fi
 }
 
 detect_external_desc() {
@@ -75,6 +85,7 @@ apply_state() {
     hyprctl keyword monitor "$INTERNAL_MONITOR,preferred,0x0,$internal_scale" >/dev/null || true
     hyprctl keyword monitor ",preferred,auto,1" >/dev/null || true
     hyprctl dispatch dpms on >/dev/null || true
+    emit_event info "Monitor layout applied" "Internal-only fallback active"
     return 0
   fi
 
@@ -103,6 +114,7 @@ apply_state() {
 
   hyprctl keyword monitor ",preferred,auto,1" >/dev/null || true
   hyprctl dispatch dpms on >/dev/null || true
+  emit_event info "Monitor layout applied" "Layout=$layout mode=$external_mode"
 }
 
 recover_outputs() {

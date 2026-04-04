@@ -1,18 +1,18 @@
 @theme "theme.rasi"
 
 window {
-    width: 58%;
+    width: 62%;
 }
 
 listview {
-    lines: 14;
-    spacing: 6px;
+    lines: 13;
+    spacing: 8px;
 }
 
 element {
-    padding: 9px 11px;
+    padding: 10px 14px;
 }
 
 entry {
-    placeholder: "Search clipboard...";
+    placeholder: "Search clipboard history...";
 }

@@ -82,6 +82,38 @@ entries:
     description: Toggle split direction in dwindle layout
     copy: hyprctl dispatch layoutmsg togglesplit
     source: ~/.config/hypr/hyprland.conf
+  - key: Super+Alt+J
+    description: Cycle master orientation on the current workspace
+    copy: hyprctl dispatch layoutmsg orientationcycle left top right bottom
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Shift+Up
+    description: Swap active window up
+    copy: hyprctl dispatch swapwindow u
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Shift+Down
+    description: Swap active window down
+    copy: hyprctl dispatch swapwindow d
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Shift+Left
+    description: Swap active window left
+    copy: hyprctl dispatch swapwindow l
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Shift+Right
+    description: Swap active window right
+    copy: hyprctl dispatch swapwindow r
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+Return
+    description: Promote active window into master
+    copy: hyprctl dispatch layoutmsg swapwithmaster master
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+Alt+Left
+    description: Shrink master area
+    copy: hyprctl dispatch layoutmsg mfact -0.04
+    source: ~/.config/hypr/hyprland.conf
+  - key: Super+Ctrl+Alt+Right
+    description: Grow master area
+    copy: hyprctl dispatch layoutmsg mfact +0.04
+    source: ~/.config/hypr/hyprland.conf
   - key: Super+T
     description: Toggle grouped window stack
     copy: hyprctl dispatch togglegroup

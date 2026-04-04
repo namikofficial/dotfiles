@@ -9,23 +9,26 @@ $accent2: #66c2b8;
 
 * {
   all: unset;
-  font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", sans-serif;
+  font-family: "Noto Sans", "JetBrainsMono Nerd Font", "JetBrains Mono", sans-serif;
   color: $text;
 }
 
 .quickpanel {
-  background: rgba(14, 16, 26, 0.7);
-  border: 1px solid rgba(111, 148, 201, 0.14);
-  border-radius: 16px;
-  padding: 8px;
-  min-width: 270px;
+  background: linear-gradient(180deg, rgba(14, 16, 26, 0.76), rgba(10, 12, 20, 0.68));
+  border: 1px solid rgba(111, 148, 201, 0.18);
+  border-radius: 18px;
+  padding: 10px;
+  min-width: 282px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 14px 30px rgba(8, 10, 18, 0.34);
 }
 
 .hero {
   background: linear-gradient(120deg, rgba(111, 148, 201, 0.09), rgba(102, 194, 184, 0.09));
-  border: 1px solid rgba(111, 148, 201, 0.12);
-  border-radius: 12px;
-  padding: 8px 9px;
+  border: 1px solid rgba(111, 148, 201, 0.14);
+  border-radius: 14px;
+  padding: 9px 10px;
 }
 
 .hero-time {
@@ -44,10 +47,10 @@ $accent2: #66c2b8;
 }
 
 .card {
-  background: rgba(28, 34, 53, 0.7);
-  border-radius: 13px;
-  border: 1px solid rgba(111, 148, 201, 0.08);
-  padding: 6px 8px;
+  background: linear-gradient(180deg, rgba(28, 34, 53, 0.76), rgba(16, 20, 32, 0.66));
+  border-radius: 14px;
+  border: 1px solid rgba(111, 148, 201, 0.1);
+  padding: 8px 10px;
 }
 
 .card-icon {
@@ -61,26 +64,28 @@ $accent2: #66c2b8;
 }
 
 .calendar {
-  background: rgba(28, 34, 53, 0.7);
-  border-radius: 13px;
-  border: 1px solid rgba(111, 148, 201, 0.08);
-  padding: 8px;
+  background: linear-gradient(180deg, rgba(28, 34, 53, 0.76), rgba(16, 20, 32, 0.66));
+  border-radius: 14px;
+  border: 1px solid rgba(111, 148, 201, 0.1);
+  padding: 9px;
 }
 
 .desktoppanel {
   background: linear-gradient(162deg, rgba(16, 20, 33, 0.72), rgba(13, 17, 29, 0.62));
   border: 1px solid rgba(111, 148, 201, 0.2);
-  border-radius: 14px;
-  padding: 10px 10px;
-  min-width: 260px;
-  box-shadow: 0 10px 28px rgba(8, 10, 18, 0.36);
+  border-radius: 16px;
+  padding: 12px;
+  min-width: 266px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 14px 32px rgba(8, 10, 18, 0.38);
 }
 
 .desk-hero {
   background: linear-gradient(118deg, rgba(111, 148, 201, 0.18), rgba(102, 194, 184, 0.12));
   border: 1px solid rgba(111, 148, 201, 0.2);
-  border-radius: 11px;
-  padding: 8px 9px;
+  border-radius: 13px;
+  padding: 9px 10px;
 }
 
 .desk-grid {
@@ -118,8 +123,8 @@ $accent2: #66c2b8;
 .desk-btn {
   background: linear-gradient(160deg, rgba(39, 48, 74, 0.78), rgba(30, 37, 58, 0.72));
   border: 1px solid rgba(111, 148, 201, 0.2);
-  border-radius: 10px;
-  padding: 6px 8px;
+  border-radius: 11px;
+  padding: 7px 9px;
   font-size: 10px;
   color: $text;
   min-width: 118px;
@@ -159,4 +164,245 @@ $accent2: #66c2b8;
 .desk-line {
   color: $muted;
   font-size: 12px;
+}
+
+.notif-toast {
+  background: linear-gradient(180deg, rgba(15, 20, 30, 0.92), rgba(10, 14, 22, 0.84));
+  border: 1px solid rgba(90, 205, 255, 0.34);
+  border-radius: 14px;
+  padding: 14px;
+  min-width: 360px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 42px rgba(0, 0, 0, 0.58);
+}
+
+.notif-toast-head {
+  min-height: 24px;
+  margin-bottom: 2px;
+}
+
+.notif-toast .notif-mini-btn {
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 6px;
+}
+
+.notif-mini-btn.close,
+.notif-icon-btn.close {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+}
+
+.notif-close-glyph {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e8eefc;
+}
+
+.notif-toast-kicker {
+  color: $muted;
+  font-size: 10px;
+}
+
+.notif-toast-title {
+  color: $text;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.notif-toast-body {
+  color: $muted;
+  font-size: 11px;
+}
+
+.notif-toast-meta {
+  margin-top: 4px;
+}
+
+.notif-pill {
+  background: rgba(41, 50, 75, 0.72);
+  border: 1px solid rgba(111, 148, 201, 0.2);
+  border-radius: 10px;
+  padding: 5px 10px;
+  font-size: 10px;
+}
+
+.notif-center-shell {
+  background: linear-gradient(180deg, rgba(15, 20, 30, 0.6), rgba(8, 12, 18, 0.52));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px;
+  min-width: 820px;
+  min-height: 600px;
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.notif-header-row {
+  min-height: 28px;
+  margin-bottom: 2px;
+}
+
+.notif-header-title {
+  color: #eef3ff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.notif-header-subtitle {
+  color: rgba(198, 214, 244, 0.62);
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+.notif-top-actions {
+  margin-left: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.notif-meta-row {
+  margin-top: 2px;
+}
+
+.notif-feed-scroll {
+  min-height: 0;
+}
+
+.notif-item {
+  background: linear-gradient(180deg, rgba(18, 25, 40, 0.5), rgba(12, 18, 30, 0.42));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 3px solid rgba(111, 148, 201, 0.82);
+  border-radius: 11px;
+  padding: 7px 9px;
+  min-height: 0;
+  transition: 160ms ease;
+}
+
+.notif-item:hover {
+  border-color: rgba(111, 148, 201, 0.34);
+  background: rgba(26, 36, 58, 0.64);
+}
+
+.notif-item.sev-info { border-left-color: rgba(111, 148, 201, 0.9); }
+.notif-item.sev-warn { border-left-color: rgba(224, 167, 46, 0.9); }
+.notif-item.sev-error { border-left-color: rgba(221, 87, 87, 0.95); }
+.notif-item.sev-critical { border-left-color: rgba(238, 72, 72, 1); }
+
+.notif-inline-details {
+  background: rgba(15, 22, 36, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 7px 9px;
+  margin-top: -2px;
+  margin-bottom: 2px;
+}
+
+.notif-backdrop {
+  background: rgba(0, 0, 0, 0.26);
+}
+
+button.notif-backdrop {
+  background: rgba(0, 0, 0, 0.26);
+}
+
+button.notif-backdrop:hover {
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.notif-backdrop-fill {
+  min-width: 2400px;
+  min-height: 1400px;
+}
+
+.notif-detail-severity {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(198, 214, 244, 0.7);
+}
+
+.notif-detail-title {
+  color: #ecf2ff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.notif-detail-body,
+.notif-detail-time {
+  color: #c9d3ea;
+  font-size: 10px;
+}
+
+.notif-icon-btn {
+  background: rgba(28, 38, 60, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  padding: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #dbe7ff;
+  min-width: 32px;
+  min-height: 32px;
+  transition: 140ms ease;
+}
+
+.notif-icon-btn:hover {
+  border-color: rgba(130, 166, 220, 0.42);
+  background: rgba(43, 56, 90, 0.78);
+}
+
+.notif-icon-btn.danger {
+  border-color: rgba(226, 103, 103, 0.55);
+}
+
+.notif-icon-btn.active {
+  background: rgba(129, 140, 248, 0.2);
+  border-color: rgba(129, 140, 248, 0.55);
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.2);
+}
+
+.notif-icon-btn.close {
+  color: #eff4ff;
+  font-size: 16px;
+}
+
+.notif-mini-btn.close {
+  min-width: 22px;
+  min-height: 22px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #eff4ff;
+  margin-top: 0;
+  margin-right: -1px;
+}
+
+.notif-btn:hover {
+  border-color: rgba(111, 148, 201, 0.45);
+  background: rgba(43, 56, 90, 0.93);
+}
+
+.notif-btn.danger {
+  border-color: rgba(226, 103, 103, 0.5);
+}
+
+.notif-info {
+  border-color: rgba(111, 148, 201, 0.32);
+}
+
+.notif-warn {
+  border-color: rgba(224, 167, 46, 0.45);
+}
+
+.notif-error {
+  border-color: rgba(221, 87, 87, 0.52);
+}
+
+.notif-critical {
+  border-color: rgba(238, 72, 72, 0.74);
+  box-shadow: 0 0 0 1px rgba(238, 72, 72, 0.25);
 }

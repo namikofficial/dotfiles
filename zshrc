@@ -319,13 +319,9 @@ fi
 # Startup behavior controls
 ZSH_LAZY_LOAD_HEAVY="${ZSH_LAZY_LOAD_HEAVY:-1}"
 ZSH_FAST_STARTUP="${ZSH_FAST_STARTUP:-1}"
-if [[ -z "${ZSH_ENABLE_EXTRA_PLUGINS:-}" ]]; then
-  if [[ "$ZSH_FAST_STARTUP" == "1" ]]; then
-    ZSH_ENABLE_EXTRA_PLUGINS=0
-  else
-    ZSH_ENABLE_EXTRA_PLUGINS=1
-  fi
-fi
+# Keep extra UX plugins enabled by default (alias hints, etc.).
+# Set ZSH_ENABLE_EXTRA_PLUGINS=0 manually if you want an ultra-minimal shell.
+ZSH_ENABLE_EXTRA_PLUGINS="${ZSH_ENABLE_EXTRA_PLUGINS:-1}"
 
 # NVM init (lazy by default)
 resolve_nvm_dir() {
@@ -498,10 +494,23 @@ fi
 rebind_history_navigation_keys() {
   emulate -L zsh
 
+  # Up/Down policy:
+  # - Up: prefer Atuin search when available.
+  # - Down: prefer autocomplete's completion-aware selector.
   local fallback_up="up-line-or-history"
   local fallback_down="down-line-or-history"
-  if zle -l | command grep -Eq '^history-substring-search-up([[:space:]]|$)'; then
+
+  if zle -l | command grep -Eq '^atuin-up-search([[:space:]]|$)'; then
+    fallback_up="atuin-up-search"
+  elif zle -l | command grep -Eq '^up-line-or-search([[:space:]]|$)'; then
+    fallback_up="up-line-or-search"
+  elif zle -l | command grep -Eq '^history-substring-search-up([[:space:]]|$)'; then
     fallback_up="history-substring-search-up"
+  fi
+
+  if zle -l | command grep -Eq '^down-line-or-select([[:space:]]|$)'; then
+    fallback_down="down-line-or-select"
+  elif zle -l | command grep -Eq '^history-substring-search-down([[:space:]]|$)'; then
     fallback_down="history-substring-search-down"
   fi
 
@@ -509,14 +518,6 @@ rebind_history_navigation_keys() {
   for keymap in emacs viins vicmd; do
     local up_widget="$fallback_up"
     local down_widget="$fallback_down"
-
-    if [[ "$keymap" == "viins" ]] && zle -l | command grep -Eq '^atuin-up-search-viins([[:space:]]|$)'; then
-      up_widget="atuin-up-search-viins"
-    elif [[ "$keymap" == "vicmd" ]] && zle -l | command grep -Eq '^atuin-up-search-vicmd([[:space:]]|$)'; then
-      up_widget="atuin-up-search-vicmd"
-    elif zle -l | command grep -Eq '^atuin-up-search([[:space:]]|$)'; then
-      up_widget="atuin-up-search"
-    fi
 
     bindkey -M "$keymap" '^[[A' "$up_widget" 2>/dev/null || true
     bindkey -M "$keymap" '^[OA' "$up_widget" 2>/dev/null || true
@@ -589,10 +590,30 @@ ZSH_AUTOSUGGEST_STRATEGY=(atuin history completion)
 ZSH_AUTOSUGGEST_USE_ASYNC=1
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#6c7086'
 
-# Keep TAB doing normal shell completion instead of autosuggestion capture.
-bindkey '^I' expand-or-complete
-bindkey -M emacs '^I' expand-or-complete 2>/dev/null || true
-bindkey -M viins '^I' expand-or-complete 2>/dev/null || true
+# Completion navigation:
+# - TAB accepts a visible autosuggestion first; otherwise it performs normal completion.
+# - Shift+TAB expands/reverse-cycles where supported.
+smart_tab_complete() {
+  emulate -L zsh
+  if [[ -n "${POSTDISPLAY:-}" ]] && zle -l | command grep -Eq '^autosuggest-accept([[:space:]]|$)'; then
+    zle autosuggest-accept
+    return 0
+  fi
+  zle expand-or-complete
+}
+zle -N smart_tab_complete
+bindkey '^I' smart_tab_complete
+bindkey -M emacs '^I' smart_tab_complete 2>/dev/null || true
+bindkey -M viins '^I' smart_tab_complete 2>/dev/null || true
+bindkey '^[[Z' reverse-menu-complete
+bindkey -M emacs '^[[Z' reverse-menu-complete 2>/dev/null || true
+bindkey -M viins '^[[Z' reverse-menu-complete 2>/dev/null || true
+
+# Completion menu navigation keys (when menu selection is active).
+bindkey -M menuselect '^[[A' up-line-or-history 2>/dev/null || true
+bindkey -M menuselect '^[[B' down-line-or-history 2>/dev/null || true
+bindkey -M menuselect '^I' down-line-or-history 2>/dev/null || true
+bindkey -M menuselect '^[[Z' up-line-or-history 2>/dev/null || true
 
 # Accept the current ghost suggestion with Ctrl-Space.
 bindkey '^ ' autosuggest-accept

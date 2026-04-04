@@ -142,3 +142,160 @@
                       :height "0px"
                       :anchor "top right")
   (desktoppanel-right))
+
+(defpoll notif_count :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-peek.sh count 2>/dev/null || echo 0'`)
+
+(defpoll notif_dnd :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-peek.sh dnd 2>/dev/null || echo OFF'`)
+
+(defpoll notif_mode :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-peek.sh mode 2>/dev/null || echo custom'`)
+
+(defpoll notif_severity :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-peek.sh severity 2>/dev/null || echo info'`)
+
+(defpoll notif_title :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-peek.sh title 2>/dev/null || echo "No notifications"'`)
+
+(defpoll notif_body :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-peek.sh body 2>/dev/null || echo "All clear."'`)
+
+(defpoll notif_time :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-peek.sh time 2>/dev/null || echo ""'`)
+
+(defpoll notif_recent :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-peek.sh recent 2>/dev/null || echo "No events"'`)
+
+(defpoll notif_row_0 :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row.sh 0 2>/dev/null || echo ""'`)
+(defpoll notif_row_1 :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row.sh 1 2>/dev/null || echo ""'`)
+(defpoll notif_row_2 :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row.sh 2 2>/dev/null || echo ""'`)
+(defpoll notif_row_3 :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row.sh 3 2>/dev/null || echo ""'`)
+(defpoll notif_row_4 :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row.sh 4 2>/dev/null || echo ""'`)
+(defpoll notif_row_5 :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row.sh 5 2>/dev/null || echo ""'`)
+(defpoll notif_row_6 :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row.sh 6 2>/dev/null || echo ""'`)
+(defpoll notif_row_7 :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row.sh 7 2>/dev/null || echo ""'`)
+(defpoll notif_selected_idx :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-peek.sh selected_index 2>/dev/null || echo "0"'`)
+(defpoll notif_row_0_sev :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row-sev.sh 0 2>/dev/null || echo info'`)
+(defpoll notif_row_1_sev :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row-sev.sh 1 2>/dev/null || echo info'`)
+(defpoll notif_row_2_sev :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row-sev.sh 2 2>/dev/null || echo info'`)
+(defpoll notif_row_3_sev :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row-sev.sh 3 2>/dev/null || echo info'`)
+(defpoll notif_row_4_sev :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row-sev.sh 4 2>/dev/null || echo info'`)
+(defpoll notif_row_5_sev :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row-sev.sh 5 2>/dev/null || echo info'`)
+(defpoll notif_row_6_sev :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row-sev.sh 6 2>/dev/null || echo info'`)
+(defpoll notif_row_7_sev :interval "2s"
+  `sh -c '$HOME/.config/hypr/scripts/notif-row-sev.sh 7 2>/dev/null || echo info'`)
+
+(defwidget notif-toast []
+  (box :class { "notif-toast notif-" + notif_severity } :orientation "v" :spacing 4
+    (box :class "notif-toast-head" :orientation "h" :spacing 6 :hexpand true
+      (label :class "notif-toast-kicker" :hexpand true :xalign 0 :text { "Notif " + notif_severity + " · " + notif_mode })
+      (button :class "notif-mini-btn close" :hexpand false :vexpand false :onclick "~/.config/hypr/scripts/notif-toast-close.sh" "󰅖"))
+    (label :class "notif-toast-title" :xalign 0 :text notif_title)
+    (label :class "notif-toast-body" :xalign 0 :wrap true :text notif_body)
+    (box :class "notif-toast-meta" :orientation "h" :spacing 8
+      (button :class "notif-mini-btn" :hexpand false :vexpand false :onclick "~/.config/hypr/scripts/notif-copy-last.sh" "⧉")
+      (label :class "notif-pill" :text { "Count " + notif_count })
+      (label :class "notif-pill" :text { "DND " + notif_dnd }))))
+
+(defwidget notif-center []
+  (box :class "notif-center-shell" :orientation "v" :spacing 8 :vexpand false
+    (box :class "notif-header-row" :orientation "h" :spacing 8 :vexpand false
+      (label :class "notif-header-title" :hexpand true :xalign 0 :text "Notifications")
+      (label :class "notif-header-subtitle" :xalign 0 :text { "Mode " + notif_mode + " · DND " + notif_dnd + " · " + notif_count })
+      (box :class "notif-top-actions" :orientation "h" :spacing 6 :hexpand false :vexpand false
+        (button :class "notif-icon-btn" :hexpand false :vexpand false :onclick "~/.config/hypr/scripts/notif-copy-last.sh" "󰆏")
+        (button :class "notif-icon-btn danger" :hexpand false :vexpand false :onclick "~/.config/hypr/scripts/notif-clear.sh" "󰩺")
+        (button :class { "notif-icon-btn " + (notif_dnd == "ON" ? "active" : "") } :hexpand false :vexpand false :onclick "~/.config/hypr/scripts/notif-dnd-toggle.sh" "󰖔")
+        (button :class "notif-icon-btn close" :hexpand false :vexpand false :onclick "~/.config/hypr/scripts/notif-center-close.sh" "󰅖")))
+    (scroll :class "notif-feed-scroll" :vscroll true :hscroll false :vexpand true
+      (box :class "notif-feed" :orientation "v" :spacing 4
+        (button :class { "notif-item sev-" + notif_row_0_sev } :onclick "~/.config/hypr/scripts/notif-select.sh index 0" :visible { notif_row_0 != "" } (label :xalign 0 :text notif_row_0))
+        (box :class "notif-inline-details" :visible { notif_selected_idx == "0" && notif_row_0 != "" } :orientation "v" :spacing 3
+          (label :class "notif-detail-body" :xalign 0 :wrap true :text notif_body)
+          (label :class "notif-detail-time" :xalign 0 :text notif_time))
+        (button :class { "notif-item sev-" + notif_row_1_sev } :onclick "~/.config/hypr/scripts/notif-select.sh index 1" :visible { notif_row_1 != "" } (label :xalign 0 :text notif_row_1))
+        (box :class "notif-inline-details" :visible { notif_selected_idx == "1" && notif_row_1 != "" } :orientation "v" :spacing 3
+          (label :class "notif-detail-body" :xalign 0 :wrap true :text notif_body)
+          (label :class "notif-detail-time" :xalign 0 :text notif_time))
+        (button :class { "notif-item sev-" + notif_row_2_sev } :onclick "~/.config/hypr/scripts/notif-select.sh index 2" :visible { notif_row_2 != "" } (label :xalign 0 :text notif_row_2))
+        (box :class "notif-inline-details" :visible { notif_selected_idx == "2" && notif_row_2 != "" } :orientation "v" :spacing 3
+          (label :class "notif-detail-body" :xalign 0 :wrap true :text notif_body)
+          (label :class "notif-detail-time" :xalign 0 :text notif_time))
+        (button :class { "notif-item sev-" + notif_row_3_sev } :onclick "~/.config/hypr/scripts/notif-select.sh index 3" :visible { notif_row_3 != "" } (label :xalign 0 :text notif_row_3))
+        (box :class "notif-inline-details" :visible { notif_selected_idx == "3" && notif_row_3 != "" } :orientation "v" :spacing 3
+          (label :class "notif-detail-body" :xalign 0 :wrap true :text notif_body)
+          (label :class "notif-detail-time" :xalign 0 :text notif_time))
+        (button :class { "notif-item sev-" + notif_row_4_sev } :onclick "~/.config/hypr/scripts/notif-select.sh index 4" :visible { notif_row_4 != "" } (label :xalign 0 :text notif_row_4))
+        (box :class "notif-inline-details" :visible { notif_selected_idx == "4" && notif_row_4 != "" } :orientation "v" :spacing 3
+          (label :class "notif-detail-body" :xalign 0 :wrap true :text notif_body)
+          (label :class "notif-detail-time" :xalign 0 :text notif_time))
+        (button :class { "notif-item sev-" + notif_row_5_sev } :onclick "~/.config/hypr/scripts/notif-select.sh index 5" :visible { notif_row_5 != "" } (label :xalign 0 :text notif_row_5))
+        (box :class "notif-inline-details" :visible { notif_selected_idx == "5" && notif_row_5 != "" } :orientation "v" :spacing 3
+          (label :class "notif-detail-body" :xalign 0 :wrap true :text notif_body)
+          (label :class "notif-detail-time" :xalign 0 :text notif_time))
+        (button :class { "notif-item sev-" + notif_row_6_sev } :onclick "~/.config/hypr/scripts/notif-select.sh index 6" :visible { notif_row_6 != "" } (label :xalign 0 :text notif_row_6))
+        (box :class "notif-inline-details" :visible { notif_selected_idx == "6" && notif_row_6 != "" } :orientation "v" :spacing 3
+          (label :class "notif-detail-body" :xalign 0 :wrap true :text notif_body)
+          (label :class "notif-detail-time" :xalign 0 :text notif_time))
+        (button :class { "notif-item sev-" + notif_row_7_sev } :onclick "~/.config/hypr/scripts/notif-select.sh index 7" :visible { notif_row_7 != "" } (label :xalign 0 :text notif_row_7))
+        (box :class "notif-inline-details" :visible { notif_selected_idx == "7" && notif_row_7 != "" } :orientation "v" :spacing 3
+          (label :class "notif-detail-body" :xalign 0 :wrap true :text notif_body)
+          (label :class "notif-detail-time" :xalign 0 :text notif_time))))))
+
+(defwidget notif-backdrop []
+  (button :class "notif-backdrop"
+    :onclick "~/.config/hypr/scripts/notif-center-close.sh"
+    (box :class "notif-backdrop-fill")))
+
+(defwindow notif_toast
+  :monitor 0
+  :focusable false
+  :stacking "fg"
+  :exclusive false
+  :geometry (geometry :x "18px"
+                      :y "58px"
+                      :width "360px"
+                      :height "0px"
+                      :anchor "top right")
+  (notif-toast))
+
+(defwindow notif_center
+  :monitor 0
+  :focusable true
+  :stacking "fg"
+  :exclusive false
+  :geometry (geometry :x "0px"
+                      :y "0px"
+                      :width "820px"
+                      :height "600px"
+                      :anchor "center")
+  (notif-center))
+
+(defwindow notif_backdrop
+  :monitor 0
+  :focusable true
+  :stacking "fg"
+  :exclusive false
+  :geometry (geometry :x "0px"
+                      :y "0px"
+                      :width "2400px"
+                      :height "1400px"
+                      :anchor "center")
+  (notif-backdrop))

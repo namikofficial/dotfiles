@@ -13,6 +13,11 @@ alias wellvantage='cd ~/Documents/code/WellVantage'
 alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
 
+# Use Kitty's SSH kitten to auto-bootstrap remote terminal capabilities.
+if command -v kitten >/dev/null 2>&1; then
+  alias ssh='kitten ssh'
+fi
+
 vpn-connect() {
   "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-connect" "$@"
 }
