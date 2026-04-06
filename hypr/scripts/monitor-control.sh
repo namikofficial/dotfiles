@@ -324,7 +324,6 @@ apply_state() {
 
 recover_outputs() {
   apply_state
-  hyprctl reload >/dev/null || true
   hyprctl dispatch dpms on >/dev/null || true
 }
 

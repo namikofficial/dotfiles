@@ -8,16 +8,18 @@
     "margin-left": 10,
     "margin-right": 10,
 
-    "modules-left": ["custom/layout", "hyprland/workspaces", "custom/updates", "hyprland/window"],
+    "modules-left": ["custom/workspace-active", "custom/layout", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": ["custom/cpu", "custom/memory", "custom/weather", "network", "pulseaudio", "backlight", "battery", "custom/fn1", "custom/media"],
+    "modules-right": ["custom/cpu", "custom/memory", "network", "pulseaudio", "backlight", "battery", "custom/updates", "custom/media"],
 
-    "hyprland/workspaces": {
-      "all-outputs": false,
-      "format": "{id}",
-      "disable-scroll": true,
-      "sort-by-number": true,
-      "on-click": "activate"
+    "custom/workspace-active": {
+      "exec": "~/.config/waybar/scripts/workspace-active.sh",
+      "return-type": "json",
+      "restart-interval": 1,
+      "on-click": "~/.config/hypr/scripts/workspace-overview-toggle.sh",
+      "on-scroll-up": "hyprctl dispatch workspace e+1",
+      "on-scroll-down": "hyprctl dispatch workspace e-1",
+      "tooltip": true
     },
 
     "hyprland/window": {
@@ -60,13 +62,6 @@
       }
     },
 
-    "custom/weather": {
-      "exec": "~/.config/waybar/scripts/weather.sh",
-      "interval": 1200,
-      "return-type": "plain",
-      "tooltip": true
-    },
-
     "custom/updates": {
       "exec": "~/.config/waybar/scripts/updates.sh",
       "interval": 900,
@@ -83,14 +78,6 @@
       "max-length": 34,
       "tooltip": true,
       "on-click": "~/.config/hypr/scripts/widget-actions.sh music"
-    },
-
-    "custom/fn1": {
-      "exec": "~/.config/waybar/scripts/fn-hint.sh",
-      "interval": 30,
-      "return-type": "json",
-      "tooltip": true,
-      "on-click": "~/.config/hypr/scripts/hypr-binds.sh"
     },
 
     "custom/cpu": {
@@ -124,6 +111,7 @@
         "critical": 12
       },
       "format": "{icon} {capacity}%",
+      "format-full": "󰁹 100%",
       "format-charging": "󰂄 {capacity}%",
       "tooltip-format": "Battery {capacity}%\n{timeTo}",
       "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
