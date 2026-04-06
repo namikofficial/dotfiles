@@ -8,9 +8,16 @@
     "margin-left": 10,
     "margin-right": 10,
 
-    "modules-left": ["custom/layout", "hyprland/workspaces", "custom/updates", "hyprland/window"],
+    "modules-left": ["custom/layout", "custom/active-workspace", "hyprland/workspaces", "custom/updates", "hyprland/window"],
     "modules-center": ["clock"],
     "modules-right": ["custom/cpu", "custom/memory", "network", "pulseaudio", "backlight", "battery", "custom/media"],
+
+    "custom/active-workspace": {
+      "exec": "~/.config/waybar/scripts/active-workspace-fast.sh",
+      "return-type": "json",
+      "restart-interval": 1,
+      "tooltip": true
+    },
 
     "hyprland/workspaces": {
       "all-outputs": false,
