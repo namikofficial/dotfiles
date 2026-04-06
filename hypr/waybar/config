@@ -8,7 +8,7 @@
     "margin-left": 10,
     "margin-right": 10,
 
-    "modules-left": ["custom/layout", "custom/active-workspace", "hyprland/workspaces", "custom/updates", "hyprland/window"],
+    "modules-left": ["custom/layout", "hyprland/workspaces", "custom/updates", "hyprland/window"],
     "modules-center": ["clock"],
     "modules-right": ["custom/cpu", "custom/memory", "network", "pulseaudio", "backlight", "battery", "custom/media"],
 
