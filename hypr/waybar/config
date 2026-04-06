@@ -8,18 +8,16 @@
     "margin-left": 10,
     "margin-right": 10,
 
-    "modules-left": ["custom/workspace-active", "custom/layout", "hyprland/window"],
+    "modules-left": ["custom/layout", "hyprland/workspaces", "custom/updates", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": ["custom/cpu", "custom/memory", "network", "pulseaudio", "backlight", "battery", "custom/updates", "custom/media"],
+    "modules-right": ["custom/cpu", "custom/memory", "network", "pulseaudio", "backlight", "battery", "custom/media"],
 
-    "custom/workspace-active": {
-      "exec": "~/.config/waybar/scripts/workspace-active.sh",
-      "return-type": "json",
-      "restart-interval": 1,
-      "on-click": "~/.config/hypr/scripts/workspace-overview-toggle.sh",
-      "on-scroll-up": "hyprctl dispatch workspace e+1",
-      "on-scroll-down": "hyprctl dispatch workspace e-1",
-      "tooltip": true
+    "hyprland/workspaces": {
+      "all-outputs": false,
+      "format": "{id}",
+      "disable-scroll": true,
+      "sort-by": "number",
+      "on-click": "activate"
     },
 
     "hyprland/window": {

@@ -207,11 +207,11 @@ if resolve_cmd waybar >/dev/null 2>&1; then
   ) &
 fi
 
-# Notifications: custom mode by default; swaync as manual fallback mode.
+# Notifications: swaync mode by default; custom mode remains opt-in.
 if [ -x "$HOME/.config/hypr/scripts/notif-mode.sh" ]; then
   (
     sleep 0.8
-    "$HOME/.config/hypr/scripts/notif-mode.sh" "${HYPR_NOTIF_MODE:-custom}" >/dev/null 2>&1 || true
+    "$HOME/.config/hypr/scripts/notif-mode.sh" "${HYPR_NOTIF_MODE:-swaync}" >/dev/null 2>&1 || true
   ) &
 else
   if resolve_cmd swaync >/dev/null 2>&1; then
