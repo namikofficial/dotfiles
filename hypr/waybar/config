@@ -13,7 +13,7 @@
     "modules-right": ["custom/cpu", "custom/memory", "custom/weather", "network", "pulseaudio", "backlight", "battery", "custom/fn1", "custom/media"],
 
     "hyprland/workspaces": {
-      "all-outputs": true,
+      "all-outputs": false,
       "format": "{id}",
       "disable-scroll": true,
       "sort-by-number": true,
