@@ -4,7 +4,7 @@ SideBarPage=operations
 ThumbnailBarIsVisible=true
 
 [ImageView]
-ThumbnailSplitterSizes=716,205
+ThumbnailSplitterSizes=719,206
 
 [MainWindow]
 MenuBar=Disabled
