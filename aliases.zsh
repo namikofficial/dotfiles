@@ -47,7 +47,8 @@ alias kdesc="kubectl describe"
 alias klogs="kubectl logs"
 
 # Utility aliases
-alias c="clear"
+# Clear screen and terminal scrollback buffer (supported by Kitty/xterm-like terminals).
+alias c='clear && printf "\033[3J"'
 alias h="history"
 if command -v devlink >/dev/null 2>&1; then
   alias dl="$SCRIPTS_BIN/devlink-easy"

@@ -24,11 +24,6 @@ if command -v code >/dev/null 2>&1; then
   exit 0
 fi
 
-if command -v codium >/dev/null 2>&1; then
-  codium "$notes_dir" >/dev/null 2>&1 &
-  exit 0
-fi
-
 if [ -n "${TERMINAL:-}" ] && command -v "$TERMINAL" >/dev/null 2>&1; then
   "$TERMINAL" -e sh -lc "cd \"$notes_dir\"; exec ${EDITOR:-nvim}" >/dev/null 2>&1 &
   exit 0

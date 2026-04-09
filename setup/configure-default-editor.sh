@@ -5,8 +5,6 @@ pick_editor_desktop() {
   local -a candidates=(
     "code.desktop"
     "visual-studio-code.desktop"
-    "code-oss.desktop"
-    "codium.desktop"
     "nvim.desktop"
   )
   local candidate

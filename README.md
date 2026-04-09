@@ -280,7 +280,7 @@ Set default editor MIME handlers:
 Notes path defaults:
 - Folder: `~/Documents/notes`
 - Scratch file: `~/Documents/notes/inbox.md`
-- `open-notes.sh` prefers Obsidian when it is installed, then falls back to VS Code/Codium.
+- `open-notes.sh` prefers Obsidian when it is installed, then falls back to official VS Code.
 
 ## KDE companion apps on Hyprland
 
