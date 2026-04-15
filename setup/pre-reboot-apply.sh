@@ -22,7 +22,7 @@ echo "repo: $REPO_DIR"
 echo "log:  $LOG_FILE"
 echo
 
-echo "[1/4] Normalize boot args for hybrid NVIDIA stability"
+echo "[1/4] Normalize boot args for hybrid NVIDIA Wayland support"
 "$SCRIPT_DIR/fix-systemd-boot-nvidia.sh"
 echo
 

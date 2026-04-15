@@ -1,10 +1,11 @@
 #!/usr/bin/env sh
 
 # Resolve Hyprland DRM devices dynamically each login.
-# Default: Intel only for maximum boot/session stability on hybrid laptops.
+# Default: hybrid so Hyprland can see both Intel and NVIDIA on laptops that
+# support dynamic routing/offload.
 # Modes via HYPR_AQ_GPU_MODE:
-#   intel (default)  -> Intel only
-#   hybrid           -> Intel first, then NVIDIA
+#   hybrid (default) -> Intel first, then NVIDIA
+#   intel            -> Intel only
 #   nvidia|dgpu      -> NVIDIA only (dedicated mode)
 # Backward-compatible toggle: HYPR_AQ_INCLUDE_DGPU=1 (acts like hybrid when mode is intel).
 
@@ -23,7 +24,7 @@ for vendor_file in /sys/class/drm/card*/device/vendor; do
   esac
 done
 
-mode="${HYPR_AQ_GPU_MODE:-intel}"
+mode="${HYPR_AQ_GPU_MODE:-hybrid}"
 if [ "${HYPR_AQ_INCLUDE_DGPU:-0}" = "1" ] && [ "$mode" = "intel" ]; then
   mode="hybrid"
 fi

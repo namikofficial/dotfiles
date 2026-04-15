@@ -33,13 +33,13 @@ pacman -S --needed --noconfirm \
   nvidia-prime \
   egl-wayland
 
-echo "[4/7] Write stable module options (hybrid-safe defaults)"
+echo "[4/7] Write hybrid Wayland module options"
 if [ -f /etc/modprobe.d/nvidia.conf ]; then
   ts="$(date +%F-%H%M%S)"
   cp /etc/modprobe.d/nvidia.conf "/etc/modprobe.d/nvidia.conf.bak.${ts}"
 fi
 cat >/etc/modprobe.d/nvidia.conf <<'EOF'
-options nvidia_drm modeset=0
+options nvidia_drm modeset=1 fbdev=1
 EOF
 
 if [ -f /etc/modprobe.d/nvidia-hybrid.conf ]; then
@@ -47,18 +47,22 @@ if [ -f /etc/modprobe.d/nvidia-hybrid.conf ]; then
   cp /etc/modprobe.d/nvidia-hybrid.conf "/etc/modprobe.d/nvidia-hybrid.conf.bak.${ts}"
 fi
 cat >/etc/modprobe.d/nvidia-hybrid.conf <<'EOF'
-# Stable defaults for hybrid laptops.
-options nvidia NVreg_DynamicPowerManagement=0x00 NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/var/tmp
+# Hybrid Wayland defaults with runtime power management enabled.
+options nvidia NVreg_DynamicPowerManagement=0x02 NVreg_PreserveVideoMemoryAllocations=1 NVreg_TemporaryFilePath=/var/tmp
 EOF
 
 cat >/etc/modprobe.d/blacklist-nvidia-drm.conf <<'EOF'
-blacklist nvidia_drm
+# Keep empty so NVIDIA DRM stays available for Wayland sessions/greeters.
 EOF
 
-echo "[5/7] Remove forced NVIDIA DRM modeset flags from systemd-boot entries"
+echo "[5/7] Ensure NVIDIA DRM modeset is enabled in systemd-boot entries"
 for entry in /boot/loader/entries/*.conf; do
   [[ -f "$entry" ]] || continue
-  sed -i -E 's/[[:space:]]+nvidia[-_]drm\.modeset=[01]//g' "$entry"
+  if grep -Eq 'nvidia[-_]drm\.modeset=' "$entry"; then
+    sed -i -E 's/nvidia[-_]drm\.modeset=[01]/nvidia_drm.modeset=1/g' "$entry"
+  else
+    sed -i -E '/^options\s+/ s|$| nvidia_drm.modeset=1|' "$entry"
+  fi
 done
 
 echo "[6/7] Rebuild initramfs"
