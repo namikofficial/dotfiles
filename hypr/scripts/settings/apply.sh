@@ -152,6 +152,7 @@ gestures {
 }
 
 env = HYPR_ENABLE_NM_APPLET,$(jq -r 'if .startup.nm_applet_autostart then 1 else 0 end' <<<"$json")
+env = HYPR_ENABLE_BLUEMAN_APPLET,$(jq -r 'if .startup.blueman_applet_autostart then 1 else 0 end' <<<"$json")
 EOG
 
   if ! rg -q '^source = ~/.cache/hypr/settings.generated.conf$' "$HYPR_CONF"; then

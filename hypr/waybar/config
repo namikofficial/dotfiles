@@ -10,7 +10,7 @@
 
     "modules-left": ["custom/layout", "hyprland/workspaces", "custom/updates", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": ["custom/cpu", "custom/memory", "network", "pulseaudio", "backlight", "battery", "custom/media"],
+    "modules-right": ["custom/cpu", "custom/memory", "network", "tray", "pulseaudio", "backlight", "battery", "custom/media"],
 
     "custom/active-workspace": {
       "exec": "~/.config/waybar/scripts/active-workspace-fast.sh",
@@ -106,8 +106,17 @@
       "format-ethernet": "󰈀",
       "format-linked": "󰌘",
       "format-disconnected": "󰤮",
-      "tooltip-format": "{ifname}\n{ipaddr}/{cidr}\nSignal: {signalStrength}%",
-      "on-click": "nm-connection-editor"
+      "tooltip-format-wifi": "{essid}\n{ifname}\n{ipaddr}/{cidr}\nSignal: {signalStrength}%",
+      "tooltip-format-ethernet": "{ifname}\n{ipaddr}/{cidr}",
+      "tooltip-format-linked": "{ifname}",
+      "tooltip-format-disconnected": "Disconnected",
+      "on-click-right": "nm-connection-editor"
+    },
+
+    "tray": {
+      "icon-size": 16,
+      "spacing": 8,
+      "show-passive-items": true
     },
 
     "battery": {

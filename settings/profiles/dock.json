@@ -2,6 +2,6 @@
   "machine": { "profile": "dock" },
   "power": { "default_profile": "balanced", "auto_profile": true },
   "panel": { "engine": "waybar", "visible": true, "desktop_widgets": false },
-  "startup": { "nm_applet_autostart": true },
+  "startup": { "nm_applet_autostart": true, "blueman_applet_autostart": true },
   "wallpaper": { "rotate_enabled": true, "rotate_interval_minutes": 720 }
 }

@@ -333,8 +333,8 @@ Or use repo automation:
 - On current Arch repos (since the March 3, 2026 NVIDIA 570+ packaging change), `nvidia-dkms` is not provided and `nvidia-open-dkms` is the official kernel-module package.
 - On this setup, forcing `nvidia_drm` modeset can trigger login/shutdown hangs on some hybrid laptops.
 - The included safe profile keeps boot stable by blacklisting `nvidia_drm` during compositor startup.
-- `nm-applet` auto-start is disabled by default to avoid duplicate tray-registration warnings in Waybar.
-  Toggle it on demand with `~/.config/hypr/scripts/nm-applet-toggle.sh`.
+- Waybar now exposes a real system tray, and `nm-applet` plus `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls.
+  Set `HYPR_ENABLE_NM_APPLET=0` or `HYPR_ENABLE_BLUEMAN_APPLET=0` if you want the panel-only workflow instead.
 
 If login freezes and `nvidia-persistenced` times out, run:
 

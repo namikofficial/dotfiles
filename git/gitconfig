@@ -35,3 +35,7 @@
 	allowedSignersFile = /home/namik/.config/git/allowed_signers
 [url "git@github.com:"]
 	insteadOf = https://github.com/
+[pull]
+	rebase = true
+[rebase]
+	autoStash = true

@@ -126,13 +126,12 @@ if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
   ) &
 fi
 
-# nm-applet can spam duplicate StatusNotifier warnings with Waybar on some setups.
-# Keep it opt-in (set HYPR_ENABLE_NM_APPLET=1 to auto-start it).
-if [ "${HYPR_ENABLE_NM_APPLET:-0}" = "1" ]; then
+# Start tray applets by default so Wi-Fi/Bluetooth have menu-style controls.
+# Set HYPR_ENABLE_*_APPLET=0 to keep the panel-only workflow.
+if [ "${HYPR_ENABLE_NM_APPLET:-1}" = "1" ]; then
   run_once nm-applet nm-applet
 fi
-# Keep Bluetooth tray icon opt-in; control it from Super+N panel by default.
-if [ "${HYPR_ENABLE_BLUEMAN_APPLET:-0}" = "1" ]; then
+if [ "${HYPR_ENABLE_BLUEMAN_APPLET:-1}" = "1" ]; then
   run_once blueman-applet blueman-applet
 fi
 run_cmd_if_not '(^|/)udiskie( .*)?$' udiskie --smart-tray --menu nested --no-appindicator
