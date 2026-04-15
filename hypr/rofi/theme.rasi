@@ -19,7 +19,7 @@
     text-color: @fg;
 }
 
-@import "/home/namik/.cache/hypr/theme-colors-rofi.rasi"
+@import "theme-colors-rofi.rasi"
 
 window {
     location: center;
