@@ -151,7 +151,7 @@
 - Start/attach `main` session: `tnew` or `tn`
 - Attach named session: `ta mysession`
 - List sessions: `tls`
-- Prefix key: `Ctrl + A`
+- Prefix key: `Ctrl + Space`
 - New window: `Prefix + c`
 - Split horizontal / vertical: `Prefix + -` / `Prefix + |`
 - Move panes: `Prefix + h/j/k/l`

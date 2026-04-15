@@ -186,7 +186,7 @@ Normalize existing copied files to symlinks:
 - `Ctrl + R`: Atuin fuzzy history picker (bound in emacs + vi insert keymaps)
 - `Alt + C`: fuzzy zoxide directory jump
 - `zsh-vi-mode` is auto-loaded when installed via `setup/install-zsh-plugins.sh`
-- Tmux prefix is `Ctrl + A`; pane navigation is `Prefix + h/j/k/l`
+- Tmux prefix is `Ctrl + Space`; pane navigation is `Prefix + h/j/k/l`
 - Neovim config is in `nvim/` and bootstraps plugins with `lazy.nvim`
 
 Notification panel now includes sticky "System Hub" controls (GPU/media/network/panel status, copy summary, widget toggles, and quick controls) via SwayNC.

@@ -129,7 +129,7 @@ flowchart LR
 
 | Keybind | Action |
 |---|---|
-| `Ctrl + A` | Tmux prefix |
+| `Ctrl + Space` | Tmux prefix |
 | `Prefix + c` | New window (current directory) |
 | `Prefix + -` / `Prefix + \|` | Split horizontal / vertical |
 | `Prefix + h/j/k/l` | Focus pane left/down/up/right |
