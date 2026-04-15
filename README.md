@@ -13,7 +13,7 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
 - `hypr/` for Hyprland, Waybar, Rofi, swaync, wlogout, dunst, lockscreen, and helper scripts
 - `hypr/eww/` for optional widget panel (Quick Deck)
-- `kitty/kitty.conf` so new terminals always load login `zsh`
+- `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
 - `theme/` for GTK, Qt5/Qt6, and Kvantum visual consistency
 - `setup/` automation scripts for links and package installation
@@ -186,6 +186,7 @@ Normalize existing copied files to symlinks:
 - `Ctrl + R`: Atuin fuzzy history picker (bound in emacs + vi insert keymaps)
 - `Alt + C`: fuzzy zoxide directory jump
 - `zsh-vi-mode` is auto-loaded when installed via `setup/install-zsh-plugins.sh`
+- Kitty shows a dashboard banner on startup and has dedicated tabs for scratch, logs, repo, AI, and clipboard history
 - Tmux prefix is `Ctrl + Space`; pane navigation is `Prefix + h/j/k/l`
 - Neovim config is in `nvim/` and bootstraps plugins with `lazy.nvim`
 

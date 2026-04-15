@@ -142,6 +142,13 @@ flowchart LR
 
 | Keybind | Action |
 |---|---|
+| `Startup` | Dashboard banner with system/repo context and quick actions |
+| `Ctrl + Shift + D` | Open dashboard tab |
+| `Ctrl + Shift + 1` | Open scratch shell tab |
+| `Ctrl + Shift + 2` | Open live logs tab |
+| `Ctrl + Shift + 3` | Open repo tab |
+| `Ctrl + Shift + 4` | Open AI tab |
+| `Ctrl + Shift + Y` | Clipboard history picker |
 | `Ctrl + Shift + T` | New tab (inherits current working directory) |
 | `Ctrl + Shift + Q` | Close current split/window |
 | `Ctrl + Shift + W` | Close current tab |

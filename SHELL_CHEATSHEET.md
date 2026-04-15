@@ -131,6 +131,13 @@
 - `Super + [` / `Super + ]`: previous / next workspace
 
 ## Kitty Keymaps
+- Dashboard start screen: shown automatically in Kitty windows
+- Open dashboard tab: `Ctrl + Shift + D`
+- Scratch shell: `Ctrl + Shift + 1`
+- Live logs tab: `Ctrl + Shift + 2`
+- Repo tab: `Ctrl + Shift + 3`
+- AI tab: `Ctrl + Shift + 4`
+- Clipboard history picker: `Ctrl + Shift + Y`
 - New tab (same cwd): `Ctrl + Shift + T`
 - Close split/window: `Ctrl + Shift + Q`
 - Close tab: `Ctrl + Shift + W`
