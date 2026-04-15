@@ -811,6 +811,8 @@ precmd_update_prompt_timing() {
 typeset -ga preexec_functions precmd_functions
 (( ${preexec_functions[(Ie)preexec_record_command_start]} == 0 )) && preexec_functions+=(preexec_record_command_start)
 (( ${precmd_functions[(Ie)precmd_update_prompt_timing]} == 0 )) && precmd_functions+=(precmd_update_prompt_timing)
+(( ${preexec_functions[(Ie)kitty_update_title_preexec]} == 0 )) && preexec_functions+=(kitty_update_title_preexec)
+(( ${precmd_functions[(Ie)kitty_update_title_precmd]} == 0 )) && precmd_functions+=(kitty_update_title_precmd)
 
 # Aliases
 DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
@@ -819,6 +821,9 @@ if [ -f "$DOTFILES_HOME/aliases.zsh" ]; then
 fi
 if [ -f "$DOTFILES_HOME/aliases.local.zsh" ]; then
   source "$DOTFILES_HOME/aliases.local.zsh"
+fi
+if [ -f "$DOTFILES_HOME/kitty/kitty-dashboard.zsh" ]; then
+  source "$DOTFILES_HOME/kitty/kitty-dashboard.zsh"
 fi
 
 # Custom helpers
@@ -833,6 +838,8 @@ fix-time() {
 
 # Starship prompt (should be last)
 eval "$(starship init zsh)"
+
+kitty_dashboard_maybe_show
 
 if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
   startup_elapsed_ms=$(( (EPOCHREALTIME - __ZSH_STARTUP_BEGIN_MS) * 1000 ))
