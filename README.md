@@ -362,8 +362,15 @@ sudo reboot
 ```
 
 This builds `hyprexpo` into `~/.local/share/hypr/plugins/hyprexpo/hyprexpo.so`.
-`startup.sh` will load it on session start, and `Super + Tab` will also load it
-on demand before falling back to the Rofi overview.
+`startup.sh` keeps it unloaded by default so Hyprland upgrades do not emit a
+plugin version mismatch warning at login.
+`Super + Tab` loads it on demand before falling back to the Rofi overview.
+
+If you want the old eager-load behavior back, set:
+
+```sh
+export HYPR_LOAD_HYPREXPO_AT_STARTUP=1
+```
 
 Optional (can fail on some Hyprland versions):
 

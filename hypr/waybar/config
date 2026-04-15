@@ -8,9 +8,9 @@
     "margin-left": 10,
     "margin-right": 10,
 
-    "modules-left": ["custom/layout", "hyprland/workspaces", "custom/updates", "hyprland/window"],
+    "modules-left": ["hyprland/workspaces", "custom/updates", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": ["custom/cpu", "custom/memory", "network", "tray", "pulseaudio", "backlight", "battery", "custom/media"],
+    "modules-right": ["tray", "pulseaudio", "backlight", "battery", "custom/media"],
 
     "custom/active-workspace": {
       "exec": "~/.config/waybar/scripts/active-workspace-fast.sh",
@@ -36,14 +36,6 @@
         "(.*) — Visual Studio Code": "$1",
         "(.*) - YouTube": "YouTube"
       }
-    },
-
-    "custom/layout": {
-      "exec": "~/.config/waybar/scripts/layout.sh",
-      "interval": 2,
-      "return-type": "plain",
-      "tooltip": "Current tiling layout",
-      "on-click": "~/.config/hypr/scripts/layout-switcher.sh toggle"
     },
 
     "clock": {

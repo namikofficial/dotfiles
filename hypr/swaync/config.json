@@ -29,7 +29,17 @@
       "app-name": "Hyprland"
     }
   },
-  "scripts": {},
+  "scripts": {
+    "play-notify-critical": {
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh critical dialog-warning'"
+    },
+    "play-notify-message": {
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh message message-new-instant'"
+    },
+    "play-notify-system": {
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh system service-login'"
+    }
+  },
   "widgets": [
     "title",
     "buttons-grid#notif_tools",

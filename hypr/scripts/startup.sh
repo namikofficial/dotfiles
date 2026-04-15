@@ -179,10 +179,11 @@ if [ "${HYPR_USE_HYPRPM_RELOAD:-0}" = "1" ] && resolve_cmd hyprpm >/dev/null 2>&
   ) &
 fi
 
-# Load locally built hyprexpo when available. This avoids depending on hyprpm
-# version pins for every session and keeps Super+Tab on the expo path.
+# Keep hyprexpo off by default at session start. Loading it here after a
+# Hyprland upgrade can surface a one-time version mismatch warning if the
+# plugin was built against an older ABI. Super+Tab loads it on demand.
 hyprexpo_plugin="${XDG_DATA_HOME:-$HOME/.local/share}/hypr/plugins/hyprexpo/hyprexpo.so"
-if [ -f "$hyprexpo_plugin" ]; then
+if [ "${HYPR_LOAD_HYPREXPO_AT_STARTUP:-0}" = "1" ] && [ -f "$hyprexpo_plugin" ]; then
   (
     sleep 2
     current_hyprexpo="$(loaded_hyprexpo_path || true)"
@@ -223,13 +224,6 @@ fi
 
 if resolve_cmd swww >/dev/null 2>&1; then
   run_cmd_if_not '^swww-daemon$' swww-daemon
-fi
-
-if [ -f "$HOME/.config/hypr/hyprpaper.conf" ] && resolve_cmd hyprpaper >/dev/null 2>&1; then
-  # Keep hyprpaper as fallback only if swww is not installed.
-  if ! resolve_cmd swww >/dev/null 2>&1; then
-    run_once hyprpaper hyprpaper
-  fi
 fi
 
 # Start whichever polkit agent is available.
