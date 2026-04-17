@@ -7,6 +7,7 @@ alias gc="git commit"
 alias gco="git checkout"
 alias gb="git branch"
 alias gd="git diff"
+alias gds='git -C "$(pwd)" diff --stat'
 alias gl="git log --oneline -n 20"
 alias greset="git reset --hard"
 alias gresetfull="git fetch origin && git reset --hard origin/\$(git branch --show-current) && git clean -fd"

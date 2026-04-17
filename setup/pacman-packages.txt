@@ -150,6 +150,7 @@ otf-font-awesome
 papirus-icon-theme
 fastfetch
 timeshift
+syncthing
 
 # Performance and diagnostics
 btop
@@ -164,6 +165,7 @@ mangohud
 lib32-mangohud
 gamescope
 power-profiles-daemon
+tlp
 pipewire
 pipewire-pulse
 wireplumber

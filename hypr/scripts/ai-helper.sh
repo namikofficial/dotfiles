@@ -82,12 +82,20 @@ clipboard_text() {
   fi
 }
 
+raw_mode() {
+  require_cmd rofi
+  prompt="$(rofi_input 'Prompt AI')"
+  [ -n "$prompt" ] || exit 0
+
+  run_ai "AI Prompt" "$prompt"
+}
+
 ask_mode() {
   require_cmd rofi
   question="$(rofi_input 'Ask AI')"
   [ -n "$question" ] || exit 0
 
-  run_ai "AI Ask" "Answer this clearly and concisely. Keep it actionable.\n\nQuestion:\n${question}"
+  run_ai "AI Ask" "You are a direct, practical assistant. Answer clearly and concisely. Prefer the shortest response that is still complete. Call out assumptions instead of hiding them.\n\nQuestion:\n${question}"
 }
 
 clip_mode() {
@@ -97,7 +105,7 @@ clip_mode() {
     exit 1
   }
 
-  run_ai "AI Clipboard Summary" "Summarize this text, list key points, and propose next actions.\n\n${text}"
+  run_ai "AI Clipboard Summary" "Summarize the clipboard text for quick reuse. Return:\n1. one-sentence summary\n2. key points\n3. action items\n4. ambiguities or risks\n\nClipboard:\n${text}"
 }
 
 shell_mode() {
@@ -105,7 +113,7 @@ shell_mode() {
   task="$(rofi_input 'Describe shell task')"
   [ -n "$task" ] || exit 0
 
-  run_ai "AI Shell Command" "Generate safe Arch Linux shell commands for this task. Explain each command briefly and include rollback/check steps.\n\nTask:\n${task}"
+  run_ai "AI Shell Command" "You are a senior Arch Linux and Hyprland operator. Generate the minimum safe commands needed to solve the task. Prefer commands that are easy to verify and roll back. Include any required packages, validation steps, and caveats for destructive actions.\n\nTask:\n${task}"
 }
 
 debug_mode() {
@@ -116,13 +124,14 @@ debug_mode() {
   fi
   [ -n "$text" ] || exit 0
 
-  run_ai "AI Debug" "Debug this issue. Give likely root cause, checks to run, and a minimal fix plan.\n\n${text}"
+  run_ai "AI Debug" "You are a pragmatic debugger. Diagnose the issue from the pasted text. Return:\n1. likely root causes ordered by probability\n2. checks to run next\n3. a minimal fix plan\n4. what evidence would confirm or rule out the guess\n\nInput:\n${text}"
 }
 
 menu_mode() {
   require_cmd rofi
   choice="$(
     rofi -dmenu -i -p 'AI Helper' -theme "$rofi_theme" <<'MENU'
+Freeform Prompt
 Ask AI
 Summarize Clipboard
 Generate Shell Command
@@ -131,6 +140,7 @@ MENU
   )"
 
   case "$choice" in
+    'Freeform Prompt') raw_mode ;;
     'Ask AI') ask_mode ;;
     'Summarize Clipboard') clip_mode ;;
     'Generate Shell Command') shell_mode ;;
@@ -140,13 +150,14 @@ MENU
 }
 
 case "$mode" in
+  raw) raw_mode ;;
   ask) ask_mode ;;
   clip) clip_mode ;;
   shell) shell_mode ;;
   debug) debug_mode ;;
   menu) menu_mode ;;
   *)
-    echo "usage: $0 [ask|clip|shell|debug|menu]" >&2
+    echo "usage: $0 [raw|ask|clip|shell|debug|menu]" >&2
     exit 1
     ;;
 esac

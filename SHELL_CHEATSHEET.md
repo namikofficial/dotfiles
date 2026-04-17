@@ -126,6 +126,8 @@
 - `Super + Shift + Y`: toggle panel visibility only
 - `Super + Ctrl + Alt + Y`: toggle desktop widgets
 - `Fn + 2/3/4/5`: AI helper (`ask`/`clipboard`/`shell`/`debug`)
+- `Super + Alt + 2`: freeform AI prompt with no preset base prompt
+- `Super + Alt + 3/4/5`: fallback AI helper (`clipboard`/`shell`/`debug`)
 - `Super + Ctrl + Arrow`: move active floating window
 - `Super + Ctrl + Shift + Arrow`: resize active floating window
 - `Super + [` / `Super + ]`: previous / next workspace

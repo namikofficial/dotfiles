@@ -479,9 +479,10 @@ for plugin in \
   break
 done
 if (( fzf_tab_loaded )); then
+  zstyle ':fzf-tab:*' fzf-flags '--height=55% --layout=reverse --border --info=inline-right'
   zstyle ':fzf-tab:*' fzf-command fzf
   zstyle ':fzf-tab:*' switch-group ',' '.'
-  zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color=always -1 $realpath 2>/dev/null'
+  zstyle ':fzf-tab:complete:cd:*' fzf-preview 'if command -v eza >/dev/null 2>&1; then eza --icons=auto -1 --group-directories-first --color=always -- "$realpath" 2>/dev/null; else ls --color=always -1 -- "$realpath" 2>/dev/null; fi'
 fi
 unset fzf_tab_loaded
 

@@ -12,13 +12,6 @@
     "modules-center": ["clock"],
     "modules-right": ["tray", "pulseaudio", "backlight", "battery", "custom/media"],
 
-    "custom/active-workspace": {
-      "exec": "~/.config/waybar/scripts/active-workspace-fast.sh",
-      "return-type": "json",
-      "restart-interval": 1,
-      "tooltip": true
-    },
-
     "hyprland/workspaces": {
       "all-outputs": false,
       "format": "{id}",
@@ -75,34 +68,6 @@
       "max-length": 34,
       "tooltip": true,
       "on-click": "~/.config/hypr/scripts/widget-actions.sh music"
-    },
-
-    "custom/cpu": {
-      "exec": "~/.config/waybar/scripts/cpu-compact.sh",
-      "interval": 3,
-      "return-type": "json",
-      "tooltip": true,
-      "on-click": "~/.config/hypr/scripts/open-system-monitor.sh"
-    },
-
-    "custom/memory": {
-      "exec": "~/.config/waybar/scripts/memory-compact.sh",
-      "interval": 3,
-      "return-type": "json",
-      "tooltip": true,
-      "on-click": "~/.config/hypr/scripts/open-system-monitor.sh"
-    },
-
-    "network": {
-      "format-wifi": "󰖩 {signalStrength}%",
-      "format-ethernet": "󰈀",
-      "format-linked": "󰌘",
-      "format-disconnected": "󰤮",
-      "tooltip-format-wifi": "{essid}\n{ifname}\n{ipaddr}/{cidr}\nSignal: {signalStrength}%",
-      "tooltip-format-ethernet": "{ifname}\n{ipaddr}/{cidr}",
-      "tooltip-format-linked": "{ifname}",
-      "tooltip-format-disconnected": "Disconnected",
-      "on-click-right": "nm-connection-editor"
     },
 
     "tray": {

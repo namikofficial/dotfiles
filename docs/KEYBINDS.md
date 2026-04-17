@@ -115,7 +115,10 @@ flowchart LR
 | `Fn + 3` / `XF86Launch3` | Summarize clipboard | `clip` |
 | `Fn + 4` / `XF86Launch4` | Generate shell command | `shell` |
 | `Fn + 5` / `XF86Launch5` | Debug clipboard error | `debug` |
-| `Super + Alt + 2..5` | Fallback AI binds | same modes |
+| `Super + Alt + 2` | Freeform AI prompt | `raw` |
+| `Super + Alt + 3` | Summarize clipboard | `clip` |
+| `Super + Alt + 4` | Generate shell command | `shell` |
+| `Super + Alt + 5` | Debug clipboard error | `debug` |
 
 ## Shell UX
 

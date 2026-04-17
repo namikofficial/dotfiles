@@ -68,7 +68,7 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 
 ## Package manifests
 
-- `setup/pacman-packages.txt`: official repository packages
+- `setup/pacman-packages.txt`: official repository packages (`tlp`, `syncthing`, and the rest of the workstation stack)
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `eww`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
@@ -146,7 +146,8 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + T`: move active window out of group
 - `Super + Alt + ;` / `Super + Alt + .`: previous/next tab in group
 - `Fn + 2/3/4/5` (`XF86Launch2..5`): AI helper actions (`ask`, `clipboard`, `shell`, `debug`)
-- `Super + Alt + 2/3/4/5`: fallback AI helper actions
+- `Super + Alt + 2`: freeform AI prompt with no preset base prompt
+- `Super + Alt + 3/4/5`: fallback AI helper actions (`clipboard`, `shell`, `debug`)
 - `Super + Ctrl + H/J/K/L` (or arrows): move floating window
 - `Super + Ctrl + Shift + H/J/K/L` (or arrows): resize floating window
 - `Super + [ / ]`: previous/next workspace
