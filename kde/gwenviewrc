@@ -4,32 +4,32 @@ SideBarPage=operations
 ThumbnailBarIsVisible=true
 
 [ImageView]
-ThumbnailSplitterSizes=719,206
+ThumbnailSplitterSizes=321,92
 
 [MainWindow]
 MenuBar=Disabled
 
 [Recent Files]
-File1[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/anime-water.png
-File10[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-peace.png
-File2[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/Antman.jpg
-File3[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/apple_gruvbox.jpg
-File4[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch_purple.png
-File5[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-chan_to.png
-File6[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-eagle.png
-File7[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-nord-dark.png
-File8[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/arch-nord-light.png
-File9[$e]=$HOME/Pictures/wallpaper-sources/aesthetic-wallpapers/images/art-lake.png
-Name1[$e]=anime-water.png
-Name10[$e]=arch-peace.png
-Name2[$e]=Antman.jpg
-Name3[$e]=apple_gruvbox.jpg
-Name4[$e]=arch_purple.png
-Name5[$e]=arch-chan_to.png
-Name6[$e]=arch-eagle.png
-Name7[$e]=arch-nord-dark.png
-Name8[$e]=arch-nord-light.png
-Name9[$e]=art-lake.png
+File1[$e]=$HOME/Downloads/Screenshot_20260426-022313.jpg
+File10[$e]=$HOME/Downloads/Screenshot_20260426-130849.jpg
+File2[$e]=$HOME/Downloads/Screenshot_20260426-023127.jpg
+File3[$e]=$HOME/Downloads/Screenshot_20260426-023116.jpg
+File4[$e]=$HOME/Downloads/Screenshot_20260426-022759.png
+File5[$e]=$HOME/Downloads/Screenshot_20260426-124856.jpg
+File6[$e]=$HOME/Downloads/Screenshot_20260426-124900.jpg
+File7[$e]=$HOME/Downloads/Screenshot_20260426-125747.jpg
+File8[$e]=$HOME/Downloads/Screenshot_20260426-125753.jpg
+File9[$e]=$HOME/Downloads/Screenshot_20260426-130843.jpg
+Name1[$e]=Screenshot_20260426-022313.jpg
+Name10[$e]=Screenshot_20260426-130849.jpg
+Name2[$e]=Screenshot_20260426-023127.jpg
+Name3[$e]=Screenshot_20260426-023116.jpg
+Name4[$e]=Screenshot_20260426-022759.png
+Name5[$e]=Screenshot_20260426-124856.jpg
+Name6[$e]=Screenshot_20260426-124900.jpg
+Name7[$e]=Screenshot_20260426-125747.jpg
+Name8[$e]=Screenshot_20260426-125753.jpg
+Name9[$e]=Screenshot_20260426-130843.jpg
 
 [SideBar]
 InformationSplitterSizes=220,255

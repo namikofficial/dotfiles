@@ -1,6 +1,6 @@
 # Noxflow Setup TODO
 
-Last updated: 2026-03-05
+Last updated: 2026-04-29
 
 ## Done
 
@@ -32,6 +32,13 @@ Last updated: 2026-03-05
 - [x] Add GTK3/GTK4 wallpaper palette overrides (`~/.config/gtk-3.0/gtk.css`, `~/.config/gtk-4.0/gtk.css`)
 - [x] Add VSCode wallpaper palette merge into user settings (`workbench.colorCustomizations`)
 - [x] Document wallpaper/theming workflow and tuning knobs (`docs/WALLPAPER_THEMING.md`)
+- [x] Add Kitty startup dashboard banner with system/repo context and dedicated app-like tabs (Dashboard, Scratch, Logs, Repo, AI, Clipboard)
+- [x] Switch swaync to default notification backend; `notif-center-toggle.sh` and `notif-dnd-toggle.sh` now prefer `swaync-client` directly
+- [x] Add AI freeform (`raw`) mode — freeform prompt with no preset base prompt (`Super + Alt + 2`)
+- [x] Add dynamic monitor layouts (`dynamic-up`, `dynamic-right`) with automatic workspace routing (workspaces 1–5 on laptop, 6–10 on first connected external display)
+- [x] Enable system tray in Waybar; `nm-applet` and `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls
+- [x] Change Tmux prefix from `Ctrl + A` to `Ctrl + Space`
+- [x] Add `open-syncthing.sh` helper and Syncthing entry in quick-actions menu
 
 ## Next
 
