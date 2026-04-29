@@ -138,9 +138,10 @@
     },
     "startup": {
       "type": "object",
-      "required": ["nm_applet_autostart", "nvidia_settings_autoload"],
+      "required": ["nm_applet_autostart", "blueman_applet_autostart", "nvidia_settings_autoload"],
       "properties": {
         "nm_applet_autostart": { "type": "boolean" },
+        "blueman_applet_autostart": { "type": "boolean" },
         "nvidia_settings_autoload": { "type": "boolean" }
       }
     },

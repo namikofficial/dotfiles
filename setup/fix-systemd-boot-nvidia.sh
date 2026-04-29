@@ -30,15 +30,15 @@ for entry in "$ENTRY_DIR"/*.conf; do
 
   cp "$entry" "${entry}.bak.${STAMP}"
 
-  # Hybrid-safe default: never force modeset=1 in boot args.
+  # Wayland hybrid default: keep NVIDIA DRM modesetting enabled.
   if grep -Eq 'nvidia[-_]drm\.modeset=' "$entry"; then
-    sed -i -E 's/nvidia[-_]drm\.modeset=[01]/nvidia_drm.modeset=0/g' "$entry"
+    sed -i -E 's/nvidia[-_]drm\.modeset=[01]/nvidia_drm.modeset=1/g' "$entry"
   else
-    sed -i -E '/^options\s+/ s|$| nvidia_drm.modeset=0|' "$entry"
+    sed -i -E '/^options\s+/ s|$| nvidia_drm.modeset=1|' "$entry"
   fi
 
   changed=1
-  echo "fix    $entry (nvidia_drm.modeset=0)"
+  echo "fix    $entry (nvidia_drm.modeset=1)"
 done
 
 if (( changed == 0 )); then

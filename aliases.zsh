@@ -7,6 +7,7 @@ alias gc="git commit"
 alias gco="git checkout"
 alias gb="git branch"
 alias gd="git diff"
+alias gds='git -C "$(pwd)" diff --stat'
 alias gl="git log --oneline -n 20"
 alias greset="git reset --hard"
 alias gresetfull="git fetch origin && git reset --hard origin/\$(git branch --show-current) && git clean -fd"
@@ -47,7 +48,8 @@ alias kdesc="kubectl describe"
 alias klogs="kubectl logs"
 
 # Utility aliases
-alias c="clear"
+# Clear screen and terminal scrollback buffer (supported by Kitty/xterm-like terminals).
+alias c='clear && printf "\033[3J"'
 alias h="history"
 if command -v devlink >/dev/null 2>&1; then
   alias dl="$SCRIPTS_BIN/devlink-easy"

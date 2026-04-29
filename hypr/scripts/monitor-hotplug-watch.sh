@@ -18,8 +18,8 @@ snapshot_connectors() {
 maybe_reload() {
   status_blob="$1"
 
-  # Give the kernel a moment to settle on hotplug before reloading outputs.
-  sleep 1
+  # Keep a short settle delay for hotplug race safety without visible lag.
+  sleep 0.2
 
   if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
     "$HOME/.config/hypr/scripts/monitor-control.sh" recover >/dev/null 2>&1 || true

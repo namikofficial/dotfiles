@@ -580,8 +580,7 @@ kitty_remote_all set-colors -a "$kitty_colors"
 
 # VSCode dynamic palette sync (JSONC-tolerant).
 for vscode_settings in \
-  "$HOME/.config/Code/User/settings.json" \
-  "$HOME/.config/Code - OSS/User/settings.json"
+  "$HOME/.config/Code/User/settings.json"
 do
   [ -f "$vscode_settings" ] || continue
   python3 - "$vscode_settings" "$bg" "$text" "$accent" "$muted" <<'PY'

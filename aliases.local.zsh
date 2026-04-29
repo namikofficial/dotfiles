@@ -8,10 +8,18 @@
 # alias myvpn='~/scripts/connect-vpn'
 
 # Local project shortcuts.
-alias noxflow='cd ~/Documents/code/noxflow'
+alias noxcrm='cd /home/namik/Documents/code/noxcrm/workspace'
 alias wellvantage='cd ~/Documents/code/WellVantage'
 alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
+
+noxcrm-edit() {
+  code /home/namik/Documents/code/noxcrm/workspace "$@"
+}
+
+noxcrm-log() {
+  :
+}
 
 # Use Kitty's SSH kitten to auto-bootstrap remote terminal capabilities.
 if command -v kitten >/dev/null 2>&1; then

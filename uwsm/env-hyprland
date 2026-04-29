@@ -1,5 +1,62 @@
 #!/usr/bin/env sh
 
-# Keep Hyprland on the Intel display GPU on hybrid Intel + NVIDIA laptops.
-# The dGPU remains available for PRIME/render offload workloads.
-export AQ_DRM_DEVICES=/dev/dri/card1
+# Resolve Hyprland DRM devices dynamically each login.
+# Default: hybrid so Hyprland can see both Intel and NVIDIA on laptops that
+# support dynamic routing/offload.
+# Modes via HYPR_AQ_GPU_MODE:
+#   hybrid (default) -> Intel first, then NVIDIA
+#   intel            -> Intel only
+#   nvidia|dgpu      -> NVIDIA only (dedicated mode)
+# Backward-compatible toggle: HYPR_AQ_INCLUDE_DGPU=1 (acts like hybrid when mode is intel).
+
+intel_card=""
+nvidia_card=""
+
+for vendor_file in /sys/class/drm/card*/device/vendor; do
+  [ -r "$vendor_file" ] || continue
+  card_dir="${vendor_file%/device/vendor}"
+  card_name="${card_dir##*/}"
+  vendor_id="$(cat "$vendor_file" 2>/dev/null || true)"
+
+  case "$vendor_id" in
+    0x8086) intel_card="$card_name" ;;
+    0x10de) nvidia_card="$card_name" ;;
+  esac
+done
+
+mode="${HYPR_AQ_GPU_MODE:-hybrid}"
+if [ "${HYPR_AQ_INCLUDE_DGPU:-0}" = "1" ] && [ "$mode" = "intel" ]; then
+  mode="hybrid"
+fi
+
+case "$mode" in
+  hybrid)
+    if [ -n "$intel_card" ] && [ -n "$nvidia_card" ]; then
+      export AQ_DRM_DEVICES="/dev/dri/$intel_card:/dev/dri/$nvidia_card"
+    elif [ -n "$intel_card" ]; then
+      export AQ_DRM_DEVICES="/dev/dri/$intel_card"
+    elif [ -n "$nvidia_card" ]; then
+      export AQ_DRM_DEVICES="/dev/dri/$nvidia_card"
+    else
+      unset AQ_DRM_DEVICES 2>/dev/null || true
+    fi
+    ;;
+  nvidia|dgpu|dedicated)
+    if [ -n "$nvidia_card" ]; then
+      export AQ_DRM_DEVICES="/dev/dri/$nvidia_card"
+    elif [ -n "$intel_card" ]; then
+      export AQ_DRM_DEVICES="/dev/dri/$intel_card"
+    else
+      unset AQ_DRM_DEVICES 2>/dev/null || true
+    fi
+    ;;
+  intel|*)
+    if [ -n "$intel_card" ]; then
+      export AQ_DRM_DEVICES="/dev/dri/$intel_card"
+    elif [ -n "$nvidia_card" ]; then
+      export AQ_DRM_DEVICES="/dev/dri/$nvidia_card"
+    else
+      unset AQ_DRM_DEVICES 2>/dev/null || true
+    fi
+    ;;
+esac

@@ -31,16 +31,13 @@
   },
   "scripts": {
     "play-notify-critical": {
-      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh critical dialog-warning'",
-      "urgency": "Critical"
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh critical dialog-warning'"
     },
     "play-notify-message": {
-      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh message message-new-instant'",
-      "urgency": "Normal"
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh message message-new-instant'"
     },
     "play-notify-system": {
-      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh system service-login'",
-      "urgency": "Low"
+      "exec": "sh -lc '$HOME/.config/hypr/scripts/notify-sound.sh system service-login'"
     }
   },
   "widgets": [

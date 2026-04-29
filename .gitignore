@@ -1,6 +1,9 @@
 logs/
 logs/*.log
 logs/*-latest.log
+.codex
+__pycache__/
+*.pyc
 settings/state.local.json
 settings/export/
 hypr/hyprland.conf.bak*

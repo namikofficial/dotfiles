@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-mode="${1:-custom}"
+mode="${1:-swaync}"
 state_file="${XDG_CACHE_HOME:-$HOME/.cache}/hypr/notif/state.json"
 
 mkdir -p "$(dirname "$state_file")"
@@ -11,11 +11,11 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 if [ ! -s "$state_file" ] || ! jq . "$state_file" >/dev/null 2>&1; then
-  printf '{"mode":"custom","dnd":false,"last_id":"","updated_at":"","selected_index":0,"selected_id":"","events":[]}' > "$state_file"
+  printf '{"mode":"swaync","dnd":false,"last_id":"","updated_at":"","selected_index":0,"selected_id":"","events":[]}' > "$state_file"
 fi
 
 if [ "$mode" = "toggle" ]; then
-  current="$(jq -r '.mode // "custom"' "$state_file")"
+  current="$(jq -r '.mode // "swaync"' "$state_file")"
   if [ "$current" = "custom" ]; then
     mode="swaync"
   else

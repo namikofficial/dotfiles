@@ -479,9 +479,10 @@ for plugin in \
   break
 done
 if (( fzf_tab_loaded )); then
+  zstyle ':fzf-tab:*' fzf-flags '--height=55% --layout=reverse --border --info=inline-right'
   zstyle ':fzf-tab:*' fzf-command fzf
   zstyle ':fzf-tab:*' switch-group ',' '.'
-  zstyle ':fzf-tab:complete:cd:*' fzf-preview 'ls --color=always -1 $realpath 2>/dev/null'
+  zstyle ':fzf-tab:complete:cd:*' fzf-preview 'if command -v eza >/dev/null 2>&1; then eza --icons=auto -1 --group-directories-first --color=always -- "$realpath" 2>/dev/null; else ls --color=always -1 -- "$realpath" 2>/dev/null; fi'
 fi
 unset fzf_tab_loaded
 
@@ -811,6 +812,8 @@ precmd_update_prompt_timing() {
 typeset -ga preexec_functions precmd_functions
 (( ${preexec_functions[(Ie)preexec_record_command_start]} == 0 )) && preexec_functions+=(preexec_record_command_start)
 (( ${precmd_functions[(Ie)precmd_update_prompt_timing]} == 0 )) && precmd_functions+=(precmd_update_prompt_timing)
+(( ${preexec_functions[(Ie)kitty_update_title_preexec]} == 0 )) && preexec_functions+=(kitty_update_title_preexec)
+(( ${precmd_functions[(Ie)kitty_update_title_precmd]} == 0 )) && precmd_functions+=(kitty_update_title_precmd)
 
 # Aliases
 DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
@@ -819,6 +822,9 @@ if [ -f "$DOTFILES_HOME/aliases.zsh" ]; then
 fi
 if [ -f "$DOTFILES_HOME/aliases.local.zsh" ]; then
   source "$DOTFILES_HOME/aliases.local.zsh"
+fi
+if [ -f "$DOTFILES_HOME/kitty/kitty-dashboard.zsh" ]; then
+  source "$DOTFILES_HOME/kitty/kitty-dashboard.zsh"
 fi
 
 # Custom helpers
@@ -833,6 +839,8 @@ fix-time() {
 
 # Starship prompt (should be last)
 eval "$(starship init zsh)"
+
+kitty_dashboard_maybe_show
 
 if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
   startup_elapsed_ms=$(( (EPOCHREALTIME - __ZSH_STARTUP_BEGIN_MS) * 1000 ))

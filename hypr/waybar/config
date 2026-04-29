@@ -8,15 +8,15 @@
     "margin-left": 10,
     "margin-right": 10,
 
-    "modules-left": ["custom/layout", "hyprland/workspaces", "custom/updates", "hyprland/window"],
+    "modules-left": ["hyprland/workspaces", "custom/updates", "hyprland/window"],
     "modules-center": ["clock"],
-    "modules-right": ["custom/cpu", "custom/memory", "custom/weather", "network", "pulseaudio", "backlight", "battery", "custom/fn1", "custom/media"],
+    "modules-right": ["tray", "pulseaudio", "backlight", "battery", "custom/media"],
 
     "hyprland/workspaces": {
-      "all-outputs": true,
+      "all-outputs": false,
       "format": "{id}",
       "disable-scroll": true,
-      "sort-by-number": true,
+      "sort-by": "number",
       "on-click": "activate"
     },
 
@@ -29,14 +29,6 @@
         "(.*) — Visual Studio Code": "$1",
         "(.*) - YouTube": "YouTube"
       }
-    },
-
-    "custom/layout": {
-      "exec": "~/.config/waybar/scripts/layout.sh",
-      "interval": 2,
-      "return-type": "plain",
-      "tooltip": "Current tiling layout",
-      "on-click": "~/.config/hypr/scripts/layout-switcher.sh toggle"
     },
 
     "clock": {
@@ -60,13 +52,6 @@
       }
     },
 
-    "custom/weather": {
-      "exec": "~/.config/waybar/scripts/weather.sh",
-      "interval": 1200,
-      "return-type": "plain",
-      "tooltip": true
-    },
-
     "custom/updates": {
       "exec": "~/.config/waybar/scripts/updates.sh",
       "interval": 900,
@@ -85,37 +70,10 @@
       "on-click": "~/.config/hypr/scripts/widget-actions.sh music"
     },
 
-    "custom/fn1": {
-      "exec": "~/.config/waybar/scripts/fn-hint.sh",
-      "interval": 30,
-      "return-type": "json",
-      "tooltip": true,
-      "on-click": "~/.config/hypr/scripts/hypr-binds.sh"
-    },
-
-    "custom/cpu": {
-      "exec": "~/.config/waybar/scripts/cpu-compact.sh",
-      "interval": 3,
-      "return-type": "json",
-      "tooltip": true,
-      "on-click": "~/.config/hypr/scripts/open-system-monitor.sh"
-    },
-
-    "custom/memory": {
-      "exec": "~/.config/waybar/scripts/memory-compact.sh",
-      "interval": 3,
-      "return-type": "json",
-      "tooltip": true,
-      "on-click": "~/.config/hypr/scripts/open-system-monitor.sh"
-    },
-
-    "network": {
-      "format-wifi": "󰖩 {signalStrength}%",
-      "format-ethernet": "󰈀",
-      "format-linked": "󰌘",
-      "format-disconnected": "󰤮",
-      "tooltip-format": "{ifname}\n{ipaddr}/{cidr}\nSignal: {signalStrength}%",
-      "on-click": "nm-connection-editor"
+    "tray": {
+      "icon-size": 16,
+      "spacing": 8,
+      "show-passive-items": true
     },
 
     "battery": {
@@ -124,6 +82,7 @@
         "critical": 12
       },
       "format": "{icon} {capacity}%",
+      "format-full": "󰁹 100%",
       "format-charging": "󰂄 {capacity}%",
       "tooltip-format": "Battery {capacity}%\n{timeTo}",
       "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]

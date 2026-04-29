@@ -126,13 +126,12 @@ if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
   ) &
 fi
 
-# nm-applet can spam duplicate StatusNotifier warnings with Waybar on some setups.
-# Keep it opt-in (set HYPR_ENABLE_NM_APPLET=1 to auto-start it).
-if [ "${HYPR_ENABLE_NM_APPLET:-0}" = "1" ]; then
+# Start tray applets by default so Wi-Fi/Bluetooth have menu-style controls.
+# Set HYPR_ENABLE_*_APPLET=0 to keep the panel-only workflow.
+if [ "${HYPR_ENABLE_NM_APPLET:-1}" = "1" ]; then
   run_once nm-applet nm-applet
 fi
-# Keep Bluetooth tray icon opt-in; control it from Super+N panel by default.
-if [ "${HYPR_ENABLE_BLUEMAN_APPLET:-0}" = "1" ]; then
+if [ "${HYPR_ENABLE_BLUEMAN_APPLET:-1}" = "1" ]; then
   run_once blueman-applet blueman-applet
 fi
 run_cmd_if_not '(^|/)udiskie( .*)?$' udiskie --smart-tray --menu nested --no-appindicator
@@ -180,10 +179,11 @@ if [ "${HYPR_USE_HYPRPM_RELOAD:-0}" = "1" ] && resolve_cmd hyprpm >/dev/null 2>&
   ) &
 fi
 
-# Load locally built hyprexpo when available. This avoids depending on hyprpm
-# version pins for every session and keeps Super+Tab on the expo path.
+# Keep hyprexpo off by default at session start. Loading it here after a
+# Hyprland upgrade can surface a one-time version mismatch warning if the
+# plugin was built against an older ABI. Super+Tab loads it on demand.
 hyprexpo_plugin="${XDG_DATA_HOME:-$HOME/.local/share}/hypr/plugins/hyprexpo/hyprexpo.so"
-if [ -f "$hyprexpo_plugin" ]; then
+if [ "${HYPR_LOAD_HYPREXPO_AT_STARTUP:-0}" = "1" ] && [ -f "$hyprexpo_plugin" ]; then
   (
     sleep 2
     current_hyprexpo="$(loaded_hyprexpo_path || true)"
@@ -207,11 +207,11 @@ if resolve_cmd waybar >/dev/null 2>&1; then
   ) &
 fi
 
-# Notifications: custom mode by default; swaync as manual fallback mode.
+# Notifications: swaync mode by default; custom mode remains opt-in.
 if [ -x "$HOME/.config/hypr/scripts/notif-mode.sh" ]; then
   (
     sleep 0.8
-    "$HOME/.config/hypr/scripts/notif-mode.sh" "${HYPR_NOTIF_MODE:-custom}" >/dev/null 2>&1 || true
+    "$HOME/.config/hypr/scripts/notif-mode.sh" "${HYPR_NOTIF_MODE:-swaync}" >/dev/null 2>&1 || true
   ) &
 else
   if resolve_cmd swaync >/dev/null 2>&1; then
@@ -224,13 +224,6 @@ fi
 
 if resolve_cmd swww >/dev/null 2>&1; then
   run_cmd_if_not '^swww-daemon$' swww-daemon
-fi
-
-if [ -f "$HOME/.config/hypr/hyprpaper.conf" ] && resolve_cmd hyprpaper >/dev/null 2>&1; then
-  # Keep hyprpaper as fallback only if swww is not installed.
-  if ! resolve_cmd swww >/dev/null 2>&1; then
-    run_once hyprpaper hyprpaper
-  fi
 fi
 
 # Start whichever polkit agent is available.

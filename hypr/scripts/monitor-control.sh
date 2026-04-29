@@ -10,8 +10,19 @@ ensure_state() {
   mkdir -p "$(dirname "$STATE_FILE")"
   if [[ ! -s "$STATE_FILE" ]]; then
     cat > "$STATE_FILE" <<'EOF'
-{"layout":"external-right","external_mode":"preferred","external_scale":"1","internal_scale":"1","external_desc":""}
+{"layout":"dynamic-up","external_mode":"preferred","external_scale":"1","internal_scale":"1","external_name":""}
 EOF
+  else
+    local tmp
+    tmp="$(mktemp)"
+    jq '
+      .layout = (.layout // "dynamic-up")
+      | .external_mode = (.external_mode // "preferred")
+      | .external_scale = (.external_scale // "1")
+      | .internal_scale = (.internal_scale // "1")
+      | .external_name = (.external_name // "")
+      | del(.external_desc)
+    ' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
   fi
 }
 
@@ -45,45 +56,238 @@ emit_event() {
   fi
 }
 
-detect_external_desc() {
+detect_external_name() {
   command -v hyprctl >/dev/null 2>&1 || return 0
   hyprctl monitors -j 2>/dev/null \
     | jq -r --arg internal "$INTERNAL_MONITOR" '
-        (map(select(.name != $internal)) | .[0].description) // empty
+        [
+          .[]
+          | select(.name != $internal)
+          | .name
+        ] | sort | .[0] // empty
       ' \
-    | sed -e '/^$/d' -e 's/^/desc:/'
+    | sed -e '/^$/d'
 }
 
-resolve_external_desc() {
+resolve_external_name() {
   ensure_state
 
   local detected saved
-  detected="$(detect_external_desc || true)"
+  detected="$(detect_external_name || true)"
   if [[ -n "$detected" ]]; then
-    state_set external_desc "$detected"
+    state_set external_name "$detected"
     printf '%s\n' "$detected"
     return 0
   fi
 
-  saved="$(state_get external_desc)"
+  saved="$(state_get external_name)"
   if [[ "$saved" != "null" && -n "$saved" ]]; then
     printf '%s\n' "$saved"
   fi
 }
 
+all_connected_monitors() {
+  hyprctl monitors -j 2>/dev/null \
+    | jq -r '.[].name' \
+    | sed -e '/^$/d' \
+    | sort
+}
+
+first_connected_external() {
+  hyprctl monitors -j 2>/dev/null \
+    | jq -r --arg internal "$INTERNAL_MONITOR" '
+        [
+          .[]
+          | select(.name != $internal)
+          | .name
+        ] | sort | .[0] // empty
+      ' \
+    | sed -e '/^$/d'
+}
+
+apply_workspace_routing() {
+  local external ws
+  external="$(first_connected_external || true)"
+
+  # Keep primary desk workspaces on the laptop panel.
+  for ws in 1 2 3 4 5; do
+    hyprctl dispatch moveworkspacetomonitor "$ws" "$INTERNAL_MONITOR" >/dev/null 2>&1 || true
+  done
+
+  # Route 6-10 to the first currently connected external display.
+  if [[ -n "$external" ]]; then
+    for ws in 6 7 8 9 10; do
+      hyprctl dispatch moveworkspacetomonitor "$ws" "$external" >/dev/null 2>&1 || true
+    done
+  else
+    for ws in 6 7 8 9 10; do
+      hyprctl dispatch moveworkspacetomonitor "$ws" "$INTERNAL_MONITOR" >/dev/null 2>&1 || true
+    done
+  fi
+}
+
+position_row_no_overlap() {
+  local internal_scale external_scale external_mode
+  internal_scale="$(state_get internal_scale)"
+  external_scale="$(state_get external_scale)"
+  external_mode="$(state_get external_mode)"
+
+  mapfile -t connected < <(all_connected_monitors)
+  if [[ "${#connected[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  local ordered=()
+  local have_internal=0
+  for mon in "${connected[@]}"; do
+    if [[ "$mon" == "$INTERNAL_MONITOR" ]]; then
+      have_internal=1
+      break
+    fi
+  done
+
+  if [[ "$have_internal" -eq 1 ]]; then
+    ordered+=("$INTERNAL_MONITOR")
+    for mon in "${connected[@]}"; do
+      [[ "$mon" == "$INTERNAL_MONITOR" ]] && continue
+      ordered+=("$mon")
+    done
+  else
+    ordered=("${connected[@]}")
+  fi
+
+  local x=0
+  local mon mode scale width step
+  for mon in "${ordered[@]}"; do
+    if [[ "$mon" == "$INTERNAL_MONITOR" ]]; then
+      mode="preferred"
+      scale="$internal_scale"
+    else
+      mode="$external_mode"
+      scale="$external_scale"
+    fi
+
+    hyprctl keyword monitor "$mon,$mode,${x}x0,$scale" >/dev/null || \
+      hyprctl keyword monitor "$mon,preferred,${x}x0,$scale" >/dev/null || true
+
+    width="$(hyprctl monitors -j 2>/dev/null | jq -r --arg mon "$mon" '.[] | select(.name == $mon) | .width // 1920' | head -n1)"
+    step="$(awk -v w="${width:-1920}" -v s="${scale:-1}" 'BEGIN { if (s <= 0) s = 1; v = int((w / s) + 0.5); if (v < 640) v = 640; print v }')"
+    x=$((x + step))
+  done
+}
+
+position_stack_up_no_overlap() {
+  local internal_scale external_scale external_mode
+  internal_scale="$(state_get internal_scale)"
+  external_scale="$(state_get external_scale)"
+  external_mode="$(state_get external_mode)"
+
+  mapfile -t connected < <(all_connected_monitors)
+  if [[ "${#connected[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  local ordered=()
+  local have_internal=0
+  for mon in "${connected[@]}"; do
+    if [[ "$mon" == "$INTERNAL_MONITOR" ]]; then
+      have_internal=1
+      break
+    fi
+  done
+
+  if [[ "$have_internal" -eq 1 ]]; then
+    ordered+=("$INTERNAL_MONITOR")
+    for mon in "${connected[@]}"; do
+      [[ "$mon" == "$INTERNAL_MONITOR" ]] && continue
+      ordered+=("$mon")
+    done
+  else
+    ordered=("${connected[@]}")
+  fi
+
+  local mon mode scale height step y
+
+  # Anchor internal panel at 0x0 when present.
+  if [[ "$have_internal" -eq 1 ]]; then
+    hyprctl keyword monitor "$INTERNAL_MONITOR,preferred,0x0,$internal_scale" >/dev/null || true
+    y=0
+    for mon in "${ordered[@]}"; do
+      [[ "$mon" == "$INTERNAL_MONITOR" ]] && continue
+
+      mode="$external_mode"
+      scale="$external_scale"
+      height="$(hyprctl monitors -j 2>/dev/null | jq -r --arg mon "$mon" '.[] | select(.name == $mon) | .height // 1080' | head -n1)"
+      step="$(awk -v h="${height:-1080}" -v s="${scale:-1}" 'BEGIN { if (s <= 0) s = 1; v = int((h / s) + 0.5); if (v < 480) v = 480; print v }')"
+      y=$((y - step))
+
+      hyprctl keyword monitor "$mon,$mode,0x${y},$scale" >/dev/null || \
+        hyprctl keyword monitor "$mon,preferred,0x${y},$scale" >/dev/null || true
+    done
+    return 0
+  fi
+
+  # No internal panel detected: stack from top to bottom.
+  y=0
+  for mon in "${ordered[@]}"; do
+    mode="$external_mode"
+    scale="$external_scale"
+    hyprctl keyword monitor "$mon,$mode,0x${y},$scale" >/dev/null || \
+      hyprctl keyword monitor "$mon,preferred,0x${y},$scale" >/dev/null || true
+
+    height="$(hyprctl monitors -j 2>/dev/null | jq -r --arg mon "$mon" '.[] | select(.name == $mon) | .height // 1080' | head -n1)"
+    step="$(awk -v h="${height:-1080}" -v s="${scale:-1}" 'BEGIN { if (s <= 0) s = 1; v = int((h / s) + 0.5); if (v < 480) v = 480; print v }')"
+    y=$((y + step))
+  done
+}
+
+disable_disconnected_outputs() {
+  local path connector status
+  for path in /sys/class/drm/card*-*/status; do
+    [[ -e "$path" ]] || continue
+    status="$(cat "$path" 2>/dev/null || true)"
+    [[ "$status" == "disconnected" ]] || continue
+    connector="${path%/status}"
+    connector="${connector##*/}"
+    connector="${connector#*-}"
+    hyprctl keyword monitor "$connector,disable" >/dev/null 2>&1 || true
+  done
+}
+
 apply_state() {
   ensure_state
 
-  local layout external_mode external_scale internal_scale external_desc
+  local layout external_mode external_scale internal_scale external_name
   layout="$(state_get layout)"
   external_mode="$(state_get external_mode)"
   external_scale="$(state_get external_scale)"
   internal_scale="$(state_get internal_scale)"
-  external_desc="$(resolve_external_desc)"
+  external_name="$(resolve_external_name)"
 
-  if [[ -z "$external_desc" ]]; then
+  disable_disconnected_outputs
+
+  if [[ "$layout" == "dynamic-right" ]]; then
+    position_row_no_overlap
+    apply_workspace_routing
+    hyprctl keyword monitor ",preferred,auto-right,1" >/dev/null || true
+    hyprctl dispatch dpms on >/dev/null || true
+    emit_event info "Monitor layout applied" "Layout=dynamic-right"
+    return 0
+  fi
+
+  if [[ "$layout" == "dynamic-up" ]]; then
+    position_stack_up_no_overlap
+    apply_workspace_routing
+    hyprctl keyword monitor ",preferred,auto-up,1" >/dev/null || true
+    hyprctl dispatch dpms on >/dev/null || true
+    emit_event info "Monitor layout applied" "Layout=dynamic-up"
+    return 0
+  fi
+
+  if [[ -z "$external_name" ]]; then
     hyprctl keyword monitor "$INTERNAL_MONITOR,preferred,0x0,$internal_scale" >/dev/null || true
-    hyprctl keyword monitor ",preferred,auto,1" >/dev/null || true
+    apply_workspace_routing
+    hyprctl keyword monitor ",preferred,auto-right,1" >/dev/null || true
     hyprctl dispatch dpms on >/dev/null || true
     emit_event info "Monitor layout applied" "Internal-only fallback active"
     return 0
@@ -91,20 +295,20 @@ apply_state() {
 
   case "$layout" in
     external-up)
-      hyprctl keyword monitor "$external_desc,$external_mode,0x0,$external_scale" >/dev/null
+      hyprctl keyword monitor "$external_name,$external_mode,0x0,$external_scale" >/dev/null
       hyprctl keyword monitor "$INTERNAL_MONITOR,preferred,auto-down,$internal_scale" >/dev/null
       ;;
     external-right)
       hyprctl keyword monitor "$INTERNAL_MONITOR,preferred,0x0,$internal_scale" >/dev/null
-      hyprctl keyword monitor "$external_desc,$external_mode,auto-right,$external_scale" >/dev/null
+      hyprctl keyword monitor "$external_name,$external_mode,auto-right,$external_scale" >/dev/null
       ;;
     external-left)
-      hyprctl keyword monitor "$external_desc,$external_mode,0x0,$external_scale" >/dev/null
+      hyprctl keyword monitor "$external_name,$external_mode,0x0,$external_scale" >/dev/null
       hyprctl keyword monitor "$INTERNAL_MONITOR,preferred,auto-right,$internal_scale" >/dev/null
       ;;
     external-down)
       hyprctl keyword monitor "$INTERNAL_MONITOR,preferred,0x0,$internal_scale" >/dev/null
-      hyprctl keyword monitor "$external_desc,$external_mode,auto-down,$external_scale" >/dev/null
+      hyprctl keyword monitor "$external_name,$external_mode,auto-down,$external_scale" >/dev/null
       ;;
     *)
       echo "unknown layout: $layout" >&2
@@ -112,14 +316,14 @@ apply_state() {
       ;;
   esac
 
-  hyprctl keyword monitor ",preferred,auto,1" >/dev/null || true
+  apply_workspace_routing
+  hyprctl keyword monitor ",preferred,auto-right,1" >/dev/null || true
   hyprctl dispatch dpms on >/dev/null || true
   emit_event info "Monitor layout applied" "Layout=$layout mode=$external_mode"
 }
 
 recover_outputs() {
   apply_state
-  hyprctl reload >/dev/null || true
   hyprctl dispatch dpms on >/dev/null || true
 }
 
@@ -128,12 +332,14 @@ show_menu() {
   local current_layout current_mode current_external choice action
   current_layout="$(state_get layout)"
   current_mode="$(state_get external_mode)"
-  current_external="$(resolve_external_desc)"
+  current_external="$(resolve_external_name)"
 
   choice="$(
     cat <<EOF | rofi -dmenu -i -p "Monitor Control" -theme "$ROFI_THEME" || true
 Recover displays|recover
-External: ${current_external#desc:}|noop
+External: ${current_external}|noop
+Dynamic auto layout up (recommended)$( [[ "$current_layout" == "dynamic-up" ]] && printf ' (Current)' )|layout:dynamic-up
+Dynamic auto layout (recommended)$( [[ "$current_layout" == "dynamic-right" ]] && printf ' (Current)' )|layout:dynamic-right
 External above laptop$( [[ "$current_layout" == "external-up" ]] && printf ' (Current)' )|layout:external-up
 External right of laptop$( [[ "$current_layout" == "external-right" ]] && printf ' (Current)' )|layout:external-right
 External left of laptop$( [[ "$current_layout" == "external-left" ]] && printf ' (Current)' )|layout:external-left
@@ -151,6 +357,16 @@ EOF
     recover)
       recover_outputs
       notify "Monitors" "Display rules reapplied"
+      ;;
+    layout:dynamic-right)
+      state_set layout dynamic-right
+      apply_state
+      notify "Monitors" "Dynamic auto layout enabled"
+      ;;
+    layout:dynamic-up)
+      state_set layout dynamic-up
+      apply_state
+      notify "Monitors" "Dynamic auto layout up enabled"
       ;;
     layout:external-up)
       state_set layout external-up

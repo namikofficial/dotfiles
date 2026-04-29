@@ -4,6 +4,17 @@ set -euo pipefail
 state_file="${XDG_CACHE_HOME:-$HOME/.cache}/hypr/notif/state.json"
 mkdir -p "$(dirname "$state_file")"
 
+if command -v swaync-client >/dev/null 2>&1; then
+  state="$(swaync-client -sw -d 2>/dev/null || echo false)"
+  if command -v notify-send >/dev/null 2>&1; then
+    case "$state" in
+      true|1|on|enabled) notify-send -a Noxflow "Notifications" "DND enabled" ;;
+      *) notify-send -a Noxflow "Notifications" "DND disabled" ;;
+    esac
+  fi
+  exit 0
+fi
+
 if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi

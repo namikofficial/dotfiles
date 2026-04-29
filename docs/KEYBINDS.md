@@ -115,7 +115,10 @@ flowchart LR
 | `Fn + 3` / `XF86Launch3` | Summarize clipboard | `clip` |
 | `Fn + 4` / `XF86Launch4` | Generate shell command | `shell` |
 | `Fn + 5` / `XF86Launch5` | Debug clipboard error | `debug` |
-| `Super + Alt + 2..5` | Fallback AI binds | same modes |
+| `Super + Alt + 2` | Freeform AI prompt | `raw` |
+| `Super + Alt + 3` | Summarize clipboard | `clip` |
+| `Super + Alt + 4` | Generate shell command | `shell` |
+| `Super + Alt + 5` | Debug clipboard error | `debug` |
 
 ## Shell UX
 
@@ -129,7 +132,7 @@ flowchart LR
 
 | Keybind | Action |
 |---|---|
-| `Ctrl + A` | Tmux prefix |
+| `Ctrl + Space` | Tmux prefix |
 | `Prefix + c` | New window (current directory) |
 | `Prefix + -` / `Prefix + \|` | Split horizontal / vertical |
 | `Prefix + h/j/k/l` | Focus pane left/down/up/right |
@@ -142,6 +145,13 @@ flowchart LR
 
 | Keybind | Action |
 |---|---|
+| `Startup` | Dashboard banner with system/repo context and quick actions |
+| `Ctrl + Shift + D` | Open dashboard tab |
+| `Ctrl + Shift + 1` | Open scratch shell tab |
+| `Ctrl + Shift + 2` | Open live logs tab |
+| `Ctrl + Shift + 3` | Open repo tab |
+| `Ctrl + Shift + 4` | Open AI tab |
+| `Ctrl + Shift + Y` | Clipboard history picker |
 | `Ctrl + Shift + T` | New tab (inherits current working directory) |
 | `Ctrl + Shift + Q` | Close current split/window |
 | `Ctrl + Shift + W` | Close current tab |

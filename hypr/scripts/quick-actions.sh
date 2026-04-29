@@ -71,6 +71,7 @@ actions=(
   "Toggle Side Panel"
   "Move Window -> Side Panel"
   "Open LocalSend"
+  "Open Syncthing UI"
   "Open Obsidian"
   "Open Terminal"
   "Open Notes"
@@ -201,12 +202,13 @@ case "$choice_index" in
   39) ~/.config/hypr/scripts/sidepanel.sh toggle ;;
   40) ~/.config/hypr/scripts/sidepanel.sh send ;;
   41) flatpak run org.localsend.localsend_app >/dev/null 2>&1 & ;;
-  42) obsidian >/dev/null 2>&1 & ;;
-  43) kitty >/dev/null 2>&1 & ;;
-  44) ~/.config/hypr/scripts/open-notes.sh ;;
-  45) ~/.config/hypr/scripts/notif-mode.sh toggle ;;
-  46) ~/.config/hypr/scripts/settings-hub.sh ;;
-  47) ~/.config/hypr/scripts/monitor-control.sh menu ;;
-  48) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;
+  42) ~/.config/hypr/scripts/open-syncthing.sh ;;
+  43) obsidian >/dev/null 2>&1 & ;;
+  44) kitty >/dev/null 2>&1 & ;;
+  45) ~/.config/hypr/scripts/open-notes.sh ;;
+  46) ~/.config/hypr/scripts/notif-mode.sh toggle ;;
+  47) ~/.config/hypr/scripts/settings-hub.sh ;;
+  48) ~/.config/hypr/scripts/monitor-control.sh menu ;;
+  49) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;
   *) exit 0 ;;
 esac

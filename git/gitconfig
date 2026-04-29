@@ -15,6 +15,13 @@
 
 [diff]
 	colorMoved = default
+[feature]
+	manyFiles = true
+[index]
+	version = 4
+[core]
+	untrackedCache = true
+	preloadIndex = true
 [credential "https://github.com"]
 	helper = 
 	helper = !/usr/bin/gh auth git-credential
@@ -35,3 +42,16 @@
 	allowedSignersFile = /home/namik/.config/git/allowed_signers
 [url "git@github.com:"]
 	insteadOf = https://github.com/
+[pull]
+	rebase = true
+[rebase]
+	autoStash = true
+[fetch]
+	writeCommitGraph = true
+[gc]
+	writeCommitGraph = true
+[maintenance]
+	auto = true
+	commitGraph = true
+[pack]
+	threads = 0

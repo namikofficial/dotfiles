@@ -13,7 +13,7 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
 - `hypr/` for Hyprland, Waybar, Rofi, swaync, wlogout, dunst, lockscreen, and helper scripts
 - `hypr/eww/` for optional widget panel (Quick Deck)
-- `kitty/kitty.conf` so new terminals always load login `zsh`
+- `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
 - `theme/` for GTK, Qt5/Qt6, and Kvantum visual consistency
 - `setup/` automation scripts for links and package installation
@@ -68,7 +68,7 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 
 ## Package manifests
 
-- `setup/pacman-packages.txt`: official repository packages
+- `setup/pacman-packages.txt`: official repository packages (`tlp`, `syncthing`, and the rest of the workstation stack)
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `eww`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
@@ -146,7 +146,8 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + T`: move active window out of group
 - `Super + Alt + ;` / `Super + Alt + .`: previous/next tab in group
 - `Fn + 2/3/4/5` (`XF86Launch2..5`): AI helper actions (`ask`, `clipboard`, `shell`, `debug`)
-- `Super + Alt + 2/3/4/5`: fallback AI helper actions
+- `Super + Alt + 2`: freeform AI prompt with no preset base prompt
+- `Super + Alt + 3/4/5`: fallback AI helper actions (`clipboard`, `shell`, `debug`)
 - `Super + Ctrl + H/J/K/L` (or arrows): move floating window
 - `Super + Ctrl + Shift + H/J/K/L` (or arrows): resize floating window
 - `Super + [ / ]`: previous/next workspace
@@ -186,7 +187,8 @@ Normalize existing copied files to symlinks:
 - `Ctrl + R`: Atuin fuzzy history picker (bound in emacs + vi insert keymaps)
 - `Alt + C`: fuzzy zoxide directory jump
 - `zsh-vi-mode` is auto-loaded when installed via `setup/install-zsh-plugins.sh`
-- Tmux prefix is `Ctrl + A`; pane navigation is `Prefix + h/j/k/l`
+- Kitty shows a dashboard banner on startup and has dedicated tabs for scratch, logs, repo, AI, and clipboard history
+- Tmux prefix is `Ctrl + Space`; pane navigation is `Prefix + h/j/k/l`
 - Neovim config is in `nvim/` and bootstraps plugins with `lazy.nvim`
 
 Notification panel now includes sticky "System Hub" controls (GPU/media/network/panel status, copy summary, widget toggles, and quick controls) via SwayNC.
@@ -280,7 +282,7 @@ Set default editor MIME handlers:
 Notes path defaults:
 - Folder: `~/Documents/notes`
 - Scratch file: `~/Documents/notes/inbox.md`
-- `open-notes.sh` prefers Obsidian when it is installed, then falls back to VS Code/Codium.
+- `open-notes.sh` prefers Obsidian when it is installed, then falls back to official VS Code.
 
 ## KDE companion apps on Hyprland
 
@@ -333,8 +335,8 @@ Or use repo automation:
 - On current Arch repos (since the March 3, 2026 NVIDIA 570+ packaging change), `nvidia-dkms` is not provided and `nvidia-open-dkms` is the official kernel-module package.
 - On this setup, forcing `nvidia_drm` modeset can trigger login/shutdown hangs on some hybrid laptops.
 - The included safe profile keeps boot stable by blacklisting `nvidia_drm` during compositor startup.
-- `nm-applet` auto-start is disabled by default to avoid duplicate tray-registration warnings in Waybar.
-  Toggle it on demand with `~/.config/hypr/scripts/nm-applet-toggle.sh`.
+- Waybar now exposes a real system tray, and `nm-applet` plus `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls.
+  Set `HYPR_ENABLE_NM_APPLET=0` or `HYPR_ENABLE_BLUEMAN_APPLET=0` if you want the panel-only workflow instead.
 
 If login freezes and `nvidia-persistenced` times out, run:
 
@@ -361,8 +363,15 @@ sudo reboot
 ```
 
 This builds `hyprexpo` into `~/.local/share/hypr/plugins/hyprexpo/hyprexpo.so`.
-`startup.sh` will load it on session start, and `Super + Tab` will also load it
-on demand before falling back to the Rofi overview.
+`startup.sh` keeps it unloaded by default so Hyprland upgrades do not emit a
+plugin version mismatch warning at login.
+`Super + Tab` loads it on demand before falling back to the Rofi overview.
+
+If you want the old eager-load behavior back, set:
+
+```sh
+export HYPR_LOAD_HYPREXPO_AT_STARTUP=1
+```
 
 Optional (can fail on some Hyprland versions):
 

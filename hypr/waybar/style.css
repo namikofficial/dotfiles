@@ -13,7 +13,7 @@
 @define-color accent2 #66c2b8;
 @define-color warn #ff966c;
 @define-color danger #ff757f;
-@import url("/home/namik/.cache/hypr/theme-colors-waybar.css");
+@import url("theme-colors-waybar.css");
 
 window#waybar {
   background: transparent;
@@ -54,22 +54,17 @@ button {
 }
 
 #workspaces,
-#custom-layout,
+#custom-active-workspace,
 #window,
 #clock,
 #custom-updates,
-#custom-cpu,
-#custom-memory,
-#network,
 #backlight,
 #battery,
 #pulseaudio,
 #tray,
 #custom-launcher,
 #custom-overview,
-#custom-fn1,
 #custom-media,
-#custom-weather,
 #custom-cliphist {
   margin: 0 3px;
   padding: 0 10px;
@@ -121,6 +116,20 @@ button {
   opacity: 1;
 }
 
+#custom-active-workspace {
+  color: @bg;
+  border: 1px solid alpha(@accent, 0.76);
+  background: linear-gradient(180deg, alpha(@accent, 0.96), alpha(@accent2, 0.82));
+  box-shadow:
+    inset 0 1px 0 alpha(@text, 0.2),
+    0 2px 7px alpha(@accent, 0.14);
+  font-size: 12px;
+  font-weight: 800;
+  min-width: 42px;
+  padding-left: 11px;
+  padding-right: 11px;
+}
+
 #workspaces button {
   font-family: "JetBrains Mono", "Noto Sans", sans-serif;
   font-size: 13px;
@@ -133,7 +142,7 @@ button {
   border-radius: 9px;
   border: 1px solid alpha(@surface, 0.56);
   background: alpha(@bg_soft, 0.26);
-  transition: background 160ms cubic-bezier(0.2, 0.9, 0.12, 1), border-color 160ms cubic-bezier(0.2, 0.9, 0.12, 1), color 160ms ease, opacity 160ms ease;
+  transition: background 120ms cubic-bezier(0.2, 0.9, 0.12, 1), border-color 120ms cubic-bezier(0.2, 0.9, 0.12, 1), color 120ms ease, opacity 120ms ease;
 }
 
 #workspaces button.active {
@@ -185,15 +194,6 @@ button {
   opacity: 0;
 }
 
-#custom-cpu,
-#custom-memory {
-  min-width: 64px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: "JetBrainsMono Nerd Font Mono", "JetBrains Mono", monospace;
-  opacity: 0.84;
-}
-
 #network,
 #pulseaudio,
 #battery,
@@ -216,12 +216,10 @@ button {
 }
 
 #workspaces:hover,
-#custom-layout:hover,
+#custom-active-workspace:hover,
 #window:hover,
 #clock:hover,
 #custom-updates:hover,
-#custom-cpu:hover,
-#custom-memory:hover,
 #network:hover,
 #backlight:hover,
 #battery:hover,
@@ -229,9 +227,7 @@ button {
 #tray:hover,
 #custom-launcher:hover,
 #custom-overview:hover,
-#custom-fn1:hover,
 #custom-media:hover,
-#custom-weather:hover,
 #custom-cliphist:hover {
   border: 1px solid alpha(@accent, 0.34);
   background: linear-gradient(180deg, alpha(@surface, 0.84), alpha(@bg_soft, 0.64));

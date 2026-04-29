@@ -147,6 +147,31 @@ copy_path() {
   fi
 }
 
+link_runtime_path() {
+  local source="$1"
+  local target="$2"
+
+  mkdir -p "$(dirname "$target")"
+
+  if [ -L "$target" ]; then
+    local existing
+    existing="$(readlink "$target" || true)"
+    if [ -n "$existing" ] && [ "$existing" = "$source" ]; then
+      echo "ok   $target"
+      return 0
+    fi
+  fi
+
+  backup_if_needed "$target"
+
+  if (( DRY_RUN )); then
+    echo "[dry-run] ln -s '$source' '$target'"
+  else
+    ln -s "$source" "$target"
+    echo "link $target -> $source"
+  fi
+}
+
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
 link_path "$REPO_DIR/sddm/dmrc" "$HOME/.dmrc"
 link_path "$REPO_DIR/git/gitconfig" "$HOME/.gitconfig"
@@ -173,6 +198,10 @@ link_path "$REPO_DIR/hypr/wlogout" "$HOME/.config/wlogout"
 link_path "$REPO_DIR/hypr/dunst" "$HOME/.config/dunst"
 link_path "$REPO_DIR/hypr/eww" "$HOME/.config/eww"
 link_path "$REPO_DIR/hypr/eww-settings" "$HOME/.config/eww-settings"
+link_runtime_path "$HOME/.cache/hypr/theme-colors-waybar.css" "$HOME/.config/waybar/theme-colors-waybar.css"
+link_runtime_path "$HOME/.cache/hypr/theme-colors-rofi.rasi" "$HOME/.config/rofi/theme-colors-rofi.rasi"
+link_runtime_path "$HOME/.cache/hypr/theme-colors-swaync.css" "$HOME/.config/swaync/theme-colors-swaync.css"
+link_runtime_path "$HOME/.cache/hypr/theme-colors-eww.scss" "$HOME/.config/eww/theme-colors-eww.scss"
 link_path "$REPO_DIR/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
 link_path "$REPO_DIR/chrome/chrome-flags.conf" "$HOME/.config/chrome-flags.conf"
 copy_path "$REPO_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"

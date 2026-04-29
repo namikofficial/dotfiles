@@ -7,7 +7,7 @@
 @define-color accent2 #66c2b8;
 @define-color warn #ff966c;
 @define-color danger #ff757f;
-@import url("/home/namik/.cache/hypr/theme-colors-swaync.css");
+@import url("theme-colors-swaync.css");
 
 * {
   font-family: "Noto Sans", "JetBrainsMono Nerd Font", sans-serif;
