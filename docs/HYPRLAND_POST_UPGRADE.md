@@ -41,6 +41,8 @@ Use the stronger media restart only when screen sharing still fails:
 
 Wayle is the preferred future shell when installed. Waybar stays installed and remains the fallback while its scripts/modules are still the production implementation.
 
+Wayle mode stops SwayNC so Wayle can own notifications. Waybar mode restores SwayNC.
+
 ```sh
 ~/.config/hypr/scripts/panel-switch.sh wayle
 ~/.config/hypr/scripts/panel-switch.sh waybar

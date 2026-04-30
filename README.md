@@ -11,7 +11,8 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `docs/KEYBINDS.md` full keybind tables + Mermaid map
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
-- `hypr/` for Hyprland, Wayle/Waybar, Rofi, swaync, wlogout, lockscreen, and helper scripts
+- `hypr/` for Hyprland, Waybar fallback, Rofi, swaync fallback, wlogout, lockscreen, and helper scripts
+- `wayle/` for the preferred future shell config
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
 - `theme/` for GTK, Qt5/Qt6, and Kvantum visual consistency
@@ -37,7 +38,7 @@ That command:
 - links Atuin config into `~/.config/atuin/config.toml`
 - links UWSM compositor env (`~/.config/uwsm/env-hyprland`)
 - links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
-- links Hyprland, Waybar, Rofi, SwayNC, wlogout, and Kitty configs into `~/.config`
+- links Hyprland, Wayle, Waybar, Rofi, SwayNC, wlogout, and Kitty configs into `~/.config`
 - links static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
 - links portal routing so screen sharing uses XDPH and file picking uses GTK
 - links Chrome flags to `~/.config/chrome-flags.conf`

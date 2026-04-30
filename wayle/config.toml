@@ -1,0 +1,105 @@
+imports = []
+
+[general]
+font-sans = "Inter"
+font-mono = "JetBrains Mono"
+tearing-mode = false
+
+[bar]
+scale = 1.0
+inset-edge = 0.35
+inset-ends = 0.5
+padding = 0.35
+padding-ends = 0.5
+module-gap = 0.45
+location = "top"
+bg = "bg-surface"
+background-opacity = 96
+border-location = "all"
+border-width = 1
+border-color = "border-accent"
+rounding = "sm"
+shadow = "drop"
+button-variant = "block-prefix"
+button-rounding = "sm"
+button-group-background = "bg-elevated"
+button-group-rounding = "sm"
+dropdown-shadow = true
+dropdown-opacity = 98
+dropdown-autohide = true
+dropdown-freeze-label = true
+
+[[bar.layout]]
+monitor = "*"
+show = true
+left = ["dashboard", "hyprland-workspaces", "window-title"]
+center = ["clock"]
+right = [
+  "media",
+  "battery",
+  "bluetooth",
+  "network",
+  "microphone",
+  "volume",
+]
+
+[styling]
+scale = 1.0
+rounding = "sm"
+theme-provider = "wayle"
+theming-monitor = ""
+
+[styling.palette]
+bg = "#10131a"
+surface = "#171b24"
+elevated = "#202632"
+fg = "#e6e8ee"
+fg-muted = "#9aa3b2"
+primary = "#6f94c9"
+red = "#e46870"
+yellow = "#e0b870"
+green = "#68c898"
+blue = "#78a0e0"
+
+[modules.hyprland-workspaces]
+monitor-specific = true
+show-special = true
+display-mode = "label"
+label-use-name = false
+numbering = "absolute"
+active-indicator = "background"
+active-color = "accent"
+occupied-color = "fg-muted"
+empty-color = "fg-subtle"
+
+[modules.window-title]
+format = "{{ title }}"
+label-max-length = 42
+
+[modules.media]
+format = "{{ title }} - {{ artist }}"
+label-max-length = 32
+
+[modules.clock]
+format = "%a %d %b %H:%M"
+left-click = "dropdown:calendar"
+
+[modules.notification]
+left-click = "dropdown:notification"
+right-click = "wayle notify dnd"
+popup-position = "top-right"
+popup-max-visible = 5
+popup-duration = 5000
+
+[modules.dashboard]
+left-click = "dropdown:dashboard"
+dropdown-lock-command = "loginctl lock-session"
+dropdown-logout-command = "loginctl terminate-session $XDG_SESSION_ID"
+dropdown-reboot-command = "systemctl reboot"
+dropdown-poweroff-command = "systemctl poweroff"
+
+[osd]
+enabled = false
+
+[wallpaper]
+engine-enabled = false

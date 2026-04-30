@@ -18,6 +18,11 @@ write_engine() {
 }
 
 read_engine() {
+  if systemctl --user is-active --quiet wayle.service 2>/dev/null; then
+    printf 'wayle\n'
+    return 0
+  fi
+
   if pgrep -x wayle >/dev/null 2>&1; then
     printf 'wayle\n'
     return 0
@@ -42,11 +47,17 @@ read_engine() {
 }
 
 is_visible() {
-  pgrep -x wayle >/dev/null 2>&1 || pgrep -x waybar >/dev/null 2>&1
+  systemctl --user is-active --quiet wayle.service 2>/dev/null || \
+    pgrep -x wayle >/dev/null 2>&1 || \
+    pgrep -x waybar >/dev/null 2>&1
 }
 
 start_waybar() {
+  systemctl --user stop wayle.service >/dev/null 2>&1 || true
   pkill -x wayle >/dev/null 2>&1 || true
+  if command -v swaync >/dev/null 2>&1 && ! pgrep -x swaync >/dev/null 2>&1; then
+    swaync >/dev/null 2>&1 &
+  fi
   "$waybar_restart"
   write_engine waybar
   notify "Panel mode" "Waybar"
@@ -60,14 +71,35 @@ start_wayle() {
     start_waybar
     return 0
   fi
-  if ! pgrep -x wayle >/dev/null 2>&1; then
-    wayle >/dev/null 2>&1 &
+
+  # Wayle is a full shell and owns notifications when active. Stop SwayNC so
+  # Wayle can acquire org.freedesktop.Notifications and expose its notification
+  # dropdown while we test it seriously.
+  systemctl --user stop swaync.service >/dev/null 2>&1 || true
+  pkill -x swaync >/dev/null 2>&1 || true
+
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user start wayle.service >/dev/null 2>&1 || true
+    sleep 0.5
   fi
+
+  if ! systemctl --user is-active --quiet wayle.service 2>/dev/null && ! pgrep -x wayle >/dev/null 2>&1; then
+    wayle shell >/dev/null 2>&1 &
+    sleep 0.5
+  fi
+
+  if ! systemctl --user is-active --quiet wayle.service 2>/dev/null && ! pgrep -x wayle >/dev/null 2>&1; then
+    notify "Wayle failed" "Falling back to Waybar"
+    start_waybar
+    return 1
+  fi
+
   write_engine wayle
   notify "Panel mode" "Wayle"
 }
 
 hide_panel() {
+  systemctl --user stop wayle.service >/dev/null 2>&1 || true
   pkill -x wayle >/dev/null 2>&1 || true
   pkill -x waybar >/dev/null 2>&1 || true
   notify "Panel view" "Hidden"
