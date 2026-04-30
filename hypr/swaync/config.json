@@ -153,12 +153,6 @@
           "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-dnd.sh'"
         },
         {
-          "label": "󰫌 Desktop Widgets",
-          "command": "sh -lc '$HOME/.config/hypr/scripts/eww-desktop-toggle.sh'",
-          "type": "toggle",
-          "update-command": "sh -lc '$HOME/.config/hypr/scripts/status-desktop-widgets.sh'"
-        },
-        {
           "label": "󰖪 Net Applet",
           "command": "sh -lc '$HOME/.config/hypr/scripts/nm-applet-toggle.sh'",
           "type": "toggle",
@@ -170,7 +164,7 @@
         },
         {
           "label": "󰖨 Restart Bar",
-          "command": "sh -lc '$HOME/.config/hypr/scripts/restart-waybar.sh'"
+          "command": "sh -lc '$HOME/.config/hypr/scripts/panel-switch.sh show'"
         }
       ]
     },

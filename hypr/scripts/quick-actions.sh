@@ -48,11 +48,11 @@ actions=(
   "Toggle Screen Record"
   "Toggle Layout (Master/Dwindle)"
   "Toggle Floating Grid"
-  "Toggle Widget Panel (quick)"
-  "Toggle Desktop Widgets"
+  "Switch Panel to Wayle"
+  "Switch Panel to Waybar"
   "Toggle Panel Engine"
   "Toggle Panel Visibility"
-  "Restart Waybar"
+  "Restart Current Panel"
   "Copy Notification Summary"
   "Show Keybind Cheat Sheet"
   "Apply Theme Pass"
@@ -60,7 +60,7 @@ actions=(
   "Toggle Night Light"
   "Toggle Notification Center"
   "Toggle Notification DND"
-  "Clear Custom Notifications"
+  "Clear Notifications"
   "Power Saver Profile"
   "Performance Profile"
   "System Monitor"
@@ -75,7 +75,7 @@ actions=(
   "Open Obsidian"
   "Open Terminal"
   "Open Notes"
-  "Toggle Notif Mode (Custom/SwayNC)"
+  "Ensure SwayNC Notifications"
   "Open Settings Hub"
   "Monitor Control"
   "Run Weekly Health Check"
@@ -179,11 +179,11 @@ case "$choice_index" in
   16) ~/.config/hypr/scripts/screen-record-toggle.sh ;;
   17) ~/.config/hypr/scripts/layout-switcher.sh toggle ;;
   18) ~/.config/hypr/scripts/layout-switcher.sh allfloat ;;
-  19) ~/.config/hypr/scripts/eww-toggle.sh ;;
-  20) ~/.config/hypr/scripts/eww-desktop-toggle.sh ;;
+  19) ~/.config/hypr/scripts/panel-switch.sh wayle ;;
+  20) ~/.config/hypr/scripts/panel-switch.sh waybar ;;
   21) ~/.config/hypr/scripts/panel-switch.sh toggle ;;
   22) ~/.config/hypr/scripts/panel-switch.sh toggle-view ;;
-  23) ~/.config/hypr/scripts/restart-waybar.sh ;;
+  23) ~/.config/hypr/scripts/panel-switch.sh show ;;
   24) ~/.config/hypr/scripts/notification-summary.sh copy ;;
   25) ~/.config/hypr/scripts/hypr-binds.sh ;;
   26) ~/.config/hypr/scripts/theme-pass.sh ;;
@@ -206,7 +206,7 @@ case "$choice_index" in
   43) obsidian >/dev/null 2>&1 & ;;
   44) kitty >/dev/null 2>&1 & ;;
   45) ~/.config/hypr/scripts/open-notes.sh ;;
-  46) ~/.config/hypr/scripts/notif-mode.sh toggle ;;
+  46) ~/.config/hypr/scripts/notif-mode.sh swaync ;;
   47) ~/.config/hypr/scripts/settings-hub.sh ;;
   48) ~/.config/hypr/scripts/monitor-control.sh menu ;;
   49) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;

@@ -72,7 +72,7 @@ fi
 alias ports="$SCRIPTS_BIN/ports"
 alias reload="exec zsh"
 alias hreload="hyprctl reload"
-alias hrestart='pkill -x eww || true; ~/.config/hypr/scripts/restart-waybar.sh; hyprctl reload'
+alias hrestart='~/.config/hypr/scripts/panel-switch.sh show; hyprctl reload'
 alias helpcmd="tldr"
 alias doctor="$SCRIPTS_BIN/dev-doctor"
 alias hyprkeys="$HOME/.config/hypr/scripts/hypr-binds.sh"
@@ -100,6 +100,7 @@ if command -v kitty >/dev/null 2>&1; then
 fi
 if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   alias panel='$HOME/.config/hypr/scripts/panel-switch.sh'
+  alias pwayle='$HOME/.config/hypr/scripts/panel-switch.sh wayle'
   alias pwaybar='$HOME/.config/hypr/scripts/panel-switch.sh waybar'
 fi
 if command -v qpwgraph >/dev/null 2>&1; then

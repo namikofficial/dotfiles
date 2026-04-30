@@ -20,7 +20,7 @@
 3. Triggers sync:
 - lockscreen wallpaper sync
 - palette extraction from current wallpaper
-- runtime color files for Waybar/SwayNC/Rofi/Eww/Kitty/Hyprlock
+- runtime color files for Waybar/SwayNC/Rofi/Kitty/Hyprlock
 - GTK3/GTK4 override CSS generation
 - VSCode dynamic workbench color update
 
@@ -31,7 +31,6 @@ Generated under `~/.cache/hypr/`:
 - `theme-colors-waybar.css`
 - `theme-colors-swaync.css`
 - `theme-colors-rofi.rasi`
-- `theme-colors-eww.scss`
 - `theme-colors-kitty.conf`
 - `theme-colors-hyprlock.conf`
 - `theme-palette.json`
@@ -118,7 +117,7 @@ Current default hooks:
 ## Why colors were not updating earlier
 
 - Dynamic palette files were being imported in lower-priority order in some theme files, so static defaults won.
-- Fix applied: dynamic imports now override base defaults (Waybar/SwayNC/Rofi/Eww).
+- Fix applied: dynamic imports now override base defaults (Waybar/SwayNC/Rofi).
 - `swaync-client -rs` could block sync; it now runs with a timeout so downstream updates (including Kitty/VSCode) continue.
 
 ## Toolkit Scope Clarification

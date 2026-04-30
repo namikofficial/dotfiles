@@ -85,7 +85,7 @@ show_compact_menu() {
       "󰍃  Logout" \
       "󰜉  Reboot" \
       "󰐥  Shutdown" \
-      "󰑐  Restart Waybar" \
+      "󰑐  Restore Panel" \
     | rofi -dmenu -i -p "Power" -theme "$HOME/.config/rofi/actions.rasi"
   )"
 
@@ -96,7 +96,7 @@ show_compact_menu() {
     "󰍃  Logout") hyprctl dispatch exit ;;
     "󰜉  Reboot") systemctl reboot ;;
     "󰐥  Shutdown") systemctl poweroff ;;
-    "󰑐  Restart Waybar") ~/.config/hypr/scripts/restart-waybar.sh ;;
+    "󰑐  Restore Panel") ~/.config/hypr/scripts/panel-switch.sh show ;;
     *) exit 0 ;;
   esac
 }

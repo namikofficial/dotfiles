@@ -11,9 +11,6 @@ This repository now includes a schema-driven settings layer.
 - `settings/profiles/*.json`: selectable machine profiles.
 - `hypr/scripts/settingsctl`: CLI entrypoint.
 - `hypr/scripts/settings-hub.sh`: Rofi Settings Hub.
-- `hypr/scripts/settings-eww.sh`: optional Eww detailed panel.
-- `hypr/scripts/settings/adjust.sh`: numeric +/- helper used by Eww panel.
-- `hypr/scripts/settings/cycle.sh`: enum cycling helper used by Eww panel.
 - `hypr/scripts/settings/apply.sh`: apply engine.
 - `hypr/scripts/settings/doctor.sh`: drift checks.
 - `hypr/scripts/settings/keybind-check.sh`: duplicate keybind detector.
@@ -38,7 +35,7 @@ This repository now includes a schema-driven settings layer.
 - `Super + ,` -> open settings hub
 - `Super + Shift + ,` -> re-apply last section
 - `Super + Ctrl + ,` -> quick toggle notification sounds
-- `Super + Alt + ,` -> toggle Eww settings panel
+- `Super + Alt + ,` -> open Rofi settings editor
 
 ## System Profile
 

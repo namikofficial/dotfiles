@@ -15,9 +15,9 @@ entries:
     copy: ~/.config/hypr/scripts/theme-pass.sh
     source: ~/.config/hypr/scripts/theme-pass.sh
   - key: Restart panel
-    description: restart waybar quickly
-    copy: ~/.config/hypr/scripts/restart-waybar.sh
-    source: ~/.config/hypr/scripts/restart-waybar.sh
+    description: restore the preferred panel
+    copy: ~/.config/hypr/scripts/panel-switch.sh show
+    source: ~/.config/hypr/scripts/panel-switch.sh
   - key: AI helper shell
     description: generate shell command via helper
     copy: ~/.config/hypr/scripts/ai-helper.sh shell

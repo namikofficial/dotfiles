@@ -145,18 +145,13 @@ if command -v gnome-keyring-daemon >/dev/null 2>&1; then
 fi
 
 run_once avizo-service avizo-service
-# Keep a single panel engine active by default to avoid tray/DND duplication.
-pkill -x hyprpanel >/dev/null 2>&1 || true
-pkill -x ags >/dev/null 2>&1 || true
-"$HOME/.config/hypr/scripts/restart-waybar.sh" >/dev/null 2>&1 || true
-ensure_single_process waybar
-
-# Optional desktop-widget layer (Eww) for richer visual dashboard.
-if [ "${HYPR_ENABLE_EWW_DESKTOP:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/eww-desktop-toggle.sh" ]; then
-  (
-    sleep 2
-    "$HOME/.config/hypr/scripts/eww-desktop-toggle.sh" show >/dev/null 2>&1 || true
-  ) &
+# Prefer Wayle when it is installed, keep Waybar as the stable fallback while
+# its scripts/modules remain the production panel implementation.
+if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
+  "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
+else
+  "$HOME/.config/hypr/scripts/restart-waybar.sh" >/dev/null 2>&1 || true
+  ensure_single_process waybar
 fi
 
 run_cmd_if_not "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh" "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh"
@@ -207,23 +202,16 @@ if resolve_cmd waybar >/dev/null 2>&1; then
   ) &
 fi
 
-# Notifications: swaync mode by default; custom mode remains opt-in.
+# Notifications: SwayNC is the only managed notification center.
 if [ -x "$HOME/.config/hypr/scripts/notif-mode.sh" ]; then
   (
     sleep 0.8
-    "$HOME/.config/hypr/scripts/notif-mode.sh" "${HYPR_NOTIF_MODE:-swaync}" >/dev/null 2>&1 || true
+    "$HOME/.config/hypr/scripts/notif-mode.sh" swaync >/dev/null 2>&1 || true
   ) &
 else
   if resolve_cmd swaync >/dev/null 2>&1; then
     run_once swaync swaync
-    pkill -x dunst >/dev/null 2>&1 || true
-  else
-    run_once dunst dunst
   fi
-fi
-
-if resolve_cmd swww >/dev/null 2>&1; then
-  run_cmd_if_not '^swww-daemon$' swww-daemon
 fi
 
 # Start whichever polkit agent is available.

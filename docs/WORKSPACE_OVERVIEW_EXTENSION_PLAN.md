@@ -121,7 +121,7 @@ Inside Quick Actions:
 
 ### C) Non-keyboard trigger
 
-- Eww desktop button `Workspaces` triggers `widget-actions.sh workspace` -> `workspace-overview-toggle.sh`.
+- Historical desktop-widget route was removed; use `workspace-overview-toggle.sh`.
 
 ---
 
@@ -428,7 +428,7 @@ Direct launch keys:
 Indirect launch paths:
 
 - Quick Actions route
-- Eww route
+- Removed desktop-widget route
 
 Deliverable:
 Checklist confirming unchanged baseline before feature work.
@@ -438,7 +438,7 @@ Execution checklist:
 - [x] `Super + Y` path opens Workspace Hub
 - [x] `Super + W` opens current overview
 - [x] `Super + Shift + Space` opens current overview
-- [x] Eww workspace button opens overview
+- [x] Workspace overview opens through Hyprland/Rofi bindings
 
 ---
 

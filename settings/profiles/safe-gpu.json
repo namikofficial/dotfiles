@@ -1,7 +1,7 @@
 {
   "machine": { "profile": "safe-gpu" },
   "power": { "default_profile": "power-saver", "auto_profile": true },
-  "panel": { "engine": "waybar", "visible": true, "desktop_widgets": false },
+  "panel": { "engine": "wayle", "visible": true },
   "wallpaper": { "theme_sync": false },
   "startup": { "nm_applet_autostart": true, "blueman_applet_autostart": true }
 }

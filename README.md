@@ -11,8 +11,7 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `docs/KEYBINDS.md` full keybind tables + Mermaid map
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
-- `hypr/` for Hyprland, Waybar, Rofi, swaync, wlogout, dunst, lockscreen, and helper scripts
-- `hypr/eww/` for optional widget panel (Quick Deck)
+- `hypr/` for Hyprland, Wayle/Waybar, Rofi, swaync, wlogout, lockscreen, and helper scripts
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
 - `theme/` for GTK, Qt5/Qt6, and Kvantum visual consistency
@@ -38,10 +37,9 @@ That command:
 - links Atuin config into `~/.config/atuin/config.toml`
 - links UWSM compositor env (`~/.config/uwsm/env-hyprland`)
 - links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
-- links Hyprland, Waybar, Rofi, and Kitty configs into `~/.config`
-- links Eww and static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
-- links optional Eww settings panel config into `~/.config/eww-settings`
-- links swaync/wlogout/dunst configs into `~/.config`
+- links Hyprland, Waybar, Rofi, SwayNC, wlogout, and Kitty configs into `~/.config`
+- links static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
+- links portal routing so screen sharing uses XDPH and file picking uses GTK
 - links Chrome flags to `~/.config/chrome-flags.conf`
 - copies runtime-managed KDE/theme defaults (`kdeglobals`, `Kvantum`) into `~/.config` so wallpaper sync can update them without dirtying the repo
 - links KDE app defaults (`dolphinrc`, `kiorc`, `gwenviewrc`)
@@ -70,13 +68,19 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 
 - `setup/pacman-packages.txt`: official repository packages (`tlp`, `syncthing`, and the rest of the workstation stack)
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
-- `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `eww`, `localsend`)
+- `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
 
 Install packages only:
 
 ```sh
 ./setup/install-packages.sh --with-aur
+```
+
+Remove legacy shell experiments after the Wayle/SwayNC cleanup:
+
+```sh
+./setup/remove-legacy-shell-packages.sh
 ```
 
 If package install fails with `db.lck`, clear stale lock and retry:
@@ -110,7 +114,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + ,`: open Settings Hub
 - `Super + Shift + ,`: re-apply last selected settings section
 - `Super + Ctrl + ,`: quick settings toggle (notification sounds)
-- `Super + Alt + ,`: toggle Eww detailed settings panel
+- `Super + Alt + ,`: open the Rofi settings editor
 - `Super + Ctrl + Alt + ,`: apply per-app routing to focused app
 - `Super + Alt + P`: open monitor control/recovery menu
 - `Super + .`: fullscreen dev cheatsheet overlay (searchable + tabbed)
@@ -139,9 +143,9 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
 - In-workspace-hub hotkeys: `Ctrl + Alt + R` rename, `Ctrl + Alt + Backspace` clear label, `Ctrl + Alt + F` favorite, `Ctrl + Alt + S` shortcuts, `Ctrl + Alt + M/O/P` window move/send actions
 - `Super + Ctrl + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
-- `Super + Ctrl + Y`: restore Waybar panel
+- `Super + Ctrl + Y`: switch panel to Wayle when installed
 - `Super + Shift + Y`: toggle panel visibility only (show/hide current panel)
-- `Super + Ctrl + Alt + Y`: toggle desktop widgets (above wallpaper / below windows)
+- `Super + Ctrl + Alt + Y`: switch panel to Waybar fallback
 - `Super + T`: toggle window group (tab-like stacks)
 - `Super + Ctrl + T`: move active window out of group
 - `Super + Alt + ;` / `Super + Alt + .`: previous/next tab in group
@@ -204,11 +208,11 @@ exec zsh
 hyprctl reload
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
 ~/.config/hypr/scripts/theme-pass.sh   # same reload flow as Super+Ctrl+Shift+Y
-~/.config/hypr/scripts/restart-waybar.sh
+~/.config/hypr/scripts/panel-switch.sh show
 ~/.config/hypr/scripts/launcher.sh --warm-cache
 ```
 
-If Waybar or Rofi was already running before bootstrap, restart your Hyprland session once.
+If Wayle, Waybar, or Rofi was already running before bootstrap, restart your Hyprland session once.
 
 ## Post-install verify
 
@@ -233,7 +237,7 @@ If you want live GPU metrics in Waybar (instead of low-noise runtime status), ru
 
 ```sh
 export WAYBAR_GPU_DEEP_POLL=1
-~/.config/hypr/scripts/restart-waybar.sh
+~/.config/hypr/scripts/panel-switch.sh show
 ```
 
 ## 3-command reboot workflow

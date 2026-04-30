@@ -74,11 +74,10 @@
     },
     "panel": {
       "type": "object",
-      "required": ["engine", "visible", "desktop_widgets"],
+      "required": ["engine", "visible"],
       "properties": {
-        "engine": { "type": "string", "enum": ["waybar", "hyprpanel"] },
-        "visible": { "type": "boolean" },
-        "desktop_widgets": { "type": "boolean" }
+        "engine": { "type": "string", "enum": ["wayle", "waybar"] },
+        "visible": { "type": "boolean" }
       }
     },
     "power": {

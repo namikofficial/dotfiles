@@ -41,9 +41,8 @@
     "theme_sync": true
   },
   "panel": {
-    "engine": "waybar",
-    "visible": true,
-    "desktop_widgets": false
+    "engine": "wayle",
+    "visible": true
   },
   "power": {
     "default_profile": "balanced",

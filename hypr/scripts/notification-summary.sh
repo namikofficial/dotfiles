@@ -5,14 +5,9 @@ mode="${1:-print}"
 
 media="$("$HOME/.config/waybar/scripts/media.sh" 2>/dev/null || echo '󰐊 idle')"
 gpu="$("$HOME/.config/waybar/scripts/gpu.sh" 2>/dev/null || echo '󰢮 n/a')"
-notif_mode="$("$HOME/.config/hypr/scripts/notif-peek.sh" mode 2>/dev/null || echo custom)"
-if [ "$notif_mode" = "swaync" ]; then
-  dnd="$(swaync-client -sw -D 2>/dev/null || echo false)"
-  count="$(swaync-client -sw -c 2>/dev/null || echo 0)"
-else
-  dnd="$("$HOME/.config/hypr/scripts/notif-peek.sh" dnd 2>/dev/null || echo OFF)"
-  count="$("$HOME/.config/hypr/scripts/notif-peek.sh" count 2>/dev/null || echo 0)"
-fi
+notif_mode="swaync"
+dnd="$(swaync-client -sw -D 2>/dev/null || echo false)"
+count="$(swaync-client -sw -c 2>/dev/null || echo 0)"
 panel="$("$HOME/.config/hypr/scripts/panel-switch.sh" status 2>/dev/null || echo waybar:unknown)"
 network="$(nmcli -t -f STATE g 2>/dev/null || echo unknown)"
 profile="$(powerprofilesctl get 2>/dev/null || echo balanced)"

@@ -10,7 +10,6 @@ palette_json="$cache_dir/theme-palette.json"
 waybar_colors="$cache_dir/theme-colors-waybar.css"
 swaync_colors="$cache_dir/theme-colors-swaync.css"
 rofi_colors="$cache_dir/theme-colors-rofi.rasi"
-eww_colors="$cache_dir/theme-colors-eww.scss"
 kitty_colors="$cache_dir/theme-colors-kitty.conf"
 hyprlock_colors="$cache_dir/theme-colors-hyprlock.conf"
 gtk3_css="$HOME/.config/gtk-3.0/gtk.css"
@@ -326,16 +325,6 @@ cat > "$rofi_colors" <<EOF2
 }
 EOF2
 
-cat > "$eww_colors" <<EOF2
-\$bg: rgba($(hex_to_rgb_csv "$bg"), 0.78);
-\$surface: rgba($(hex_to_rgb_csv "$surface"), 0.84);
-\$border: rgba($(hex_to_rgb_csv "$accent"), 0.18);
-\$text: ${text};
-\$muted: ${muted};
-\$accent: ${accent};
-\$accent2: ${accent2};
-EOF2
-
 cat > "$kitty_colors" <<EOF2
 foreground ${text}
 background ${bg}
@@ -570,10 +559,6 @@ fi
 
 if command -v swaync-client >/dev/null 2>&1; then
   timeout 3 swaync-client -rs >/dev/null 2>&1 || true
-fi
-
-if command -v eww >/dev/null 2>&1 && [ -d "$HOME/.config/eww" ]; then
-  eww --config "$HOME/.config/eww" reload >/dev/null 2>&1 || true
 fi
 
 kitty_remote_all set-colors -a "$kitty_colors"

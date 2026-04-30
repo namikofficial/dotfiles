@@ -11,7 +11,6 @@ mkdir -p "$STATE_DIR"
 menu_items() {
   cat <<MENU
 Apply All Settings|apply|all
-Open Settings Panel (Eww)|eww|none
 Open Quick Editor (Rofi)|editor|none
 Open App Routing Editor|routing|none
 Pick Machine Profile|profile|none
@@ -75,9 +74,6 @@ case "$action" in
     ;;
   display)
     "$ROOT_DIR/hypr/scripts/monitor-control.sh" menu
-    ;;
-  eww)
-    "$ROOT_DIR/hypr/scripts/settings-eww.sh"
     ;;
   doctor)
     kitty -e sh -lc "$SETTINGSCTL doctor; read -r -p 'Press enter to close'"

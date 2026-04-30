@@ -13,10 +13,6 @@ entries:
     description: notifications + quick toggles
     copy: ~/.config/hypr/swaync/config.json
     source: ~/.config/hypr/swaync/config.json
-  - key: Eww widgets
-    description: desktop widgets/panels
-    copy: ~/.config/eww/eww.yuck
-    source: ~/.config/eww/eww.yuck
   - key: Neovim Lazy plugins
     description: open plugin manager
     copy: nvim +Lazy

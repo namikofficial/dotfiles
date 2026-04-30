@@ -231,11 +231,9 @@ fi
 
 if pgrep -x swaync >/dev/null 2>&1; then
   status_ok "notification daemon: swaync"
-elif pgrep -x dunst >/dev/null 2>&1; then
-  status_ok "notification daemon: dunst"
 else
-  status_warn "no notification daemon detected"
-  add_flag "NOTIFY_DAEMON missing swaync/dunst"
+  status_warn "swaync notification daemon not detected"
+  add_flag "NOTIFY_DAEMON missing swaync"
 fi
 
 section "NVIDIA / VA-API / Vulkan"
