@@ -10,7 +10,3 @@ if command -v wayle >/dev/null 2>&1; then
     wayle panel toggle notification >/dev/null 2>&1 && exit 0
   fi
 fi
-
-if command -v swaync-client >/dev/null 2>&1; then
-  swaync-client -sw -t >/dev/null 2>&1 || true
-fi

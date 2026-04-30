@@ -75,7 +75,7 @@ if [ -x "$HOME/.config/hypr/scripts/lib/log.sh" ]; then
   "$HOME/.config/hypr/scripts/lib/log.sh" --init >/dev/null 2>&1 || true
 fi
 
-# Apply generated settings overlays for Hypr/SwayNC at session start.
+# Apply generated settings overlays for Hypr/Wayle at session start.
 if [ -x "$HOME/.config/hypr/scripts/settingsctl" ]; then
   (
     sleep 0.5
@@ -145,13 +145,9 @@ if command -v gnome-keyring-daemon >/dev/null 2>&1; then
 fi
 
 run_once avizo-service avizo-service
-# Prefer Wayle when it is installed, keep Waybar as the stable fallback while
-# its scripts/modules remain the production panel implementation.
+# Wayle is the only managed panel shell.
 if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
-else
-  "$HOME/.config/hypr/scripts/restart-waybar.sh" >/dev/null 2>&1 || true
-  ensure_single_process waybar
 fi
 
 run_cmd_if_not "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh" "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh"
@@ -190,28 +186,6 @@ if [ "${HYPR_LOAD_HYPREXPO_AT_STARTUP:-0}" = "1" ] && [ -f "$hyprexpo_plugin" ];
       hyprctl plugin load "$hyprexpo_plugin" >/dev/null 2>&1 || true
     fi
   ) &
-fi
-
-# Waybar occasionally races Hyprland startup on cold boots; retry once.
-if resolve_cmd waybar >/dev/null 2>&1; then
-  (
-    sleep 2
-    if ! pgrep -x waybar >/dev/null 2>&1; then
-      "$(resolve_cmd waybar)" >/dev/null 2>&1 &
-    fi
-  ) &
-fi
-
-# Notifications: SwayNC is the only managed notification center.
-if [ -x "$HOME/.config/hypr/scripts/notif-mode.sh" ]; then
-  (
-    sleep 0.8
-    "$HOME/.config/hypr/scripts/notif-mode.sh" swaync >/dev/null 2>&1 || true
-  ) &
-else
-  if resolve_cmd swaync >/dev/null 2>&1; then
-    run_once swaync swaync
-  fi
 fi
 
 # Start whichever polkit agent is available.

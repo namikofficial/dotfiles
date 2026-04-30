@@ -49,7 +49,7 @@ actions=(
   "Toggle Layout (Master/Dwindle)"
   "Toggle Floating Grid"
   "Switch Panel to Wayle"
-  "Switch Panel to Waybar"
+  "Toggle Panel Engine"
   "Toggle Panel Engine"
   "Toggle Panel Visibility"
   "Restart Current Panel"
@@ -75,7 +75,7 @@ actions=(
   "Open Obsidian"
   "Open Terminal"
   "Open Notes"
-  "Ensure SwayNC Notifications"
+  "Open Wayle Notification Panel"
   "Open Settings Hub"
   "Monitor Control"
   "Run Weekly Health Check"
@@ -180,7 +180,7 @@ case "$choice_index" in
   17) ~/.config/hypr/scripts/layout-switcher.sh toggle ;;
   18) ~/.config/hypr/scripts/layout-switcher.sh allfloat ;;
   19) ~/.config/hypr/scripts/panel-switch.sh wayle ;;
-  20) ~/.config/hypr/scripts/panel-switch.sh waybar ;;
+  20) ~/.config/hypr/scripts/panel-switch.sh toggle ;;
   21) ~/.config/hypr/scripts/panel-switch.sh toggle ;;
   22) ~/.config/hypr/scripts/panel-switch.sh toggle-view ;;
   23) ~/.config/hypr/scripts/panel-switch.sh show ;;
@@ -206,7 +206,7 @@ case "$choice_index" in
   43) obsidian >/dev/null 2>&1 & ;;
   44) kitty >/dev/null 2>&1 & ;;
   45) ~/.config/hypr/scripts/open-notes.sh ;;
-  46) ~/.config/hypr/scripts/notif-mode.sh swaync ;;
+  46) ~/.config/hypr/scripts/notif-center-toggle.sh ;;
   47) ~/.config/hypr/scripts/settings-hub.sh ;;
   48) ~/.config/hypr/scripts/monitor-control.sh menu ;;
   49) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;

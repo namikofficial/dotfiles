@@ -26,17 +26,17 @@ Last updated: 2026-04-29
 - [x] Remove scratchpad keybinds/workspace rules to avoid stuck/hard-crash workflows; repoint notes shortcut to `open-notes.sh`
 - [x] Add wallpaper source downloader/importer workflow (`setup/fetch-wallpaper-sources.sh`, `hypr/scripts/wallpaper-import.sh`)
 - [x] Unify wallpaper pool handling across `~/Pictures/wallpaper` + `~/Pictures/Wallpapers` in rotation script
-- [x] Upgrade wallpaper theme sync to real palette extraction and generate runtime color overlays for Waybar/SwayNC/Rofi
+- [x] Upgrade wallpaper theme sync to real palette extraction and generate runtime color overlays for Rofi
 - [x] Add Kitty runtime wallpaper palette sync (`~/.cache/hypr/theme-colors-kitty.conf` + `kitty @ set-colors`)
 - [x] Add Hyprlock runtime palette sync (`~/.cache/hypr/theme-colors-hyprlock.conf` + sourced lock vars)
 - [x] Add GTK3/GTK4 wallpaper palette overrides (`~/.config/gtk-3.0/gtk.css`, `~/.config/gtk-4.0/gtk.css`)
 - [x] Add VSCode wallpaper palette merge into user settings (`workbench.colorCustomizations`)
 - [x] Document wallpaper/theming workflow and tuning knobs (`docs/WALLPAPER_THEMING.md`)
 - [x] Add Kitty startup dashboard banner with system/repo context and dedicated app-like tabs (Dashboard, Scratch, Logs, Repo, AI, Clipboard)
-- [x] Switch swaync to default notification backend; `notif-center-toggle.sh` and `notif-dnd-toggle.sh` now prefer `swaync-client` directly
+- [x] Switch notification helpers to the shell-native backend (`notif-center-toggle.sh`, `notif-dnd-toggle.sh`)
 - [x] Add AI freeform (`raw`) mode — freeform prompt with no preset base prompt (`Super + Alt + 2`)
 - [x] Add dynamic monitor layouts (`dynamic-up`, `dynamic-right`) with automatic workspace routing (workspaces 1–5 on laptop, 6–10 on first connected external display)
-- [x] Enable system tray in Waybar; `nm-applet` and `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls
+- [x] Enable system tray controls via applets; `nm-applet` and `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls
 - [x] Change Tmux prefix from `Ctrl + A` to `Ctrl + Space`
 - [x] Add `open-syncthing.sh` helper and Syncthing entry in quick-actions menu
 

@@ -3,12 +3,12 @@ set -eu
 
 mode="${1:-print}"
 
-media="$("$HOME/.config/waybar/scripts/media.sh" 2>/dev/null || echo '󰐊 idle')"
-gpu="$("$HOME/.config/waybar/scripts/gpu.sh" 2>/dev/null || echo '󰢮 n/a')"
-notif_mode="swaync"
-dnd="$(swaync-client -sw -D 2>/dev/null || echo false)"
-count="$(swaync-client -sw -c 2>/dev/null || echo 0)"
-panel="$("$HOME/.config/hypr/scripts/panel-switch.sh" status 2>/dev/null || echo waybar:unknown)"
+media="$(wayle media status 2>/dev/null | head -n1 || echo 'idle')"
+gpu="n/a"
+notif_mode="wayle"
+dnd="$(wayle notify status 2>/dev/null | awk -F': ' '/Do Not Disturb/ {print $2}' | tr '[:upper:]' '[:lower:]' || echo unknown)"
+count="$(wayle notify list 2>/dev/null | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ' || echo 0)"
+panel="$("$HOME/.config/hypr/scripts/panel-switch.sh" status 2>/dev/null || echo wayle:unknown)"
 network="$(nmcli -t -f STATE g 2>/dev/null || echo unknown)"
 profile="$(powerprofilesctl get 2>/dev/null || echo balanced)"
 

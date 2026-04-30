@@ -23,7 +23,7 @@ fi
 [ "$enabled" = "true" ] || exit 0
 
 if [ -n "$override_id" ]; then
-  canberra-gtk-play -i "$override_id" -d swaync >/dev/null 2>&1 || true
+  canberra-gtk-play -i "$override_id" -d wayle >/dev/null 2>&1 || true
   exit 0
 fi
 
@@ -34,7 +34,7 @@ else
 fi
 
 if [ -n "$sound_id" ]; then
-  canberra-gtk-play -i "$sound_id" -d swaync >/dev/null 2>&1 || true
+  canberra-gtk-play -i "$sound_id" -d wayle >/dev/null 2>&1 || true
   exit 0
 fi
 
@@ -45,4 +45,4 @@ case "$kind" in
   *) sound_id="message" ;;
 esac
 
-canberra-gtk-play -i "$sound_id" -d swaync >/dev/null 2>&1 || true
+canberra-gtk-play -i "$sound_id" -d wayle >/dev/null 2>&1 || true

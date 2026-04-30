@@ -8,7 +8,6 @@ DEFAULTS="$SETTINGS_DIR/defaults.json"
 STATE="$SETTINGS_DIR/state.json"
 LOCAL_STATE="$SETTINGS_DIR/state.local.json"
 PROFILES_DIR="$SETTINGS_DIR/profiles"
-SWAYNC_CFG="$ROOT_DIR/hypr/swaync/config.json"
 LOCK_CFG="$ROOT_DIR/hypr/hyprlock.conf"
 HYPR_CONF="$ROOT_DIR/hypr/hyprland.conf"
 MIME_CFG="$ROOT_DIR/mime/mimeapps.list"
@@ -46,73 +45,21 @@ merged_json() {
 }
 
 apply_notifications() {
-  local json enabled timeout timeout_low timeout_critical tmp
+  local json
   json="$1"
-  enabled="$(jq -r '.notifications.enabled' <<<"$json")"
-  timeout="$(jq -r '.notifications.timeout' <<<"$json")"
-  timeout_low="$(jq -r '.notifications.timeout_low' <<<"$json")"
-  timeout_critical="$(jq -r '.notifications.timeout_critical' <<<"$json")"
-
-  tmp="$(mktemp)"
-  jq \
-    --argjson timeout "$timeout" \
-    --argjson timeout_low "$timeout_low" \
-    --argjson timeout_critical "$timeout_critical" \
-    '.timeout=$timeout
-    | .["timeout-low"]=$timeout_low
-    | .["timeout-critical"]=$timeout_critical' \
-    "$SWAYNC_CFG" > "$tmp"
-
-  if [[ "$enabled" != "true" ]]; then
-    jq '.notification-visibility={}' "$tmp" > "${tmp}.2"
-    mv "${tmp}.2" "$tmp"
-  fi
-
-  mv "$tmp" "$SWAYNC_CFG"
+  jq '{notifications: .notifications}' <<<"$json" > "$GENERATED_DIR/notifications-settings.generated.json"
 }
 
 apply_action_center() {
-  local json width height tmp
+  local json
   json="$1"
-  width="$(jq -r '.action_center.width' <<<"$json")"
-  height="$(jq -r '.action_center.height' <<<"$json")"
-
-  tmp="$(mktemp)"
-  jq \
-    --argjson width "$width" \
-    --argjson height "$height" \
-    --argjson sections "$(jq '.action_center.sections' <<<"$json")" \
-    '."control-center-width"=$width
-    | ."control-center-height"=$height
-    | .widgets=$sections' \
-    "$SWAYNC_CFG" > "$tmp"
-  mv "$tmp" "$SWAYNC_CFG"
+  jq '{action_center: .action_center}' <<<"$json" > "$GENERATED_DIR/action-center-settings.generated.json"
 }
 
 apply_sounds() {
-  local json enabled critical message system tmp
+  local json
   json="$1"
-  enabled="$(jq -r '.notifications.sounds.enabled' <<<"$json")"
-  critical="$(jq -r '.notifications.sounds.critical' <<<"$json")"
-  message="$(jq -r '.notifications.sounds.message' <<<"$json")"
-  system="$(jq -r '.notifications.sounds.system' <<<"$json")"
-
-  tmp="$(mktemp)"
-  jq \
-    --arg critical "$critical" \
-    --arg message "$message" \
-    --arg system "$system" \
-    '.scripts["play-notify-critical"].exec = ("sh -lc '\''$HOME/.config/hypr/scripts/notify-sound.sh critical " + $critical + "'\''")
-    | .scripts["play-notify-message"].exec = ("sh -lc '\''$HOME/.config/hypr/scripts/notify-sound.sh message " + $message + "'\''")
-    | .scripts["play-notify-system"].exec = ("sh -lc '\''$HOME/.config/hypr/scripts/notify-sound.sh system " + $system + "'\''")' \
-    "$SWAYNC_CFG" > "$tmp"
-
-  if [[ "$enabled" != "true" ]]; then
-    jq 'del(.scripts["play-notify-critical"], .scripts["play-notify-message"], .scripts["play-notify-system"])' "$tmp" > "${tmp}.2"
-    mv "${tmp}.2" "$tmp"
-  fi
-
-  mv "$tmp" "$SWAYNC_CFG"
+  jq '{sounds: .notifications.sounds}' <<<"$json" > "$GENERATED_DIR/notification-sounds.generated.json"
 }
 
 apply_lock_screen() {

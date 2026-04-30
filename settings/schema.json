@@ -76,7 +76,7 @@
       "type": "object",
       "required": ["engine", "visible"],
       "properties": {
-        "engine": { "type": "string", "enum": ["wayle", "waybar"] },
+        "engine": { "type": "string", "enum": ["wayle"] },
         "visible": { "type": "boolean" }
       }
     },

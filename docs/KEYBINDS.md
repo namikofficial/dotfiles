@@ -35,8 +35,8 @@ flowchart LR
 | `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
 | `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
 | `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
-| `Super + N` | Toggle notification panel | `swaync-client -t` |
-| `Super + Alt + N` | Toggle DND | `swaync-client -d` |
+| `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |
+| `Super + Alt + N` | Toggle DND | `notif-dnd-toggle.sh` |
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |
 | `Super + Shift + N` | Open notes folder | `open-notes.sh` |
 | `Super + Alt + E` | Open notes folder | `open-notes.sh` |
@@ -48,7 +48,7 @@ flowchart LR
 | `Super + Ctrl + Alt + ,` | Apply per-app routing to focused app | `app-routing-apply-focused.sh` |
 | `Super + Ctrl + Y` | Switch panel to Wayle when installed | `panel-switch.sh wayle` |
 | `Super + Shift + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
-| `Super + Ctrl + Alt + Y` | Switch panel to Waybar fallback | `panel-switch.sh waybar` |
+| `Super + Ctrl + Alt + Y` | Toggle panel | `panel-switch.sh toggle` |
 | `Super + Escape` | Power menu | `power-menu.sh` |
 | `Super + Ctrl + L` | Lock screen | `lock.sh` |
 
@@ -88,7 +88,7 @@ flowchart LR
 | `Super + Ctrl + 0` | Open/focus telemetry dashboard on workspace 10 (`0` key slot) |
 | `Super + Ctrl + Shift + 0` | Reset telemetry dashboard session and reopen it |
 | `Super + Ctrl + 9` | Open logs workspace launcher (workspace 9) |
-| `Super + Ctrl + Shift + 9` | Open logs workspace stack (journal + waybar logs) |
+| `Super + Ctrl + Shift + 9` | Open logs workspace stack (journal + panel logs) |
 | `Super + [` / `Super + ]` | Prev / next workspace |
 | `Super + mouse wheel` | Prev / next workspace |
 

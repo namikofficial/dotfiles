@@ -7,8 +7,6 @@ mkdir -p "$cache_dir"
 hooks_dir="$HOME/.config/hypr/scripts/theme-hooks.d"
 
 palette_json="$cache_dir/theme-palette.json"
-waybar_colors="$cache_dir/theme-colors-waybar.css"
-swaync_colors="$cache_dir/theme-colors-swaync.css"
 rofi_colors="$cache_dir/theme-colors-rofi.rasi"
 kitty_colors="$cache_dir/theme-colors-kitty.conf"
 hyprlock_colors="$cache_dir/theme-colors-hyprlock.conf"
@@ -26,8 +24,6 @@ kvantum_theme_dir="$kvantum_dir/NoxflowDynamic"
 kvantum_theme_conf="$kvantum_theme_dir/NoxflowDynamic.kvconfig"
 kvantum_theme_svg="$kvantum_theme_dir/NoxflowDynamic.svg"
 kvantum_main_conf="$kvantum_dir/kvantum.kvconfig"
-waybar_before_hash=""
-waybar_after_hash=""
 kitty_runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
 
 kitty_remote_all() {
@@ -37,10 +33,6 @@ kitty_remote_all() {
     kitty @ --to "unix:$sock" "$@" >/dev/null 2>&1 || true
   done
 }
-
-if [ -f "$waybar_colors" ]; then
-  waybar_before_hash="$(sha256sum "$waybar_colors" | awk '{print $1}')"
-fi
 
 if [ -z "$wall" ] || [ ! -f "$wall" ]; then
   if [ -f "$HOME/.cache/current-wallpaper" ]; then
@@ -284,34 +276,6 @@ text_rgb="$(hex_to_rgb_csv "$text")"
 muted_rgb="$(hex_to_rgb_csv "$muted")"
 accent_rgb="$(hex_to_rgb_csv "$accent")"
 accent2_rgb="$(hex_to_rgb_csv "$accent2")"
-
-cat > "$waybar_colors" <<EOF2
-@define-color bg ${bg};
-@define-color bg_soft ${bg_soft};
-@define-color surface ${surface};
-@define-color text ${text};
-@define-color muted ${muted};
-@define-color accent ${accent};
-@define-color accent2 ${accent2};
-@define-color warn ${warn};
-@define-color danger ${danger};
-EOF2
-
-if [ -f "$waybar_colors" ]; then
-  waybar_after_hash="$(sha256sum "$waybar_colors" | awk '{print $1}')"
-fi
-
-cat > "$swaync_colors" <<EOF2
-@define-color bg ${bg};
-@define-color bg_soft ${bg_soft};
-@define-color surface ${surface};
-@define-color text ${text};
-@define-color muted ${muted};
-@define-color accent ${accent};
-@define-color accent2 ${accent2};
-@define-color warn ${warn};
-@define-color danger ${danger};
-EOF2
 
 cat > "$rofi_colors" <<EOF2
 * {
@@ -574,12 +538,8 @@ if command -v pywalfox >/dev/null 2>&1; then
   timeout 15 pywalfox update >/dev/null 2>&1 || true
 fi
 
-if pgrep -x waybar >/dev/null 2>&1 && [ "$waybar_before_hash" != "$waybar_after_hash" ]; then
-  pkill -USR2 -x waybar >/dev/null 2>&1 || true
-fi
-
-if command -v swaync-client >/dev/null 2>&1; then
-  timeout 3 swaync-client -rs >/dev/null 2>&1 || true
+if command -v wayle >/dev/null 2>&1; then
+  wayle panel restart >/dev/null 2>&1 || true
 fi
 
 kitty_remote_all set-colors -a "$kitty_colors"

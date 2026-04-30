@@ -21,7 +21,7 @@ Here `0.54.3` is the upstream Hyprland version. The `-3 -> -4` suffix is the Arc
 ~/.config/hypr/scripts/compositor-facts.sh
 ```
 
-The verify script is read-only. It should not restart Waybar, portals, PipeWire, or Hyprland.
+The verify script is read-only. It should not restart the panel, portals, PipeWire, or Hyprland.
 
 ## Repair Commands
 
@@ -39,12 +39,9 @@ Use the stronger media restart only when screen sharing still fails:
 
 ## Panel Policy
 
-Wayle is the preferred future shell when installed. Waybar stays installed and remains the fallback while its scripts/modules are still the production implementation.
-
-Wayle mode stops SwayNC so Wayle can own notifications. Waybar mode restores SwayNC.
+Wayle is the primary panel shell and notification UI.
 
 ```sh
 ~/.config/hypr/scripts/panel-switch.sh wayle
-~/.config/hypr/scripts/panel-switch.sh waybar
 ~/.config/hypr/scripts/panel-switch.sh show
 ```

@@ -4,7 +4,6 @@ set -euo pipefail
 mode="${1:-toggle}"
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow"
 engine_file="${state_dir}/panel.engine"
-waybar_restart="$HOME/.config/hypr/scripts/restart-waybar.sh"
 
 mkdir -p "$state_dir"
 
@@ -28,15 +27,10 @@ read_engine() {
     return 0
   fi
 
-  if pgrep -x waybar >/dev/null 2>&1; then
-    printf 'waybar\n'
-    return 0
-  fi
-
   if [ -f "$engine_file" ]; then
     saved="$(cat "$engine_file" 2>/dev/null || true)"
     case "$saved" in
-      wayle|waybar)
+      wayle)
         printf '%s\n' "$saved"
         return 0
         ;;
@@ -48,35 +42,14 @@ read_engine() {
 
 is_visible() {
   systemctl --user is-active --quiet wayle.service 2>/dev/null || \
-    pgrep -x wayle >/dev/null 2>&1 || \
-    pgrep -x waybar >/dev/null 2>&1
-}
-
-start_waybar() {
-  systemctl --user stop wayle.service >/dev/null 2>&1 || true
-  pkill -x wayle >/dev/null 2>&1 || true
-  if command -v swaync >/dev/null 2>&1 && ! pgrep -x swaync >/dev/null 2>&1; then
-    swaync >/dev/null 2>&1 &
-  fi
-  "$waybar_restart"
-  write_engine waybar
-  notify "Panel mode" "Waybar"
+    pgrep -x wayle >/dev/null 2>&1
 }
 
 start_wayle() {
-  pkill -x waybar >/dev/null 2>&1 || true
   if ! command -v wayle >/dev/null 2>&1; then
-    write_engine wayle
-    notify "Wayle unavailable" "Falling back to Waybar"
-    start_waybar
-    return 0
+    notify "Wayle unavailable" "Install wayle-bin"
+    return 1
   fi
-
-  # Wayle is a full shell and owns notifications when active. Stop SwayNC so
-  # Wayle can acquire org.freedesktop.Notifications and expose its notification
-  # dropdown while we test it seriously.
-  systemctl --user stop swaync.service >/dev/null 2>&1 || true
-  pkill -x swaync >/dev/null 2>&1 || true
 
   if command -v systemctl >/dev/null 2>&1; then
     systemctl --user start wayle.service >/dev/null 2>&1 || true
@@ -89,8 +62,7 @@ start_wayle() {
   fi
 
   if ! systemctl --user is-active --quiet wayle.service 2>/dev/null && ! pgrep -x wayle >/dev/null 2>&1; then
-    notify "Wayle failed" "Falling back to Waybar"
-    start_waybar
+    notify "Wayle failed" "Unable to start shell"
     return 1
   fi
 
@@ -101,23 +73,11 @@ start_wayle() {
 hide_panel() {
   systemctl --user stop wayle.service >/dev/null 2>&1 || true
   pkill -x wayle >/dev/null 2>&1 || true
-  pkill -x waybar >/dev/null 2>&1 || true
   notify "Panel view" "Hidden"
 }
 
 show_panel() {
-  engine="$(read_engine)"
-  case "$engine" in
-    wayle)
-      start_wayle || start_waybar
-      ;;
-    waybar)
-      start_waybar
-      ;;
-    *)
-      start_wayle || start_waybar
-      ;;
-  esac
+  start_wayle
 }
 
 status_line() {
@@ -130,13 +90,12 @@ status_line() {
 }
 
 case "$mode" in
-  waybar) start_waybar ;;
   wayle) start_wayle ;;
   toggle)
-    if [ "$(read_engine)" = "wayle" ]; then
-      start_waybar
+    if is_visible; then
+      hide_panel
     else
-      start_wayle || start_waybar
+      show_panel
     fi
     ;;
   toggle-view)
@@ -152,7 +111,7 @@ case "$mode" in
     status_line
     ;;
   *)
-    echo "usage: $0 [toggle|wayle|waybar|toggle-view|show|hide|status]" >&2
+    echo "usage: $0 [toggle|wayle|toggle-view|show|hide|status]" >&2
     exit 1
     ;;
 esac

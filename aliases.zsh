@@ -101,7 +101,6 @@ fi
 if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   alias panel='$HOME/.config/hypr/scripts/panel-switch.sh'
   alias pwayle='$HOME/.config/hypr/scripts/panel-switch.sh wayle'
-  alias pwaybar='$HOME/.config/hypr/scripts/panel-switch.sh waybar'
 fi
 if command -v qpwgraph >/dev/null 2>&1; then
   alias qpw='qpwgraph'

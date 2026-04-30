@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if command -v swaync-client >/dev/null 2>&1; then
-  swaync-client -sw -C >/dev/null 2>&1 || true
+if command -v wayle >/dev/null 2>&1; then
+  wayle notify dismiss-all >/dev/null 2>&1 || true
 fi

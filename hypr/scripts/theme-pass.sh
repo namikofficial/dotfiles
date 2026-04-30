@@ -68,8 +68,8 @@ if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
 fi
 
-if command -v swaync-client >/dev/null 2>&1; then
-  swaync-client -rs >/dev/null 2>&1 || true
+if command -v wayle >/dev/null 2>&1; then
+  wayle panel restart >/dev/null 2>&1 || true
 fi
 
 kitty_remote_all load-config "$HOME/.config/kitty/kitty.conf"

@@ -58,8 +58,8 @@ entries:
     copy: ~/.config/hypr/scripts/theme-pass.sh
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Ctrl+Alt+Y
-    description: Switch panel to Waybar fallback
-    copy: ~/.config/hypr/scripts/panel-switch.sh waybar
+    description: Toggle panel visibility/engine state
+    copy: ~/.config/hypr/scripts/panel-switch.sh toggle
     source: ~/.config/hypr/hyprland.conf
   - key: Super+.
     description: Open dev cheatsheet overlay
@@ -136,11 +136,11 @@ entries:
     source: ~/.config/hypr/hyprland.conf
   - key: Super+N
     description: Toggle notification center
-    copy: swaync-client -t
+    copy: ~/.config/hypr/scripts/notif-center-toggle.sh
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Alt+N
     description: Toggle Do Not Disturb
-    copy: swaync-client -d
+    copy: ~/.config/hypr/scripts/notif-dnd-toggle.sh
     source: ~/.config/hypr/hyprland.conf
   - key: Super+Shift+S
     description: Screenshot area

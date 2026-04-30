@@ -11,7 +11,7 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `docs/KEYBINDS.md` full keybind tables + Mermaid map
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
-- `hypr/` for Hyprland, Waybar fallback, Rofi, swaync fallback, wlogout, lockscreen, and helper scripts
+- `hypr/` for Hyprland, Wayle-first shell scripts, Rofi, wlogout, lockscreen, and helper scripts
 - `wayle/` for the preferred future shell config
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
@@ -249,7 +249,7 @@ sudo reboot
 ./setup/post-reboot-verify.sh
 ```
 
-Logs are written to `logs/pre-reboot-latest.log`, `logs/post-reboot-latest.log`, and `~/.local/state/noxflow/waybar.log`.
+Logs are written to `logs/pre-reboot-latest.log` and `logs/post-reboot-latest.log`.
 Full flow: `docs/RUNBOOK.md`
 
 ## Weekly health check (logs + red flags)

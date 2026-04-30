@@ -5,7 +5,7 @@ set -eu
 command -v dbus-update-activation-environment >/dev/null 2>&1 && \
   dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP >/dev/null 2>&1 || true
 
-for app in waybar nm-applet blueman-applet; do
+for app in wayle nm-applet blueman-applet; do
   if command -v "$app" >/dev/null 2>&1 && ! pgrep -x "$app" >/dev/null 2>&1; then
     "$app" >/dev/null 2>&1 &
   fi

@@ -55,7 +55,7 @@
 - Set performance mode: `powerprofilesctl set performance`
 - Set power-saver mode: `powerprofilesctl set power-saver`
 - Battery summary: `batt`
-- Enable detailed Waybar GPU polling (off by default): `export WAYBAR_GPU_DEEP_POLL=1; pkill -x waybar; waybar & disown`
+- Wayle status/media data is built into the shell; no separate Waybar GPU polling flow.
 
 ## Git
 - Status short: `gss`
