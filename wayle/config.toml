@@ -6,24 +6,36 @@ font-mono = "JetBrains Mono"
 tearing-mode = false
 
 [bar]
-scale = 1.0
-inset-edge = 0.35
-inset-ends = 0.5
-padding = 0.35
-padding-ends = 0.5
-module-gap = 0.45
+scale = 0.84
+inset-edge = 0.07
+inset-ends = 0.10
+padding = 0.14
+padding-ends = 0.18
+module-gap = 0.42
 location = "top"
-bg = "bg-surface"
-background-opacity = 96
-border-location = "all"
+bg = "transparent"
+background-opacity = 0
+border-location = "none"
 border-width = 1
 border-color = "border-accent"
-rounding = "sm"
-shadow = "drop"
-button-variant = "block-prefix"
+rounding = "none"
+shadow = "none"
+button-variant = "basic"
+button-icon-size = 0.94
+button-icon-padding = 0.90
+button-label-size = 0.95
+button-label-weight = "medium"
+button-label-padding = 0.85
+button-gap = 0.78
 button-rounding = "sm"
-button-group-background = "bg-elevated"
-button-group-rounding = "sm"
+button-group-background = "bg-surface-elevated"
+button-group-rounding = "md"
+button-group-module-gap = 0.28
+button-group-padding = 0.16
+button-group-border-location = "all"
+button-group-border-width = 1
+button-group-border-color = "border-subtle"
+button-bg-opacity = 0
 dropdown-shadow = true
 dropdown-opacity = 98
 dropdown-autohide = true
@@ -32,19 +44,21 @@ dropdown-freeze-label = true
 [[bar.layout]]
 monitor = "*"
 show = true
-left = ["dashboard", "hyprland-workspaces", "window-title"]
-center = ["clock"]
+left = [
+  { name = "workspaces", modules = ["hyprland-workspaces"] },
+  { name = "layout", modules = ["custom-layout"] },
+]
+center = [
+  { name = "center-clock", modules = ["clock"] },
+]
 right = [
-  "media",
-  "battery",
-  "bluetooth",
-  "network",
-  "microphone",
-  "volume",
+  { name = "controls", modules = ["custom-brightness", "volume"] },
+  { name = "status", modules = ["battery", "bluetooth", "network"] },
+  { name = "alerts", modules = ["notifications"] },
 ]
 
 [styling]
-scale = 1.0
+scale = 0.92
 rounding = "sm"
 theme-provider = "wayle"
 theming-monitor = ""
@@ -71,18 +85,44 @@ active-indicator = "background"
 active-color = "accent"
 occupied-color = "fg-muted"
 empty-color = "fg-subtle"
+workspace-padding = 0.72
+icon-size = 0.95
+label-size = 0.95
+container-bg-color = "transparent"
 
 [modules.window-title]
 format = "{{ title }}"
-label-max-length = 42
+label-max-length = 30
 
 [modules.media]
 format = "{{ title }} - {{ artist }}"
-label-max-length = 32
+label-max-length = 24
 
 [modules.clock]
 format = "%a %d %b %H:%M"
 left-click = "dropdown:calendar"
+dropdown-show-seconds = false
+
+[modules.network]
+label-show = false
+icon-bg-color = "auto"
+button-bg-color = "transparent"
+
+[modules.volume]
+label-show = true
+label-max-length = 5
+scroll-up = "wayle audio output-volume +3"
+scroll-down = "wayle audio output-volume -3"
+icon-bg-color = "auto"
+label-color = "fg-default"
+button-bg-color = "transparent"
+
+[modules.bluetooth]
+label-show = true
+label-max-length = 14
+icon-bg-color = "auto"
+label-color = "fg-default"
+button-bg-color = "transparent"
 
 [modules.notification]
 left-click = "dropdown:notification"
@@ -90,6 +130,53 @@ right-click = "wayle notify dnd"
 popup-position = "top-right"
 popup-max-visible = 5
 popup-duration = 5000
+icon-bg-color = "auto"
+label-color = "fg-default"
+button-bg-color = "transparent"
+
+[[modules.custom]]
+id = "layout"
+command = '''hyprctl -j activeworkspace 2>/dev/null | jq -r '.tiledLayout // "dwindle"' | awk '{printf("{\"text\":\"%s\"}\n", $0)}' '''
+mode = "poll"
+interval-ms = 1200
+format = "{{ text }}"
+icon-name = "ld-layout-grid-symbolic"
+label-show = true
+label-max-length = 12
+button-bg-color = "bg-surface-elevated"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "/home/namik/.config/hypr/scripts/layout-switcher.sh cycle"
+right-click = "/home/namik/.config/hypr/scripts/layout-switcher.sh toggle"
+on-action = '''hyprctl -j activeworkspace 2>/dev/null | jq -r '.tiledLayout // "dwindle"' | awk '{printf("{\"text\":\"%s\"}\n", $0)}' '''
+
+[[modules.custom]]
+id = "brightness"
+command = '''brightnessctl -m | awk -F',' '{gsub(/%/, "", $4); p=$4+0; printf("{\"percentage\":%d,\"text\":\"%d%%\"}\n", p, p)}' '''
+mode = "poll"
+interval-ms = 1500
+format = "{{ text }}"
+icon-names = [
+  "md-brightness_1-symbolic",
+  "md-brightness_4-symbolic",
+  "md-brightness_7-symbolic",
+]
+label-show = true
+label-max-length = 4
+button-bg-color = "transparent"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "/home/namik/.config/hypr/scripts/brightness-control.sh menu"
+right-click = "brightnessctl set 55%"
+scroll-up = "brightnessctl set +4%"
+scroll-down = "brightnessctl set 4%-"
+on-action = '''brightnessctl -m | awk -F',' '{gsub(/%/, "", $4); p=$4+0; printf("{\"percentage\":%d,\"text\":\"%d%%\"}\n", p, p)}' '''
+
+[modules.battery]
+left-click = "dropdown:battery"
+icon-bg-color = "auto"
+label-color = "fg-default"
+button-bg-color = "transparent"
 
 [modules.dashboard]
 left-click = "dropdown:dashboard"

@@ -540,6 +540,27 @@ EOF2
 
 printf '%s\n' "$accent" > "$cache_dir/current-accent"
 
+apply_wayle_palette() {
+  command -v wayle >/dev/null 2>&1 || return 0
+
+  wayle config set styling.palette.bg "\"$bg\"" >/dev/null 2>&1 || return 0
+  wayle config set styling.palette.surface "\"$surface\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.elevated "\"$bg_soft\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.fg "\"$text\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.fg-muted "\"$muted\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.primary "\"$accent\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.red "\"$danger\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.yellow "\"$warn\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.green "\"$accent2\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.blue "\"$accent\"" >/dev/null 2>&1 || true
+
+  if systemctl --user is-active --quiet wayle.service 2>/dev/null || pgrep -x wayle >/dev/null 2>&1; then
+    wayle panel restart >/dev/null 2>&1 || true
+  fi
+}
+
+apply_wayle_palette
+
 # Optional external themers (run only if installed).
 if command -v wal >/dev/null 2>&1; then
   timeout 15 wal -q -n -i "$wall" >/dev/null 2>&1 || true

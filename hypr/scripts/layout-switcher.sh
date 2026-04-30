@@ -41,7 +41,7 @@ last_mode() {
   if [ -f "$state_file" ]; then
     mode_saved="$(cat "$state_file" 2>/dev/null || true)"
     case "$mode_saved" in
-      dwindle|master|allfloat|allpseudo)
+      dwindle|master|scroll|monocle|allfloat|allpseudo)
         printf '%s\n' "$mode_saved"
         return 0
         ;;
@@ -49,7 +49,7 @@ last_mode() {
   fi
   layout_now="$(active_layout 2>/dev/null || true)"
   case "$layout_now" in
-    dwindle|master|allfloat|allpseudo)
+    dwindle|master|scroll|monocle|allfloat|allpseudo)
       printf '%s\n' "$layout_now"
       ;;
     *)
@@ -100,6 +100,12 @@ case "$mode" in
   master)
     apply_layout master "Switched to Master"
     ;;
+  scroll)
+    apply_layout scroll "Switched to Scroll"
+    ;;
+  monocle)
+    apply_layout monocle "Switched to Monocle"
+    ;;
   dwindle)
     apply_layout dwindle "Switched to Dwindle"
     ;;
@@ -115,10 +121,13 @@ case "$mode" in
         apply_layout master "Cycle layout: Master"
         ;;
       master)
-        apply_workspace_opt allfloat "Cycle layout: Floating grid"
+        apply_layout scroll "Cycle layout: Scroll"
         ;;
-      allfloat)
-        apply_workspace_opt allpseudo "Cycle layout: Pseudotile grid"
+      scroll)
+        apply_layout monocle "Cycle layout: Monocle"
+        ;;
+      monocle)
+        apply_layout dwindle "Cycle layout: Dwindle"
         ;;
       *)
         apply_layout dwindle "Cycle layout: Dwindle"
@@ -126,7 +135,7 @@ case "$mode" in
     esac
     ;;
   *)
-    echo "usage: $0 [toggle|master|dwindle|allfloat|allpseudo|cycle]" >&2
+    echo "usage: $0 [toggle|master|dwindle|scroll|monocle|allfloat|allpseudo|cycle]" >&2
     exit 1
     ;;
 esac
