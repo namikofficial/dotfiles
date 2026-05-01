@@ -6,6 +6,10 @@ notify() {
   notify-send -a "System Update" "$1" "${2:-}"
 }
 
+log_file="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow/system-update.log"
+mkdir -p "$(dirname "$log_file")"
+printf '%s system-update invoked\n' "$(date -Iseconds)" >>"$log_file"
+
 run_update() {
   if command -v paru >/dev/null 2>&1; then
     paru -Syu
