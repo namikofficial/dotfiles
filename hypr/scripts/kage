@@ -101,7 +101,7 @@ cmd_health() {
       command -v rofi >/dev/null 2>&1 && rofi_ok=1
       command -v jq >/dev/null 2>&1 && jq_ok=1
       cat <<EOF_HEALTH
-{"session":"${HYPRLAND_SESSION}","hyprctl":${hyprctl_ok},"rofi":${rofi_ok},"jq":${jq_ok},"hyprexpo_so_exists":$([ -f "${HYPREXPO_SO}" ] && echo true || echo false),"hyprexpo_failed_this_session":$([ plugin_failed_this_session ] && echo true || echo false)}
+{"session":"${HYPRLAND_SESSION}","hyprctl":${hyprctl_ok},"rofi":${rofi_ok},"jq":${jq_ok},"hyprexpo_so_exists":$([ -f "${HYPREXPO_SO}" ] && echo true || echo false),"hyprexpo_failed_this_session":$(plugin_failed_this_session && echo true || echo false)}
 EOF_HEALTH
       ;;
     reset-hyprexpo)
