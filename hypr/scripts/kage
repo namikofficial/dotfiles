@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+KAGE_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kage"
+KAGE_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/kage"
+KAGE_SHARE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kage"
+PLUGIN_HEALTH_FILE="${KAGE_CACHE_DIR}/plugin-health.json"
+HYPRLAND_SESSION="${HYPRLAND_INSTANCE_SIGNATURE:-unknown}"
+HYPREXPO_SO="${XDG_DATA_HOME:-$HOME/.local/share}/hypr/plugins/hyprexpo/hyprexpo.so"
+OVERVIEW_FALLBACK="${HOME}/.config/hypr/scripts/workspace-overview.sh"
+HYPRCTL_BIN="${HYPRCTL_BIN:-$(command -v hyprctl || true)}"
+
+ensure_dirs() {
+  mkdir -p "${KAGE_STATE_DIR}" "${KAGE_CACHE_DIR}" "${KAGE_SHARE_DIR}/actions"
+}
+
+now_iso() {
+  date -Iseconds
+}
+
+loaded_hyprexpo_path() {
+  local pid
+  pid="$(pgrep -x Hyprland 2>/dev/null | head -n1 || true)"
+  [ -n "$pid" ] || return 1
+  awk '/\/.*hyprexpo\.so$/ { print $NF; exit }' "/proc/$pid/maps" 2>/dev/null
+}
+
+plugin_failure_mark() {
+  local reason="${1:-unknown}"
+  ensure_dirs
+  cat > "${PLUGIN_HEALTH_FILE}" <<EOF_JSON
+{"hyprexpo":{"status":"failed","session":"${HYPRLAND_SESSION}","reason":"${reason}","updated_at":"$(now_iso)"}}
+EOF_JSON
+}
+
+plugin_failure_clear() {
+  ensure_dirs
+  local tmp
+  tmp="$(mktemp)"
+  if [ -s "${PLUGIN_HEALTH_FILE}" ] && command -v jq >/dev/null 2>&1; then
+    jq '.hyprexpo = {"status":"ok","session":"'"${HYPRLAND_SESSION}"'","reason":"","updated_at":"'"$(now_iso)"'"}' \
+      "${PLUGIN_HEALTH_FILE}" > "${tmp}" 2>/dev/null || true
+    if [ -s "${tmp}" ]; then
+      mv "${tmp}" "${PLUGIN_HEALTH_FILE}"
+      return 0
+    fi
+  fi
+  cat > "${PLUGIN_HEALTH_FILE}" <<EOF_JSON
+{"hyprexpo":{"status":"ok","session":"${HYPRLAND_SESSION}","reason":"","updated_at":"$(now_iso)"}}
+EOF_JSON
+}
+
+plugin_failed_this_session() {
+  [ -s "${PLUGIN_HEALTH_FILE}" ] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  jq -e --arg s "${HYPRLAND_SESSION}" \
+    '.hyprexpo.status == "failed" and .hyprexpo.session == $s' \
+    "${PLUGIN_HEALTH_FILE}" >/dev/null 2>&1
+}
+
+overview_fallback() {
+  [ -x "${OVERVIEW_FALLBACK}" ] && exec "${OVERVIEW_FALLBACK}"
+  exit 0
+}
+
+overview_try_hyprexpo() {
+  [ -n "${HYPRCTL_BIN}" ] || return 1
+  [ -f "${HYPREXPO_SO}" ] || return 1
+
+  local current_path
+  current_path="$(loaded_hyprexpo_path || true)"
+  if [ -n "${current_path}" ] && [ "${current_path}" != "${HYPREXPO_SO}" ]; then
+    "${HYPRCTL_BIN}" plugin unload "${current_path}" >/dev/null 2>&1 || true
+    sleep 0.1
+  fi
+
+  if ! "${HYPRCTL_BIN}" plugin list 2>/dev/null | grep -q 'Plugin hyprexpo'; then
+    "${HYPRCTL_BIN}" plugin load "${HYPREXPO_SO}" >/dev/null 2>&1 || return 1
+    sleep 0.1
+  fi
+
+  "${HYPRCTL_BIN}" dispatch hyprexpo:expo toggle >/dev/null 2>&1
+}
+
+cmd_status() {
+  ensure_dirs
+  printf 'kage:ok\n'
+  printf 'session:%s\n' "${HYPRLAND_SESSION}"
+  printf 'state:%s\n' "${KAGE_STATE_DIR}"
+  printf 'cache:%s\n' "${KAGE_CACHE_DIR}"
+  printf 'share:%s\n' "${KAGE_SHARE_DIR}"
+}
+
+cmd_health() {
+  ensure_dirs
+  local sub="${1:-check}"
+  case "${sub}" in
+    check)
+      local hyprctl_ok=0 rofi_ok=0 jq_ok=0
+      command -v hyprctl >/dev/null 2>&1 && hyprctl_ok=1
+      command -v rofi >/dev/null 2>&1 && rofi_ok=1
+      command -v jq >/dev/null 2>&1 && jq_ok=1
+      cat <<EOF_HEALTH
+{"session":"${HYPRLAND_SESSION}","hyprctl":${hyprctl_ok},"rofi":${rofi_ok},"jq":${jq_ok},"hyprexpo_so_exists":$([ -f "${HYPREXPO_SO}" ] && echo true || echo false),"hyprexpo_failed_this_session":$([ plugin_failed_this_session ] && echo true || echo false)}
+EOF_HEALTH
+      ;;
+    reset-hyprexpo)
+      plugin_failure_clear
+      printf 'ok: hyprexpo failure flag reset for session %s\n' "${HYPRLAND_SESSION}"
+      ;;
+    *)
+      echo "usage: kage health [check|reset-hyprexpo]" >&2
+      exit 1
+      ;;
+  esac
+}
+
+cmd_overview() {
+  ensure_dirs
+
+  if plugin_failed_this_session; then
+    overview_fallback
+  fi
+
+  if overview_try_hyprexpo; then
+    plugin_failure_clear
+    exit 0
+  fi
+
+  plugin_failure_mark "hyprexpo_unavailable_or_mismatch"
+  overview_fallback
+}
+
+cmd_actions() {
+  local sub="${1:-list}"
+  case "${sub}" in
+    list)
+      find "${KAGE_SHARE_DIR}/actions" -type f -name '*.toml' 2>/dev/null | sort || true
+      ;;
+    run)
+      echo "todo: kage actions run <id>" >&2
+      exit 2
+      ;;
+    *)
+      echo "usage: kage actions [list|run]" >&2
+      exit 1
+      ;;
+  esac
+}
+
+cmd_project() {
+  local sub="${1:-current}"
+  case "${sub}" in
+    current)
+      echo '{"todo":"project-detector-not-implemented"}'
+      ;;
+    *)
+      echo "usage: kage project current" >&2
+      exit 1
+      ;;
+  esac
+}
+
+cmd_scratch() {
+  echo "todo: kage scratch toggle <name>" >&2
+  exit 2
+}
+
+main() {
+  local cmd="${1:-status}"
+  shift || true
+  case "${cmd}" in
+    status) cmd_status "$@" ;;
+    health) cmd_health "$@" ;;
+    overview) cmd_overview "$@" ;;
+    actions) cmd_actions "$@" ;;
+    project) cmd_project "$@" ;;
+    scratch) cmd_scratch "$@" ;;
+    *)
+      echo "usage: kage <status|health|overview|actions|project|scratch>" >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

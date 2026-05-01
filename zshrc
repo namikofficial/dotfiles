@@ -416,6 +416,7 @@ path=(
 
 # Android Studio
 export ANDROID_STUDIO="/opt/android-studio"
+export _JAVA_AWT_WM_NONREPARENTING=1
 
 # Gradle
 export GRADLE_HOME="$HOME/gradle/gradle-8.13"

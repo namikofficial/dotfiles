@@ -171,7 +171,7 @@ case "$choice_index" in
   8) ~/.config/hypr/scripts/ai-helper.sh menu ;;
   9) ~/.config/hypr/scripts/ai-helper.sh shell ;;
   10) ~/.config/hypr/scripts/ai-helper.sh clip ;;
-  11) kitty -e sh -lc 'yay -Syu; read -r -p "Press enter to close"' ;;
+  11) ~/.config/hypr/scripts/system-update.sh ;;
   12) ~/.config/hypr/scripts/set-wallpaper.sh --next ;;
   13) ~/.config/hypr/scripts/screenshot.sh area ;;
   14) ~/.config/hypr/scripts/screenshot.sh full ;;

@@ -45,15 +45,18 @@ dropdown-freeze-label = true
 monitor = "*"
 show = true
 left = [
+  { name = "sys", modules = ["custom-updates"] },
   { name = "workspaces", modules = ["hyprland-workspaces"] },
   { name = "layout", modules = ["custom-layout"] },
+  { name = "now", modules = ["media"] },
 ]
 center = [
   { name = "center-clock", modules = ["clock"] },
 ]
 right = [
   { name = "controls", modules = ["custom-brightness", "volume"] },
-  { name = "status", modules = ["battery", "bluetooth", "network"] },
+  { name = "status", modules = ["custom-vpn", "custom-dnd", "battery", "bluetooth", "network"] },
+  { name = "actions", modules = ["custom-logs", "custom-actions"] },
   { name = "alerts", modules = ["notifications"] },
 ]
 
@@ -95,8 +98,10 @@ format = "{{ title }}"
 label-max-length = 30
 
 [modules.media]
-format = "{{ title }} - {{ artist }}"
+format = "{{ title }}"
 label-max-length = 24
+left-click = "playerctl play-pause"
+right-click = "playerctl next"
 
 [modules.clock]
 format = "%a %d %b %H:%M"
@@ -135,6 +140,22 @@ label-color = "fg-default"
 button-bg-color = "transparent"
 
 [[modules.custom]]
+id = "updates"
+command = '''/home/namik/.config/hypr/scripts/status-updates.sh'''
+mode = "poll"
+interval-ms = 900000
+format = "{{ text }}"
+icon-name = "md-system_update_alt-symbolic"
+label-show = true
+label-max-length = 4
+button-bg-color = "transparent"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "/home/namik/.config/hypr/scripts/system-update.sh"
+right-click = "/home/namik/.config/hypr/scripts/system-update.sh"
+on-action = '''/home/namik/.config/hypr/scripts/status-updates.sh'''
+
+[[modules.custom]]
 id = "layout"
 command = '''hyprctl -j activeworkspace 2>/dev/null | jq -r '.tiledLayout // "dwindle"' | awk '{printf("{\"text\":\"%s\"}\n", $0)}' '''
 mode = "poll"
@@ -171,6 +192,60 @@ right-click = "brightnessctl set 55%"
 scroll-up = "brightnessctl set +4%"
 scroll-down = "brightnessctl set 4%-"
 on-action = '''brightnessctl -m | awk -F',' '{gsub(/%/, "", $4); p=$4+0; printf("{\"percentage\":%d,\"text\":\"%d%%\"}\n", p, p)}' '''
+
+[[modules.custom]]
+id = "vpn"
+command = '''if /home/namik/.config/hypr/scripts/status-vpn-active.sh | grep -q true; then printf('{"text":"VPN"}\n'); else printf('{"text":""}\n'); fi'''
+mode = "poll"
+interval-ms = 2000
+format = "{{ text }}"
+icon-name = "md-vpn_lock-symbolic"
+label-show = true
+label-max-length = 4
+button-bg-color = "transparent"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "nm-connection-editor"
+
+[[modules.custom]]
+id = "dnd"
+command = '''if /home/namik/.config/hypr/scripts/status-dnd.sh | grep -q true; then printf('{"text":"DND"}\n'); else printf('{"text":""}\n'); fi'''
+mode = "poll"
+interval-ms = 1200
+format = "{{ text }}"
+icon-name = "md-do_not_disturb_alt-symbolic"
+label-show = true
+label-max-length = 4
+button-bg-color = "transparent"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "/home/namik/.config/hypr/scripts/notif-dnd-toggle.sh"
+
+[[modules.custom]]
+id = "logs"
+command = '''printf('{"text":"LOG"}\n')'''
+mode = "static"
+format = "{{ text }}"
+icon-name = "md-terminal-symbolic"
+label-show = true
+label-max-length = 4
+button-bg-color = "transparent"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "/home/namik/.config/hypr/scripts/logs-workspace.sh open"
+
+[[modules.custom]]
+id = "actions"
+command = '''printf('{"text":"ACT"}\n')'''
+mode = "static"
+format = "{{ text }}"
+icon-name = "md-flash_on-symbolic"
+label-show = true
+label-max-length = 4
+button-bg-color = "transparent"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "/home/namik/.config/hypr/scripts/quick-actions.sh"
 
 [modules.battery]
 left-click = "dropdown:battery"
