@@ -121,6 +121,8 @@ udiskie
 brightnessctl
 playerctl
 pavucontrol
+networkmanager
+wpa_supplicant
 network-manager-applet
 blueman
 polkit-gnome

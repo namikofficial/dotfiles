@@ -79,9 +79,11 @@ case "$CHOICE_CLEAN" in
   "Open file manager")
     [ -s "${CACHE}" ] || exit 0
     _path="$(jq -r '.path // ""' "${CACHE}" 2>/dev/null)"
-    [ -n "$_path" ] && [ -d "$_path" ] \
-      && xdg-open "$_path" >/dev/null 2>&1 & \
-      || notify "No path" "Project path not found"
+    if [ -n "$_path" ] && [ -d "$_path" ]; then
+      xdg-open "$_path" >/dev/null 2>&1 &
+    else
+      notify "No path" "Project path not found"
+    fi
     ;;
   "Project status")
     "${KAGE}" project status \

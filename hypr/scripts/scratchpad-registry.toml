@@ -1,0 +1,42 @@
+# Scratchpad Registry v1
+# Define scratchpad targets and how to launch/toggle them
+
+[scratchpads.terminal]
+name = "Terminal"
+description = "Tmux terminal scratchpad"
+type = "specialworkspace"
+workspace_name = "scratch_tmux"
+enabled = true
+
+[scratchpads.notes]
+name = "Notes"
+description = "Quick notes scratchpad"
+type = "window_class"
+window_class = "noxflow-scratchpad-notes"
+launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-notes.sh"
+workspace_name = "scratch_notes"
+enabled = true
+
+[scratchpads.logs]
+name = "Logs"
+description = "System logs viewer"
+type = "workspace"
+workspace_id = 9
+enabled = true
+
+[scratchpads.ai]
+name = "AI Scratch"
+description = "AI chat and coding scratch"
+type = "window_class"
+window_class = "noxflow-ai"
+launch_cmd = "kitty --class noxflow-ai --title 'AI scratch'"
+workspace_name = "scratch_ai"
+enabled = true
+
+[scratchpads.db]
+name = "Database"
+description = "Database client (lazydocker)"
+type = "command"
+launch_cmd = "kitty --class noxflow-tool-large --title 'lazydocker' -- lazydocker"
+requires_cmd = "lazydocker"
+enabled = true

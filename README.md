@@ -11,6 +11,7 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `docs/KEYBINDS.md` full keybind tables + Mermaid map
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
+- `docs/NETWORK_STACK_POLICY.md` locked Wi-Fi stack policy (NetworkManager + wpa_supplicant)
 - `hypr/` for Hyprland, Wayle-first shell scripts, Rofi, wlogout, lockscreen, and helper scripts
 - `wayle/` for the preferred future shell config
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
@@ -71,6 +72,23 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
+
+## Network stack standard
+
+This repo standard is:
+
+- `NetworkManager` + `wpa_supplicant`
+- no `iwd`
+
+Enforce it any time with:
+
+```sh
+./setup/enforce-network-stack.sh
+```
+
+Policy details and rationale:
+
+- `docs/NETWORK_STACK_POLICY.md`
 
 Install packages only:
 

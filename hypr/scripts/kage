@@ -558,9 +558,11 @@ project_run_action() {
     open-repo)
       local remote
       remote="$(git -C "${project_path}" remote get-url origin 2>/dev/null || true)"
-      [ -n "$remote" ] \
-        && xdg-open "$remote" >/dev/null 2>&1 & \
-        || notify "No remote" "Project has no git origin" ;;
+      if [ -n "$remote" ]; then
+        xdg-open "$remote" >/dev/null 2>&1 &
+      else
+        notify "No remote" "Project has no git origin"
+      fi ;;
     *) notify "Unknown action" "kage project action: $action"; exit 1 ;;
   esac
 }
@@ -679,29 +681,68 @@ cmd_project() {
   esac
 }
 
-# ── cmd: scratch (v1) ────────────────────────────────────────────────────────
+# ── cmd: scratch (v1 + Phase 3 enhancements) ─────────────────────────────────
+
+_scratch_state_file() {
+  echo "${KAGE_CACHE_DIR}/scratchpad-state.json"
+}
+
+_scratch_get_state() {
+  local state_file
+  state_file="$(_scratch_state_file)"
+  if [ -f "$state_file" ]; then
+    cat "$state_file"
+  else
+    echo '{"terminal":false,"notes":false,"logs":false,"ai":false,"db":false}'
+  fi
+}
+
+_scratch_set_visible() {
+  local target="$1" visible="$2"
+  local state_file state
+  state_file="$(_scratch_state_file)"
+  state="$(_scratch_get_state)"
+  state="$(printf '%s' "$state" | jq --arg t "$target" --arg v "$visible" '.[$t] = ($v == "true")' 2>/dev/null || echo "$state")"
+  printf '%s' "$state" > "$state_file"
+}
+
+_scratch_is_visible() {
+  local target="$1"
+  _scratch_get_state | jq -r ".${target} // false" 2>/dev/null || echo "false"
+}
 
 _scratch_toggle() {
   local target="$1"
   [ -n "${HYPRCTL_BIN}" ] || return 1
+  local was_visible
+  was_visible="$(_scratch_is_visible "$target")"
   case "$target" in
-    terminal) "${HYPRCTL_BIN}" dispatch togglespecialworkspace scratch_tmux ;;
+    terminal)
+      "${HYPRCTL_BIN}" dispatch togglespecialworkspace scratch_tmux
+      _scratch_set_visible terminal "$([ "$was_visible" = "true" ] && echo "false" || echo "true")" ;;
     notes)
       if "${HYPRCTL_BIN}" clients -j 2>/dev/null | jq -e '.[]|select(.class=="noxflow-scratchpad-notes")' >/dev/null 2>&1; then
         "${HYPRCTL_BIN}" dispatch togglespecialworkspace scratch_notes
+        _scratch_set_visible notes "$([ "$was_visible" = "true" ] && echo "false" || echo "true")"
       else
         "${HOME}/.config/hypr/scripts/scratchpad-notes.sh" >/dev/null 2>&1 &
+        _scratch_set_visible notes true
       fi ;;
-    logs)  "${HYPRCTL_BIN}" dispatch workspace 9 ;;
+    logs)
+      "${HYPRCTL_BIN}" dispatch workspace 9
+      _scratch_set_visible logs true ;;
     ai)
       if "${HYPRCTL_BIN}" clients -j 2>/dev/null | jq -e '.[]|select(.class=="noxflow-ai")' >/dev/null 2>&1; then
         "${HYPRCTL_BIN}" dispatch togglespecialworkspace scratch_ai
+        _scratch_set_visible ai "$([ "$was_visible" = "true" ] && echo "false" || echo "true")"
       else
         kitty --class noxflow-ai --title "AI scratch" >/dev/null 2>&1 &
+        _scratch_set_visible ai true
       fi ;;
     db)
       if command -v lazydocker >/dev/null 2>&1; then
         kitty --class noxflow-tool-large --title "lazydocker" -- lazydocker >/dev/null 2>&1 &
+        _scratch_set_visible db true
       else notify "lazydocker not found" "Install: yay -S lazydocker"; fi ;;
     *) notify "Unknown scratchpad" "$target"; exit 1 ;;
   esac
@@ -721,7 +762,66 @@ cmd_scratch() {
         rofi -dmenu -p 'Scratchpad' -theme "${HOME}/.config/rofi/actions.rasi" 2>/dev/null || true)"
       [ -n "$choice" ] && _scratch_toggle "$choice" ;;
     list) printf 'terminal\nnotes\nlogs\nai\ndb\n' ;;
-    *)    echo "usage: kage scratch [toggle <target> | menu | list]" >&2; exit 1 ;;
+    status)
+      local state
+      state="$(_scratch_get_state)"
+      jq -r '
+        "Scratchpad visibility:\n" +
+        (["terminal: " + (.terminal | if . then "✓ visible" else "✗ hidden" end),
+          "notes: " + (.notes | if . then "✓ visible" else "✗ hidden" end),
+          "logs: " + (.logs | if . then "✓ visible" else "✗ hidden" end),
+          "ai: " + (.ai | if . then "✓ visible" else "✗ hidden" end),
+          "db: " + (.db | if . then "✓ visible" else "✗ hidden" end)]
+        | join("\n"))
+      ' <<< "$state" 2>/dev/null || echo "$state" ;;
+    *)    echo "usage: kage scratch [toggle <target> | menu | list | status]" >&2; exit 1 ;;
+  esac
+}
+
+# ── cmd: ai ──────────────────────────────────────────────────────────────────
+
+cmd_ai() {
+  local sub="${1:-list}"
+  shift || true
+  
+  # Verify scripts exist
+  local script_dir="${HOME}/.config/hypr/scripts"
+  
+  case "$sub" in
+    commit-msg)
+      # Check for staged changes
+      git diff --cached --name-only >/dev/null 2>&1 || { 
+        notify-send "kage-ai" "No staged changes" 2>/dev/null
+        exit 1
+      }
+      [ -x "$script_dir/kage-ai-commit-msg.sh" ] || { 
+        echo "error: kage-ai-commit-msg.sh not found or not executable" >&2
+        exit 1
+      }
+      "$script_dir/kage-ai-commit-msg.sh"
+      ;;
+    review)
+      # Check for commits to review
+      git diff HEAD~1 >/dev/null 2>&1 || { 
+        notify-send "kage-ai" "Need at least 2 commits to review" 2>/dev/null
+        exit 1
+      }
+      [ -x "$script_dir/kage-ai-review.sh" ] || { 
+        echo "error: kage-ai-review.sh not found or not executable" >&2
+        exit 1
+      }
+      "$script_dir/kage-ai-review.sh"
+      ;;
+    explain)
+      [ -x "$script_dir/kage-ai-explain.sh" ] || { 
+        echo "error: kage-ai-explain.sh not found or not executable" >&2
+        exit 1
+      }
+      "$script_dir/kage-ai-explain.sh"
+      ;;
+    *)
+      echo "usage: kage ai [commit-msg | review | explain]" >&2
+      exit 1 ;;
   esac
 }
 
@@ -737,8 +837,9 @@ main() {
     actions)  cmd_actions  "$@" ;;
     project)  cmd_project  "$@" ;;
     scratch)  cmd_scratch  "$@" ;;
+    ai)       cmd_ai       "$@" ;;
     *)
-      echo "usage: kage <status|health|overview|actions|project|scratch>" >&2
+      echo "usage: kage <status|health|overview|actions|project|scratch|ai>" >&2
       exit 1 ;;
   esac
 }
