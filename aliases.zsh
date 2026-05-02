@@ -1,16 +1,41 @@
-# Git aliases
-alias gs="git status"
-alias ga="git add"
-alias gp="git push"
-alias gpl="git pull"
-alias gc="git commit"
-alias gco="git checkout"
-alias gb="git branch"
-alias gd="git diff"
-alias gds='git -C "$(pwd)" diff --stat'
-alias gl="git log --oneline -n 20"
-alias greset="git reset --hard"
-alias gresetfull="git fetch origin && git reset --hard origin/\$(git branch --show-current) && git clean -fd"
+# Git aliases - ga is now a function to handle dynamic args
+# Define all functions BEFORE any aliases that reference them
+
+gs() { git status "$@"; }
+
+ga() {
+  # ga with no args → add all; with args → add those files
+  if [ $# -eq 0 ]; then
+    git add .
+  else
+    git add "$@"
+  fi
+}
+
+gp() { git push "$@"; }
+gpl() { git pull "$@"; }
+gc() { git commit "$@"; }
+gco() { git checkout "$@"; }
+gb() { git branch "$@"; }
+gd() { git diff "$@"; }
+
+gds() { 
+  git -C "$(pwd)" diff --stat "$@"
+}
+
+gl() { 
+  git log --oneline -n 20 "$@"
+}
+
+greset() { 
+  git reset --hard "$@"
+}
+
+gresetfull() { 
+  git fetch origin && \
+  git reset --hard origin/$(git branch --show-current) && \
+  git clean -fd
+}
 
 # Docker aliases
 alias dc="docker compose"
@@ -158,7 +183,6 @@ alias cheat="vim $DOTFILES_HOME/SHELL_CHEATSHEET.md"
 # Git extras
 alias gss="git status -sb"
 alias gco-="git checkout -"
-alias gcm="git commit -m"
 alias gca="git commit --amend --no-edit"
 alias gcam="git commit -am"
 alias glg="git log --graph --oneline --decorate --all"
@@ -178,6 +202,18 @@ alias gbage="$SCRIPTS_BIN/git-branch-age"
 alias gpropen="$SCRIPTS_BIN/git-pr-open"
 alias wtprune="$SCRIPTS_BIN/prune-worktrees"
 alias chlog="$SCRIPTS_BIN/changelog-since"
+
+# Enhanced gcm: interactive or with argument
+gcm() {
+  local msg="$*"
+  if [ -z "$msg" ]; then
+    # Interactive mode: read from stdin
+    printf 'Enter commit message: '
+    read -r msg
+  fi
+  [ -n "$msg" ] || { echo "Aborted: no commit message" >&2; return 1; }
+  git commit -m "$msg"
+}
 gwtc() {
   local target="${1:-}"
   if [ -z "$target" ]; then

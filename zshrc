@@ -851,3 +851,8 @@ if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
   printf 'zsh startup: %.2fms\n' "$startup_elapsed_ms"
   zprof
 fi
+
+# Local LLM aliases
+alias llama-gemma="llama-start gemma"
+alias llama-code="llama-start code"
+alias llama-status="curl -s http://127.0.0.1:8000/v1/models | jq '.data[0].id' 2>/dev/null || echo 'Server not running'"

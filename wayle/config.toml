@@ -49,6 +49,7 @@ left = [
   { name = "layout", modules = ["custom-layout"] },
   { name = "sys", modules = ["custom-updates"] },
   { name = "project", modules = ["custom-project"] },
+  { name = "llm", modules = ["custom-llm"] },
   { name = "window", modules = ["window-title"] },
 ]
 center = [
@@ -233,6 +234,20 @@ icon-bg-color = "auto"
 label-color = "fg-default"
 left-click = "/home/namik/.config/hypr/scripts/kage-project-rofi.sh"
 on-action = "/home/namik/.config/hypr/scripts/kage project refresh"
+
+[[modules.custom]]
+id = "llm"
+command = "/home/namik/Documents/code/dotfiles/system/wayle-llm-module.sh"
+mode = "poll"
+interval-ms = 5000
+format = "{{ text }}"
+icon-show = false
+label-show = true
+button-bg-color = "transparent"
+icon-bg-color = "auto"
+label-color = "fg-muted"
+left-click = "llm-manager status"
+on-action = "notify-send 'LLM' 'Status: see logs with llm-manager logs'"
 
 [modules.battery]
 left-click = "dropdown:battery"
