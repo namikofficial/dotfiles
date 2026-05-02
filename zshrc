@@ -372,6 +372,9 @@ for user_bin in "$HOME/.local/bin" "$HOME/.cargo/bin" "$HOME/bin"; do
   [ -d "$user_bin" ] && path=("$user_bin" $path)
 done
 
+# Kage substrate entrypoint (desktop command/runtime orchestrator)
+alias kage="$HOME/.config/hypr/scripts/kage"
+
 find_codex_bin_dir() {
   emulate -L zsh
   typeset -a latest_node_dirs

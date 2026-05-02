@@ -7,11 +7,11 @@ tearing-mode = false
 
 [bar]
 scale = 0.84
-inset-edge = 0.07
-inset-ends = 0.10
-padding = 0.14
-padding-ends = 0.18
-module-gap = 0.42
+inset-edge = 0.21
+inset-ends = 0.22
+padding = 0.18
+padding-ends = 0.24
+module-gap = 0.48
 location = "top"
 bg = "transparent"
 background-opacity = 0
@@ -22,16 +22,16 @@ rounding = "none"
 shadow = "none"
 button-variant = "basic"
 button-icon-size = 0.94
-button-icon-padding = 0.90
+button-icon-padding = 0.96
 button-label-size = 0.95
 button-label-weight = "medium"
-button-label-padding = 0.85
-button-gap = 0.78
+button-label-padding = 0.92
+button-gap = 0.82
 button-rounding = "sm"
 button-group-background = "bg-surface-elevated"
 button-group-rounding = "md"
-button-group-module-gap = 0.28
-button-group-padding = 0.16
+button-group-module-gap = 0.34
+button-group-padding = 0.20
 button-group-border-location = "all"
 button-group-border-width = 1
 button-group-border-color = "border-subtle"
@@ -45,18 +45,17 @@ dropdown-freeze-label = true
 monitor = "*"
 show = true
 left = [
-  { name = "sys", modules = ["custom-updates"] },
   { name = "workspaces", modules = ["hyprland-workspaces"] },
   { name = "layout", modules = ["custom-layout"] },
-  { name = "now", modules = ["media"] },
+  { name = "sys", modules = ["custom-updates"] },
+  { name = "window", modules = ["window-title"] },
 ]
 center = [
   { name = "center-clock", modules = ["clock"] },
 ]
 right = [
-  { name = "controls", modules = ["custom-brightness", "volume"] },
-  { name = "status", modules = ["custom-vpn", "custom-dnd", "battery", "bluetooth", "network"] },
-  { name = "actions", modules = ["custom-logs", "custom-actions"] },
+  { name = "controls", modules = ["custom-brightness", "volume", "custom-logs"] },
+  { name = "status", modules = ["battery", "bluetooth", "network"] },
   { name = "alerts", modules = ["notifications"] },
 ]
 
@@ -95,7 +94,7 @@ container-bg-color = "transparent"
 
 [modules.window-title]
 format = "{{ title }}"
-label-max-length = 30
+label-max-length = 28
 
 [modules.media]
 format = "{{ title }}"
@@ -143,16 +142,18 @@ button-bg-color = "transparent"
 id = "updates"
 command = '''/home/namik/.config/hypr/scripts/status-updates.sh'''
 mode = "poll"
-interval-ms = 900000
-format = "{{ text }}"
-icon-name = "md-system_update_alt-symbolic"
+interval-ms = 60000
+format = "UP {{ text }}"
+icon-show = false
 label-show = true
-label-max-length = 4
+label-max-length = 8
 button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/system-update.sh"
-right-click = "/home/namik/.config/hypr/scripts/system-update.sh"
+border-show = true
+border-color = "border-subtle"
+left-click = "kitty -e sh -lc '/home/namik/.config/hypr/scripts/system-update.sh run; read -r -p \"Press enter to close\"'"
+right-click = "kitty -e sh -lc '/home/namik/.config/hypr/scripts/system-update.sh run; read -r -p \"Press enter to close\"'"
 on-action = '''/home/namik/.config/hypr/scripts/status-updates.sh'''
 
 [[modules.custom]]
@@ -176,14 +177,10 @@ id = "brightness"
 command = '''brightnessctl -m | awk -F',' '{gsub(/%/, "", $4); p=$4+0; printf("{\"percentage\":%d,\"text\":\"%d%%\"}\n", p, p)}' '''
 mode = "poll"
 interval-ms = 1500
-format = "{{ text }}"
-icon-names = [
-  "md-brightness_1-symbolic",
-  "md-brightness_4-symbolic",
-  "md-brightness_7-symbolic",
-]
+format = "☀ {{ text }}"
+icon-show = false
 label-show = true
-label-max-length = 4
+label-max-length = 8
 button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"
@@ -194,39 +191,12 @@ scroll-down = "brightnessctl set 4%-"
 on-action = '''brightnessctl -m | awk -F',' '{gsub(/%/, "", $4); p=$4+0; printf("{\"percentage\":%d,\"text\":\"%d%%\"}\n", p, p)}' '''
 
 [[modules.custom]]
-id = "vpn"
-command = '''if /home/namik/.config/hypr/scripts/status-vpn-active.sh | grep -q true; then printf('{"text":"VPN"}\n'); else printf('{"text":""}\n'); fi'''
-mode = "poll"
-interval-ms = 2000
-format = "{{ text }}"
-icon-name = "md-vpn_lock-symbolic"
-label-show = true
-label-max-length = 4
-button-bg-color = "transparent"
-icon-bg-color = "auto"
-label-color = "fg-default"
-left-click = "nm-connection-editor"
-
-[[modules.custom]]
-id = "dnd"
-command = '''if /home/namik/.config/hypr/scripts/status-dnd.sh | grep -q true; then printf('{"text":"DND"}\n'); else printf('{"text":""}\n'); fi'''
-mode = "poll"
-interval-ms = 1200
-format = "{{ text }}"
-icon-name = "md-do_not_disturb_alt-symbolic"
-label-show = true
-label-max-length = 4
-button-bg-color = "transparent"
-icon-bg-color = "auto"
-label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/notif-dnd-toggle.sh"
-
-[[modules.custom]]
 id = "logs"
-command = '''printf('{"text":"LOG"}\n')'''
-mode = "static"
-format = "{{ text }}"
-icon-name = "md-terminal-symbolic"
+command = '''printf('{"text":"LOG","tooltip":"Open logs workspace"}\n')'''
+mode = "poll"
+interval-ms = 10000
+format = "LOG"
+icon-show = false
 label-show = true
 label-max-length = 4
 button-bg-color = "transparent"
@@ -235,13 +205,14 @@ label-color = "fg-default"
 left-click = "/home/namik/.config/hypr/scripts/logs-workspace.sh open"
 
 [[modules.custom]]
-id = "actions"
-command = '''printf('{"text":"ACT"}\n')'''
-mode = "static"
+id = "quick"
+command = '''printf('{"text":"⚡"}\n')'''
+mode = "poll"
+interval-ms = 3600000
 format = "{{ text }}"
-icon-name = "md-flash_on-symbolic"
+icon-show = false
 label-show = true
-label-max-length = 4
+label-max-length = 3
 button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"

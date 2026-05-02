@@ -22,6 +22,11 @@ run_update() {
   sudo pacman -Syu
 }
 
+if [ "${1:-}" = "run" ]; then
+  run_update
+  exit 0
+fi
+
 open_in_terminal() {
   local body='set -euo pipefail; '"$(declare -f run_update)"'; run_update; read -r -p "Press enter to close"'
 

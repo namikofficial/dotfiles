@@ -14,6 +14,11 @@ ensure_dirs() {
   mkdir -p "${KAGE_STATE_DIR}" "${KAGE_CACHE_DIR}" "${KAGE_SHARE_DIR}/actions"
 }
 
+notify() {
+  command -v notify-send >/dev/null 2>&1 || return 0
+  notify-send -a "Kage" "$1" "${2:-}"
+}
+
 now_iso() {
   date -Iseconds
 }
@@ -82,6 +87,12 @@ overview_try_hyprexpo() {
   "${HYPRCTL_BIN}" dispatch hyprexpo:expo toggle >/dev/null 2>&1
 }
 
+overview_try_virtual_desktops() {
+  [ -n "${HYPRCTL_BIN}" ] || return 1
+  "${HYPRCTL_BIN}" plugin list 2>/dev/null | grep -qi 'virtual-desktops' || return 1
+  "${HYPRCTL_BIN}" dispatch nextdesk >/dev/null 2>&1
+}
+
 cmd_status() {
   ensure_dirs
   printf 'kage:ok\n'
@@ -117,18 +128,40 @@ EOF_HEALTH
 
 cmd_overview() {
   ensure_dirs
+  local backend="${KAGE_OVERVIEW_BACKEND:-plugin}"
+  local allow_hyprexpo="${KAGE_ENABLE_HYPREXPO:-0}"
 
-  if plugin_failed_this_session; then
+  # No fallback UI in plugin mode: user explicitly prefers no old Rofi overview.
+  if [ "${backend}" != "plugin" ]; then
     overview_fallback
   fi
 
-  if overview_try_hyprexpo; then
-    plugin_failure_clear
+  if plugin_failed_this_session; then
+    if overview_try_virtual_desktops; then
+      exit 0
+    fi
+    notify "Overview unavailable" "Plugin mode is enabled and no healthy overview plugin is active."
+    exit 1
+  fi
+
+  if overview_try_virtual_desktops; then
     exit 0
   fi
 
-  plugin_failure_mark "hyprexpo_unavailable_or_mismatch"
-  overview_fallback
+  if [ "${allow_hyprexpo}" = "1" ]; then
+    if overview_try_hyprexpo; then
+      plugin_failure_clear
+      exit 0
+    fi
+  fi
+
+  plugin_failure_mark "plugin_overview_unavailable"
+  if [ "${allow_hyprexpo}" = "1" ]; then
+    notify "Overview unavailable" "Neither virtual-desktops nor hyprexpo dispatch worked."
+  else
+    notify "Overview unavailable" "virtual-desktops dispatch failed."
+  fi
+  exit 1
 }
 
 cmd_actions() {
