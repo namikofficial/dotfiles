@@ -1,274 +1,273 @@
-#!/usr/bin/env bash
-# Complete LLM Setup with Tmux + Logging + Wayle Integration
-# For: i7-13 + GTX 4050 6GB (Gemma + DeepSeek-Coder)
-# Location: ~/Documents/code/dotfiles/system/llm-manager.sh
+#!/bin/bash
+# LLM Manager - Control llama.cpp server with tmux
 
-set -euo pipefail
+set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODELS_DIR="${HOME}/llama-models"
-LOGS_DIR="${HOME}/.cache/kage/llm-logs"
+MODEL_DIR="${HOME}/llama-models"
+STATE_DIR="${HOME}/.cache/kage"
+LOG_DIR="${STATE_DIR}/llm-logs"
 TMUX_SESSION="llm-server"
-CONFIG_FILE="${HOME}/.config/kage/llama.conf"
+
+# Create required directories
+mkdir -p "$LOG_DIR" "$STATE_DIR"
+
+# Default model
+DEFAULT_MODEL="llama"  # Llama 3 8B
+
+# Model configurations
+declare -A MODELS=(
+  ["llama"]="Meta-Llama-3-8B-Instruct-Q4_K_M.gguf"
+  ["mistral"]="Mistral-7B-Instruct-v0.2-Q4_K_M.gguf"
+)
 
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-notify_send() {
-  notify-send -a "llm-manager" "$1" "${2:-}" 2>/dev/null || true
-}
+# Helper functions
+log() { echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"; }
+error() { echo -e "${RED}✗ $1${NC}" >&2; }
+warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
+info() { echo -e "${BLUE}ℹ $1${NC}"; }
 
-log_msg() {
-  local level="$1"
-  shift
-  local msg="$@"
-  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-  echo -e "${BLUE}[${timestamp}]${NC} ${level}: ${msg}"
-  echo "[${timestamp}] ${level}: ${msg}" >> "${LOGS_DIR}/llm.log"
-}
-
-# ── Initialization ─────────────────────────────────────────────────
-
-mkdir -p "$MODELS_DIR" "$LOGS_DIR"
-
-# Load config if exists
-if [ -f "$CONFIG_FILE" ]; then
-  source "$CONFIG_FILE"
-else
-  log_msg "WARN" "Config not found at $CONFIG_FILE, using defaults"
-fi
-
-# ── COMMANDS ───────────────────────────────────────────────────────
-
-cmd_status() {
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "LLM Server Status"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+# Get model path
+get_model_path() {
+  local model="${1:-$DEFAULT_MODEL}"
+  local file="${MODELS[$model]}"
   
-  # Check if tmux session exists
-  if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
-    echo -e "${GREEN}✓ Tmux session running: $TMUX_SESSION${NC}"
-    
-    # Get running model
-    if curl -s http://127.0.0.1:8000/v1/models >/dev/null 2>&1; then
-      MODEL=$(curl -s http://127.0.0.1:8000/v1/models | jq -r '.data[0].id // "unknown"' 2>/dev/null || echo "unknown")
-      echo -e "${GREEN}✓ Server responding on port 8000${NC}"
-      echo "  Model: $MODEL"
-      
-      # Show recent logs
-      echo
-      echo "Recent logs:"
-      tail -5 "${LOGS_DIR}/llm.log" 2>/dev/null || echo "  (no logs yet)"
-    else
-      echo -e "${YELLOW}⚠ Server not responding on port 8000${NC}"
-      echo "  Check logs: tail -f ${LOGS_DIR}/llm.log"
-    fi
+  if [ -z "$file" ]; then
+    echo "Meta-Llama-3-8B-Instruct-Q4_K_M.gguf"
   else
-    echo -e "${RED}✗ No running session${NC}"
-    echo "  Start with: llm-manager start [gemma|code]"
+    echo "$file"
+  fi
+}
+
+# Check if server is running
+is_running() {
+  tmux list-sessions 2>/dev/null | grep -q "^${TMUX_SESSION}:" && return 0
+  return 1
+}
+
+# Get server PID
+get_server_pid() {
+  tmux list-panes -t "$TMUX_SESSION" -F "#{pane_pid}" 2>/dev/null | head -1
+}
+
+# Get running model name from processes
+get_running_model() {
+  local model_file
+  model_file=$(ps aux | grep "[l]lama-server" | grep -oE '\S+\.gguf' | head -1 | xargs basename 2>/dev/null)
+  [ -n "$model_file" ] && echo "$model_file" || echo "unknown"
+}
+
+# Command: start
+cmd_start() {
+  local model="${1:-$DEFAULT_MODEL}"
+  local model_file
+  model_file=$(get_model_path "$model")
+  local model_path="$MODEL_DIR/$model_file"
+  
+  # Check if model exists
+  if [ ! -f "$model_path" ]; then
+    error "Model not found: $model_path"
+    warn "Available models:"
+    ls -1 "$MODEL_DIR" | sed 's/^/  • /'
+    return 1
   fi
   
-  echo
-  echo "Available models:"
-  ls -lh "$MODELS_DIR"/*.gguf 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}' || echo "  (no models found)"
-  
-  echo
-  echo "Logs: $LOGS_DIR"
-  echo "Config: $CONFIG_FILE"
-}
-
-cmd_start() {
-  local model="${1:-gemma}"
-  
-  # Kill existing session
-  if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
-    log_msg "INFO" "Stopping existing session..."
-    tmux kill-session -t "$TMUX_SESSION"
+  # Stop existing session
+  if is_running; then
+    log "Stopping existing LLM server..."
+    tmux kill-session -t "$TMUX_SESSION" 2>/dev/null || true
     sleep 1
   fi
   
-  # Select model file
-  local model_file
-  case "$model" in
-    gemma)
-      model_file="$MODELS_DIR/gemma-7b-it-Q4_K_M.gguf"
-      ;;
-    code|deepseek|coder)
-      model_file="$MODELS_DIR/deepseek-coder-6.7b-instruct-Q4_K_M.gguf"
-      ;;
-    *)
-      echo "Usage: llm-manager start [gemma|code]"
-      exit 1
-      ;;
-  esac
+  # Create new session
+  log "Starting $model model: $model_file"
   
-  # Check model exists
-  if [ ! -f "$model_file" ]; then
-    echo -e "${RED}✗ Model not found: $model_file${NC}"
-    echo "  Download: llm-manager download"
-    exit 1
-  fi
-  
-  log_msg "INFO" "Starting $model model..."
-  log_msg "INFO" "Model: $model_file"
-  
-  # Create new tmux session with logging
-  tmux new-session -d -s "$TMUX_SESSION" -c "$MODELS_DIR" \
-    "llama-server \
-      -m '$model_file' \
-      -ngl 32 \
-      --port 8000 \
-      -c 4096 \
-      -t 8 \
-      2>&1 | tee -a '${LOGS_DIR}/llm.log'"
+  tmux new-session -d -s "$TMUX_SESSION" \
+    "llama-server -m '$model_path' -n 256 -ngl 32 -t 8 --host 127.0.0.1 --port 8000 2>&1 | tee -a '$LOG_DIR/llm.log'"
   
   sleep 2
   
-  # Verify it started
-  if curl -s http://127.0.0.1:8000/v1/models >/dev/null 2>&1; then
-    log_msg "INFO" "✓ Server started successfully"
-    notify_send "LLM Server" "✓ $model started on port 8000"
-    echo -e "${GREEN}✓ Server running!${NC}"
-    echo "  View logs: llm-manager logs"
-    echo "  Test it: curl -X POST http://localhost:8000/v1/completions ..."
+  if is_running; then
+    log "✓ Server started successfully (PID: $(get_server_pid))"
+    echo "{\"status\":\"running\",\"model\":\"$model_file\",\"pid\":$(get_server_pid)}" > "$STATE_DIR/llm-status.json"
   else
-    log_msg "ERROR" "Server failed to start"
-    notify_send "LLM Server" "❌ Failed to start server"
-    echo -e "${RED}✗ Server failed to start${NC}"
-    echo "  Check logs: llm-manager logs"
-    exit 1
+    error "Failed to start server"
+    return 1
   fi
 }
 
+# Command: stop
 cmd_stop() {
-  if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
-    log_msg "INFO" "Stopping LLM server..."
+  if is_running; then
+    log "Stopping LLM server..."
     tmux kill-session -t "$TMUX_SESSION"
-    log_msg "INFO" "✓ Server stopped"
-    notify_send "LLM Server" "Stopped"
-    echo -e "${GREEN}✓ Server stopped${NC}"
+    log "✓ Server stopped"
+    echo '{"status":"stopped"}' > "$STATE_DIR/llm-status.json"
   else
-    echo "No running session"
+    warn "Server is not running"
   fi
 }
 
+# Command: status
+cmd_status() {
+  if is_running; then
+    local pid
+    pid=$(get_server_pid)
+    local model
+    model=$(get_running_model)
+    
+    info "Server Status: RUNNING"
+    echo "  PID: $pid"
+    echo "  Model: $model"
+    echo "  Port: 8000"
+    echo "  Logs: $LOG_DIR/llm.log"
+    
+    # Test connectivity
+    if curl -s http://127.0.0.1:8000/health >/dev/null 2>&1; then
+      echo "  Health: ✓ Responsive"
+    else
+      echo "  Health: ⚠ Not responding"
+    fi
+  else
+    warn "Server Status: STOPPED"
+    echo "  Start with: llm-manager start"
+  fi
+}
+
+# Command: logs
 cmd_logs() {
-  if [ ! -f "${LOGS_DIR}/llm.log" ]; then
-    echo "No logs yet"
-    exit 0
+  if [ -f "$LOG_DIR/llm.log" ]; then
+    tail -f "$LOG_DIR/llm.log"
+  else
+    warn "No logs yet"
   fi
-  
-  echo "=== LLM Server Logs ==="
-  echo "(Press Ctrl+C to exit)"
-  echo
-  tail -f "${LOGS_DIR}/llm.log"
 }
 
-cmd_download() {
-  echo "╔════════════════════════════════════════════════════════════╗"
-  echo "║            Downloading LLM Models                          ║"
-  echo "╚════════════════════════════════════════════════════════════╝"
-  echo
-  
-  mkdir -p "$MODELS_DIR"
-  cd "$MODELS_DIR"
-  
-  # Gemma
-  if [ ! -f gemma-7b-it-Q4_K_M.gguf ]; then
-    echo "Downloading Gemma 7B (~4.5 GB)..."
-    wget -q --show-progress \
-      "https://huggingface.co/TheBloke/Gemma-7B-Instruct-GGUF/resolve/main/gemma-7b-it-Q4_K_M.gguf" \
-      || { log_msg "ERROR" "Gemma download failed"; exit 1; }
-    log_msg "INFO" "✓ Gemma downloaded"
-  else
-    echo "✓ Gemma already exists"
-  fi
-  
-  # DeepSeek-Coder
-  if [ ! -f deepseek-coder-6.7b-instruct-Q4_K_M.gguf ]; then
-    echo "Downloading DeepSeek-Coder 6.7B (~4.0 GB)..."
-    wget -q --show-progress \
-      "https://huggingface.co/TheBloke/deepseek-coder-6.7B-instruct-GGUF/resolve/main/deepseek-coder-6.7b-instruct-Q4_K_M.gguf" \
-      || { log_msg "ERROR" "DeepSeek download failed"; exit 1; }
-    log_msg "INFO" "✓ DeepSeek-Coder downloaded"
-  else
-    echo "✓ DeepSeek-Coder already exists"
-  fi
-  
-  echo
-  echo -e "${GREEN}✓ All models ready!${NC}"
-}
-
+# Command: attach
 cmd_attach() {
-  if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+  if is_running; then
     tmux attach-session -t "$TMUX_SESSION"
   else
-    echo "No running session. Start with: llm-manager start"
+    error "Server is not running"
+    return 1
   fi
 }
 
+# Command: test
 cmd_test() {
-  echo "Testing LLM server..."
-  
-  if ! curl -s http://127.0.0.1:8000/v1/models >/dev/null 2>&1; then
-    echo -e "${RED}✗ Server not responding${NC}"
-    exit 1
+  if ! is_running; then
+    error "Server is not running. Start with: llm-manager start"
+    return 1
   fi
   
-  echo -e "${GREEN}✓ Server responding${NC}"
+  info "Testing server..."
   
-  echo "Sending test prompt..."
-  response=$(curl -s -X POST http://127.0.0.1:8000/v1/completions \
+  local response
+  response=$(curl -s http://127.0.0.1:8000/v1/completions \
     -H "Content-Type: application/json" \
-    -d '{"prompt":"Hello world in Python:","max_tokens":50}')
+    -d '{
+      "model": "gpt-3.5-turbo",
+      "prompt": "Hello, how are you?",
+      "max_tokens": 10
+    }' 2>/dev/null || echo "")
   
-  if echo "$response" | jq . >/dev/null 2>&1; then
-    echo -e "${GREEN}✓ Response received:${NC}"
-    echo "$response" | jq '.choices[0].text' 2>/dev/null || echo "$response"
+  if [ -n "$response" ]; then
+    echo "✓ Server is responding"
+    echo "$response" | head -c 200
   else
-    echo -e "${RED}✗ Invalid response${NC}"
+    error "Server not responding on port 8000"
   fi
 }
 
-# ── MAIN ───────────────────────────────────────────────────────────
+# Command: list
+cmd_list() {
+  info "Available models:"
+  for model in "${!MODELS[@]}"; do
+    local file="${MODELS[$model]}"
+    if [ -f "$MODEL_DIR/$file" ]; then
+      local size
+      size=$(du -h "$MODEL_DIR/$file" | cut -f1)
+      echo "  ✓ $model ($file, $size)"
+    else
+      echo "  ✗ $model ($file - missing)"
+    fi
+  done
+  
+  echo ""
+  info "All files in $MODEL_DIR:"
+  if [ -d "$MODEL_DIR" ]; then
+    ls -lh "$MODEL_DIR" | tail -n +2 | awk '{print "  " $9 " (" $5 ")"}'
+  else
+    echo "  (Directory empty)"
+  fi
+}
 
-cmd="${1:-help}"
-
-case "$cmd" in
-  start)   cmd_start "${2:-gemma}" ;;
-  stop)    cmd_stop ;;
-  status)  cmd_status ;;
-  logs)    cmd_logs ;;
-  download) cmd_download ;;
-  attach)  cmd_attach ;;
-  test)    cmd_test ;;
-  *)
-    cat << 'HELP'
+# Command: help
+cmd_help() {
+  cat << 'EOF'
 LLM Manager - Control local LLM server with tmux
 
 USAGE:
   llm-manager <command> [args]
 
 COMMANDS:
-  start [gemma|code]  - Start LLM server with model (default: gemma)
-  stop                - Stop running server
-  status              - Show server status
-  logs                - Tail server logs
-  download            - Download models
-  attach              - Attach to tmux session
-  test                - Test server response
+  start [model]   - Start LLM server with model (default: llama)
+  stop            - Stop running server
+  status          - Show server status
+  logs            - Tail server logs
+  list            - List available models
+  attach          - Attach to tmux session
+  test            - Test server response
+  help            - Show this help
+
+MODELS:
+  llama           - Meta-Llama-3 8B (general tasks, Q4 quant)
+  mistral         - Mistral 7B (if downloaded)
 
 EXAMPLES:
-  llm-manager download           # Download models first
-  llm-manager start gemma        # Start with Gemma
+  llm-manager start              # Start with default model
+  llm-manager start llama        # Start Llama 3
   llm-manager status             # Check status
   llm-manager logs               # View logs
-  llm-manager test               # Test it works
+  llm-manager test               # Test server
 
-HELP
-    ;;
-esac
+PORTS:
+  8000            - OpenAI-compatible API (http://127.0.0.1:8000)
+  
+ENVIRONMENT:
+  Models dir: $MODEL_DIR
+  Logs dir: $LOG_DIR
+  State dir: $STATE_DIR
+EOF
+}
+
+# Main dispatcher
+main() {
+  local cmd="${1:-help}"
+  shift || true
+  
+  case "$cmd" in
+    start)  cmd_start "$@" ;;
+    stop)   cmd_stop "$@" ;;
+    status) cmd_status "$@" ;;
+    logs)   cmd_logs "$@" ;;
+    list)   cmd_list "$@" ;;
+    attach) cmd_attach "$@" ;;
+    test)   cmd_test "$@" ;;
+    help)   cmd_help ;;
+    *)
+      error "Unknown command: $cmd"
+      echo ""
+      cmd_help
+      return 1
+      ;;
+  esac
+}
+
+main "$@"
