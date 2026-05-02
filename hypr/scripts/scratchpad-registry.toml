@@ -5,38 +5,43 @@
 name = "Terminal"
 description = "Tmux terminal scratchpad"
 type = "specialworkspace"
-workspace_name = "scratch_tmux"
+workspace_name = "scratch_spatial"
+spatial_workspace = "scratch_spatial"
+launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh toggle terminal"
 enabled = true
 
 [scratchpads.notes]
 name = "Notes"
 description = "Quick notes scratchpad"
 type = "window_class"
-window_class = "noxflow-scratchpad-notes"
-launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-notes.sh"
-workspace_name = "scratch_notes"
+window_class = "noxflow-scratch-notes"
+launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh launch notes"
+workspace_name = "scratch_spatial"
 enabled = true
 
 [scratchpads.logs]
 name = "Logs"
-description = "System logs viewer"
-type = "workspace"
-workspace_id = 9
+description = "Bottom spatial log console"
+type = "window_class"
+window_class = "noxflow-scratch-logs"
+launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh launch logs"
+workspace_name = "scratch_spatial"
 enabled = true
 
 [scratchpads.ai]
 name = "AI Scratch"
 description = "AI chat and coding scratch"
 type = "window_class"
-window_class = "noxflow-ai"
-launch_cmd = "kitty --class noxflow-ai --title 'AI scratch'"
-workspace_name = "scratch_ai"
+window_class = "noxflow-scratch-ai"
+launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh launch ai"
+workspace_name = "scratch_spatial"
 enabled = true
 
 [scratchpads.db]
 name = "Database"
-description = "Database client (lazydocker)"
-type = "command"
-launch_cmd = "kitty --class noxflow-tool-large --title 'lazydocker' -- lazydocker"
-requires_cmd = "lazydocker"
+description = "Floating database client"
+type = "window_class"
+window_class = "noxflow-scratch-db"
+launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh launch db"
+workspace_name = "scratch_spatial"
 enabled = true

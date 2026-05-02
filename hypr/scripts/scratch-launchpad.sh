@@ -42,17 +42,20 @@ float_small() {
 
 entries() {
   printf '%s\0info\x1f%s\n' \
-    "  lazygit            Visual git client"          "lazygit"    \
-    "󰍛  btop               System monitor"             "btop"       \
-    "  yazi               File manager"               "yazi"       \
-    "  git log            Browse commits (fzf)"       "gitlog"     \
-    "󰆩  qalc               Calculator"                "qalc"       \
-    "  Clipboard          Browse & paste history"     "clipboard"  \
-    "  System logs        journalctl (live)"          "logs"       \
-    "󰻠  fastfetch          System information"         "fastfetch"  \
-    "  Python REPL        Interactive Python shell"   "python"     \
-    "  JSON viewer        Explore JSON (python)"      "json"       \
-    "󰌌  Hash / encode      md5, sha256, base64"        "hash"
+    "󰌠  terminal scratchpad  Drop-down dev terminal"   "scratch-terminal" \
+    "󰏚  ai scratchpad        Project AI workspace"     "scratch-ai" \
+    "󰍹  notes scratchpad     Notes and clipboard"      "scratch-notes" \
+    "󰇬  db scratchpad        SQL console"              "scratch-db" \
+    "󰠩  browser devtools     Chrome/Chromium devtools" "scratch-browser" \
+    "󰍛  btop                System monitor"           "btop"       \
+    "󰚩  lazygit             Visual git client"        "lazygit"    \
+    "󰆩  qalc                Calculator"               "qalc"       \
+    "  Clipboard           Browse & paste history"    "clipboard"  \
+    "  System logs         journalctl (live)"         "logs"       \
+    "󰻠  fastfetch           System information"        "fastfetch"  \
+    "  Python REPL         Interactive Python shell"  "python"     \
+    "  JSON viewer         Explore JSON (python)"     "json"       \
+    "󰌌  Hash / encode       md5, sha256, base64"       "hash"
 }
 
 # ── Rofi ─────────────────────────────────────────────────────────────────────
@@ -68,11 +71,22 @@ action="$(entries | rofi \
 
 # Map index → action key
 mapfile -t keys < <(printf '%s\n' \
-  lazygit btop yazi gitlog qalc clipboard logs fastfetch python json hash)
+  scratch-terminal scratch-ai scratch-notes scratch-db scratch-browser btop lazygit qalc clipboard logs fastfetch python json hash)
 
 key="${keys[$action]:-}"
 
 # ── Dispatch ─────────────────────────────────────────────────────────────────
+
+focused_cwd() {
+  local pid
+  pid="$(hyprctl -j activewindow 2>/dev/null | python3 -c \
+    "import json,sys; d=json.load(sys.stdin); print(d.get('pid',''))" 2>/dev/null || true)"
+  if [ -n "$pid" ]; then
+    readlink "/proc/${pid}/cwd" 2>/dev/null || echo "$HOME"
+  else
+    echo "$HOME"
+  fi
+}
 
 cwd="$(focused_cwd)"
 
@@ -80,6 +94,26 @@ case "$key" in
   lazygit)
     root="$(git_root "$cwd")"
     float_large "lazygit" lazygit -p "$root"
+    ;;
+
+  scratch-terminal)
+    "$HOME/.config/hypr/scripts/scratchpad-manager.sh" terminal
+    ;;
+
+  scratch-ai)
+    "$HOME/.config/hypr/scripts/scratchpad-manager.sh" ai
+    ;;
+
+  scratch-notes)
+    "$HOME/.config/hypr/scripts/scratchpad-manager.sh" notes
+    ;;
+
+  scratch-db)
+    "$HOME/.config/hypr/scripts/scratchpad-manager.sh" db
+    ;;
+
+  scratch-browser)
+    "$HOME/.config/hypr/scripts/scratchpad-manager.sh" browser-devtools
     ;;
 
   btop)

@@ -713,37 +713,14 @@ _scratch_is_visible() {
 
 _scratch_toggle() {
   local target="$1"
-  [ -n "${HYPRCTL_BIN}" ] || return 1
-  local was_visible
-  was_visible="$(_scratch_is_visible "$target")"
+  local manager="${HOME}/.config/hypr/scripts/scratchpad-manager.sh"
+  [ -x "$manager" ] || { notify "Scratchpad manager missing" "$manager"; return 1; }
   case "$target" in
-    terminal)
-      "${HYPRCTL_BIN}" dispatch togglespecialworkspace scratch_tmux
-      _scratch_set_visible terminal "$([ "$was_visible" = "true" ] && echo "false" || echo "true")" ;;
-    notes)
-      if "${HYPRCTL_BIN}" clients -j 2>/dev/null | jq -e '.[]|select(.class=="noxflow-scratchpad-notes")' >/dev/null 2>&1; then
-        "${HYPRCTL_BIN}" dispatch togglespecialworkspace scratch_notes
-        _scratch_set_visible notes "$([ "$was_visible" = "true" ] && echo "false" || echo "true")"
-      else
-        "${HOME}/.config/hypr/scripts/scratchpad-notes.sh" >/dev/null 2>&1 &
-        _scratch_set_visible notes true
-      fi ;;
-    logs)
-      "${HYPRCTL_BIN}" dispatch workspace 9
-      _scratch_set_visible logs true ;;
-    ai)
-      if "${HYPRCTL_BIN}" clients -j 2>/dev/null | jq -e '.[]|select(.class=="noxflow-ai")' >/dev/null 2>&1; then
-        "${HYPRCTL_BIN}" dispatch togglespecialworkspace scratch_ai
-        _scratch_set_visible ai "$([ "$was_visible" = "true" ] && echo "false" || echo "true")"
-      else
-        kitty --class noxflow-ai --title "AI scratch" >/dev/null 2>&1 &
-        _scratch_set_visible ai true
-      fi ;;
-    db)
-      if command -v lazydocker >/dev/null 2>&1; then
-        kitty --class noxflow-tool-large --title "lazydocker" -- lazydocker >/dev/null 2>&1 &
-        _scratch_set_visible db true
-      else notify "lazydocker not found" "Install: yay -S lazydocker"; fi ;;
+    terminal) "$manager" toggle terminal; _scratch_set_visible terminal true ;;
+    notes) "$manager" launch notes; _scratch_set_visible notes true ;;
+    logs) "$manager" launch logs; _scratch_set_visible logs true ;;
+    ai) "$manager" launch ai; _scratch_set_visible ai true ;;
+    db) "$manager" launch db; _scratch_set_visible db true ;;
     *) notify "Unknown scratchpad" "$target"; exit 1 ;;
   esac
 }

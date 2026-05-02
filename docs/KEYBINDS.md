@@ -32,19 +32,21 @@ flowchart LR
 | `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `workspace-overview-toggle.sh` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
+| `Super + \`` | Toggle spatial scratch scene | `scratchpad-manager.sh toggle scene` |
 | `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
 | `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
 | `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
-| `Super + S` | Named scratchpad palette | `scratchpad-manager.sh menu` |
-| `Super + Shift + S` | Terminal scratchpad | `scratchpad-manager.sh terminal` |
-| `Super + Ctrl + S` | Logs scratchpad | `scratchpad-manager.sh logs` |
-| `Super + Alt + S` | AI scratchpad | `scratchpad-manager.sh ai` |
+| `Super + S` | Spatial scratchpad dashboard | `scratchpad-manager.sh menu` |
+| `Super + Ctrl + S` | Logs scratchpad | `scratchpad-manager.sh launch logs` |
+| `Super + Alt + S` | AI scratchpad | `scratchpad-manager.sh launch ai` |
+| `Super + Ctrl + Alt + S` | Database scratchpad | `scratchpad-manager.sh launch db` |
+| `Super + Alt + O` | Obsidian scratchpad/focus | `scratchpad-manager.sh launch obsidian` |
 | `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |
 | `Super + Alt + N` | Toggle DND | `notif-dnd-toggle.sh` |
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |
 | `Super + Shift + N` | Open notes folder | `open-notes.sh` |
 | `Super + Alt + E` | Open notes folder | `open-notes.sh` |
-| `Super + D` | Quick actions menu (duplicate launcher utility key) | `quick-actions.sh` |
+| `Super + D` | Desktop command palette | `desktop-palette.sh` |
 | `Super + ,` | Open Settings Hub | `settings-hub.sh` |
 | `Super + Shift + ,` | Re-apply last selected settings section | `settings-hub.sh last` |
 | `Super + Ctrl + ,` | Quick settings toggle (notification sounds) | `settings-hub.sh quick` |
