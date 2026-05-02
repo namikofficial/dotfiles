@@ -223,6 +223,19 @@ if [ -n "$wlpaste_bin" ] && [ -n "$cliphist_bin" ]; then
   "$wlpaste_bin" --type image --watch "$cliphist_bin" store >/dev/null 2>&1 &
 fi
 
+# Start kage project watch daemon
+(
+  sleep 2
+  _kage_watch_pid_file="${HOME}/.cache/kage/project-watch.pid"
+  if [ -f "$_kage_watch_pid_file" ]; then
+    _kage_wpid="$(cat "$_kage_watch_pid_file" 2>/dev/null || true)"
+    [ -n "$_kage_wpid" ] && kill -0 "$_kage_wpid" 2>/dev/null && true || \
+      "$HOME/.config/hypr/scripts/kage" project watch >/dev/null 2>&1 &
+  else
+    "$HOME/.config/hypr/scripts/kage" project watch >/dev/null 2>&1 &
+  fi
+) &
+
 # Set default wallpaper + sync theme after daemon boot.
 if [ -x "$HOME/.config/hypr/scripts/set-wallpaper.sh" ]; then
   (

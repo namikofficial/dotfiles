@@ -48,6 +48,7 @@ left = [
   { name = "workspaces", modules = ["hyprland-workspaces"] },
   { name = "layout", modules = ["custom-layout"] },
   { name = "sys", modules = ["custom-updates"] },
+  { name = "project", modules = ["custom-project"] },
   { name = "window", modules = ["window-title"] },
 ]
 center = [
@@ -217,6 +218,21 @@ button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"
 left-click = "/home/namik/.config/hypr/scripts/quick-actions.sh"
+
+[[modules.custom]]
+id = "project"
+command = "/home/namik/.config/hypr/scripts/kage project current --wayle"
+mode = "poll"
+interval-ms = 5000
+format = "{{ text }}"
+icon-show = false
+label-show = true
+label-max-length = 40
+button-bg-color = "transparent"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "/home/namik/.config/hypr/scripts/kage-project-rofi.sh"
+on-action = "/home/namik/.config/hypr/scripts/kage project refresh"
 
 [modules.battery]
 left-click = "dropdown:battery"
