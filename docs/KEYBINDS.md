@@ -20,12 +20,12 @@ flowchart LR
 |---|---|---|
 | `Super + Return` | Open terminal | `kitty` |
 | `Super + E` | Open file manager | `dolphin` |
-| `Super + Space` | Ultra-fast app launcher (press again to close) | `launcher.sh --fast` |
-| `Super + Shift + Space` | Window/workspace search | `workspace-overview.sh` |
-| `Super + Ctrl + Space` | Command palette (quick actions) | `quick-actions.sh` |
+| `Super + Space` | Desktop command palette | `desktop-palette.sh` |
+| `Super + Shift + Space` | Fast app launcher | `launcher.sh --fast` |
+| `Super + Ctrl + Space` | Window/workspace search | `workspace-overview.sh` |
 | `Super + .` | Fullscreen dev cheatsheet overlay (searchable tabs) | `dev-cheatsheet.sh` |
 | `Super + F1` | Keybind cheat sheet overlay | `hypr-binds.sh` |
-| `Super + A` or `Super + /` | Quick actions (press again to close) | `quick-actions.sh` |
+| `Super + A` or `Super + /` | Desktop command palette | `desktop-palette.sh` |
 | `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + Y` | Workspace hub (primary path) | `workspace-overview-toggle.sh` |
 | `Super + W` | Workspace overview (direct Rofi path) | `workspace-overview.sh` |
@@ -35,6 +35,10 @@ flowchart LR
 | `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
 | `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
 | `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
+| `Super + S` | Named scratchpad palette | `scratchpad-manager.sh menu` |
+| `Super + Shift + S` | Terminal scratchpad | `scratchpad-manager.sh terminal` |
+| `Super + Ctrl + S` | Logs scratchpad | `scratchpad-manager.sh logs` |
+| `Super + Alt + S` | AI scratchpad | `scratchpad-manager.sh ai` |
 | `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |
 | `Super + Alt + N` | Toggle DND | `notif-dnd-toggle.sh` |
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |

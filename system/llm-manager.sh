@@ -90,14 +90,25 @@ cmd_start() {
   
   tmux new-session -d -s "$TMUX_SESSION" \
     "llama-server -m '$model_path' -n 256 -ngl 32 -t 8 --host 127.0.0.1 --port 8000 2>&1 | tee -a '$LOG_DIR/llm.log'"
-  
+
   sleep 2
-  
+
+  if ! tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+    error "Server process exited immediately"
+    warn "Check logs: $LOG_DIR/llm.log"
+    return 1
+  fi
+
+  if ! pgrep -af "llama-server.*${model_file}" >/dev/null 2>&1; then
+    warn "tmux session exists but llama-server is not visible yet"
+  fi
+
   if is_running; then
     log "✓ Server started successfully (PID: $(get_server_pid))"
     echo "{\"status\":\"running\",\"model\":\"$model_file\",\"pid\":$(get_server_pid)}" > "$STATE_DIR/llm-status.json"
   else
     error "Failed to start server"
+    warn "Check logs: $LOG_DIR/llm.log"
     return 1
   fi
 }

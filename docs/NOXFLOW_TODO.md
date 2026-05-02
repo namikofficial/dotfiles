@@ -42,6 +42,7 @@ Last updated: 2026-04-29
 
 ## Next
 
+- [ ] Replace the old app-first launcher mental model with a real desktop command palette and named scratchpads
 - [ ] Run package installer to ensure new dependencies are present (`ttf-inter`, `smartmontools`, `nvme-cli`, `code`, `helix`)
 - [ ] Reboot and verify SDDM noxflow theme readability on real login screen
 - [ ] Capture fresh screenshots after blur/glass/animation tune and verify latest top-bar spacing pass
