@@ -655,6 +655,12 @@ if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
   done
 fi
 
+# Source git functions AFTER forgit to override its aliases with our functions
+DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
+if [ -f "$DOTFILES_HOME/zsh/git-functions.zsh" ]; then
+  source "$DOTFILES_HOME/zsh/git-functions.zsh"
+fi
+
 typeset -gi __nox_syntax_highlight_loaded=0
 for plugin in \
   "$HOME/.local/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh" \
@@ -821,6 +827,8 @@ typeset -ga preexec_functions precmd_functions
 
 # Aliases
 DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
+
+# Then source main aliases
 if [ -f "$DOTFILES_HOME/aliases.zsh" ]; then
   source "$DOTFILES_HOME/aliases.zsh"
 fi
