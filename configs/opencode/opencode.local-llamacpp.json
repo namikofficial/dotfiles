@@ -3,19 +3,27 @@
   "provider": {
     "llamacpp": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "llama.cpp (local)",
+      "name": "llama.cpp (local CUDA)",
       "options": {
         "baseURL": "http://127.0.0.1:8080/v1",
         "apiKey": "local"
       },
       "models": {
-        "qwen-coder": {
-          "name": "qwen-coder",
+        "local": {
+          "name": "local",
+          "tools": true
+        },
+        "llama-3-8b": {
+          "name": "llama-3-8b",
+          "tools": true
+        },
+        "gemma-2-2b": {
+          "name": "gemma-2-2b",
           "tools": true
         }
       }
     }
   },
-  "model": "llamacpp/qwen-coder",
-  "small_model": "llamacpp/qwen-coder"
+  "model": "llamacpp/llama-3-8b",
+  "small_model": "llamacpp/gemma-2-2b"
 }

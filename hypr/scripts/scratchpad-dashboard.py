@@ -52,6 +52,21 @@ ICON_MAP = {
     "browser": "󰓂",
 }
 
+PRIMARY_LAYOUT = [
+    ("scene", 0, 0, 2, 1),
+    ("ai", 2, 0, 1, 1),
+    ("logs", 3, 0, 1, 1),
+]
+
+SECONDARY_LAYOUT = [
+    ("terminal", 0, 0, 2, 1),
+    ("browser-devtools", 2, 0, 1, 1),
+    ("db", 3, 0, 1, 1),
+    ("notes", 0, 1, 1, 1),
+    ("obsidian", 1, 1, 1, 1),
+    ("music", 2, 1, 1, 1),
+]
+
 
 def load_registry():
     import tomllib
@@ -85,7 +100,7 @@ SCRATCHPADS = load_registry()
 SCENE_CARD = {
     "name": "scene",
     "title": "Full Scene",
-    "desc": "Main window, AI, and logs aligned together.",
+    "desc": "Main window, AI, and runner aligned together.",
     "icon": ICON_MAP["scene"],
     "accent": "card-scene",
     "cmd": ["bash", MANAGER, "toggle", "scene"],
@@ -94,6 +109,29 @@ SCENE_CARD = {
 
 def run(cmd):
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def focused_monitor():
+    try:
+        monitors = json.loads(subprocess.check_output(["hyprctl", "-j", "monitors"], text=True))
+    except Exception:
+        return {}
+    return next((monitor for monitor in monitors if monitor.get("focused")), monitors[0] if monitors else {})
+
+
+def dashboard_window_size():
+    monitor = focused_monitor()
+    width = int(monitor.get("width", 1600))
+    height = int(monitor.get("height", 900))
+    reserved = list(monitor.get("reserved", [0, 0, 0, 0]) or [0, 0, 0, 0])
+    reserved += [0] * (4 - len(reserved))
+    left, top, right, bottom = [int(v or 0) for v in reserved[:4]]
+    usable_w = max(900, width - left - right - 72)
+    usable_h = max(560, height - top - bottom - 72)
+    return (
+        min(1180, round(usable_w * 0.74)),
+        min(720, round(usable_h * 0.72)),
+    )
 
 
 def read_state():
@@ -181,10 +219,12 @@ class ScratchDashboard(Gtk.ApplicationWindow):
         super().__init__(application=app)
         self.set_title("Spatial Scratchpad")
         self.set_decorated(False)
-        self.set_default_size(1280, 760)
-        self.set_size_request(860, 560)
+        default_w, default_h = dashboard_window_size()
+        self.set_default_size(default_w, default_h)
+        self.set_size_request(820, 520)
         self.set_opacity(0.0)
         self.set_focusable(True)
+        self.set_resizable(False)
 
         overlay = Gtk.Overlay()
         self.set_child(overlay)
@@ -193,60 +233,65 @@ class ScratchDashboard(Gtk.ApplicationWindow):
         backdrop.add_css_class("scratch-backdrop")
         overlay.set_child(backdrop)
 
-        shell = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
+        shell = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         shell.add_css_class("scratch-shell")
         shell.set_hexpand(True)
         shell.set_vexpand(True)
-        shell.set_margin_top(24)
-        shell.set_margin_bottom(24)
-        shell.set_margin_start(24)
-        shell.set_margin_end(24)
+        shell.set_margin_top(18)
+        shell.set_margin_bottom(18)
+        shell.set_margin_start(18)
+        shell.set_margin_end(18)
         overlay.add_overlay(shell)
 
         header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         title = Gtk.Label(label="Spatial Scratchpad")
         title.add_css_class("scratch-title")
         title.set_xalign(0)
-        subtitle = Gtk.Label(label="Coding surface, side tools, and live output in one transient layer.")
+        subtitle = Gtk.Label(label="Compact launch surface for the current repo, runner, and side tools.")
         subtitle.add_css_class("scratch-subtitle")
         subtitle.set_xalign(0)
         header.append(title)
         header.append(subtitle)
         shell.append(header)
 
-        grid = Gtk.Grid(column_spacing=14, row_spacing=14)
-        grid.set_column_homogeneous(True)
-        grid.set_row_homogeneous(True)
-        grid.set_hexpand(True)
-        grid.set_vexpand(True)
-        shell.append(grid)
-
         state = read_state()
+        pads_by_name = {pad["name"]: pad for pad in SCRATCHPADS}
+
+        hero = Gtk.Grid(column_spacing=10, row_spacing=10)
+        hero.add_css_class("scratch-grid")
+        hero.set_column_homogeneous(True)
+        hero.set_hexpand(True)
+        hero.set_vexpand(True)
+        shell.append(hero)
+
         self.cards = []
 
-        scene = Gtk.Button()
-        scene.add_css_class("scratch-card")
-        scene.add_css_class("scratch-scene")
-        scene.add_css_class(SCENE_CARD["accent"])
-        scene.set_hexpand(True)
-        scene.set_vexpand(True)
-        scene.set_child(self.make_card(SCENE_CARD, state.get("scene", "idle")))
-        scene.connect("clicked", self.on_activate, SCENE_CARD["cmd"])
-        grid.attach(scene, 0, 0, 2, 2)
-        self.cards.append(scene)
+        scene = self.build_card_button(SCENE_CARD, state.get("scene", "idle"), hero=True)
+        hero.attach(scene, 0, 0, 2, 1)
 
-        for pad in SCRATCHPADS:
-            card = Gtk.Button()
-            card.add_css_class("scratch-card")
-            card.add_css_class(pad["accent"])
-            card.set_hexpand(True)
-            card.set_vexpand(True)
-            card.set_child(self.make_card(pad, state.get(pad["name"], "idle")))
-            card.connect("clicked", self.on_activate, pad["cmd"])
-            x, y, w, h = pad["rect"]
-            grid.attach(card, x, y, w, h)
-            self.cards.append(card)
-            pad["button"] = card
+        for name, x, y, w, h in PRIMARY_LAYOUT[1:]:
+            pad = pads_by_name.get(name)
+            if not pad:
+                continue
+            hero.attach(self.build_card_button(pad, state.get(name, "idle"), hero=True), x, y, w, h)
+
+        secondary = Gtk.Grid(column_spacing=10, row_spacing=10)
+        secondary.add_css_class("scratch-grid")
+        secondary.set_column_homogeneous(True)
+        secondary.set_hexpand(True)
+        secondary.set_vexpand(True)
+        shell.append(secondary)
+
+        for name, x, y, w, h in SECONDARY_LAYOUT:
+            pad = pads_by_name.get(name)
+            if not pad:
+                continue
+            secondary.attach(self.build_card_button(pad, state.get(name, "idle")), x, y, w, h)
+
+        footer = Gtk.Label(label="Keys: S scene  A AI  L runner  T shell  B browser  D database  N notes  O Obsidian  M music  Esc close")
+        footer.add_css_class("scratch-footer")
+        footer.set_xalign(0)
+        shell.append(footer)
 
         key = Gtk.EventControllerKey()
         key.connect("key-pressed", self.on_key_pressed)
@@ -254,7 +299,20 @@ class ScratchDashboard(Gtk.ApplicationWindow):
 
         GLib.timeout_add(16, self.fade_in)
 
-    def make_card(self, pad, state):
+    def build_card_button(self, pad, state, hero=False):
+        card = Gtk.Button()
+        card.add_css_class("scratch-card")
+        card.add_css_class(pad["accent"])
+        if hero:
+            card.add_css_class("scratch-card-hero")
+        card.set_hexpand(True)
+        card.set_vexpand(True)
+        card.set_child(self.make_card(pad, state, hero=hero))
+        card.connect("clicked", self.on_activate, pad["cmd"])
+        self.cards.append(card)
+        return card
+
+    def make_card(self, pad, state, hero=False):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         box.set_hexpand(True)
         box.set_vexpand(True)
@@ -267,10 +325,14 @@ class ScratchDashboard(Gtk.ApplicationWindow):
 
         title = Gtk.Label(label=pad["title"])
         title.add_css_class("scratch-card-title")
+        if hero:
+            title.add_css_class("scratch-card-title-hero")
         title.set_xalign(0)
         title.set_wrap(True)
         desc = Gtk.Label(label=pad["desc"])
         desc.add_css_class("scratch-card-desc")
+        if hero:
+            desc.add_css_class("scratch-card-desc-hero")
         desc.set_xalign(0)
         desc.set_wrap(True)
 

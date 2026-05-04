@@ -52,3 +52,20 @@ models:
     aliases:
       - mistral
       - mistral7b
+
+  gemma-2-2b:
+    cmd: >
+      __LLAMA_SERVER__
+      --host 127.0.0.1
+      --port ${PORT}
+      --model __MODEL_ROOT__/gemma-2-2b-instruct-q4_k_m.gguf
+      --ctx-size 2048
+      --n-gpu-layers 99
+      --threads 8
+      --parallel 1
+      --jinja
+    aliases:
+      - gemma
+      - gemma2
+      - gemma-2
+      - gemma-2-2b-instruct-q4_k_m.gguf

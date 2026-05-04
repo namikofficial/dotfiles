@@ -29,6 +29,7 @@ dashboard_pidfile="$state_dir/scratchpad-dashboard.pid"
 scratch_state="$state_dir/scratchpad-state.json"
 scene_state="$state_dir/scratchpad-scene-state.json"
 log_context_file="$state_dir/scratchpad-log-context"
+ai_context_file="$state_dir/scratchpad-ai-context"
 dashboard_log="$state_dir/scratchpad-dashboard.log"
 
 spatial_visible() {
@@ -148,6 +149,60 @@ apply_geometry() {
   hyprctl --batch "dispatch setfloating address:$address; dispatch resizewindowpixel exact $w $h,address:$address; dispatch movewindowpixel exact $x $y,address:$address" >/dev/null 2>&1 || true
 }
 
+apply_exact_geometry() {
+  local address="$1" x="$2" y="$3" w="$4" h="$5"
+  [ -n "$address" ] || return 0
+  hyprctl --batch "dispatch setfloating address:$address; dispatch resizewindowpixel exact $w $h,address:$address; dispatch movewindowpixel exact $x $y,address:$address" >/dev/null 2>&1 || true
+}
+
+scene_layout_px() {
+  python3 - "$(focused_monitor_json)" <<'PY'
+import json, sys
+
+monitor = json.loads(sys.argv[1] or "{}")
+mx = int(monitor.get("x", 0))
+my = int(monitor.get("y", 0))
+mw = int(monitor.get("width", 1600))
+mh = int(monitor.get("height", 900))
+reserved = list(monitor.get("reserved", [0, 0, 0, 0]) or [0, 0, 0, 0])
+reserved += [0] * (4 - len(reserved))
+left, top, right, bottom = [int(v or 0) for v in reserved[:4]]
+
+margin = max(10, round(min(mw, mh) * 0.012))
+gap = max(12, round(min(mw, mh) * 0.014))
+
+ux = mx + left + margin
+uy = my + top + margin
+uw = max(960, mw - left - right - (margin * 2))
+uh = max(540, mh - top - bottom - (margin * 2))
+
+if uw / max(1, uh) >= 1.55:
+    side_w = max(420, min(round(uw * 0.36), uw - 680))
+    main_w = max(540, uw - side_w - gap)
+    top_h = max(300, round((uh - gap) * 0.64))
+    bottom_h = max(220, uh - top_h - gap)
+    layout = {
+        "main": (ux, uy, main_w, uh),
+        "ai": (ux + main_w + gap, uy, side_w, top_h),
+        "logs": (ux + main_w + gap, uy + top_h + gap, side_w, bottom_h),
+    }
+else:
+    top_h = max(360, round((uh - gap) * 0.58))
+    bottom_h = max(240, uh - top_h - gap)
+    left_w = max(420, round((uw - gap) * 0.5))
+    right_w = max(420, uw - left_w - gap)
+    layout = {
+        "main": (ux, uy, uw, top_h),
+        "ai": (ux, uy + top_h + gap, left_w, bottom_h),
+        "logs": (ux + left_w + gap, uy + top_h + gap, right_w, bottom_h),
+    }
+
+for name in ("main", "ai", "logs"):
+    x, y, w, h = layout[name]
+    print(name, x, y, w, h)
+PY
+}
+
 update_state() {
   local name="$1" status="$2"
   python3 - "$scratch_state" "$name" "$status" <<'PY'
@@ -182,7 +237,7 @@ show_dashboard() {
 }
 
 spawn_terminal() {
-  kitty --class noxflow-scratch-terminal --title "Terminal" -e zsh -lic '
+  kitty --class noxflow-scratch-terminal --title "Shell" -e zsh -lic '
     if ! command -v tmux >/dev/null 2>&1; then exec zsh -l; fi
     tmux -L scratch set-option -g default-shell "$SHELL" >/dev/null 2>&1 || true
     exec tmux -L scratch new-session -A -s scratch-terminal "zsh -l"
@@ -245,28 +300,32 @@ spawn_browser_devtools() {
 }
 
 spawn_ai() {
-  kitty --class noxflow-scratch-ai --title "AI" -e zsh -lic '
-    cd "$HOME/Documents/code" 2>/dev/null || cd "$HOME"
-    exec "$HOME/.config/hypr/scripts/local-llm-chat.sh"
-  '
+  local context="${1:-$(context_cwd)}"
+  printf '%s\n' "$context" > "$ai_context_file"
+  kitty --class noxflow-scratch-ai --title "AI" -e env NOXFLOW_AI_CONTEXT="$context" zsh -lic '
+    cd "$NOXFLOW_AI_CONTEXT" 2>/dev/null || cd "$HOME/Documents/code" 2>/dev/null || cd "$HOME"
+    exec "$HOME/.config/hypr/scripts/multi-model-ai.sh"
+  ' >/dev/null 2>&1 &
 }
 
 spawn_logs() {
   local context="${1:-$(context_cwd)}"
   printf '%s\n' "$context" > "$log_context_file"
-  NOXFLOW_LOG_CONTEXT="$context" kitty --class noxflow-scratch-logs --title "Logs" -e zsh -lic '
-    exec "$HOME/.config/hypr/scripts/project-logs.sh" "$NOXFLOW_LOG_CONTEXT"
+  kitty --class noxflow-scratch-logs --title "Project Runner" -e env NOXFLOW_LOG_CONTEXT="$context" zsh -lic '
+    cd "$NOXFLOW_LOG_CONTEXT" 2>/dev/null || cd "$HOME"
+    exec "$HOME/.config/hypr/scripts/empty-terminal.sh"
   ' >/dev/null 2>&1 &
 }
 
 spawn_pad_process() {
   case "$1" in
     terminal) spawn_terminal >/dev/null 2>&1 & ;;
+    terminal-cmd) spawn_logs "${NOXFLOW_LOG_CONTEXT:-$(context_cwd)}" ;;
     music) spawn_music >/dev/null 2>&1 & ;;
     notes) spawn_notes >/dev/null 2>&1 & ;;
     db) spawn_db >/dev/null 2>&1 & ;;
     browser-devtools) spawn_browser_devtools >/dev/null 2>&1 || true ;;
-    ai) spawn_ai >/dev/null 2>&1 & ;;
+    ai) spawn_ai "${NOXFLOW_AI_CONTEXT:-$(context_cwd)}" ;;
     logs) spawn_logs "${NOXFLOW_LOG_CONTEXT:-$(context_cwd)}" ;;
     *) return 1 ;;
   esac
@@ -367,9 +426,13 @@ launch_overlay_pad() {
     return 0
   fi
 
-  if [ "$pad" = "logs" ]; then
+  if [ "$pad" = "logs" ] || [ "$pad" = "ai" ]; then
     context="${NOXFLOW_LOG_CONTEXT:-$(context_cwd)}"
     current_context="$(cat "$log_context_file" 2>/dev/null || true)"
+    if [ "$pad" = "ai" ]; then
+      context="${NOXFLOW_AI_CONTEXT:-$(context_cwd)}"
+      current_context="$(cat "$ai_context_file" 2>/dev/null || true)"
+    fi
     address="$(client_address "$class_name" || true)"
     if [ -n "$address" ] && [ "$current_context" != "$context" ]; then
       forget_client "$address"
@@ -379,6 +442,8 @@ launch_overlay_pad() {
   if ! window_exists "$class_name"; then
     if [ "$pad" = "logs" ]; then
       NOXFLOW_LOG_CONTEXT="$context" spawn_pad_process "$pad"
+    elif [ "$pad" = "ai" ]; then
+      NOXFLOW_AI_CONTEXT="$context" spawn_pad_process "$pad"
     else
       spawn_pad_process "$pad"
     fi
@@ -463,27 +528,46 @@ scene_state_live() {
 }
 
 scene_enter() {
-  local workspace
+  local workspace context current_ai current_logs ai_class logs_class ai_address logs_address
   workspace="$(active_workspace_id)"
+  context="$(context_cwd)"
   scene_save_state "$workspace"
   spatial_visible && toggle_workspace
 
-  window_exists "$(pad_class ai)" || spawn_pad_process ai
-  window_exists "$(pad_class logs)" || spawn_pad_process logs
+  ai_class="$(pad_class ai)"
+  logs_class="$(pad_class logs)"
+  current_ai="$(cat "$ai_context_file" 2>/dev/null || true)"
+  current_logs="$(cat "$log_context_file" 2>/dev/null || true)"
+  ai_address="$(client_address "$ai_class" || true)"
+  logs_address="$(client_address "$logs_class" || true)"
+
+  if [ -n "$ai_address" ] && [ "$current_ai" != "$context" ]; then
+    forget_client "$ai_address"
+  fi
+  if [ -n "$logs_address" ] && [ "$current_logs" != "$context" ]; then
+    forget_client "$logs_address"
+  fi
+
+  window_exists "$ai_class" || NOXFLOW_AI_CONTEXT="$context" spawn_pad_process ai
+  window_exists "$logs_class" || NOXFLOW_LOG_CONTEXT="$context" spawn_pad_process logs
 
   local main ai logs
   main="$(scene_main_address || true)"
-  ai="$(wait_for_client "$(pad_class ai)" || true)"
-  logs="$(wait_for_client "$(pad_class logs)" || true)"
+  ai="$(wait_for_client "$ai_class" || true)"
+  logs="$(wait_for_client "$logs_class" || true)"
 
   [ -n "$ai" ] && hyprctl dispatch movetoworkspacesilent "$workspace,address:$ai" >/dev/null 2>&1 || true
   [ -n "$logs" ] && hyprctl dispatch movetoworkspacesilent "$workspace,address:$logs" >/dev/null 2>&1 || true
   sleep 0.05
 
   [ -n "$main" ] && hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
-  apply_geometry "$main" main scene_geometry
-  apply_geometry "$ai" ai scene_geometry
-  apply_geometry "$logs" logs scene_geometry
+  while read -r name x y w h; do
+    case "$name" in
+      main) apply_exact_geometry "$main" "$x" "$y" "$w" "$h" ;;
+      ai) apply_exact_geometry "$ai" "$x" "$y" "$w" "$h" ;;
+      logs) apply_exact_geometry "$logs" "$x" "$y" "$w" "$h" ;;
+    esac
+  done < <(scene_layout_px)
 
   [ -n "$main" ] && hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
   update_state scene active

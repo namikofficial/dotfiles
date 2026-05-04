@@ -51,6 +51,47 @@ resolve_bins() {
   }
 }
 
+is_valid_gguf_file() {
+  local file="$1"
+  [ -s "$file" ] || return 1
+  [ "$(head -c 4 "$file" 2>/dev/null)" = "GGUF" ]
+}
+
+remove_model_from_rendered_config() {
+  local model="$1" tmp_file
+  tmp_file="${CONFIG_FILE}.tmp"
+  awk -v model="$model" '
+    BEGIN { skip = 0 }
+    /^  [A-Za-z0-9._-]+:$/ {
+      if ($0 == "  " model ":") {
+        skip = 1
+        next
+      }
+      if (skip) {
+        skip = 0
+      }
+    }
+    !skip { print }
+  ' "$CONFIG_FILE" > "$tmp_file"
+  mv "$tmp_file" "$CONFIG_FILE"
+}
+
+prune_unavailable_models() {
+  local model file
+  while IFS='|' read -r model file; do
+    [ -n "$model" ] || continue
+    if ! is_valid_gguf_file "$file"; then
+      echo "skipping model '$model': missing or invalid GGUF file at $file" >&2
+      remove_model_from_rendered_config "$model"
+    fi
+  done <<EOF
+llama-3-8b|$MODEL_ROOT/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf
+llama-3.2-3b|$MODEL_ROOT/llama-3.2-3b-instruct.gguf
+mistral-7b|$MODEL_ROOT/mistral-7b-instruct.gguf
+gemma-2-2b|$MODEL_ROOT/gemma-2-2b-instruct-q4_k_m.gguf
+EOF
+}
+
 render_config() {
   [ -f "$TEMPLATE" ] || { echo "missing template: $TEMPLATE" >&2; exit 1; }
   resolve_bins
@@ -58,6 +99,7 @@ render_config() {
     -e "s#__MODEL_ROOT__#${MODEL_ROOT}#g" \
     -e "s#__LLAMA_SERVER__#${LLAMA_SERVER_BIN}#g" \
     "$TEMPLATE" > "$CONFIG_FILE"
+  prune_unavailable_models
 }
 
 check_cuda_backend() {

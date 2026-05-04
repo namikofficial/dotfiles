@@ -14,8 +14,7 @@ If AUR prompts for sudo during install, allow it and finish the transaction.
 The default model root is `~/llama-models` because this machine already keeps the local GGUF files there.
 
 - `~/llama-models/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf` (primary `local` alias)
-- optional: `~/llama-models/llama-3.2-3b-instruct.gguf`
-- optional: `~/llama-models/mistral-7b-instruct.gguf`
+- `~/llama-models/gemma-2-2b-instruct-q4_k_m.gguf` (secondary fast local model)
 
 Override with `LLAMA_MODEL_ROOT=/path/to/models` if needed.
 
@@ -31,7 +30,8 @@ Endpoint for all tools:
 
 - Base URL: `http://127.0.0.1:8080/v1`
 - API Key: `local`
-- Model: `local` (alias to `qwen-coder`)
+- Model: `local` (alias to `llama-3-8b`)
+- Alternate model: `gemma-2-2b`
 
 ## OpenCode config
 
@@ -42,6 +42,8 @@ Template file:
 Runtime path expected by OpenCode:
 
 - `~/.config/opencode/opencode.json`
+
+The install script links that runtime file back to `configs/opencode/opencode.local-llamacpp.json`.
 
 OpenCode docs used:
 

@@ -15,10 +15,12 @@ yay -S --needed "${AUR_PKGS[@]}"
 
 echo "Linking managers"
 mkdir -p "$HOME/.local/bin"
+mkdir -p "$HOME/.config/opencode"
 ln -sf "$HOME/Documents/code/dotfiles/system/llm-manager.sh" "$HOME/.local/bin/llm-manager"
 ln -sf "$HOME/Documents/code/dotfiles/system/llama-swap-manager.sh" "$HOME/.local/bin/llama-swap-manager"
 ln -sf /usr/bin/llama-server "$HOME/.local/bin/llama-server"
 ln -sf /usr/bin/llama-swap "$HOME/.local/bin/llama-swap"
+ln -sf "$HOME/Documents/code/dotfiles/configs/opencode/opencode.local-llamacpp.json" "$HOME/.config/opencode/opencode.json"
 
 echo "Done. Next:"
 echo "  1) put GGUF files in: $HOME/llama-models"
