@@ -77,7 +77,16 @@ focused_monitor_json() {
 }
 
 active_workspace_id() {
-  hyprctl -j activeworkspace 2>/dev/null | jq -r '.id // 1' 2>/dev/null || printf '1\n'
+  local id
+  id="$(hyprctl -j activeworkspace 2>/dev/null | jq -r '.id // 1' 2>/dev/null || printf '1')"
+  case "$id" in
+    ''|*[!0-9-]*) id=1 ;;
+  esac
+  if [ "$id" -gt 0 ]; then
+    printf '%s\n' "$id"
+    return 0
+  fi
+  focused_monitor_json | jq -r '.activeWorkspace.id // 1' 2>/dev/null || printf '1\n'
 }
 
 geometry_px() {
@@ -95,14 +104,31 @@ else:
 kind = sys.argv[3]
 monitor = json.loads(sys.argv[4] or "{}")
 geom = pad.get(kind, {})
-mw = int(monitor.get("width", 1600))
-mh = int(monitor.get("height", 900))
 mx = int(monitor.get("x", 0))
 my = int(monitor.get("y", 0))
-x = mx + round(mw * int(geom.get("x", 0)) / 100)
-y = my + round(mh * int(geom.get("y", 0)) / 100)
-w = round(mw * int(geom.get("w", 50)) / 100)
-h = round(mh * int(geom.get("h", 50)) / 100)
+mw = int(monitor.get("width", 1600))
+mh = int(monitor.get("height", 900))
+reserved = list(monitor.get("reserved", [0, 0, 0, 0]) or [0, 0, 0, 0])
+reserved += [0] * (4 - len(reserved))
+left, top, right, bottom = [int(v or 0) for v in reserved[:4]]
+layout = registry.get("layout", {})
+margin = int(layout.get("margin", 10))
+usable_x = mx + left + margin
+usable_y = my + top + margin
+usable_w = max(320, mw - left - right - (margin * 2))
+usable_h = max(240, mh - top - bottom - (margin * 2))
+
+def pct(name, default):
+    return int(geom.get(name, default))
+
+min_w = min(int(geom.get("min_w", 320)), usable_w)
+min_h = min(int(geom.get("min_h", 180)), usable_h)
+w = min(usable_w, max(min_w, round(usable_w * pct("w", 50) / 100)))
+h = min(usable_h, max(min_h, round(usable_h * pct("h", 50) / 100)))
+x = usable_x + round(usable_w * pct("x", 0) / 100)
+y = usable_y + round(usable_h * pct("y", 0) / 100)
+x = min(max(usable_x, x), usable_x + usable_w - w)
+y = min(max(usable_y, y), usable_y + usable_h - h)
 print(x, y, w, h)
 PY
 }
@@ -111,7 +137,7 @@ apply_geometry() {
   local address="$1" pad="$2" kind="$3"
   [ -n "$address" ] || return 0
   read -r x y w h < <(geometry_px "$pad" "$kind")
-  hyprctl --batch "dispatch setfloating address:$address; dispatch movewindowpixel exact $x $y,address:$address; dispatch resizewindowpixel exact $w $h,address:$address" >/dev/null 2>&1 || true
+  hyprctl --batch "dispatch setfloating address:$address; dispatch resizewindowpixel exact $w $h,address:$address; dispatch movewindowpixel exact $x $y,address:$address" >/dev/null 2>&1 || true
 }
 
 update_state() {
@@ -137,7 +163,7 @@ show_dashboard() {
   if [ -f "$dashboard_pidfile" ]; then
     pid="$(cat "$dashboard_pidfile" 2>/dev/null || true)"
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-      hyprctl dispatch focuswindow "title:Spatial Scratchpad" >/dev/null 2>&1 || true
+      kill "$pid" >/dev/null 2>&1 || true
       return 0
     fi
     rm -f "$dashboard_pidfile"
@@ -221,26 +247,110 @@ spawn_logs() {
   kitty --class noxflow-scratch-logs --title "Logs" -e zsh -lic 'journalctl -f --no-hostname --no-pager || exec zsh -l'
 }
 
+spawn_pad_process() {
+  case "$1" in
+    terminal) spawn_terminal >/dev/null 2>&1 & ;;
+    music) spawn_music >/dev/null 2>&1 & ;;
+    notes) spawn_notes >/dev/null 2>&1 & ;;
+    db) spawn_db >/dev/null 2>&1 & ;;
+    browser-devtools) spawn_browser_devtools >/dev/null 2>&1 || true ;;
+    ai) spawn_ai >/dev/null 2>&1 & ;;
+    logs) spawn_logs >/dev/null 2>&1 & ;;
+    *) return 1 ;;
+  esac
+}
+
+wait_for_client() {
+  local class_name="$1" address
+  for _ in {1..24}; do
+    address="$(client_address "$class_name" || true)"
+    if [ -n "$address" ]; then
+      printf '%s\n' "$address"
+      return 0
+    fi
+    sleep 0.05
+  done
+  return 1
+}
+
+normal_workspace_window_json() {
+  local workspace="$1"
+  hyprctl -j clients 2>/dev/null | jq -c --argjson workspace "$workspace" '
+    [
+      .[]
+      | select((.workspace.id // 0) == $workspace)
+      | select(((.class // "") | test("^noxflow-scratch"; "i") | not))
+      | select((.title // "") != "Spatial Scratchpad")
+    ]
+    | sort_by(.focusHistoryID // 999999)
+    | .[0] // {}
+  ' 2>/dev/null || printf '{}\n'
+}
+
+launch_overlay_pad() {
+  local pad="$1" class_name address
+  class_name="$(pad_class "$pad")"
+  [ -n "$class_name" ] || return 1
+  window_exists "$class_name" || spawn_pad_process "$pad"
+  address="$(wait_for_client "$class_name" || true)"
+  [ -n "$address" ] || return 0
+  hyprctl dispatch movetoworkspacesilent "special:$(workspace_for),address:$address" >/dev/null 2>&1 || true
+  arrange_overlay
+  show_workspace
+  hyprctl dispatch focuswindow "address:$address" >/dev/null 2>&1 || true
+  update_state "$pad" active
+}
+
+arrange_overlay() {
+  local pad class_name address
+  for pad in terminal notes db ai logs music browser-devtools; do
+    class_name="$(pad_class "$pad")"
+    [ -n "$class_name" ] || continue
+    address="$(client_address "$class_name" || true)"
+    [ -n "$address" ] || continue
+    hyprctl dispatch movetoworkspacesilent "special:$(workspace_for),address:$address" >/dev/null 2>&1 || true
+    apply_geometry "$address" "$pad" overlay_geometry
+  done
+}
+
 scene_save_state() {
-  local active
+  local workspace="$1"
+  local active normal
   active="$(active_window_json)"
-  python3 - "$scene_state" "$active" <<'PY'
+  normal="$(normal_workspace_window_json "$workspace")"
+  python3 - "$scene_state" "$workspace" "$active" "$normal" <<'PY'
 import json, sys
 from pathlib import Path
 path = Path(sys.argv[1])
+workspace = int(sys.argv[2])
 try:
-    active = json.loads(sys.argv[2])
+    active = json.loads(sys.argv[3])
 except Exception:
     active = {}
+try:
+    normal = json.loads(sys.argv[4])
+except Exception:
+    normal = {}
+
+def is_scratch(client):
+    cls = str(client.get("class", ""))
+    title = str(client.get("title", ""))
+    return cls.lower().startswith("noxflow-scratch") or title == "Spatial Scratchpad"
+
+target = active
+if is_scratch(active) or int(active.get("workspace", {}).get("id", 0) or 0) != workspace:
+    target = normal if normal.get("address") else active
+
 state = {
+    "workspace": workspace,
     "main": {
-        "address": active.get("address", ""),
-        "class": active.get("class", ""),
-        "title": active.get("title", ""),
-        "floating": bool(active.get("floating", False)),
-        "fullscreen": int(active.get("fullscreen", 0) or 0),
-        "at": active.get("at", []),
-        "size": active.get("size", []),
+        "address": target.get("address", ""),
+        "class": target.get("class", ""),
+        "title": target.get("title", ""),
+        "floating": bool(target.get("floating", False)),
+        "fullscreen": int(target.get("fullscreen", 0) or 0),
+        "at": target.get("at", []),
+        "size": target.get("size", []),
     }
 }
 path.write_text(json.dumps(state, indent=2))
@@ -252,24 +362,34 @@ scene_main_address() {
   jq -r '.main.address // empty' "$scene_state" 2>/dev/null
 }
 
+scene_state_live() {
+  local main
+  main="$(scene_main_address || true)"
+  [ -n "$main" ] || return 1
+  hyprctl -j clients 2>/dev/null | jq -e --arg address "$main" '
+    any(.[]; (.address // "") == $address)
+  ' >/dev/null 2>&1
+}
+
 scene_enter() {
-  scene_save_state
   local workspace
   workspace="$(active_workspace_id)"
+  scene_save_state "$workspace"
+  spatial_visible && toggle_workspace
 
-  window_exists "$(pad_class ai)" || spawn_ai >/dev/null 2>&1 &
-  window_exists "$(pad_class logs)" || spawn_logs >/dev/null 2>&1 &
-  sleep 0.35
+  window_exists "$(pad_class ai)" || spawn_pad_process ai
+  window_exists "$(pad_class logs)" || spawn_pad_process logs
 
   local main ai logs
   main="$(scene_main_address || true)"
-  ai="$(client_address "$(pad_class ai)" || true)"
-  logs="$(client_address "$(pad_class logs)" || true)"
+  ai="$(wait_for_client "$(pad_class ai)" || true)"
+  logs="$(wait_for_client "$(pad_class logs)" || true)"
 
   [ -n "$ai" ] && hyprctl dispatch movetoworkspacesilent "$workspace,address:$ai" >/dev/null 2>&1 || true
   [ -n "$logs" ] && hyprctl dispatch movetoworkspacesilent "$workspace,address:$logs" >/dev/null 2>&1 || true
   sleep 0.05
 
+  [ -n "$main" ] && hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
   apply_geometry "$main" main scene_geometry
   apply_geometry "$ai" ai scene_geometry
   apply_geometry "$logs" logs scene_geometry
@@ -296,6 +416,7 @@ print(at[0] if len(at) > 0 else 0, at[1] if len(at) > 1 else 0,
       "true" if main.get("floating") else "false")
 PY
 )
+    hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
     hyprctl --batch "dispatch movewindowpixel exact $x $y,address:$main; dispatch resizewindowpixel exact $w $h,address:$main" >/dev/null 2>&1 || true
     [ "$floating" = "false" ] && hyprctl dispatch settiled "address:$main" >/dev/null 2>&1 || true
     hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
@@ -306,14 +427,16 @@ PY
   logs="$(client_address "$(pad_class logs)" || true)"
   [ -n "$ai" ] && hyprctl dispatch movetoworkspacesilent "special:scratch_spatial,address:$ai" >/dev/null 2>&1 || true
   [ -n "$logs" ] && hyprctl dispatch movetoworkspacesilent "special:scratch_spatial,address:$logs" >/dev/null 2>&1 || true
+  arrange_overlay
   rm -f "$scene_state"
   update_state scene idle
 }
 
 scene_toggle() {
-  if [ -s "$scene_state" ]; then
+  if [ -s "$scene_state" ] && scene_state_live; then
     scene_exit
   else
+    rm -f "$scene_state"
     scene_enter
   fi
 }
@@ -321,39 +444,29 @@ scene_toggle() {
 ensure_spawned() {
   case "$1" in
     terminal)
-      window_exists "$(pad_class terminal)" || spawn_terminal >/dev/null 2>&1 &
-      show_workspace
-      update_state terminal active
+      launch_overlay_pad terminal
       ;;
     music)
-      window_exists "$(pad_class music)" || spawn_music >/dev/null 2>&1 &
-      show_workspace
-      update_state music active
+      launch_overlay_pad music
       ;;
     notes)
-      window_exists "$(pad_class notes)" || spawn_notes >/dev/null 2>&1 &
-      show_workspace
-      update_state notes active
+      launch_overlay_pad notes
       ;;
     obsidian)
       spawn_obsidian
       update_state obsidian active
       ;;
     db)
-      window_exists "$(pad_class db)" || spawn_db >/dev/null 2>&1 &
-      show_workspace
-      update_state db active
+      launch_overlay_pad db
       ;;
     browser-devtools)
-      spawn_browser_devtools || true
-      show_workspace
-      update_state browser-devtools active
+      launch_overlay_pad browser-devtools
       ;;
     ai)
-      scene_enter
+      launch_overlay_pad ai
       ;;
     logs)
-      scene_enter
+      launch_overlay_pad logs
       ;;
     scene)
       scene_enter
@@ -376,10 +489,11 @@ case "${1:-menu}" in
     case "${2:-scene}" in
       scene) scene_toggle ;;
       terminal)
-        window_exists "$(pad_class terminal)" || spawn_terminal >/dev/null 2>&1 &
-        sleep 0.15
-        toggle_workspace
-        update_state terminal active
+        if spatial_visible; then
+          toggle_workspace
+        else
+          launch_overlay_pad terminal
+        fi
         ;;
       *) ensure_spawned "${2:-scene}" ;;
     esac

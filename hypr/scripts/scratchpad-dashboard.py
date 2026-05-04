@@ -34,13 +34,14 @@ def runtime_dir():
 
 
 STATE_DIR = runtime_dir()
-STATE_FILE = STATE_DIR / "scratchpad-state.json"
+SCENE_FILE = STATE_DIR / "scratchpad-scene-state.json"
 PID_FILE = STATE_DIR / "scratchpad-dashboard.pid"
 CSS_FILE = Path.home() / ".config/hypr/scripts/scratchpad-dashboard.css"
 REGISTRY_FILE = Path.home() / ".config/hypr/scripts/scratchpad-registry.toml"
 MANAGER = str(Path.home() / ".config/hypr/scripts/scratchpad-manager.sh")
 
 ICON_MAP = {
+    "scene": "󰙀",
     "terminal": "",
     "ai": "󰞷",
     "logs": "󰆍",
@@ -81,6 +82,14 @@ def load_registry():
 
 
 SCRATCHPADS = load_registry()
+SCENE_CARD = {
+    "name": "scene",
+    "title": "Full Scene",
+    "desc": "Main window, AI, and logs aligned together.",
+    "icon": ICON_MAP["scene"],
+    "accent": "card-scene",
+    "cmd": ["bash", MANAGER, "toggle", "scene"],
+}
 
 
 def run(cmd):
@@ -88,10 +97,19 @@ def run(cmd):
 
 
 def read_state():
-    state = {pad["name"]: "idle" for pad in SCRATCHPADS}
+    state = {"scene": "idle", **{pad["name"]: "idle" for pad in SCRATCHPADS}}
     class_map = {pad["name"]: pad["class"] for pad in SCRATCHPADS if pad.get("class")}
+    clients = []
     try:
         clients = json.loads(subprocess.check_output(["hyprctl", "-j", "clients"], text=True))
+        addresses = {client.get("address", "") for client in clients}
+        if SCENE_FILE.exists():
+            try:
+                scene = json.loads(SCENE_FILE.read_text())
+                if scene.get("main", {}).get("address", "") in addresses:
+                    state["scene"] = "active"
+            except Exception:
+                pass
         classes = {client.get("class", "").lower() for client in clients}
         for name, class_name in class_map.items():
             if class_name.lower() in classes:
@@ -110,14 +128,6 @@ def read_state():
                     state[name] = "visible"
     except Exception:
         pass
-    if STATE_FILE.exists():
-        try:
-            cached = json.loads(STATE_FILE.read_text())
-            for name, status in cached.items():
-                if state.get(name) == "idle":
-                    state[name] = status
-        except Exception:
-            pass
     return state
 
 
@@ -171,7 +181,8 @@ class ScratchDashboard(Gtk.ApplicationWindow):
         super().__init__(application=app)
         self.set_title("Spatial Scratchpad")
         self.set_decorated(False)
-        self.set_default_size(1640, 980)
+        self.set_default_size(1280, 760)
+        self.set_size_request(860, 560)
         self.set_opacity(0.0)
         self.set_focusable(True)
 
@@ -184,10 +195,12 @@ class ScratchDashboard(Gtk.ApplicationWindow):
 
         shell = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
         shell.add_css_class("scratch-shell")
-        shell.set_margin_top(32)
-        shell.set_margin_bottom(32)
-        shell.set_margin_start(32)
-        shell.set_margin_end(32)
+        shell.set_hexpand(True)
+        shell.set_vexpand(True)
+        shell.set_margin_top(24)
+        shell.set_margin_bottom(24)
+        shell.set_margin_start(24)
+        shell.set_margin_end(24)
         overlay.add_overlay(shell)
 
         header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -201,23 +214,26 @@ class ScratchDashboard(Gtk.ApplicationWindow):
         header.append(subtitle)
         shell.append(header)
 
-        grid = Gtk.Grid(column_spacing=16, row_spacing=16)
+        grid = Gtk.Grid(column_spacing=14, row_spacing=14)
+        grid.set_column_homogeneous(True)
+        grid.set_row_homogeneous(True)
+        grid.set_hexpand(True)
+        grid.set_vexpand(True)
         shell.append(grid)
 
         state = read_state()
         self.cards = []
 
-        main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        main.add_css_class("workspace-map")
-        main_title = Gtk.Label(label="Main Workspace")
-        main_title.add_css_class("workspace-map-title")
-        main_title.set_xalign(0)
-        main_desc = Gtk.Label(label="Current focused workspace stays underneath this spatial layer.")
-        main_desc.add_css_class("workspace-map-desc")
-        main_desc.set_xalign(0)
-        main.append(main_title)
-        main.append(main_desc)
-        grid.attach(main, 0, 0, 2, 2)
+        scene = Gtk.Button()
+        scene.add_css_class("scratch-card")
+        scene.add_css_class("scratch-scene")
+        scene.add_css_class(SCENE_CARD["accent"])
+        scene.set_hexpand(True)
+        scene.set_vexpand(True)
+        scene.set_child(self.make_card(SCENE_CARD, state.get("scene", "idle")))
+        scene.connect("clicked", self.on_activate, SCENE_CARD["cmd"])
+        grid.attach(scene, 0, 0, 2, 2)
+        self.cards.append(scene)
 
         for pad in SCRATCHPADS:
             card = Gtk.Button()
@@ -232,11 +248,6 @@ class ScratchDashboard(Gtk.ApplicationWindow):
             self.cards.append(card)
             pad["button"] = card
 
-        footer = Gtk.Label(label="Esc closes. Enter activates the focused card.")
-        footer.add_css_class("scratch-footer")
-        footer.set_xalign(0)
-        shell.append(footer)
-
         key = Gtk.EventControllerKey()
         key.connect("key-pressed", self.on_key_pressed)
         self.add_controller(key)
@@ -245,17 +256,23 @@ class ScratchDashboard(Gtk.ApplicationWindow):
 
     def make_card(self, pad, state):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        box.set_hexpand(True)
+        box.set_vexpand(True)
         top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        top.set_hexpand(True)
         icon = Gtk.Label(label=pad["icon"])
         icon.add_css_class("scratch-icon")
         text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        text.set_hexpand(True)
 
         title = Gtk.Label(label=pad["title"])
         title.add_css_class("scratch-card-title")
         title.set_xalign(0)
+        title.set_wrap(True)
         desc = Gtk.Label(label=pad["desc"])
         desc.add_css_class("scratch-card-desc")
         desc.set_xalign(0)
+        desc.set_wrap(True)
 
         text.append(title)
         text.append(desc)
@@ -279,6 +296,8 @@ class ScratchDashboard(Gtk.ApplicationWindow):
             self.close()
             return True
         hotkeys = {
+            Gdk.KEY_s: "scene",
+            Gdk.KEY_S: "scene",
             Gdk.KEY_t: "terminal",
             Gdk.KEY_T: "terminal",
             Gdk.KEY_o: "obsidian",
@@ -297,6 +316,9 @@ class ScratchDashboard(Gtk.ApplicationWindow):
             Gdk.KEY_B: "browser-devtools",
         }
         if keyval in hotkeys:
+            if hotkeys[keyval] == "scene":
+                self.on_activate(None, SCENE_CARD["cmd"])
+                return True
             for pad in SCRATCHPADS:
                 if pad["name"] == hotkeys[keyval]:
                     self.on_activate(None, pad["cmd"])

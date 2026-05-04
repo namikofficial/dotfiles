@@ -1,9 +1,12 @@
 # Scratchpad Registry v2
 # One source of truth for scratchpad names, commands, matchers, and geometry.
 
+[layout]
+margin = 10
+
 [scene.main]
 name = "Main Workspace"
-geometry = { x = 0, y = 0, w = 66, h = 74 }
+geometry = { x = 0, y = 0, w = 64, h = 72, min_w = 760, min_h = 420 }
 restore = true
 
 [scratchpads.terminal]
@@ -15,31 +18,31 @@ mode = "overlay"
 workspace = "scratch_spatial"
 launch = "terminal"
 dashboard = { x = 3, y = 3, w = 1, h = 1, accent = "card-terminal" }
-overlay_geometry = { x = 0, y = 0, w = 66, h = 34 }
+overlay_geometry = { x = 0, y = 0, w = 64, h = 36, min_w = 760, min_h = 300 }
 
 [scratchpads.ai]
 name = "AI"
-description = "Right-side coding chat"
+description = "Coding chat pad"
 icon = "ai"
 class = "noxflow-scratch-ai"
-mode = "scene"
-workspace = "current"
+mode = "overlay"
+workspace = "scratch_spatial"
 launch = "ai"
 dashboard = { x = 2, y = 0, w = 1, h = 2, accent = "card-ai" }
-scene_geometry = { x = 66, y = 0, w = 34, h = 74 }
-overlay_geometry = { x = 66, y = 0, w = 34, h = 74 }
+scene_geometry = { x = 64, y = 0, w = 36, h = 72, min_w = 420, min_h = 420 }
+overlay_geometry = { x = 64, y = 0, w = 36, h = 72, min_w = 420, min_h = 420 }
 
 [scratchpads.logs]
 name = "Logs"
-description = "Bottom console for live output"
+description = "Live output console"
 icon = "logs"
 class = "noxflow-scratch-logs"
-mode = "scene"
-workspace = "current"
+mode = "overlay"
+workspace = "scratch_spatial"
 launch = "logs"
 dashboard = { x = 0, y = 2, w = 3, h = 1, accent = "card-logs" }
-scene_geometry = { x = 0, y = 74, w = 100, h = 26 }
-overlay_geometry = { x = 0, y = 74, w = 100, h = 26 }
+scene_geometry = { x = 0, y = 72, w = 100, h = 28, min_w = 980, min_h = 220 }
+overlay_geometry = { x = 0, y = 72, w = 100, h = 28, min_w = 980, min_h = 220 }
 
 [scratchpads.notes]
 name = "Notes"
@@ -50,7 +53,7 @@ mode = "overlay"
 workspace = "scratch_spatial"
 launch = "notes"
 dashboard = { x = 3, y = 1, w = 1, h = 1, accent = "card-notes" }
-overlay_geometry = { x = 0, y = 0, w = 32, h = 74 }
+overlay_geometry = { x = 0, y = 36, w = 32, h = 36, min_w = 420, min_h = 300 }
 
 [scratchpads.obsidian]
 name = "Obsidian"
@@ -71,7 +74,7 @@ mode = "overlay"
 workspace = "scratch_spatial"
 launch = "db"
 dashboard = { x = 3, y = 2, w = 1, h = 1, accent = "card-db" }
-overlay_geometry = { x = 33, y = 14, w = 34, h = 52 }
+overlay_geometry = { x = 32, y = 36, w = 32, h = 36, min_w = 420, min_h = 300 }
 
 [scratchpads.music]
 name = "Music"
@@ -82,7 +85,7 @@ mode = "overlay"
 workspace = "scratch_spatial"
 launch = "music"
 dashboard = { x = 3, y = 4, w = 1, h = 1, accent = "card-music" }
-overlay_geometry = { x = 0, y = 0, w = 30, h = 74 }
+overlay_geometry = { x = 0, y = 0, w = 30, h = 72, min_w = 380, min_h = 420 }
 
 [scratchpads.browser-devtools]
 name = "Browser DevTools"
@@ -93,4 +96,4 @@ mode = "overlay"
 workspace = "scratch_spatial"
 launch = "browser-devtools"
 dashboard = { x = 0, y = 3, w = 3, h = 2, accent = "card-browser" }
-overlay_geometry = { x = 8, y = 8, w = 42, h = 66 }
+overlay_geometry = { x = 4, y = 4, w = 60, h = 68, min_w = 760, min_h = 520 }

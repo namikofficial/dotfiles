@@ -128,6 +128,8 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Ctrl + 1..0` in launcher/actions: quick-select top 10 rows
 - `Enter` in launcher/actions: open/run selected row
 - opener key again (`Super+Space` / `Super+A`): close launcher/actions
+- ``Super + ` ``: toggle the full spatial scratch scene
+- `Super + S`: scratchpad dashboard for launching one pad or the full scene
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)
 - `Super + ,`: open Settings Hub

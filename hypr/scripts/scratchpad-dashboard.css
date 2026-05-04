@@ -1,32 +1,37 @@
 .scratch-backdrop {
-  background:
-    radial-gradient(circle at 18% 8%, rgba(45, 212, 191, 0.16), transparent 32%),
-    radial-gradient(circle at 82% 18%, rgba(96, 165, 250, 0.14), transparent 28%),
-    rgba(2, 6, 23, 0.78);
+  background: rgba(5, 9, 17, 0.82);
 }
 
 .scratch-shell {
-  background: rgba(9, 14, 25, 0.94);
-  border-radius: 22px;
-  padding: 24px;
-  border: 1px solid rgba(203, 213, 225, 0.18);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  background: rgba(13, 18, 30, 0.96);
+  border-radius: 18px;
+  padding: 22px;
+  border: 1px solid rgba(203, 213, 225, 0.16);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
 }
 
 .scratch-card {
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  background: rgba(255, 255, 255, 0.045);
-  padding: 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.10);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 16px;
 }
 
 .scratch-card:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(226, 232, 240, 0.24);
+}
+
+.scratch-card:focus {
+  border-color: rgba(125, 211, 252, 0.62);
+}
+
+.scratch-scene {
+  padding: 20px;
 }
 
 .scratch-title {
-  font-size: 28px;
+  font-size: 25px;
   font-weight: 700;
   color: #f8fafc;
 }
@@ -37,7 +42,7 @@
 }
 
 .scratch-card-title {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   color: #f8fafc;
 }
@@ -47,7 +52,7 @@
 }
 
 .scratch-state {
-  color: #a5b4fc;
+  color: #93c5fd;
   letter-spacing: 0.08em;
   font-size: 12px;
 }
@@ -56,27 +61,7 @@
   font-size: 24px;
 }
 
-.workspace-map {
-  border-radius: 14px;
-  padding: 20px;
-  background:
-    linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-    rgba(15, 23, 42, 0.58);
-  background-size: 34px 34px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-}
-
-.workspace-map-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #e2e8f0;
-}
-
-.workspace-map-desc {
-  color: #94a3b8;
-}
-
+.card-scene { background: linear-gradient(135deg, rgba(45, 212, 191, 0.16), rgba(59, 130, 246, 0.12), rgba(15,23,42,0.72)); }
 .card-terminal { background: linear-gradient(135deg, rgba(45, 212, 191, 0.20), rgba(15,23,42,0.62)); }
 .card-ai { background: linear-gradient(135deg, rgba(96, 165, 250, 0.22), rgba(15,23,42,0.62)); }
 .card-logs { background: linear-gradient(135deg, rgba(251, 191, 36, 0.20), rgba(15,23,42,0.62)); }
