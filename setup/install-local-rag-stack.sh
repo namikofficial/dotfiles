@@ -108,7 +108,7 @@ printf '  Rerank:  enabled by default on this machine\n'
 printf '\nVerify:\n'
 printf '  rag doctor\n'
 printf '\nIndex this repo:\n'
-printf '  rag index %s\n' "$REPO_DIR"
+printf '  cd %s && rag index\n' "$REPO_DIR"
 printf '\nTry search:\n'
 printf '  rag search "scratchpad manager"\n'
 printf '\nAsk with retrieved context:\n'

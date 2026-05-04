@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: reportMissingImports=false
 from __future__ import annotations
 
 import argparse
@@ -55,8 +56,8 @@ DEFAULT_CONFIG = {
         "symbol_weight": 0.02,
     },
 }
-INDEX_SCHEMA = "rag-v2"
-CHUNKER_NAME = "semantic-lines-v2"
+INDEX_SCHEMA = "rag-v3"
+CHUNKER_NAME = "semantic-lines-v3"
 
 DEFAULT_IGNORE_PATTERNS = [
     "node_modules/",
@@ -96,6 +97,12 @@ CODE_EXTENSIONS = {
     ".jsx": "javascript",
     ".mjs": "javascript",
     ".cjs": "javascript",
+    ".html": "html",
+    ".htm": "html",
+    ".css": "css",
+    ".scss": "css",
+    ".sass": "css",
+    ".less": "css",
     ".go": "go",
     ".rs": "rust",
     ".java": "java",
@@ -119,7 +126,7 @@ CODE_EXTENSIONS = {
 }
 
 MARKDOWN_EXTENSIONS = {".md", ".mdx", ".rst", ".txt"}
-CONFIG_EXTENSIONS = {".json", ".yaml", ".yml", ".toml", ".ini", ".conf", ".env", ".properties"}
+CONFIG_EXTENSIONS = {".json", ".yaml", ".yml", ".toml", ".ini", ".conf", ".env", ".properties", ".xml", ".ui", ".glade"}
 LOG_EXTENSIONS = {".log", ".jsonl"}
 SPECIAL_CODE_FILENAMES = {
     "dockerfile": "dockerfile",
@@ -164,8 +171,17 @@ SHELL_FUNCTION_PATTERN = re.compile(
 )
 SHELL_ALIAS_PATTERN = re.compile(r"^\s*alias\s+([A-Za-z_][A-Za-z0-9_.-]*)=")
 SHELL_EXPORT_PATTERN = re.compile(r"^\s*export\s+([A-Za-z_][A-Za-z0-9_]*)=")
+SHELL_CASE_BRANCH_PATTERN = re.compile(r"^\s*([A-Za-z0-9_.-]+|\*)\)\s*$")
+SHELL_TOOL_PATTERNS = [
+    re.compile(r"^\s*(?:need_cmd|require_cmd|ensure_cmd|has_cmd)\s+['\"]?([A-Za-z0-9_.+-]+)"),
+    re.compile(r"\bcommand -v\s+['\"]?([A-Za-z0-9_.+-]+)"),
+]
 TOML_SECTION_PATTERN = re.compile(r"^\s*\[([^\]]+)\]\s*$")
 YAML_SECTION_PATTERN = re.compile(r"^[A-Za-z0-9_-]+:\s*(?:#.*)?$")
+CSS_SELECTOR_PATTERN = re.compile(r"^\s*([^@/{][^{]+)\{\s*$")
+CSS_AT_RULE_PATTERN = re.compile(r"^\s*(@[A-Za-z0-9_-]+[^{]*)\{\s*$")
+HTML_SECTION_PATTERN = re.compile(r"^\s*<(main|section|article|nav|header|footer|aside|form|dialog|template)\b([^>]*)>")
+XML_OBJECT_PATTERN = re.compile(r"^\s*<(object|template)\b([^>]*)>")
 
 STOPWORDS = {
     "a",
@@ -204,6 +220,13 @@ class Chunk:
     end_line: int
     symbol: str
     kind: str
+
+
+class IndexInterrupted(Exception):
+    def __init__(self, changed_files: int, total_chunks: int):
+        super().__init__("index interrupted")
+        self.changed_files = changed_files
+        self.total_chunks = total_chunks
 
 
 def load_config() -> dict:
@@ -284,6 +307,7 @@ def connect_db() -> sqlite3.Connection:
     RAG_HOME.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout = 5000")
     ensure_db(conn)
     return conn
 
@@ -441,6 +465,75 @@ def extract_symbol(line: str) -> str:
     return ""
 
 
+def attr_value(fragment: str, attr: str) -> str:
+    match = re.search(rf'{attr}="([^"]+)"', fragment)
+    return match.group(1).strip() if match else ""
+
+
+def normalize_hyprland_mods(mods: str) -> str:
+    normalized = []
+    for part in re.split(r"[+ ]+", mods):
+        part = part.strip()
+        if not part:
+            continue
+        normalized.append(part if part.startswith("$") else part.upper())
+    return "+".join(normalized)
+
+
+def hyprland_symbol(stripped: str) -> str:
+    key, _, value = stripped.partition("=")
+    key = key.strip()
+    value = value.strip()
+    if key.startswith("bind"):
+        parts = [part.strip() for part in value.split(",")]
+        if len(parts) >= 3:
+            mods = normalize_hyprland_mods(parts[0])
+            key_name = parts[1].strip().upper()
+            action = parts[2].strip()
+            return f"{key}:{mods}+{key_name}:{action}"
+    if key in {"exec", "exec-once"}:
+        command = value.split()[0] if value else "-"
+        return f"{key}:{command}"
+    if key.startswith("windowrule"):
+        return f"{key}:{value[:80]}"
+    if key == "env":
+        env_key, _, _env_value = value.partition(",")
+        return f"env:{env_key.strip()}"
+    return key
+
+
+def html_symbol(line: str) -> str:
+    match = HTML_SECTION_PATTERN.search(line)
+    if not match:
+        return ""
+    tag = match.group(1)
+    attrs = match.group(2)
+    element_id = attr_value(attrs, "id")
+    class_name = attr_value(attrs, "class").split()[0] if attr_value(attrs, "class") else ""
+    if element_id:
+        return f"{tag}#{element_id}"
+    if class_name:
+        return f"{tag}.{class_name}"
+    return tag
+
+
+def xml_ui_symbol(line: str) -> str:
+    match = XML_OBJECT_PATTERN.search(line)
+    if not match:
+        return ""
+    tag = match.group(1)
+    attrs = match.group(2)
+    class_name = attr_value(attrs, "class")
+    element_id = attr_value(attrs, "id")
+    if class_name and element_id:
+        return f"{tag}:{class_name}#{element_id}"
+    if class_name:
+        return f"{tag}:{class_name}"
+    if element_id:
+        return f"{tag}:#{element_id}"
+    return tag
+
+
 def chunk_by_anchors(lines: list[str], anchors: list[tuple[int, str]], size: int, overlap: int, kind: str) -> list[Chunk]:
     if not anchors:
         return chunk_by_lines(lines, size=size, overlap=overlap, kind=kind)
@@ -529,10 +622,17 @@ def chunk_shell(text: str) -> list[Chunk]:
             anchors.append((index, match.group(1)))
         elif line.strip().startswith("case ") and line.strip().endswith(" in"):
             anchors.append((index, line.strip()))
+        elif match := SHELL_CASE_BRANCH_PATTERN.search(line):
+            anchors.append((index, f"case:{match.group(1)}"))
         elif match := SHELL_ALIAS_PATTERN.search(line):
             anchors.append((index, f"alias {match.group(1)}"))
         elif match := SHELL_EXPORT_PATTERN.search(line):
             anchors.append((index, f"env {match.group(1)}"))
+        else:
+            for pattern in SHELL_TOOL_PATTERNS:
+                if match := pattern.search(line):
+                    anchors.append((index, f"tool:{match.group(1)}"))
+                    break
     return chunk_by_anchors(lines, anchors, size=180, overlap=32, kind="code")
 
 
@@ -564,8 +664,31 @@ def chunk_hyprland(text: str) -> list[Chunk]:
             continue
         keyword = stripped.split("=", 1)[0].strip()
         if any(keyword.startswith(prefix) for prefix in HYPRLAND_KEYWORDS):
-            anchors.append((index, keyword))
+            anchors.append((index, hyprland_symbol(stripped)))
     return chunk_by_anchors(lines, anchors, size=120, overlap=18, kind="config")
+
+
+def chunk_css(text: str) -> list[Chunk]:
+    lines = text.splitlines()
+    anchors: list[tuple[int, str]] = []
+    for index, line in enumerate(lines):
+        if match := CSS_AT_RULE_PATTERN.search(line):
+            anchors.append((index, match.group(1).strip()))
+        elif match := CSS_SELECTOR_PATTERN.search(line):
+            anchors.append((index, match.group(1).strip()))
+    return chunk_by_anchors(lines, anchors, size=180, overlap=24, kind="code")
+
+
+def chunk_html(text: str) -> list[Chunk]:
+    lines = text.splitlines()
+    anchors = [(index, html_symbol(line)) for index, line in enumerate(lines) if html_symbol(line)]
+    return chunk_by_anchors(lines, anchors, size=200, overlap=28, kind="code")
+
+
+def chunk_xml_ui(text: str) -> list[Chunk]:
+    lines = text.splitlines()
+    anchors = [(index, xml_ui_symbol(line)) for index, line in enumerate(lines) if xml_ui_symbol(line)]
+    return chunk_by_anchors(lines, anchors, size=200, overlap=28, kind="config")
 
 
 def chunk_text(path: Path, text: str, kind: str, language: str) -> list[Chunk]:
@@ -574,6 +697,10 @@ def chunk_text(path: Path, text: str, kind: str, language: str) -> list[Chunk]:
     if kind == "code":
         if language == "shell":
             return chunk_shell(text)
+        if language == "css":
+            return chunk_css(text)
+        if language == "html":
+            return chunk_html(text)
         return chunk_code(text)
     if kind == "log":
         return chunk_by_lines(text.splitlines(), size=350, overlap=50, kind="log")
@@ -584,6 +711,8 @@ def chunk_text(path: Path, text: str, kind: str, language: str) -> list[Chunk]:
             return chunk_toml(text)
         if path.suffix.lower() in {".yaml", ".yml"}:
             return chunk_yaml(text)
+        if path.suffix.lower() in {".xml", ".ui", ".glade"}:
+            return chunk_xml_ui(text)
         return chunk_by_lines(text.splitlines(), size=260, overlap=40, kind="config")
     return chunk_by_lines(text.splitlines(), size=200, overlap=30, kind="text")
 
@@ -637,89 +766,94 @@ def index_repo(conn: sqlite3.Connection, client: QdrantClient, config: dict, roo
     changed_files = 0
     total_chunks = 0
 
-    for file_path in iter_text_files(root):
-        rel_path = file_path.relative_to(root).as_posix()
-        content = read_text_file(file_path)
-        if not content or not content.strip():
-            continue
-        file_hash = hash_file(file_path)
-        discovered[rel_path] = file_hash
-        existing_file = existing.get(rel_path)
-        if changed_only and existing_file == {
-            "file_hash": file_hash,
-            "index_schema": INDEX_SCHEMA,
-            "embedding_model": config["embedding_model"],
-            "chunker": CHUNKER_NAME,
-        }:
-            continue
-
-        kind, language = detect_kind(file_path)
-        chunks = chunk_text(file_path, content, kind, language)
-        if not chunks:
-            continue
-
-        remove_file_chunks(conn, client, config, repo, rel_path)
-
-        texts = [chunk.content for chunk in chunks]
-        vectors = list(get_embedder(config).embed(texts))
-        modified_at = file_path.stat().st_mtime
-        points = []
-
-        for index, (chunk, vector) in enumerate(zip(chunks, vectors)):
-            chunk_key = f"{repo}:{rel_path}:{file_hash}:{index}:{chunk.start_line}:{chunk.end_line}"
-            chunk_id = str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_key))
-            payload = {
-                "repo": repo,
-                "path": rel_path,
-                "language": language,
-                "kind": chunk.kind,
-                "symbol": chunk.symbol,
-                "modified_at": modified_at,
-                "chunk_index": index,
-                "start_line": chunk.start_line,
-                "end_line": chunk.end_line,
+    try:
+        for file_path in iter_text_files(root):
+            rel_path = file_path.relative_to(root).as_posix()
+            content = read_text_file(file_path)
+            if not content or not content.strip():
+                continue
+            file_hash = hash_file(file_path)
+            discovered[rel_path] = file_hash
+            existing_file = existing.get(rel_path)
+            if changed_only and existing_file == {
+                "file_hash": file_hash,
                 "index_schema": INDEX_SCHEMA,
                 "embedding_model": config["embedding_model"],
                 "chunker": CHUNKER_NAME,
-            }
-            points.append(models.PointStruct(id=chunk_id, vector=vector.tolist(), payload=payload))
-            conn.execute(
-                """
-                INSERT INTO chunks (
-                    chunk_id, repo, root, path, language, kind, symbol, modified_at,
-                    file_hash, index_schema, embedding_model, chunker, chunk_index,
-                    start_line, end_line, content
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    chunk_id,
-                    repo,
-                    str(root),
-                    rel_path,
-                    language,
-                    chunk.kind,
-                    chunk.symbol,
-                    modified_at,
-                    file_hash,
-                    INDEX_SCHEMA,
-                    config["embedding_model"],
-                    CHUNKER_NAME,
-                    index,
-                    chunk.start_line,
-                    chunk.end_line,
-                    chunk.content,
-                ),
-            )
-            conn.execute(
-                "INSERT INTO chunks_fts (chunk_id, repo, path, symbol, content) VALUES (?, ?, ?, ?, ?)",
-                (chunk_id, repo, rel_path, chunk.symbol, chunk.content),
-            )
+            }:
+                continue
 
-        for batch in batched(points, 64):
-            client.upsert(collection_name=config["qdrant_collection"], points=list(batch), wait=True)
+            kind, language = detect_kind(file_path)
+            chunks = chunk_text(file_path, content, kind, language)
+            if not chunks:
+                continue
 
-        changed_files += 1
-        total_chunks += len(chunks)
+            remove_file_chunks(conn, client, config, repo, rel_path)
+
+            texts = [chunk.content for chunk in chunks]
+            vectors = list(get_embedder(config).embed(texts))
+            modified_at = file_path.stat().st_mtime
+            points = []
+
+            for index, (chunk, vector) in enumerate(zip(chunks, vectors)):
+                chunk_key = f"{repo}:{rel_path}:{file_hash}:{index}:{chunk.start_line}:{chunk.end_line}"
+                chunk_id = str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_key))
+                payload = {
+                    "repo": repo,
+                    "path": rel_path,
+                    "language": language,
+                    "kind": chunk.kind,
+                    "symbol": chunk.symbol,
+                    "modified_at": modified_at,
+                    "chunk_index": index,
+                    "start_line": chunk.start_line,
+                    "end_line": chunk.end_line,
+                    "index_schema": INDEX_SCHEMA,
+                    "embedding_model": config["embedding_model"],
+                    "chunker": CHUNKER_NAME,
+                }
+                points.append(models.PointStruct(id=chunk_id, vector=vector.tolist(), payload=payload))
+                conn.execute(
+                    """
+                    INSERT INTO chunks (
+                        chunk_id, repo, root, path, language, kind, symbol, modified_at,
+                        file_hash, index_schema, embedding_model, chunker, chunk_index,
+                        start_line, end_line, content
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        chunk_id,
+                        repo,
+                        str(root),
+                        rel_path,
+                        language,
+                        chunk.kind,
+                        chunk.symbol,
+                        modified_at,
+                        file_hash,
+                        INDEX_SCHEMA,
+                        config["embedding_model"],
+                        CHUNKER_NAME,
+                        index,
+                        chunk.start_line,
+                        chunk.end_line,
+                        chunk.content,
+                    ),
+                )
+                conn.execute(
+                    "INSERT INTO chunks_fts (chunk_id, repo, path, symbol, content) VALUES (?, ?, ?, ?, ?)",
+                    (chunk_id, repo, rel_path, chunk.symbol, chunk.content),
+                )
+
+            for batch in batched(points, 64):
+                client.upsert(collection_name=config["qdrant_collection"], points=list(batch), wait=True)
+
+            changed_files += 1
+            total_chunks += len(chunks)
+            conn.commit()
+    except KeyboardInterrupt as exc:
+        conn.rollback()
+        raise IndexInterrupted(changed_files, total_chunks) from exc
 
     removed_paths = set(existing) - set(discovered)
     for rel_path in removed_paths:
@@ -749,6 +883,15 @@ def rewrite_queries(query: str) -> list[str]:
         if split_terms:
             rewrites.append(" ".join(dict.fromkeys(split_terms)))
     return [rewrite for rewrite in dict.fromkeys(rewrites) if rewrite]
+
+
+def detect_intent(query: str) -> str:
+    lowered = query.lower()
+    if any(token in lowered for token in ("super", "alt", "ctrl", "shift", "keybind", "shortcut", "xf86")):
+        return "keybind"
+    if any(token in lowered for token in ("command", "cli tool", "binary", "docker", "gh", "opencode", "just")):
+        return "tool"
+    return "general"
 
 
 def qdrant_filter(repo: str | None) -> models.Filter | None:
@@ -829,7 +972,13 @@ def load_chunks(conn: sqlite3.Connection, chunk_ids: Sequence[str]) -> list[sqli
     return [by_id[chunk_id] for chunk_id in chunk_ids if chunk_id in by_id]
 
 
-def rerank_chunks(query: str, rows: Sequence[sqlite3.Row], base_scores: dict[str, float], config: dict) -> list[sqlite3.Row]:
+def rerank_chunks(
+    query: str,
+    rows: Sequence[sqlite3.Row],
+    base_scores: dict[str, float],
+    config: dict,
+    intent: str,
+) -> list[sqlite3.Row]:
     reranker_config = config["reranker"]
     query_terms_set = set(query_terms(query))
     scored = []
@@ -838,14 +987,30 @@ def rerank_chunks(query: str, rows: Sequence[sqlite3.Row], base_scores: dict[str
             query_terms(row["symbol"] or "")
         )
         overlap = len(query_terms_set & content_terms)
+        path_lower = row["path"].lower()
+        symbol = row["symbol"] or ""
         path_bonus = 2 if any(term in row["path"].lower() for term in query_terms_set) else 0
-        symbol_bonus = 2 if row["symbol"] and any(term in row["symbol"].lower() for term in query_terms_set) else 0
+        symbol_bonus = 2 if symbol and any(term in symbol.lower() for term in query_terms_set) else 0
         final_score = (
             base_scores.get(row["chunk_id"], 0.0)
             + (overlap * reranker_config["content_weight"])
             + (path_bonus * reranker_config["path_weight"])
             + (symbol_bonus * reranker_config["symbol_weight"])
         )
+        if intent == "keybind":
+            if row["language"] == "hyprland":
+                final_score += 0.24
+            if row["kind"] == "config":
+                final_score += 0.08
+            if symbol.startswith("bind:") or symbol == "entries":
+                final_score += 0.12
+            if any(token in path_lower for token in ("hyprland.conf", "hyprland.yaml", "keybind", "cheatsheet")):
+                final_score += 0.12
+        elif intent == "tool":
+            if symbol.startswith("tool:"):
+                final_score += 0.2
+            if row["language"] == "shell":
+                final_score += 0.05
         scored.append((final_score, row))
     scored.sort(key=lambda item: item[0], reverse=True)
     return [row for _score, row in scored[: reranker_config["top_k_output"]]]
@@ -876,10 +1041,37 @@ def gather_context(rows: Sequence[sqlite3.Row], budget_tokens: int) -> tuple[str
     return "\n\n".join(chunks), seen_files
 
 
+def print_retrieval_explain(debug: dict, rows: Sequence[sqlite3.Row]) -> None:
+    console.print("[bold]Query rewrites:[/bold]")
+    for rewrite in debug["rewrites"]:
+        console.print(f"- {rewrite}")
+    console.print("\n[bold]Retrieval:[/bold]")
+    console.print(f"semantic hits: {debug['semantic_hits']}")
+    console.print(f"keyword hits: {debug['keyword_hits']}")
+    console.print(f"recent/path hits: {debug['recent_hits']}")
+    console.print(f"merged unique: {debug['merged_unique']}")
+    console.print(f"intent: {debug['intent']}")
+    console.print(
+        "ranking pass: "
+        + (
+            f"{debug['ranking_mode']} enabled"
+            if debug["ranking_enabled"]
+            else f"{debug['ranking_mode']} disabled"
+        )
+    )
+    console.print("\n[bold]Selected:[/bold]")
+    for index, row in enumerate(rows[:10], start=1):
+        console.print(
+            f"{index}. {row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']} "
+            f"symbol={row['symbol'] or '-'} kind={row['kind']} language={row['language']}"
+        )
+
+
 def ask_llm(config: dict, question: str, context: str) -> str:
     system_prompt = (
         "You are a repo-aware local coding assistant. Use the supplied context first, stay concrete, "
-        "and cite file paths with line ranges in your answer when possible."
+        "prefer code and runtime config over prose docs when they disagree, and cite file paths with "
+        "line ranges in your answer when possible."
     )
     payload = json.dumps(
         {
@@ -913,17 +1105,28 @@ def retrieve(
     query: str,
     repo: str | None,
     use_reranker: bool,
-):
+ ) -> tuple[list[sqlite3.Row], dict]:
     rewrites = rewrite_queries(query)
+    intent = detect_intent(query)
     semantic = semantic_hits(client, config, rewrites, repo)
     keyword = keyword_hits(conn, rewrites, repo)
     recent = recent_hits(conn, query, repo)
     scores = reciprocal_rank_fusion(semantic, keyword, recent)
     ranked_ids = [chunk_id for chunk_id, _ in sorted(scores.items(), key=lambda item: item[1], reverse=True)]
     rows = load_chunks(conn, ranked_ids[: config["reranker"]["top_k_input"]])
+    debug = {
+        "rewrites": rewrites,
+        "semantic_hits": len(semantic),
+        "keyword_hits": len(keyword),
+        "recent_hits": len(recent),
+        "merged_unique": len(scores),
+        "ranking_enabled": use_reranker,
+        "ranking_mode": config["reranker"]["mode"],
+        "intent": intent,
+    }
     if use_reranker:
-        return rerank_chunks(query, rows, scores, config)
-    return rows[: config["reranker"]["top_k_output"]]
+        return rerank_chunks(query, rows, scores, config, intent), debug
+    return rows[: config["reranker"]["top_k_output"]], debug
 
 
 def cmd_index(args: argparse.Namespace) -> int:
@@ -931,7 +1134,15 @@ def cmd_index(args: argparse.Namespace) -> int:
     conn = connect_db()
     client = get_qdrant(config)
     root = Path(args.path).expanduser().resolve()
-    changed_files, total_chunks = index_repo(conn, client, config, root, changed_only=args.changed_only)
+    console.print(f"[cyan]Indexing[/cyan] {root} ...")
+    try:
+        changed_files, total_chunks = index_repo(conn, client, config, root, changed_only=args.changed_only)
+    except IndexInterrupted as exc:
+        console.print(
+            f"[yellow]Cancelled.[/yellow] Kept {exc.changed_files} completed files and {exc.total_chunks} chunks. "
+            "Rerun [bold]rag index --changed-only[/bold] to continue from the current directory."
+        )
+        return 130
     console.print(f"[green]Indexed[/green] {changed_files} files and {total_chunks} chunks from {root}")
     return 0
 
@@ -947,7 +1158,17 @@ def cmd_reindex(args: argparse.Namespace) -> int:
     total_files = 0
     total_chunks = 0
     for row in repos:
-        changed_files, chunks = index_repo(conn, client, config, Path(row["root"]), changed_only=True)
+        root = Path(row["root"])
+        console.print(f"[cyan]Reindexing[/cyan] {root} ...")
+        try:
+            changed_files, chunks = index_repo(conn, client, config, root, changed_only=True)
+        except IndexInterrupted as exc:
+            total_files += exc.changed_files
+            total_chunks += exc.total_chunks
+            console.print(
+                f"[yellow]Cancelled.[/yellow] Kept {total_files} completed files and {total_chunks} chunks so far."
+            )
+            return 130
         total_files += changed_files
         total_chunks += chunks
     console.print(f"[green]Reindexed[/green] {total_files} changed files and {total_chunks} chunks")
@@ -1033,7 +1254,10 @@ def cmd_search(args: argparse.Namespace) -> int:
     conn = connect_db()
     client = get_qdrant(config)
     repo = infer_repo_filter(conn, args.repo)
-    rows = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
+    rows, debug = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
+    if args.explain:
+        print_retrieval_explain(debug, rows)
+        console.print()
     table = Table(title="RAG search results")
     table.add_column("#", justify="right")
     table.add_column("file")
@@ -1058,11 +1282,16 @@ def cmd_ask(args: argparse.Namespace) -> int:
     conn = connect_db()
     client = get_qdrant(config)
     repo = infer_repo_filter(conn, args.repo)
-    rows = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
+    rows, debug = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
     if not rows:
         console.print("[yellow]No indexed context matched that query.[/yellow]")
         return 1
     context, files = gather_context(rows, config["retrieval_context_tokens"])
+    if args.show_context:
+        print_retrieval_explain(debug, rows)
+        console.print("\n[bold]Context:[/bold]")
+        console.print(context)
+        console.print()
     answer = ask_llm(config, args.query, context)
     console.print("[bold]Answer:[/bold]")
     console.print(answer or "[red]No answer returned.[/red]")
@@ -1129,7 +1358,12 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     index_parser = subparsers.add_parser("index", help="Index a repo or folder")
-    index_parser.add_argument("path")
+    index_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Repo or folder to index (defaults to the current directory).",
+    )
     index_parser.add_argument(
         "--changed-only",
         action="store_true",
@@ -1140,6 +1374,11 @@ def build_parser() -> argparse.ArgumentParser:
     ask_parser = subparsers.add_parser("ask", help="Ask a question against the local index")
     ask_parser.add_argument("query")
     ask_parser.add_argument("--repo", help="Filter to a repo name")
+    ask_parser.add_argument(
+        "--show-context",
+        action="store_true",
+        help="Print the packed retrieval context before the answer.",
+    )
     ask_rerank_group = ask_parser.add_mutually_exclusive_group()
     ask_rerank_group.add_argument(
         "--rerank",
@@ -1159,6 +1398,11 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser = subparsers.add_parser("search", help="Search indexed chunks")
     search_parser.add_argument("query")
     search_parser.add_argument("--repo", help="Filter to a repo name")
+    search_parser.add_argument(
+        "--explain",
+        action="store_true",
+        help="Show query rewrites and retrieval-stage counts before the results.",
+    )
     search_rerank_group = search_parser.add_mutually_exclusive_group()
     search_rerank_group.add_argument(
         "--rerank",
@@ -1195,7 +1439,19 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
-    return args.func(args)
+    try:
+        return args.func(args)
+    except KeyboardInterrupt:
+        console.print("[yellow]Cancelled.[/yellow]")
+        return 130
+    except sqlite3.OperationalError as exc:
+        if "database is locked" in str(exc).lower():
+            console.print(
+                "[yellow]RAG database is busy.[/yellow] Another rag command is already using the local index. "
+                "Wait for it to finish or stop it, then retry."
+            )
+            return 1
+        raise
 
 
 if __name__ == "__main__":
