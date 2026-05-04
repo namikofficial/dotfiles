@@ -7,6 +7,8 @@ MODEL_DIR="${HOME}/llama-models"
 STATE_DIR="${HOME}/.cache/kage"
 LOG_DIR="${STATE_DIR}/llm-logs"
 TMUX_SESSION="llm-server"
+LLAMA_LIBRARY_PATH="${LLAMA_LIBRARY_PATH:-${HOME}/.local/lib}"
+LLAMA_BACKEND_PATH="${LLAMA_BACKEND_PATH:-${LLAMA_LIBRARY_PATH}/libggml-cpu-x64.so}"
 
 # Create required directories
 mkdir -p "$LOG_DIR" "$STATE_DIR"
@@ -59,8 +61,31 @@ get_server_pid() {
 # Get running model name from processes
 get_running_model() {
   local model_file
-  model_file=$(ps aux | grep "[l]lama-server" | grep -oE '\S+\.gguf' | head -1 | xargs basename 2>/dev/null)
+  model_file=$(ps -eo args=ww | grep "[l]lama-server" | grep -oE '[^[:space:]]+\.gguf' | head -1 | tr -d "'\"" | xargs basename 2>/dev/null)
   [ -n "$model_file" ] && echo "$model_file" || echo "unknown"
+}
+
+check_server_runtime() {
+  local server_bin missing
+  server_bin="$(command -v llama-server 2>/dev/null || true)"
+  if [ -z "$server_bin" ]; then
+    error "llama-server is not on PATH"
+    return 1
+  fi
+
+  missing="$(LD_LIBRARY_PATH="${LLAMA_LIBRARY_PATH}:${LD_LIBRARY_PATH:-}" ldd "$server_bin" 2>/dev/null | awk '/not found/ {print "  " $1}' || true)"
+  if [ -n "$missing" ]; then
+    error "llama-server cannot load required shared libraries:"
+    echo "$missing" >&2
+    warn "Reinstall the llama.cpp package that provided $server_bin, then run: llm-manager start"
+    return 1
+  fi
+
+  if [ ! -f "$LLAMA_BACKEND_PATH" ]; then
+    error "llama.cpp backend library is missing: $LLAMA_BACKEND_PATH"
+    warn "Install/reinstall llama.cpp-bin or set LLAMA_BACKEND_PATH to a valid libggml backend."
+    return 1
+  fi
 }
 
 # Command: start
@@ -77,6 +102,8 @@ cmd_start() {
     ls -1 "$MODEL_DIR" | sed 's/^/  • /'
     return 1
   fi
+
+  check_server_runtime || return 1
   
   # Stop existing session
   if is_running; then
@@ -89,7 +116,7 @@ cmd_start() {
   log "Starting $model model: $model_file"
   
   tmux new-session -d -s "$TMUX_SESSION" \
-    "llama-server -m '$model_path' -n 256 -ngl 32 -t 8 --host 127.0.0.1 --port 8000 2>&1 | tee -a '$LOG_DIR/llm.log'"
+    "GGML_BACKEND_PATH='${LLAMA_BACKEND_PATH}' LD_LIBRARY_PATH='${LLAMA_LIBRARY_PATH}':\"\${LD_LIBRARY_PATH:-}\" llama-server -m '$model_path' -n 256 -ngl 0 -t 8 --host 127.0.0.1 --port 8000 2>&1 | tee -a '$LOG_DIR/llm.log'"
 
   sleep 2
 

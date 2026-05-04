@@ -37,82 +37,50 @@ STATE_DIR = runtime_dir()
 STATE_FILE = STATE_DIR / "scratchpad-state.json"
 PID_FILE = STATE_DIR / "scratchpad-dashboard.pid"
 CSS_FILE = Path.home() / ".config/hypr/scripts/scratchpad-dashboard.css"
+REGISTRY_FILE = Path.home() / ".config/hypr/scripts/scratchpad-registry.toml"
 MANAGER = str(Path.home() / ".config/hypr/scripts/scratchpad-manager.sh")
 
-SCRATCHPADS = [
-    {
-        "name": "terminal",
-        "title": "Terminal",
-        "desc": "Drop-down dev terminal",
-        "icon": "",
-        "accent": "card-terminal",
-        "rect": (3, 2, 1, 1),
-        "cmd": ["bash", MANAGER, "launch", "terminal"],
-    },
-    {
-        "name": "obsidian",
-        "title": "Obsidian",
-        "desc": "Focus your notes vault",
-        "icon": "󰠮",
-        "accent": "card-obsidian",
-        "rect": (3, 0, 1, 1),
-        "cmd": ["bash", MANAGER, "launch", "obsidian"],
-    },
-    {
-        "name": "ai",
-        "title": "AI",
-        "desc": "Right-side coding chat",
-        "icon": "󰞷",
-        "accent": "card-ai",
-        "rect": (2, 0, 1, 2),
-        "cmd": ["bash", MANAGER, "launch", "ai"],
-    },
-    {
-        "name": "logs",
-        "title": "Logs",
-        "desc": "Bottom console for live output",
-        "icon": "󰆍",
-        "accent": "card-logs",
-        "rect": (0, 2, 3, 1),
-        "cmd": ["bash", MANAGER, "launch", "logs"],
-    },
-    {
-        "name": "notes",
-        "title": "Notes",
-        "desc": "Left-side note panel",
-        "icon": "󰈙",
-        "accent": "card-notes",
-        "rect": (3, 1, 1, 1),
-        "cmd": ["bash", MANAGER, "launch", "notes"],
-    },
-    {
-        "name": "db",
-        "title": "Database",
-        "desc": "Floating SQL tool",
-        "icon": "󰆼",
-        "accent": "card-db",
-        "rect": (3, 2, 1, 1),
-        "cmd": ["bash", MANAGER, "launch", "db"],
-    },
-    {
-        "name": "music",
-        "title": "Music",
-        "desc": "Transient music pad",
-        "icon": "󰝚",
-        "accent": "card-music",
-        "rect": (3, 4, 1, 1),
-        "cmd": ["bash", MANAGER, "launch", "music"],
-    },
-    {
-        "name": "browser-devtools",
-        "title": "Browser DevTools",
-        "desc": "Inspect the current browser",
-        "icon": "󰓂",
-        "accent": "card-browser",
-        "rect": (0, 3, 3, 2),
-        "cmd": ["bash", MANAGER, "launch", "browser-devtools"],
-    },
-]
+ICON_MAP = {
+    "terminal": "",
+    "ai": "󰞷",
+    "logs": "󰆍",
+    "notes": "󰈙",
+    "obsidian": "󰠮",
+    "database": "󰆼",
+    "music": "󰝚",
+    "browser": "󰓂",
+}
+
+
+def load_registry():
+    import tomllib
+
+    data = tomllib.loads(REGISTRY_FILE.read_text())
+    pads = []
+    for key, raw in data.get("scratchpads", {}).items():
+        dashboard = raw.get("dashboard", {})
+        pads.append(
+            {
+                "name": key,
+                "title": raw.get("name", key),
+                "desc": raw.get("description", ""),
+                "icon": ICON_MAP.get(raw.get("icon", key), "•"),
+                "class": raw.get("class", ""),
+                "mode": raw.get("mode", "overlay"),
+                "accent": dashboard.get("accent", f"card-{key}"),
+                "rect": (
+                    int(dashboard.get("x", 0)),
+                    int(dashboard.get("y", 0)),
+                    int(dashboard.get("w", 1)),
+                    int(dashboard.get("h", 1)),
+                ),
+                "cmd": ["bash", MANAGER, "launch", key],
+            }
+        )
+    return pads
+
+
+SCRATCHPADS = load_registry()
 
 
 def run(cmd):
@@ -121,16 +89,7 @@ def run(cmd):
 
 def read_state():
     state = {pad["name"]: "idle" for pad in SCRATCHPADS}
-    class_map = {
-        "terminal": "noxflow-scratch-terminal",
-        "notes": "noxflow-scratch-notes",
-        "logs": "noxflow-scratch-logs",
-        "ai": "noxflow-scratch-ai",
-        "db": "noxflow-scratch-db",
-        "music": "noxflow-scratch-music",
-        "browser-devtools": "noxflow-scratch-browser",
-        "obsidian": "obsidian",
-    }
+    class_map = {pad["name"]: pad["class"] for pad in SCRATCHPADS if pad.get("class")}
     try:
         clients = json.loads(subprocess.check_output(["hyprctl", "-j", "clients"], text=True))
         classes = {client.get("class", "").lower() for client in clients}

@@ -1,47 +1,96 @@
-# Scratchpad Registry v1
-# Define scratchpad targets and how to launch/toggle them
+# Scratchpad Registry v2
+# One source of truth for scratchpad names, commands, matchers, and geometry.
+
+[scene.main]
+name = "Main Workspace"
+geometry = { x = 0, y = 0, w = 66, h = 74 }
+restore = true
 
 [scratchpads.terminal]
 name = "Terminal"
-description = "Tmux terminal scratchpad"
-type = "specialworkspace"
-workspace_name = "scratch_spatial"
-spatial_workspace = "scratch_spatial"
-launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh toggle terminal"
-enabled = true
+description = "Drop-down login zsh tmux terminal"
+icon = "terminal"
+class = "noxflow-scratch-terminal"
+mode = "overlay"
+workspace = "scratch_spatial"
+launch = "terminal"
+dashboard = { x = 3, y = 3, w = 1, h = 1, accent = "card-terminal" }
+overlay_geometry = { x = 0, y = 0, w = 66, h = 34 }
 
-[scratchpads.notes]
-name = "Notes"
-description = "Quick notes scratchpad"
-type = "window_class"
-window_class = "noxflow-scratch-notes"
-launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh launch notes"
-workspace_name = "scratch_spatial"
-enabled = true
+[scratchpads.ai]
+name = "AI"
+description = "Right-side coding chat"
+icon = "ai"
+class = "noxflow-scratch-ai"
+mode = "scene"
+workspace = "current"
+launch = "ai"
+dashboard = { x = 2, y = 0, w = 1, h = 2, accent = "card-ai" }
+scene_geometry = { x = 66, y = 0, w = 34, h = 74 }
+overlay_geometry = { x = 66, y = 0, w = 34, h = 74 }
 
 [scratchpads.logs]
 name = "Logs"
-description = "Bottom spatial log console"
-type = "window_class"
-window_class = "noxflow-scratch-logs"
-launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh launch logs"
-workspace_name = "scratch_spatial"
-enabled = true
+description = "Bottom console for live output"
+icon = "logs"
+class = "noxflow-scratch-logs"
+mode = "scene"
+workspace = "current"
+launch = "logs"
+dashboard = { x = 0, y = 2, w = 3, h = 1, accent = "card-logs" }
+scene_geometry = { x = 0, y = 74, w = 100, h = 26 }
+overlay_geometry = { x = 0, y = 74, w = 100, h = 26 }
 
-[scratchpads.ai]
-name = "AI Scratch"
-description = "AI chat and coding scratch"
-type = "window_class"
-window_class = "noxflow-scratch-ai"
-launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh launch ai"
-workspace_name = "scratch_spatial"
-enabled = true
+[scratchpads.notes]
+name = "Notes"
+description = "Left-side quick notes"
+icon = "notes"
+class = "noxflow-scratch-notes"
+mode = "overlay"
+workspace = "scratch_spatial"
+launch = "notes"
+dashboard = { x = 3, y = 1, w = 1, h = 1, accent = "card-notes" }
+overlay_geometry = { x = 0, y = 0, w = 32, h = 74 }
+
+[scratchpads.obsidian]
+name = "Obsidian"
+description = "Focus your notes vault"
+icon = "obsidian"
+class = "obsidian"
+mode = "focus"
+workspace = "current"
+launch = "obsidian"
+dashboard = { x = 3, y = 0, w = 1, h = 1, accent = "card-obsidian" }
 
 [scratchpads.db]
 name = "Database"
-description = "Floating database client"
-type = "window_class"
-window_class = "noxflow-scratch-db"
-launch_cmd = "${HOME}/.config/hypr/scripts/scratchpad-manager.sh launch db"
-workspace_name = "scratch_spatial"
-enabled = true
+description = "Persistent DB shell"
+icon = "database"
+class = "noxflow-scratch-db"
+mode = "overlay"
+workspace = "scratch_spatial"
+launch = "db"
+dashboard = { x = 3, y = 2, w = 1, h = 1, accent = "card-db" }
+overlay_geometry = { x = 33, y = 14, w = 34, h = 52 }
+
+[scratchpads.music]
+name = "Music"
+description = "Transient music pad"
+icon = "music"
+class = "noxflow-scratch-music"
+mode = "overlay"
+workspace = "scratch_spatial"
+launch = "music"
+dashboard = { x = 3, y = 4, w = 1, h = 1, accent = "card-music" }
+overlay_geometry = { x = 0, y = 0, w = 30, h = 74 }
+
+[scratchpads.browser-devtools]
+name = "Browser DevTools"
+description = "Inspect the current browser"
+icon = "browser"
+class = "noxflow-scratch-browser"
+mode = "overlay"
+workspace = "scratch_spatial"
+launch = "browser-devtools"
+dashboard = { x = 0, y = 3, w = 3, h = 2, accent = "card-browser" }
+overlay_geometry = { x = 8, y = 8, w = 42, h = 66 }

@@ -48,8 +48,6 @@ left = [
   { name = "workspaces", modules = ["hyprland-workspaces"] },
   { name = "layout", modules = ["custom-layout"] },
   { name = "sys", modules = ["custom-updates"] },
-  { name = "project", modules = ["custom-project"] },
-  { name = "llm", modules = ["custom-llm"] },
   { name = "window", modules = ["window-title"] },
 ]
 center = [
@@ -58,6 +56,8 @@ center = [
 right = [
   { name = "controls", modules = ["custom-brightness", "volume", "custom-logs"] },
   { name = "status", modules = ["battery", "bluetooth", "network"] },
+  { name = "llm", modules = ["custom-llm"] },
+  { name = "project", modules = ["custom-project"] },
   { name = "alerts", modules = ["notifications"] },
 ]
 
