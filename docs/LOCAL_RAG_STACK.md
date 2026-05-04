@@ -27,9 +27,13 @@ That script is idempotent. You can rerun it to:
 ```bash
 rag doctor
 rag index ~/Documents/code/dotfiles
+rag index ~/Documents/code/dotfiles --changed-only
+rag status
 rag search "scratchpad manager"
 rag ask "How does the AI scratchpad choose its model?"
-rag reindex --changed
+rag reindex
+rag clean --repo dotfiles
+rag clean --all
 ```
 
 When you run `rag ask` or `rag search` **from inside an indexed git repo**, the CLI auto-scopes to that repo unless you override it with `--repo`.

@@ -169,7 +169,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
 - `Super + Ctrl + Y`: switch panel to Wayle when installed
 - `Super + Shift + Y`: toggle panel visibility only (show/hide current panel)
-- `Super + Ctrl + Alt + Y`: switch panel to Waybar fallback
+- `Super + Ctrl + Alt + Y`: toggle the current panel shell
 - `Super + T`: toggle window group (tab-like stacks)
 - `Super + Ctrl + T`: move active window out of group
 - `Super + Alt + ;` / `Super + Alt + .`: previous/next tab in group

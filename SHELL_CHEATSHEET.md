@@ -124,7 +124,7 @@
 - `Super + Y`: workspace overview
 - `Super + Ctrl + Y`: switch panel to Wayle when installed
 - `Super + Shift + Y`: toggle panel visibility only
-- `Super + Ctrl + Alt + Y`: switch panel to Waybar fallback
+- `Super + Ctrl + Alt + Y`: toggle the current panel shell
 - `Fn + 2/3/4/5`: AI helper (`ask`/`clipboard`/`shell`/`debug`)
 - `Super + Alt + 2`: freeform AI prompt with no preset base prompt
 - `Super + Alt + 3/4/5`: fallback AI helper (`clipboard`/`shell`/`debug`)

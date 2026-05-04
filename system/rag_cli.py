@@ -15,6 +15,7 @@ import urllib.error
 import urllib.request
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -45,6 +46,8 @@ DEFAULT_CONFIG = {
     "retrieval_context_tokens": 12000,
     "answer_max_tokens": 2500,
 }
+INDEX_SCHEMA = "rag-v1"
+CHUNKER_NAME = "semantic-lines-v1"
 
 DEFAULT_IGNORE_PATTERNS = [
     "node_modules/",
@@ -179,6 +182,9 @@ def ensure_db(conn: sqlite3.Connection) -> None:
             symbol TEXT,
             modified_at REAL NOT NULL,
             file_hash TEXT NOT NULL,
+            index_schema TEXT,
+            embedding_model TEXT,
+            chunker TEXT,
             chunk_index INTEGER NOT NULL,
             start_line INTEGER NOT NULL,
             end_line INTEGER NOT NULL,
@@ -196,7 +202,22 @@ def ensure_db(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    ensure_column(conn, "chunks", "index_schema", "TEXT")
+    ensure_column(conn, "chunks", "embedding_model", "TEXT")
+    ensure_column(conn, "chunks", "chunker", "TEXT")
+    conn.execute("UPDATE chunks SET index_schema = ? WHERE index_schema IS NULL", (INDEX_SCHEMA,))
+    conn.execute(
+        "UPDATE chunks SET embedding_model = ? WHERE embedding_model IS NULL",
+        (DEFAULT_CONFIG["embedding_model"],),
+    )
+    conn.execute("UPDATE chunks SET chunker = ? WHERE chunker IS NULL", (CHUNKER_NAME,))
     conn.commit()
+
+
+def ensure_column(conn: sqlite3.Connection, table: str, column: str, column_type: str) -> None:
+    columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
 
 
 def connect_db() -> sqlite3.Connection:
@@ -223,14 +244,33 @@ def get_embedder(config: dict) -> TextEmbedding:
 
 def ensure_collection(client: QdrantClient, config: dict) -> None:
     collection = config["qdrant_collection"]
-    if client.collection_exists(collection):
-        return
     embedder = get_embedder(config)
     sample = list(embedder.embed(["bootstrap vector size probe"]))[0]
+    if client.collection_exists(collection):
+        info = client.get_collection(collection)
+        actual_size = collection_vector_size(info)
+        expected_size = len(sample)
+        if actual_size != expected_size:
+            raise SystemExit(
+                f"Qdrant collection vector size mismatch: expected {expected_size}, got {actual_size}. "
+                "Run: rag clean --all && rag index <path>"
+            )
+        return
     client.create_collection(
         collection_name=collection,
         vectors_config=models.VectorParams(size=len(sample), distance=models.Distance.COSINE),
     )
+
+
+def collection_vector_size(collection_info) -> int:
+    vectors = collection_info.config.params.vectors
+    if hasattr(vectors, "size"):
+        return int(vectors.size)
+    if isinstance(vectors, dict):
+        first = next(iter(vectors.values()))
+        return int(first.size)
+    raise SystemExit("Unable to determine Qdrant vector size from collection config")
+
 
 
 def git_root_for(path: Path) -> Path | None:
@@ -501,14 +541,18 @@ def index_repo(conn: sqlite3.Connection, client: QdrantClient, config: dict, roo
                 "chunk_index": index,
                 "start_line": chunk.start_line,
                 "end_line": chunk.end_line,
+                "index_schema": INDEX_SCHEMA,
+                "embedding_model": config["embedding_model"],
+                "chunker": CHUNKER_NAME,
             }
             points.append(models.PointStruct(id=chunk_id, vector=vector.tolist(), payload=payload))
             conn.execute(
                 """
                 INSERT INTO chunks (
                     chunk_id, repo, root, path, language, kind, symbol, modified_at,
-                    file_hash, chunk_index, start_line, end_line, content
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    file_hash, index_schema, embedding_model, chunker, chunk_index,
+                    start_line, end_line, content
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     chunk_id,
@@ -520,6 +564,9 @@ def index_repo(conn: sqlite3.Connection, client: QdrantClient, config: dict, roo
                     chunk.symbol,
                     modified_at,
                     file_hash,
+                    INDEX_SCHEMA,
+                    config["embedding_model"],
+                    CHUNKER_NAME,
                     index,
                     chunk.start_line,
                     chunk.end_line,
@@ -728,7 +775,7 @@ def cmd_index(args: argparse.Namespace) -> int:
     conn = connect_db()
     client = get_qdrant(config)
     root = Path(args.path).expanduser().resolve()
-    changed_files, total_chunks = index_repo(conn, client, config, root, changed_only=False)
+    changed_files, total_chunks = index_repo(conn, client, config, root, changed_only=args.changed_only)
     console.print(f"[green]Indexed[/green] {changed_files} files and {total_chunks} chunks from {root}")
     return 0
 
@@ -748,6 +795,75 @@ def cmd_reindex(args: argparse.Namespace) -> int:
         total_files += changed_files
         total_chunks += chunks
     console.print(f"[green]Reindexed[/green] {total_files} changed files and {total_chunks} chunks")
+    return 0
+
+
+def cmd_status(_args: argparse.Namespace) -> int:
+    config = load_config()
+    conn = connect_db()
+    client = get_qdrant(config)
+    collection_name = config["qdrant_collection"]
+    points = 0
+    if client.collection_exists(collection_name):
+        points = int(client.get_collection(collection_name).points_count or 0)
+
+    console.print("[bold]RAG status[/bold]")
+    console.print(f"Config: {CONFIG_PATH}")
+    console.print(f"SQLite: {DB_PATH}")
+    console.print(f"Qdrant: {config['qdrant_url']}")
+    console.print(f"Collection: {collection_name}")
+    console.print()
+    console.print(f"Repos indexed: {conn.execute('SELECT COUNT(*) FROM indexed_repos').fetchone()[0]}")
+    console.print(f"Chunks: {conn.execute('SELECT COUNT(*) FROM chunks').fetchone()[0]}")
+    console.print(f"Embedding model: {config['embedding_model']}")
+    console.print(f"Answer model: {config['answer_model']}")
+    console.print("Last indexed:")
+    rows = conn.execute(
+        "SELECT repo, root, last_indexed FROM indexed_repos ORDER BY last_indexed DESC"
+    ).fetchall()
+    if not rows:
+        console.print("- none")
+    for row in rows:
+        stamp = datetime.fromtimestamp(row["last_indexed"]).strftime("%Y-%m-%d %H:%M")
+        console.print(f"- {row['repo']}  {stamp}  {row['root']}")
+    console.print(f"Qdrant points: {points}")
+    return 0
+
+
+def cmd_clean(args: argparse.Namespace) -> int:
+    config = load_config()
+    conn = connect_db()
+    client = get_qdrant(config)
+    ensure_collection(client, config)
+
+    if args.all:
+        if client.collection_exists(config["qdrant_collection"]):
+            client.delete_collection(config["qdrant_collection"])
+        conn.execute("DELETE FROM chunks")
+        conn.execute("DELETE FROM chunks_fts")
+        conn.execute("DELETE FROM indexed_repos")
+        conn.commit()
+        ensure_collection(client, config)
+        console.print("[green]Cleared[/green] all local RAG state")
+        return 0
+
+    repo = args.repo
+    if not repo:
+        raise SystemExit("Use rag clean --repo <name> or rag clean --all")
+
+    rows = conn.execute("SELECT chunk_id FROM chunks WHERE repo = ?", (repo,)).fetchall()
+    ids = [row["chunk_id"] for row in rows]
+    if ids:
+        client.delete(
+            collection_name=config["qdrant_collection"],
+            points_selector=models.PointIdsList(points=ids),
+            wait=True,
+        )
+    conn.execute("DELETE FROM chunks WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM chunks_fts WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM indexed_repos WHERE repo = ?", (repo,))
+    conn.commit()
+    console.print(f"[green]Cleared[/green] repo state for {repo}")
     return 0
 
 
@@ -848,6 +964,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     index_parser = subparsers.add_parser("index", help="Index a repo or folder")
     index_parser.add_argument("path")
+    index_parser.add_argument(
+        "--changed-only",
+        action="store_true",
+        help="Skip files whose content hash has not changed.",
+    )
     index_parser.set_defaults(func=cmd_index)
 
     ask_parser = subparsers.add_parser("ask", help="Ask a question against the local index")
@@ -860,9 +981,17 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.add_argument("--repo", help="Filter to a repo name")
     search_parser.set_defaults(func=cmd_search)
 
-    reindex_parser = subparsers.add_parser("reindex", help="Reindex only changed files")
-    reindex_parser.add_argument("--changed", action="store_true", default=True)
+    reindex_parser = subparsers.add_parser("reindex", help="Reindex changed files in previously indexed repos")
     reindex_parser.set_defaults(func=cmd_reindex)
+
+    status_parser = subparsers.add_parser("status", help="Show quick local RAG status")
+    status_parser.set_defaults(func=cmd_status)
+
+    clean_parser = subparsers.add_parser("clean", help="Clear repo-specific or full local RAG state")
+    clean_scope = clean_parser.add_mutually_exclusive_group(required=True)
+    clean_scope.add_argument("--repo", help="Clear one indexed repo by name")
+    clean_scope.add_argument("--all", action="store_true", help="Clear the whole local RAG index")
+    clean_parser.set_defaults(func=cmd_clean)
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local RAG health")
     doctor_parser.set_defaults(func=cmd_doctor)

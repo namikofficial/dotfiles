@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RAG_HOME="${RAG_HOME:-$HOME/ai-rag}"
 VENV="${RAG_HOME}/.venv"
+CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-docker}"
 QDRANT_CONTAINER="${RAG_QDRANT_CONTAINER:-qdrant}"
 CONFIG_FILE="${RAG_HOME}/config.json"
+REQUIREMENTS_FILE="${REPO_DIR}/system/rag-requirements.txt"
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -14,7 +18,14 @@ need_cmd() {
 }
 
 need_cmd python
-need_cmd docker
+if ! command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1; then
+  printf 'Missing container runtime: %s\n' "$CONTAINER_RUNTIME" >&2
+  if [ "$CONTAINER_RUNTIME" = "docker" ]; then
+    printf 'Docker is required for the default Qdrant setup.\n' >&2
+    printf 'Alternative: CONTAINER_RUNTIME=podman %s\n' "$0" >&2
+  fi
+  exit 1
+fi
 
 mkdir -p "$RAG_HOME/qdrant_storage" "$HOME/.local/bin"
 
@@ -23,13 +34,7 @@ if [ ! -d "$VENV" ]; then
 fi
 
 "$VENV/bin/python" -m pip install --upgrade pip >/dev/null
-"$VENV/bin/pip" install \
-  qdrant-client \
-  fastembed \
-  rich \
-  watchdog \
-  pathspec \
-  gitignore-parser >/dev/null
+"$VENV/bin/pip" install -r "$REQUIREMENTS_FILE" >/dev/null
 
 if [ ! -f "$CONFIG_FILE" ]; then
   cat >"$CONFIG_FILE" <<EOF
@@ -45,30 +50,43 @@ if [ ! -f "$CONFIG_FILE" ]; then
 EOF
 fi
 
-if ! docker info >/dev/null 2>&1; then
-  printf 'Docker daemon is not reachable. Start Docker, then rerun this script.\n' >&2
+if ! "$CONTAINER_RUNTIME" info >/dev/null 2>&1; then
+  printf '%s daemon is not reachable. Start it, then rerun this script.\n' "$CONTAINER_RUNTIME" >&2
+  if [ "$CONTAINER_RUNTIME" = "docker" ]; then
+    printf 'Alternative: CONTAINER_RUNTIME=podman %s\n' "$0" >&2
+  fi
   exit 1
 fi
 
-if docker ps --format '{{.Names}}' | grep -Fxq "$QDRANT_CONTAINER"; then
+if "$CONTAINER_RUNTIME" ps --format '{{.Names}}' | grep -Fxq "$QDRANT_CONTAINER"; then
   :
-elif docker ps -a --format '{{.Names}}' | grep -Fxq "$QDRANT_CONTAINER"; then
-  docker start "$QDRANT_CONTAINER" >/dev/null
+elif "$CONTAINER_RUNTIME" ps -a --format '{{.Names}}' | grep -Fxq "$QDRANT_CONTAINER"; then
+  "$CONTAINER_RUNTIME" start "$QDRANT_CONTAINER" >/dev/null
 else
-  docker run -d \
+  "$CONTAINER_RUNTIME" run -d \
     --name "$QDRANT_CONTAINER" \
     -p 6333:6333 \
     -v "${RAG_HOME}/qdrant_storage:/qdrant/storage" \
     qdrant/qdrant >/dev/null
 fi
 
-ln -sfn "$HOME/Documents/code/dotfiles/system/rag.sh" "$HOME/.local/bin/rag"
+ln -sfn "$REPO_DIR/system/rag.sh" "$HOME/.local/bin/rag"
 
-printf 'RAG stack is ready.\n'
-printf 'Config: %s\n' "$CONFIG_FILE"
-printf 'CLI: %s\n' "$HOME/.local/bin/rag"
-printf 'Qdrant: http://127.0.0.1:6333\n'
-printf '\nSuggested next steps:\n'
+printf 'Local RAG stack is ready.\n\n'
+printf 'Paths:\n'
+printf '  Config:  %s\n' "$CONFIG_FILE"
+printf '  CLI:     %s\n' "$HOME/.local/bin/rag"
+printf '  SQLite:  %s\n' "${RAG_HOME}/rag.sqlite3"
+printf '  Qdrant:  http://127.0.0.1:6333\n'
+printf '  Storage: %s\n' "${RAG_HOME}/qdrant_storage"
+printf '\nVerify:\n'
 printf '  rag doctor\n'
-printf '  rag index %s\n' "$HOME/Documents/code/dotfiles"
+printf '\nIndex this repo:\n'
+printf '  rag index %s\n' "$REPO_DIR"
+printf '\nTry search:\n'
 printf '  rag search "scratchpad manager"\n'
+printf '\nAsk with retrieved context:\n'
+printf '  rag ask "how does the scratchpad manager choose the AI terminal?"\n'
+printf '\nMaintenance:\n'
+printf '  rag reindex\n'
+printf '  rag status\n'
