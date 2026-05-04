@@ -5,67 +5,20 @@ healthCheckTimeout: 120
 logRequests: true
 
 models:
-  llama-3-8b:
+  gemma-3-4b:
     cmd: >
       __LLAMA_SERVER__
       --host 127.0.0.1
       --port ${PORT}
-      --model __MODEL_ROOT__/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf
-      --ctx-size 2048
+      --model __MODEL_ROOT__/google_gemma-3-4b-it-Q4_K_M.gguf
+      --ctx-size 32768
       --n-gpu-layers 99
       --threads 8
       --parallel 1
       --jinja
     aliases:
       - local
-      - llama
-      - llama3
-      - coder
-      - Meta-Llama-3-8B-Instruct-Q4_K_M.gguf
-
-  llama-3.2-3b:
-    cmd: >
-      __LLAMA_SERVER__
-      --host 127.0.0.1
-      --port ${PORT}
-      --model __MODEL_ROOT__/llama-3.2-3b-instruct.gguf
-      --ctx-size 2048
-      --n-gpu-layers 99
-      --threads 8
-      --parallel 1
-      --jinja
-    aliases:
-      - llama32
-      - llama32-3b
-
-  mistral-7b:
-    cmd: >
-      __LLAMA_SERVER__
-      --host 127.0.0.1
-      --port ${PORT}
-      --model __MODEL_ROOT__/mistral-7b-instruct.gguf
-      --ctx-size 2048
-      --n-gpu-layers 99
-      --threads 8
-      --parallel 1
-      --jinja
-    aliases:
-      - mistral
-      - mistral7b
-
-  gemma-2-2b:
-    cmd: >
-      __LLAMA_SERVER__
-      --host 127.0.0.1
-      --port ${PORT}
-      --model __MODEL_ROOT__/gemma-2-2b-instruct-q4_k_m.gguf
-      --ctx-size 2048
-      --n-gpu-layers 99
-      --threads 8
-      --parallel 1
-      --jinja
-    aliases:
       - gemma
-      - gemma2
-      - gemma-2
-      - gemma-2-2b-instruct-q4_k_m.gguf
+      - gemma4
+      - gemma-3-4b
+      - google_gemma-3-4b-it-Q4_K_M.gguf

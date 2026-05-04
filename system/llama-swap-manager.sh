@@ -85,10 +85,7 @@ prune_unavailable_models() {
       remove_model_from_rendered_config "$model"
     fi
   done <<EOF
-llama-3-8b|$MODEL_ROOT/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf
-llama-3.2-3b|$MODEL_ROOT/llama-3.2-3b-instruct.gguf
-mistral-7b|$MODEL_ROOT/mistral-7b-instruct.gguf
-gemma-2-2b|$MODEL_ROOT/gemma-2-2b-instruct-q4_k_m.gguf
+gemma-3-4b|$MODEL_ROOT/google_gemma-3-4b-it-Q4_K_M.gguf
 EOF
 }
 

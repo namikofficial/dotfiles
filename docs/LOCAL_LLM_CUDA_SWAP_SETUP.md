@@ -13,8 +13,7 @@ If AUR prompts for sudo during install, allow it and finish the transaction.
 
 The default model root is `~/llama-models` because this machine already keeps the local GGUF files there.
 
-- `~/llama-models/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf` (primary `local` alias)
-- `~/llama-models/gemma-2-2b-instruct-q4_k_m.gguf` (secondary fast local model)
+- `~/llama-models/google_gemma-3-4b-it-Q4_K_M.gguf` (primary `local` alias)
 
 Override with `LLAMA_MODEL_ROOT=/path/to/models` if needed.
 
@@ -30,8 +29,8 @@ Endpoint for all tools:
 
 - Base URL: `http://127.0.0.1:8080/v1`
 - API Key: `local`
-- Model: `local` (alias to `llama-3-8b`)
-- Alternate model: `gemma-2-2b`
+- Model: `local` (alias to `gemma-3-4b`)
+- Alternate model name: `gemma-3-4b`
 
 ## OpenCode config
 

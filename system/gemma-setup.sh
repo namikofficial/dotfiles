@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# gemma-setup.sh - Download and validate Gemma 2 2B for CUDA
+# gemma-setup.sh - Download and validate Gemma 3 4B for CUDA
 
 set -euo pipefail
 
 MODELS_DIR="${HOME}/llama-models"
-GEMMA_URL="https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf"
-GEMMA_FILE="$MODELS_DIR/gemma-2-2b-instruct-q4_k_m.gguf"
+GEMMA_URL="https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/google_gemma-3-4b-it-Q4_K_M.gguf"
+GEMMA_FILE="$MODELS_DIR/google_gemma-3-4b-it-Q4_K_M.gguf"
 TMP_FILE="${GEMMA_FILE}.tmp"
 
 is_valid_gguf() {
@@ -14,7 +14,7 @@ is_valid_gguf() {
 }
 
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║           Gemma 2 2B Setup for CUDA (llama.cpp)              ║"
+echo "║           Gemma 3 4B Setup for CUDA (llama.cpp)              ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -31,7 +31,7 @@ echo ""
 # Check if Gemma already exists
 if is_valid_gguf "$GEMMA_FILE"; then
   size=$(du -h "$GEMMA_FILE" | cut -f1)
-  echo "✓ Gemma 2 2B Q4_K_M already downloaded ($size)"
+  echo "✓ Gemma 3 4B Q4_K_M already downloaded ($size)"
   echo "  Path: $GEMMA_FILE"
   echo ""
 else
@@ -39,9 +39,9 @@ else
     echo "⚠ Existing Gemma file is not a valid GGUF model. Re-downloading."
     rm -f "$GEMMA_FILE"
   fi
-  echo "⟳ Downloading Gemma 2 2B Q4_K_M from HuggingFace..."
+  echo "⟳ Downloading Gemma 3 4B Q4_K_M from HuggingFace..."
   echo "  URL: $GEMMA_URL"
-  echo "  Size: ~1.6 GB (this may take a while)"
+  echo "  Size: ~2.5 GB (this may take a while)"
   echo ""
 
   if curl -fL --progress-bar -o "$TMP_FILE" "$GEMMA_URL"; then
@@ -65,20 +65,20 @@ fi
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║              Gemma 2 2B Setup Complete!                       ║"
+echo "║              Gemma 3 4B Setup Complete!                       ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 echo "CUDA Configuration:"
 echo "  • RTX 4050 Laptop GPU detected (~6GB VRAM)"
-echo "  • Gemma 2 2B Q4_K_M: ~1.6GB VRAM"
-echo "  • Llama 3 8B Q4_K_M: ~5.5GB VRAM"
+echo "  • Gemma 3 4B Q4_K_M: ~2.4GB model file"
+echo "  • Recommended local router context on this machine: 32768"
 echo "  • Run one model at a time through llama-swap"
 echo ""
 echo "Gemma is now available through:"
-echo "  1. llama-swap model id: gemma-2-2b"
-echo "  2. OpenCode provider model: llamacpp/gemma-2-2b"
+echo "  1. llama-swap model id: gemma-3-4b"
+echo "  2. OpenCode provider model: llamacpp/gemma-3-4b"
 echo ""
 echo "To verify:"
 echo "  $ llama-server -m $GEMMA_FILE --list-devices"
-echo "  $ llama-server -m $GEMMA_FILE -ngl 33 -c 2048 -t 4"
+echo "  $ llama-server -m $GEMMA_FILE -ngl 99 -c 32768 -t 8"
 echo ""

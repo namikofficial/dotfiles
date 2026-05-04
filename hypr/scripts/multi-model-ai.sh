@@ -60,7 +60,7 @@ select_model() {
     done
   fi
 
-  for preferred in llama-3-8b gemma-2-2b local llama-3.2-3b mistral-7b; do
+  for preferred in gemma-3-4b local gemma-2-2b llama-3-8b; do
     for model in "${available[@]}"; do
       if [ "$model" = "$preferred" ]; then
         printf '%s\n' "$model"
