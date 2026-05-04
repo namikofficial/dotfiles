@@ -48,8 +48,8 @@ case "$path" in
   dnd)
     if [ -x "$HOME/.config/hypr/scripts/notif-peek.sh" ]; then
       "$HOME/.config/hypr/scripts/notif-peek.sh" dnd
-    elif command -v swaync-client >/dev/null 2>&1; then
-      v="$(swaync-client -D 2>/dev/null || echo false)"
+    elif command -v wayle >/dev/null 2>&1; then
+      v="$(wayle notify status 2>/dev/null | awk -F': ' '/Do Not Disturb/ {print $2}' | tr '[:upper:]' '[:lower:]' || echo false)"
       [[ "$v" == "true" ]] && echo "ON" || echo "OFF"
     else
       echo "n/a"
@@ -73,8 +73,8 @@ case "$path" in
   notifications.count)
     if [ -x "$HOME/.config/hypr/scripts/notif-peek.sh" ]; then
       "$HOME/.config/hypr/scripts/notif-peek.sh" count
-    elif command -v swaync-client >/dev/null 2>&1; then
-      c="$(swaync-client -c 2>/dev/null || echo 0)"
+    elif command -v wayle >/dev/null 2>&1; then
+      c="$(wayle notify list 2>/dev/null | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ' || echo 0)"
       echo "$c"
     else
       echo "n/a"

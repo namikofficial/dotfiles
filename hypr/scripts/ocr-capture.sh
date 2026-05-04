@@ -2,10 +2,6 @@
 set -eu
 
 notify() {
-  if [ -x "$HOME/.config/hypr/scripts/notif-peek.sh" ] && \
-    [ "$("$HOME/.config/hypr/scripts/notif-peek.sh" mode 2>/dev/null || echo custom)" = "custom" ]; then
-    return 0
-  fi
   command -v notify-send >/dev/null 2>&1 || return 0
   notify-send -a OCR "$1" "${2:-}"
 }

@@ -7,18 +7,15 @@ workspace_id="${NOXFLOW_LOGS_WORKSPACE:-9}"
 open_logs_terminal() {
   kitty --class noxflow-logs --title "Noxflow Logs" -e sh -lc '
     printf "Workspace logs view\n\n"
-    printf "1) journalctl -b -f\n2) waybar log\n3) hyprland runtime log tail\n\n"
+    printf "1) journalctl -b -f\n2) wayle service log\n3) hyprland runtime log tail\n\n"
     journalctl -b -f -n 150 --no-hostname --no-pager
   ' >/dev/null 2>&1 &
 }
 
 open_tail_terminal() {
   # shellcheck disable=SC2016
-  kitty --class noxflow-logs --title "Noxflow Waybar Log" -e sh -lc '
-    log_file="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow/waybar.log"
-    mkdir -p "$(dirname "$log_file")"
-    touch "$log_file"
-    tail -n 200 -f "$log_file"
+  kitty --class noxflow-logs --title "Noxflow Wayle Log" -e sh -lc '
+    journalctl --user -fu wayle.service --no-pager
   ' >/dev/null 2>&1 &
 }
 

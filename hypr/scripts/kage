@@ -1,0 +1,824 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+KAGE_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kage"
+KAGE_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/kage"
+KAGE_SHARE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kage"
+PLUGIN_HEALTH_FILE="${KAGE_CACHE_DIR}/plugin-health.json"
+HYPRLAND_SESSION="${HYPRLAND_INSTANCE_SIGNATURE:-unknown}"
+HYPREXPO_SO="${XDG_DATA_HOME:-$HOME/.local/share}/hypr/plugins/hyprexpo/hyprexpo.so"
+OVERVIEW_FALLBACK="${HOME}/.config/hypr/scripts/workspace-overview.sh"
+HYPRCTL_BIN="${HYPRCTL_BIN:-$(command -v hyprctl || true)}"
+PROJECT_CACHE="${KAGE_CACHE_DIR}/project-current.json"
+PROJECT_WATCH_PIDFILE="${KAGE_CACHE_DIR}/project-watch.pid"
+
+ensure_dirs() {
+  mkdir -p "${KAGE_STATE_DIR}" "${KAGE_CACHE_DIR}" "${KAGE_SHARE_DIR}/actions"
+}
+
+notify() {
+  command -v notify-send >/dev/null 2>&1 || return 0
+  notify-send -a "Kage" "$1" "${2:-}"
+}
+
+now_iso() {
+  date -Iseconds
+}
+
+loaded_hyprexpo_path() {
+  local pid
+  pid="$(pgrep -x Hyprland 2>/dev/null | head -n1 || true)"
+  [ -n "$pid" ] || return 1
+  awk '/\/.*hyprexpo\.so$/ { print $NF; exit }' "/proc/$pid/maps" 2>/dev/null
+}
+
+plugin_failure_mark() {
+  local reason="${1:-unknown}"
+  ensure_dirs
+  cat > "${PLUGIN_HEALTH_FILE}" <<EOF_JSON
+{"hyprexpo":{"status":"failed","session":"${HYPRLAND_SESSION}","reason":"${reason}","updated_at":"$(now_iso)"}}
+EOF_JSON
+}
+
+plugin_failure_clear() {
+  ensure_dirs
+  local tmp
+  tmp="$(mktemp)"
+  if [ -s "${PLUGIN_HEALTH_FILE}" ] && command -v jq >/dev/null 2>&1; then
+    jq '.hyprexpo = {"status":"ok","session":"'"${HYPRLAND_SESSION}"'","reason":"","updated_at":"'"$(now_iso)"'"}' \
+      "${PLUGIN_HEALTH_FILE}" > "${tmp}" 2>/dev/null || true
+    if [ -s "${tmp}" ]; then
+      mv "${tmp}" "${PLUGIN_HEALTH_FILE}"
+      return 0
+    fi
+  fi
+  cat > "${PLUGIN_HEALTH_FILE}" <<EOF_JSON
+{"hyprexpo":{"status":"ok","session":"${HYPRLAND_SESSION}","reason":"","updated_at":"$(now_iso)"}}
+EOF_JSON
+}
+
+plugin_failed_this_session() {
+  [ -s "${PLUGIN_HEALTH_FILE}" ] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  jq -e --arg s "${HYPRLAND_SESSION}" \
+    '.hyprexpo.status == "failed" and .hyprexpo.session == $s' \
+    "${PLUGIN_HEALTH_FILE}" >/dev/null 2>&1
+}
+
+overview_fallback() {
+  [ -x "${OVERVIEW_FALLBACK}" ] && exec "${OVERVIEW_FALLBACK}"
+  exit 0
+}
+
+overview_try_hyprexpo() {
+  [ -n "${HYPRCTL_BIN}" ] || return 1
+  [ -f "${HYPREXPO_SO}" ] || return 1
+
+  local current_path
+  current_path="$(loaded_hyprexpo_path || true)"
+  if [ -n "${current_path}" ] && [ "${current_path}" != "${HYPREXPO_SO}" ]; then
+    "${HYPRCTL_BIN}" plugin unload "${current_path}" >/dev/null 2>&1 || true
+    sleep 0.1
+  fi
+
+  if ! "${HYPRCTL_BIN}" plugin list 2>/dev/null | grep -q 'Plugin hyprexpo'; then
+    "${HYPRCTL_BIN}" plugin load "${HYPREXPO_SO}" >/dev/null 2>&1 || return 1
+    sleep 0.1
+  fi
+
+  "${HYPRCTL_BIN}" dispatch hyprexpo:expo toggle >/dev/null 2>&1
+}
+
+overview_try_virtual_desktops() {
+  [ -n "${HYPRCTL_BIN}" ] || return 1
+  "${HYPRCTL_BIN}" plugin list 2>/dev/null | grep -qi 'virtual-desktops' || return 1
+  "${HYPRCTL_BIN}" dispatch nextdesk >/dev/null 2>&1
+}
+
+cmd_status() {
+  ensure_dirs
+  printf 'kage:ok\n'
+  printf 'session:%s\n' "${HYPRLAND_SESSION}"
+  printf 'state:%s\n' "${KAGE_STATE_DIR}"
+  printf 'cache:%s\n' "${KAGE_CACHE_DIR}"
+  printf 'share:%s\n' "${KAGE_SHARE_DIR}"
+}
+
+cmd_health() {
+  ensure_dirs
+  local sub="${1:-check}"
+  case "${sub}" in
+    check)
+      local hyprctl_ok=0 rofi_ok=0 jq_ok=0 socat_ok=0 python3_ok=0
+      command -v hyprctl >/dev/null 2>&1 && hyprctl_ok=1
+      command -v rofi    >/dev/null 2>&1 && rofi_ok=1
+      command -v jq      >/dev/null 2>&1 && jq_ok=1
+      command -v socat   >/dev/null 2>&1 && socat_ok=1
+      command -v python3 >/dev/null 2>&1 && python3_ok=1
+      local watcher_running=false
+      if [ -f "${PROJECT_WATCH_PIDFILE}" ]; then
+        local wpid
+        wpid="$(cat "${PROJECT_WATCH_PIDFILE}" 2>/dev/null || true)"
+        [ -n "$wpid" ] && kill -0 "$wpid" 2>/dev/null && watcher_running=true || true
+      fi
+      cat <<EOF_HEALTH
+{"session":"${HYPRLAND_SESSION}","hyprctl":${hyprctl_ok},"rofi":${rofi_ok},"jq":${jq_ok},"socat":${socat_ok},"python3":${python3_ok},"hyprexpo_so_exists":$([ -f "${HYPREXPO_SO}" ] && echo true || echo false),"hyprexpo_failed_this_session":$(plugin_failed_this_session && echo true || echo false),"project_watcher_running":${watcher_running}}
+EOF_HEALTH
+      ;;
+    reset-hyprexpo)
+      plugin_failure_clear
+      printf 'ok: hyprexpo failure flag reset for session %s\n' "${HYPRLAND_SESSION}"
+      ;;
+    *)
+      echo "usage: kage health [check|reset-hyprexpo]" >&2
+      exit 1
+      ;;
+  esac
+}
+
+cmd_overview() {
+  ensure_dirs
+  local backend="${KAGE_OVERVIEW_BACKEND:-plugin}"
+  local allow_hyprexpo="${KAGE_ENABLE_HYPREXPO:-0}"
+
+  # No fallback UI in plugin mode: user explicitly prefers no old Rofi overview.
+  if [ "${backend}" != "plugin" ]; then
+    overview_fallback
+  fi
+
+  if plugin_failed_this_session; then
+    if overview_try_virtual_desktops; then
+      exit 0
+    fi
+    notify "Overview unavailable" "Plugin mode is enabled and no healthy overview plugin is active."
+    exit 1
+  fi
+
+  if overview_try_virtual_desktops; then
+    exit 0
+  fi
+
+  if [ "${allow_hyprexpo}" = "1" ]; then
+    if overview_try_hyprexpo; then
+      plugin_failure_clear
+      exit 0
+    fi
+  fi
+
+  plugin_failure_mark "plugin_overview_unavailable"
+  if [ "${allow_hyprexpo}" = "1" ]; then
+    notify "Overview unavailable" "Neither virtual-desktops nor hyprexpo dispatch worked."
+  else
+    notify "Overview unavailable" "virtual-desktops dispatch failed."
+  fi
+  exit 1
+}
+
+# ── Project: CWD resolution ─────────────────────────────────────────────────
+
+project_resolve_cwd() {
+  local pid="$1"
+
+  # Strategy 1: active tmux pane path (most reliable for terminal workflows)
+  if command -v tmux >/dev/null 2>&1; then
+    local tmux_cwd
+    tmux_cwd="$(tmux display-message -p '#{pane_current_path}' 2>/dev/null || true)"
+    if [ -n "$tmux_cwd" ] && [ -d "$tmux_cwd" ]; then
+      printf '%s' "$tmux_cwd"
+      return 0
+    fi
+  fi
+
+  # Strategy 2: Python process-tree walk — prefer shells, deepest wins
+  if command -v python3 >/dev/null 2>&1; then
+    local result
+    result="$(KAGE_ROOT_PID="$pid" python3 - 2>/dev/null <<'PYEOF'
+import os, sys
+
+SHELLS = {'zsh', 'bash', 'fish', 'sh', 'dash', 'nu'}
+
+def get_comm(p):
+    try:    return open(f'/proc/{p}/comm').read().strip()
+    except: return ''
+
+def get_ppid(p):
+    try:
+        for line in open(f'/proc/{p}/status'):
+            if line.startswith('PPid:'):
+                return int(line.split()[1])
+    except: pass
+    return 0
+
+def get_cwd(p):
+    try:    return os.readlink(f'/proc/{p}/cwd')
+    except: return ''
+
+def descendants(root_pid):
+    result = [root_pid]
+    try:
+        for entry in os.listdir('/proc'):
+            if entry.isdigit() and get_ppid(int(entry)) == root_pid:
+                result += descendants(int(entry))
+    except: pass
+    return result
+
+try:
+    root = int(os.environ['KAGE_ROOT_PID'])
+    pids = descendants(root)
+    for p in reversed(pids):
+        if get_comm(p) in SHELLS:
+            cwd = get_cwd(p)
+            if cwd: print(cwd); sys.exit(0)
+    for p in reversed(pids):
+        cwd = get_cwd(p)
+        if cwd: print(cwd); sys.exit(0)
+except: pass
+PYEOF
+)" || true
+    if [ -n "$result" ] && [ -d "$result" ]; then
+      printf '%s' "$result"
+      return 0
+    fi
+  fi
+
+  # Strategy 3: direct /proc/<pid>/cwd
+  readlink -f "/proc/${pid}/cwd" 2>/dev/null || true
+}
+
+# ── Project: fingerprinting ──────────────────────────────────────────────────
+
+project_detect_language() {
+  local dir="$1"
+  if   [ -f "$dir/Cargo.toml" ];                                                        then echo "rust"
+  elif [ -f "$dir/go.mod" ];                                                             then echo "go"
+  elif [ -f "$dir/package.json" ];                                                       then echo "node"
+  elif [ -f "$dir/pyproject.toml" ] || [ -f "$dir/requirements.txt" ] || [ -f "$dir/setup.py" ]; then echo "python"
+  elif [ -f "$dir/mix.exs" ];                                                            then echo "elixir"
+  elif [ -f "$dir/build.gradle" ] || [ -f "$dir/pom.xml" ];                             then echo "java"
+  elif [ -f "$dir/composer.json" ];                                                      then echo "php"
+  elif find "$dir" -maxdepth 1 \( -name '*.csproj' -o -name '*.sln' \) 2>/dev/null | grep -q .; then echo "dotnet"
+  else echo "unknown"
+  fi
+}
+
+project_detect_framework() {
+  local dir="$1" lang="$2"
+  case "$lang" in
+    node)
+      local pkg="$dir/package.json"
+      if [ -f "$pkg" ]; then
+        if   grep -q '"next"'    "$pkg" 2>/dev/null; then echo "nextjs"
+        elif grep -q '"react"'   "$pkg" 2>/dev/null; then echo "react"
+        elif grep -q '"vue"'     "$pkg" 2>/dev/null; then echo "vue"
+        elif grep -q '"svelte"'  "$pkg" 2>/dev/null; then echo "svelte"
+        elif grep -q '"express"' "$pkg" 2>/dev/null; then echo "express"
+        elif grep -q '"fastify"' "$pkg" 2>/dev/null; then echo "fastify"
+        elif grep -q '"@nestjs"' "$pkg" 2>/dev/null; then echo "nestjs"
+        else echo "node"
+        fi
+      else echo "node"
+      fi ;;
+    python)
+      local deps=""
+      [ -f "$dir/requirements.txt" ] && deps="$(cat "$dir/requirements.txt" 2>/dev/null)"
+      [ -f "$dir/pyproject.toml" ]   && deps="${deps} $(cat "$dir/pyproject.toml" 2>/dev/null)"
+      if   echo "$deps" | grep -qi 'django';  then echo "django"
+      elif echo "$deps" | grep -qi 'fastapi'; then echo "fastapi"
+      elif echo "$deps" | grep -qi 'flask';   then echo "flask"
+      else echo "python"
+      fi ;;
+    *) echo "$lang" ;;
+  esac
+}
+
+project_detect_services() {
+  local dir="$1"
+  local compose_file=""
+  for f in "$dir/docker-compose.yml" "$dir/docker-compose.yaml" \
+            "$dir/compose.yml"        "$dir/compose.yaml"; do
+    [ -f "$f" ] && compose_file="$f" && break
+  done
+  [ -n "$compose_file" ] || { echo "{}"; return 0; }
+
+  local svc_names
+  svc_names="$(awk '/^services:/{found=1;next} found && /^  [a-zA-Z][a-zA-Z0-9_-]*:/{gsub(/:/,"",$1); print $1}' \
+    "$compose_file" 2>/dev/null | head -12 || true)"
+  [ -n "$svc_names" ] || { echo "{}"; return 0; }
+
+  local json="{"
+  local first=1
+  while IFS= read -r svc; do
+    [ -n "$svc" ] || continue
+    local status="stopped"
+    if command -v docker >/dev/null 2>&1; then
+      local running
+      running="$(docker ps --filter "label=com.docker.compose.service=${svc}" \
+        --format '{{.Status}}' 2>/dev/null | head -1 || true)"
+      [ -n "$running" ] && status="running"
+    fi
+    [ "$first" = "1" ] || json="${json},"
+    json="${json}\"${svc}\":\"${status}\""
+    first=0
+  done <<< "$svc_names"
+  printf '%s' "${json}}"
+}
+
+project_get_git_info() {
+  local dir="$1"
+  local branch modified staged stashes
+  branch="$(git -C "$dir" symbolic-ref --short HEAD 2>/dev/null \
+    || git -C "$dir" rev-parse --short HEAD 2>/dev/null \
+    || echo "detached")"
+
+  local status_out
+  status_out="$(git -C "$dir" status --porcelain 2>/dev/null || true)"
+  modified=0; staged=0
+  if [ -n "$status_out" ]; then
+    modified=$(printf '%s\n' "$status_out" | grep -c '^ [MDARCU?!]' 2>/dev/null || echo 0)
+    staged=$(printf '%s\n'   "$status_out" | grep -c '^[MADRC] '    2>/dev/null || echo 0)
+  fi
+  stashes=$(git -C "$dir" stash list 2>/dev/null | wc -l | tr -d ' ' || echo 0)
+  local dirty=false
+  [ "$((modified + staged))" -gt 0 ] && dirty=true
+  printf '{"branch":"%s","dirty":%s,"modified":%d,"staged":%d,"stashes":%d}' \
+    "$branch" "$dirty" "$modified" "$staged" "$stashes"
+}
+
+project_get_actions() {
+  local lang="$1" has_compose="$2"
+  local base
+  case "$lang" in
+    rust)   base='["test","build","run","lint","commit","open-repo"]' ;;
+    go)     base='["test","build","run","lint","commit","open-repo"]' ;;
+    node)   base='["test","build","dev","lint","commit","open-repo"]' ;;
+    python) base='["test","run","lint","commit","open-repo"]'         ;;
+    elixir) base='["test","run","commit","open-repo"]'                ;;
+    *)      base='["commit","open-repo"]'                              ;;
+  esac
+  [ "$has_compose" = "1" ] && base="${base/\[/[\"logs\",\"up\",\"down\",}"
+  printf '%s' "$base"
+}
+
+# ── Project: probe (writes cache) ───────────────────────────────────────────
+
+project_probe() {
+  ensure_dirs
+  command -v jq      >/dev/null 2>&1 || return 1
+  [ -n "${HYPRCTL_BIN}" ]             || return 1
+
+  local win_json pid
+  win_json="$(${HYPRCTL_BIN} -j activewindow 2>/dev/null)" || return 1
+  pid="$(printf '%s' "$win_json" | jq -r '.pid // empty' 2>/dev/null)"
+  [ -n "$pid" ] && [ "$pid" != "0" ] && [ "$pid" != "null" ] || return 1
+
+  local cwd
+  cwd="$(project_resolve_cwd "$pid")"
+  [ -n "$cwd" ] && [ -d "$cwd" ] || return 1
+
+  local git_root is_git=false
+  git_root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "$git_root" ] && is_git=true || git_root="$cwd"
+
+  local name
+  name="$(basename "$git_root")"
+
+  local branch="HEAD" dirty=false modified=0 staged=0 stashes=0
+  if [ "$is_git" = "true" ]; then
+    local gi
+    gi="$(project_get_git_info "$git_root")"
+    branch="$(printf '%s' "$gi"   | jq -r '.branch   // "HEAD"' 2>/dev/null)"
+    dirty="$(printf '%s' "$gi"    | jq -r '.dirty    // false'   2>/dev/null)"
+    modified="$(printf '%s' "$gi" | jq -r '.modified // 0'       2>/dev/null)"
+    staged="$(printf '%s' "$gi"   | jq -r '.staged   // 0'       2>/dev/null)"
+    stashes="$(printf '%s' "$gi"  | jq -r '.stashes  // 0'       2>/dev/null)"
+  fi
+
+  local lang framework
+  lang="$(project_detect_language "$git_root")"
+  framework="$(project_detect_framework "$git_root" "$lang")"
+
+  local has_compose=0
+  for f in "$git_root/docker-compose.yml" "$git_root/docker-compose.yaml" \
+            "$git_root/compose.yml"        "$git_root/compose.yaml"; do
+    [ -f "$f" ] && has_compose=1 && break
+  done
+
+  local services actions
+  services="$(project_detect_services "$git_root")"
+  actions="$(project_get_actions "$lang" "$has_compose")"
+
+  local tmp
+  tmp="$(mktemp "${KAGE_CACHE_DIR}/project.XXXXXX")" || return 1
+  jq -n \
+    --arg     name       "$name"      \
+    --arg     path       "$git_root"  \
+    --arg     branch     "$branch"    \
+    --argjson dirty      "$dirty"     \
+    --argjson modified   "$modified"  \
+    --argjson staged     "$staged"    \
+    --argjson stashes    "$stashes"   \
+    --arg     lang       "$lang"      \
+    --arg     framework  "$framework" \
+    --argjson is_git     "$is_git"    \
+    --argjson services   "$services"  \
+    --argjson actions    "$actions"   \
+    --arg     updated_at "$(now_iso)" \
+    '{name:$name,path:$path,branch:$branch,dirty:$dirty,
+      modified:$modified,staged:$staged,stashes:$stashes,
+      lang:$lang,framework:$framework,is_git:$is_git,
+      services:$services,actions:$actions,updated_at:$updated_at}' \
+    > "$tmp" && mv "$tmp" "${PROJECT_CACHE}" || { rm -f "$tmp"; return 1; }
+
+  printf '%s' "$git_root"
+}
+
+# ── Project: IPC watch daemon ────────────────────────────────────────────────
+
+project_watch_daemon() {
+  ensure_dirs
+  local socket2="/tmp/hypr/${HYPRLAND_SESSION}/.socket2.sock"
+  [ -S "$socket2" ] || { printf 'error: hyprland socket not found: %s\n' "$socket2" >&2; exit 1; }
+  command -v socat >/dev/null 2>&1 || { echo "error: socat required (pacman -S socat)" >&2; exit 1; }
+
+  printf '%s\n' "$$" > "${PROJECT_WATCH_PIDFILE}"
+  trap 'rm -f "${PROJECT_WATCH_PIDFILE}"' EXIT INT TERM HUP
+
+  # Initial probe at session start
+  project_probe >/dev/null 2>&1 || true
+
+  local last_active=""
+  while true; do
+    while IFS= read -r event; do
+      [[ "${event}" == activewindow* ]] || continue
+      local active="${event#*>>}"
+      [ "$active" != "$last_active" ] || continue
+      last_active="$active"
+      project_probe >/dev/null 2>&1 || true
+    done < <(socat -u "UNIX-CONNECT:${socket2}" - 2>/dev/null)
+    # socat exited — Hyprland may have restarted; wait and retry
+    sleep 3
+    [ -S "$socket2" ] || break
+  done
+}
+
+# ── Project: Wayle chip output ───────────────────────────────────────────────
+
+project_wayle_output() {
+  if [ ! -s "${PROJECT_CACHE}" ]; then
+    printf '{"text":"—","tooltip":"No project detected"}\n'
+    return 0
+  fi
+  jq -r '
+    .name        as $n  |
+    .branch      as $b  |
+    .modified    as $m  |
+    .staged      as $s  |
+    .dirty       as $d  |
+    .framework   as $fw |
+    .services    as $sv |
+    .path        as $p  |
+    (if $d then (if $m>0 then " ✦\($m)" else "" end)+(if $s>0 then " ◆\($s)" else "" end) else "" end) as $chg |
+    (if ($b!="" and $b!="HEAD") then "\($b)\($chg)" else "" end) as $bstr |
+    ([$sv|to_entries[]|"\(.key):\(if .value=="running" then "●" else "○" end)"]|join(" ")) as $svstr |
+    (if $bstr!="" then "\($n)  \($bstr)" else $n end) as $text |
+    ("\($n)\n\($p)\nbranch: \($b)\n"+
+     (if $d then "modified: \($m) | staged: \($s)\n" else "clean\n" end)+
+     "lang: \($fw)"+
+     (if $svstr!="" then "\nservices: \($svstr)" else "" end)) as $tt |
+    {"text":$text,"tooltip":$tt}
+  ' "${PROJECT_CACHE}" 2>/dev/null \
+    || printf '{"text":"—","tooltip":"parse error"}\n'
+}
+
+# ── Project: run action ──────────────────────────────────────────────────────
+
+project_run_action() {
+  local action="${1:-}"
+  [ -n "$action" ] || { echo "usage: kage project action <name>" >&2; exit 1; }
+  [ -s "${PROJECT_CACHE}" ] || { notify "No project cached" "Run: kage project refresh"; exit 1; }
+
+  local project_path lang name
+  project_path="$(jq -r '.path      // ""'        "${PROJECT_CACHE}" 2>/dev/null)"
+  lang="$(jq         -r '.lang      // "unknown"'  "${PROJECT_CACHE}" 2>/dev/null)"
+  name="$(jq         -r '.name      // "project"'  "${PROJECT_CACHE}" 2>/dev/null)"
+  [ -n "$project_path" ] && [ -d "$project_path" ] || {
+    notify "Project path not found" "$project_path"; exit 1; }
+
+  local tt="kage: ${action} — ${name}"
+  local lc="noxflow-tool-large"
+  local sc="noxflow-tool-small"
+  local wk='echo; read -rp "Press Enter to close"'
+
+  case "$action" in
+    test)
+      case "$lang" in
+        rust)   kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && cargo test; ${wk}" ;;
+        go)     kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && go test ./...; ${wk}" ;;
+        node)   kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && npm test; ${wk}" ;;
+        python) kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && python -m pytest; ${wk}" ;;
+        elixir) kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && mix test; ${wk}" ;;
+        *)      notify "No test command" "Unsupported lang: $lang"; exit 1 ;;
+      esac ;;
+    build)
+      case "$lang" in
+        rust)   kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && cargo build; ${wk}" ;;
+        go)     kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && go build ./...; ${wk}" ;;
+        node)   kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && npm run build; ${wk}" ;;
+        *)      notify "No build command" "Unsupported lang: $lang"; exit 1 ;;
+      esac ;;
+    run|dev)
+      case "$lang" in
+        rust)   kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && cargo run" ;;
+        go)     kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && go run ." ;;
+        node)   kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && npm run dev" ;;
+        python) kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && python -m main" ;;
+        *)      notify "No run command" "Unsupported lang: $lang"; exit 1 ;;
+      esac ;;
+    lint|check)
+      case "$lang" in
+        rust)   kitty --class "$sc" --title "$tt" -- sh -lc "cd '${project_path}' && cargo clippy; ${wk}" ;;
+        go)     kitty --class "$sc" --title "$tt" -- sh -lc "cd '${project_path}' && go vet ./...; ${wk}" ;;
+        node)   kitty --class "$sc" --title "$tt" -- sh -lc "cd '${project_path}' && npm run lint; ${wk}" ;;
+        python) kitty --class "$sc" --title "$tt" -- sh -lc "cd '${project_path}' && python -m ruff check .; ${wk}" ;;
+        *)      notify "No lint command" "Unsupported lang: $lang"; exit 1 ;;
+      esac ;;
+    logs)     kitty --class "$lc" --title "$tt" -- sh -lc "cd '${project_path}' && docker compose logs -f" ;;
+    up)       kitty --class "$sc" --title "$tt" -- sh -lc "cd '${project_path}' && docker compose up -d; ${wk}" ;;
+    down)     kitty --class "$sc" --title "$tt" -- sh -lc "cd '${project_path}' && docker compose down; ${wk}" ;;
+    migrate)
+      case "$lang" in
+        node)   kitty --class "$sc" --title "$tt" -- sh -lc "cd '${project_path}' && npm run migrate; ${wk}" ;;
+        python) kitty --class "$sc" --title "$tt" -- sh -lc "cd '${project_path}' && python manage.py migrate; ${wk}" ;;
+        *)      notify "No migrate command" "Add support for $lang"; exit 1 ;;
+      esac ;;
+    commit)
+      if command -v lazygit >/dev/null 2>&1; then
+        kitty --class noxflow-lazygit --title "lazygit — ${name}" -- lazygit -p "${project_path}"
+      else notify "lazygit not found" "Install lazygit"; fi ;;
+    open-repo)
+      local remote
+      remote="$(git -C "${project_path}" remote get-url origin 2>/dev/null || true)"
+      if [ -n "$remote" ]; then
+        xdg-open "$remote" >/dev/null 2>&1 &
+      else
+        notify "No remote" "Project has no git origin"
+      fi ;;
+    *) notify "Unknown action" "kage project action: $action"; exit 1 ;;
+  esac
+}
+
+# ── cmd: actions ─────────────────────────────────────────────────────────────
+
+cmd_actions() {
+  local sub="${1:-list}"
+  shift || true
+  case "${sub}" in
+    list)
+      if ! find "${KAGE_SHARE_DIR}/actions" -type f -name '*.toml' 2>/dev/null | grep -q .; then
+        echo "No actions registered. Add .toml files to: ${KAGE_SHARE_DIR}/actions/" >&2
+        return 0
+      fi
+      find "${KAGE_SHARE_DIR}/actions" -type f -name '*.toml' 2>/dev/null | sort | while read -r f; do
+        local aid aname
+        aid="$(grep -m1 '^id '   "$f" 2>/dev/null | cut -d'"' -f2 || basename "$f" .toml)"
+        aname="$(grep -m1 '^name ' "$f" 2>/dev/null | cut -d'"' -f2 || echo "$aid")"
+        printf '%s\t%s\n' "$aid" "$aname"
+      done ;;
+    run)
+      local action_id="${1:-}"
+      [ -n "$action_id" ] || { echo "usage: kage actions run <id>" >&2; exit 1; }
+      local action_file="${KAGE_SHARE_DIR}/actions/${action_id}.toml"
+      [ -f "$action_file" ] || \
+        action_file="$(grep -rl "^id = \"${action_id}\"" "${KAGE_SHARE_DIR}/actions/" 2>/dev/null | head -1 || true)"
+      [ -f "$action_file" ] || { echo "error: action '${action_id}' not found" >&2; exit 1; }
+      command -v python3 >/dev/null 2>&1 || { echo "error: python3 required" >&2; exit 1; }
+      KAGE_ACTION_FILE="$action_file" python3 - <<'PYEOF'
+import os, sys, re, subprocess, json
+
+def parse_toml(path):
+    d = {}
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if '=' not in line or line.startswith('#'): continue
+            k, _, v = line.partition('=')
+            k, v = k.strip(), v.strip()
+            if   v.startswith('"'):            d[k] = v.strip('"')
+            elif v in ('true','false'):        d[k] = (v == 'true')
+            elif v.lstrip('-').isdigit():      d[k] = int(v)
+            elif v.startswith('['):            d[k] = re.findall(r'"([^"]*)"', v)
+    return d
+
+data = parse_toml(os.environ['KAGE_ACTION_FILE'])
+exec_cmd = data.get('exec', '')
+if not exec_cmd:
+    print("error: action has no 'exec' field", file=sys.stderr); sys.exit(1)
+
+if data.get('danger') or data.get('confirm'):
+    label = 'DANGER: Confirm' if data.get('danger') else 'Confirm'
+    res = subprocess.run(
+        ['rofi', '-dmenu', '-p', f'{label}: {data.get("name", exec_cmd)}?'],
+        input='Yes\nNo', capture_output=True, text=True)
+    if res.returncode != 0 or res.stdout.strip() != 'Yes':
+        sys.exit(0)
+
+if data.get('requires_project'):
+    cache = os.path.expanduser('~/.cache/kage/project-current.json')
+    if os.path.exists(cache):
+        proj = json.load(open(cache))
+        os.environ.update({
+            'KAGE_PROJECT_PATH':   proj.get('path', ''),
+            'KAGE_PROJECT_NAME':   proj.get('name', ''),
+            'KAGE_PROJECT_BRANCH': proj.get('branch', ''),
+            'KAGE_PROJECT_LANG':   proj.get('lang', ''),
+        })
+
+os.execvp('/bin/sh', ['/bin/sh', '-lc', exec_cmd])
+PYEOF
+      ;;
+    *) echo "usage: kage actions [list|run <id>]" >&2; exit 1 ;;
+  esac
+}
+
+# ── cmd: project ─────────────────────────────────────────────────────────────
+
+cmd_project() {
+  local sub="${1:-current}"
+  shift || true
+  case "$sub" in
+    current)
+      local json=0 wayle=0
+      for arg in "$@"; do
+        case "$arg" in --json) json=1 ;; --wayle) wayle=1 ;; esac
+      done
+      [ "$wayle" = "1" ] && { project_wayle_output; return 0; }
+      if [ -s "${PROJECT_CACHE}" ]; then
+        [ "$json" = "1" ] \
+          && cat "${PROJECT_CACHE}" \
+          || jq -r '"[\(.name)] \(.branch) \(if .dirty then "✦\(.modified) ◆\(.staged)" else "(clean)" end) [\(.framework)]"' \
+               "${PROJECT_CACHE}" 2>/dev/null
+      else
+        [ "$json" = "1" ] \
+          && echo '{"name":"","path":"","branch":"","dirty":false,"modified":0,"staged":0,"lang":"unknown","services":{},"actions":[]}' \
+          || echo "No project cached. Run: kage project refresh"
+      fi ;;
+    refresh)
+      project_probe >/dev/null \
+        && echo "ok: project cache refreshed" \
+        || echo "warn: could not detect project (no focused window or not a git repo?)" ;;
+    watch)
+      project_watch_daemon ;;
+    action)
+      project_run_action "${1:-}" ;;
+    status)
+      [ -s "${PROJECT_CACHE}" ] \
+        && jq -r '"project:  \(.name)\npath:     \(.path)\nbranch:   \(.branch)\nlang:     \(.framework)\ndirty:    \(.dirty)\nmodified: \(.modified) | staged: \(.staged)\nservices: \(.services|to_entries|map("\(.key):\(.value)")|join(", "))\nupdated:  \(.updated_at)"' \
+             "${PROJECT_CACHE}" 2>/dev/null \
+        || echo "no project cached" ;;
+    *)
+      echo "usage: kage project [current [--json|--wayle] | refresh | watch | action <name> | status]" >&2
+      exit 1 ;;
+  esac
+}
+
+# ── cmd: scratch (v1 + Phase 3 enhancements) ─────────────────────────────────
+
+_scratch_state_file() {
+  echo "${KAGE_CACHE_DIR}/scratchpad-state.json"
+}
+
+_scratch_get_state() {
+  local state_file
+  state_file="$(_scratch_state_file)"
+  if [ -f "$state_file" ]; then
+    cat "$state_file"
+  else
+    echo '{"terminal":false,"notes":false,"logs":false,"ai":false,"db":false}'
+  fi
+}
+
+_scratch_set_visible() {
+  local target="$1" visible="$2"
+  local state_file state
+  state_file="$(_scratch_state_file)"
+  state="$(_scratch_get_state)"
+  state="$(printf '%s' "$state" | jq --arg t "$target" --arg v "$visible" '.[$t] = ($v == "true")' 2>/dev/null || echo "$state")"
+  printf '%s' "$state" > "$state_file"
+}
+
+_scratch_is_visible() {
+  local target="$1"
+  _scratch_get_state | jq -r ".${target} // false" 2>/dev/null || echo "false"
+}
+
+_scratch_toggle() {
+  local target="$1"
+  local manager="${HOME}/.config/hypr/scripts/scratchpad-manager.sh"
+  [ -x "$manager" ] || { notify "Scratchpad manager missing" "$manager"; return 1; }
+  case "$target" in
+    terminal) "$manager" toggle terminal; _scratch_set_visible terminal true ;;
+    notes) "$manager" launch notes; _scratch_set_visible notes true ;;
+    logs) "$manager" launch logs; _scratch_set_visible logs true ;;
+    ai) "$manager" launch ai; _scratch_set_visible ai true ;;
+    db) "$manager" launch db; _scratch_set_visible db true ;;
+    *) notify "Unknown scratchpad" "$target"; exit 1 ;;
+  esac
+}
+
+cmd_scratch() {
+  local sub="${1:-menu}"
+  local target="${2:-}"
+  case "$sub" in
+    toggle)
+      [ -n "$target" ] || { echo "usage: kage scratch toggle <terminal|notes|logs|ai|db>" >&2; exit 1; }
+      _scratch_toggle "$target" ;;
+    menu)
+      command -v rofi >/dev/null 2>&1 || exit 1
+      local choice
+      choice="$(printf 'terminal\nnotes\nlogs\nai\ndb\n' | \
+        rofi -dmenu -p 'Scratchpad' -theme "${HOME}/.config/rofi/actions.rasi" 2>/dev/null || true)"
+      [ -n "$choice" ] && _scratch_toggle "$choice" ;;
+    list) printf 'terminal\nnotes\nlogs\nai\ndb\n' ;;
+    status)
+      local state
+      state="$(_scratch_get_state)"
+      jq -r '
+        "Scratchpad visibility:\n" +
+        (["terminal: " + (.terminal | if . then "✓ visible" else "✗ hidden" end),
+          "notes: " + (.notes | if . then "✓ visible" else "✗ hidden" end),
+          "logs: " + (.logs | if . then "✓ visible" else "✗ hidden" end),
+          "ai: " + (.ai | if . then "✓ visible" else "✗ hidden" end),
+          "db: " + (.db | if . then "✓ visible" else "✗ hidden" end)]
+        | join("\n"))
+      ' <<< "$state" 2>/dev/null || echo "$state" ;;
+    *)    echo "usage: kage scratch [toggle <target> | menu | list | status]" >&2; exit 1 ;;
+  esac
+}
+
+# ── cmd: ai ──────────────────────────────────────────────────────────────────
+
+cmd_ai() {
+  local sub="${1:-list}"
+  shift || true
+  
+  # Verify scripts exist
+  local script_dir="${HOME}/.config/hypr/scripts"
+  
+  case "$sub" in
+    commit-msg)
+      # Check for staged changes
+      git diff --cached --name-only >/dev/null 2>&1 || { 
+        notify-send "kage-ai" "No staged changes" 2>/dev/null
+        exit 1
+      }
+      [ -x "$script_dir/kage-ai-commit-msg.sh" ] || { 
+        echo "error: kage-ai-commit-msg.sh not found or not executable" >&2
+        exit 1
+      }
+      "$script_dir/kage-ai-commit-msg.sh"
+      ;;
+    review)
+      # Check for commits to review
+      git diff HEAD~1 >/dev/null 2>&1 || { 
+        notify-send "kage-ai" "Need at least 2 commits to review" 2>/dev/null
+        exit 1
+      }
+      [ -x "$script_dir/kage-ai-review.sh" ] || { 
+        echo "error: kage-ai-review.sh not found or not executable" >&2
+        exit 1
+      }
+      "$script_dir/kage-ai-review.sh"
+      ;;
+    explain)
+      [ -x "$script_dir/kage-ai-explain.sh" ] || { 
+        echo "error: kage-ai-explain.sh not found or not executable" >&2
+        exit 1
+      }
+      "$script_dir/kage-ai-explain.sh"
+      ;;
+    *)
+      echo "usage: kage ai [commit-msg | review | explain]" >&2
+      exit 1 ;;
+  esac
+}
+
+# ── main ─────────────────────────────────────────────────────────────────────
+
+main() {
+  local cmd="${1:-status}"
+  shift || true
+  case "${cmd}" in
+    status)   cmd_status   "$@" ;;
+    health)   cmd_health   "$@" ;;
+    overview) cmd_overview "$@" ;;
+    actions)  cmd_actions  "$@" ;;
+    project)  cmd_project  "$@" ;;
+    scratch)  cmd_scratch  "$@" ;;
+    ai)       cmd_ai       "$@" ;;
+    *)
+      echo "usage: kage <status|health|overview|actions|project|scratch|ai>" >&2
+      exit 1 ;;
+  esac
+}
+
+main "$@"

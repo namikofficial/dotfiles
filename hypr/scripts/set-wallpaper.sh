@@ -70,30 +70,6 @@ pick_random_wall() {
   fi
 }
 
-ensure_daemon() {
-  if ! command -v swww >/dev/null 2>&1 || ! command -v swww-daemon >/dev/null 2>&1; then
-    return 1
-  fi
-
-  if swww query >/dev/null 2>&1; then
-    return 0
-  fi
-
-  pkill -x swww-daemon >/dev/null 2>&1 || true
-  swww-daemon >/dev/null 2>&1 &
-
-  i=0
-  while [ "$i" -lt 10 ]; do
-    sleep 0.2
-    if swww query >/dev/null 2>&1; then
-      return 0
-    fi
-    i=$((i + 1))
-  done
-
-  return 1
-}
-
 apply_with_hyprpaper() {
   wall_path="$1"
   command -v hyprctl >/dev/null 2>&1 || return 1
@@ -157,37 +133,17 @@ write_wall_cache() {
 apply_wallpaper() {
   wall="$1"
   transition="$2"
-  transition_type="${WALLPAPER_TRANSITION_TYPE:-fade}"
-  transition_fps="${WALLPAPER_TRANSITION_FPS:-120}"
-  transition_duration="${WALLPAPER_TRANSITION_DURATION:-1.3}"
-  transition_step="${WALLPAPER_TRANSITION_STEP:-90}"
-  resize_mode="${WALLPAPER_RESIZE_MODE:-fit}"
 
   prepared_wall="$(prepare_wall "$wall")"
 
-  if ensure_daemon; then
-    if [ "$transition" = "init" ]; then
-      swww img "$prepared_wall" --resize "$resize_mode" --transition-type fade --transition-fps "$transition_fps" --transition-duration 1
-      return 0
-    fi
-
-    swww img "$prepared_wall" \
-      --resize "$resize_mode" \
-      --transition-type "$transition_type" \
-      --transition-step "$transition_step" \
-      --transition-fps "$transition_fps" \
-      --transition-duration "$transition_duration" && return 0
-  fi
-
-  # Fallback for environments where swww is unavailable/broken.
   if apply_with_hyprpaper "$prepared_wall" || apply_with_hyprpaper "$wall"; then
     return 0
   fi
 
   if command -v notify-send >/dev/null 2>&1; then
-    notify-send -a Wallpaper "Wallpaper backend unavailable" "Install/start swww or hyprpaper."
+    notify-send -a Wallpaper "Wallpaper backend unavailable" "Install/start hyprpaper."
   fi
-  emit_event error "Wallpaper backend unavailable" "Install/start swww or hyprpaper."
+  emit_event error "Wallpaper backend unavailable" "Install/start hyprpaper."
   return 1
 }
 

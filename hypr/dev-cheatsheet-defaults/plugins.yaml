@@ -5,18 +5,10 @@ entries:
     description: mission-control style workspace overview
     copy: hyprctl plugin list
     source: ~/.config/hypr/hyprland.conf
-  - key: Waybar modules
-    description: status bar modules and custom scripts
-    copy: ~/.config/hypr/waybar/config
-    source: ~/.config/hypr/waybar/config
-  - key: SwayNC
-    description: notifications + quick toggles
-    copy: ~/.config/hypr/swaync/config.json
-    source: ~/.config/hypr/swaync/config.json
-  - key: Eww widgets
-    description: desktop widgets/panels
-    copy: ~/.config/eww/eww.yuck
-    source: ~/.config/eww/eww.yuck
+  - key: Wayle shell
+    description: top panel, notifications, and widgets
+    copy: ~/.config/wayle/config.toml
+    source: ~/.config/wayle/config.toml
   - key: Neovim Lazy plugins
     description: open plugin manager
     copy: nvim +Lazy

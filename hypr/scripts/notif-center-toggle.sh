@@ -1,23 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if command -v swaync-client >/dev/null 2>&1; then
-  swaync-client -sw -t >/dev/null 2>&1 || true
-  exit 0
-fi
+panel_switch="${HOME}/.config/hypr/scripts/panel-switch.sh"
 
-cfg="$HOME/.config/eww"
-win="notif_center"
-backdrop="notif_backdrop"
-
-eww --config "$cfg" daemon >/dev/null 2>&1 || true
-eww --config "$cfg" reload >/dev/null 2>&1 || true
-
-if eww --config "$cfg" active-windows 2>/dev/null | grep -Eq "^${win}:"; then
-  eww --config "$cfg" close "$win" >/dev/null 2>&1 || true
-  eww --config "$cfg" close "$backdrop" >/dev/null 2>&1 || true
-  command -v hyprctl >/dev/null 2>&1 && hyprctl dispatch submap reset >/dev/null 2>&1 || true
-else
-  eww --config "$cfg" open-many "$backdrop" "$win"
-  command -v hyprctl >/dev/null 2>&1 && hyprctl dispatch submap notifpanel >/dev/null 2>&1 || true
+if command -v wayle >/dev/null 2>&1; then
+  if pgrep -x wayle >/dev/null 2>&1 || { [ -x "$panel_switch" ] && "$panel_switch" status 2>/dev/null | grep -q '^wayle:visible$'; }; then
+    wayle panel show >/dev/null 2>&1 || true
+    wayle panel toggle notifications >/dev/null 2>&1 && exit 0
+    wayle panel toggle notification >/dev/null 2>&1 && exit 0
+  fi
 fi

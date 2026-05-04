@@ -64,16 +64,12 @@ fi
 
 
 
-if [ -x "$HOME/.config/hypr/scripts/restart-waybar.sh" ]; then
-  "$HOME/.config/hypr/scripts/restart-waybar.sh" >/dev/null 2>&1 || true
+if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
+  "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
 fi
 
-if command -v swaync-client >/dev/null 2>&1; then
-  swaync-client -rs >/dev/null 2>&1 || true
-fi
-
-if command -v eww >/dev/null 2>&1 && [ -d "$HOME/.config/eww" ]; then
-  eww --config "$HOME/.config/eww" reload >/dev/null 2>&1 || true
+if command -v wayle >/dev/null 2>&1; then
+  wayle panel restart >/dev/null 2>&1 || true
 fi
 
 kitty_remote_all load-config "$HOME/.config/kitty/kitty.conf"
@@ -82,6 +78,6 @@ if command -v hyprctl >/dev/null 2>&1; then
   hyprctl reload >/dev/null 2>&1 || true
 fi
 
-notify "Reload complete" "Theme + Kitty + Hyprland + panel + desktop caches refreshed"
+notify "Reload complete" "Theme + Kitty + Hyprland + panel refreshed"
 
 finish_slow_refresh >/dev/null 2>&1 &

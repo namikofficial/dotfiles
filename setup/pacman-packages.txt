@@ -105,12 +105,9 @@ hyprpicker
 hyprsunset
 hyprcursor
 hyprpolkitagent
-waybar
 rofi-wayland|rofi
-swaync
 wev
 kanshi
-swww
 grim
 slurp
 swappy
@@ -124,6 +121,8 @@ udiskie
 brightnessctl
 playerctl
 pavucontrol
+networkmanager
+wpa_supplicant
 network-manager-applet
 blueman
 polkit-gnome
@@ -165,7 +164,6 @@ mangohud
 lib32-mangohud
 gamescope
 power-profiles-daemon
-tlp
 pipewire
 pipewire-pulse
 wireplumber

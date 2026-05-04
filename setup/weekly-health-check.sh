@@ -229,13 +229,11 @@ else
   status_warn "clipboard image watcher missing"
 fi
 
-if pgrep -x swaync >/dev/null 2>&1; then
-  status_ok "notification daemon: swaync"
-elif pgrep -x dunst >/dev/null 2>&1; then
-  status_ok "notification daemon: dunst"
+if pgrep -x wayle >/dev/null 2>&1; then
+  status_ok "notification shell: wayle"
 else
-  status_warn "no notification daemon detected"
-  add_flag "NOTIFY_DAEMON missing swaync/dunst"
+  status_warn "wayle shell not detected"
+  add_flag "WAYLE missing"
 fi
 
 section "NVIDIA / VA-API / Vulkan"

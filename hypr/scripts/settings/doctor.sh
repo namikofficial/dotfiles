@@ -51,8 +51,6 @@ check_copy_or_link() {
 }
 
 check_link "$HOME/.config/hypr/hyprland.conf" "$ROOT_DIR/hypr/hyprland.conf"
-check_link "$HOME/.config/swaync" "$ROOT_DIR/hypr/swaync"
-check_link "$HOME/.config/waybar" "$ROOT_DIR/hypr/waybar"
 check_link "$HOME/.config/rofi" "$ROOT_DIR/hypr/rofi"
 check_copy_or_link "$HOME/.config/kdeglobals" "$ROOT_DIR/kde/kdeglobals"
 check_link "$HOME/.config/dolphinrc" "$ROOT_DIR/kde/dolphinrc"

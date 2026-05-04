@@ -20,35 +20,41 @@ flowchart LR
 |---|---|---|
 | `Super + Return` | Open terminal | `kitty` |
 | `Super + E` | Open file manager | `dolphin` |
-| `Super + Space` | Ultra-fast app launcher (press again to close) | `launcher.sh --fast` |
-| `Super + Shift + Space` | Window/workspace search | `workspace-overview.sh` |
-| `Super + Ctrl + Space` | Command palette (quick actions) | `quick-actions.sh` |
+| `Super + Space` | Desktop command palette | `desktop-palette.sh` |
+| `Super + Shift + Space` | Fast app launcher | `launcher.sh --fast` |
+| `Super + Ctrl + Space` | Window/workspace search | `workspace-overview.sh` |
 | `Super + .` | Fullscreen dev cheatsheet overlay (searchable tabs) | `dev-cheatsheet.sh` |
 | `Super + F1` | Keybind cheat sheet overlay | `hypr-binds.sh` |
-| `Super + A` or `Super + /` | Quick actions (press again to close) | `quick-actions.sh` |
+| `Super + A` or `Super + /` | Desktop command palette | `desktop-palette.sh` |
 | `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + Y` | Workspace hub (primary path) | `workspace-overview-toggle.sh` |
 | `Super + W` | Workspace overview (direct Rofi path) | `workspace-overview.sh` |
 | `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `workspace-overview-toggle.sh` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
+| `Super + \`` | Toggle spatial scratch scene | `scratchpad-manager.sh toggle scene` |
 | `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
 | `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
 | `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
-| `Super + N` | Toggle notification panel | `swaync-client -t` |
-| `Super + Alt + N` | Toggle DND | `swaync-client -d` |
+| `Super + S` | Spatial scratchpad dashboard | `scratchpad-manager.sh menu` |
+| `Super + Ctrl + S` | Logs scratchpad | `scratchpad-manager.sh launch logs` |
+| `Super + Alt + S` | AI workspace shell | `scratchpad-manager.sh launch ai` |
+| `Super + Ctrl + Alt + S` | Database scratchpad | `scratchpad-manager.sh launch db` |
+| `Super + Alt + O` | Obsidian scratchpad/focus | `scratchpad-manager.sh launch obsidian` |
+| `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |
+| `Super + Alt + N` | Toggle DND | `notif-dnd-toggle.sh` |
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |
 | `Super + Shift + N` | Open notes folder | `open-notes.sh` |
 | `Super + Alt + E` | Open notes folder | `open-notes.sh` |
-| `Super + D` | Quick actions menu (duplicate launcher utility key) | `quick-actions.sh` |
+| `Super + D` | Desktop command palette | `desktop-palette.sh` |
 | `Super + ,` | Open Settings Hub | `settings-hub.sh` |
 | `Super + Shift + ,` | Re-apply last selected settings section | `settings-hub.sh last` |
 | `Super + Ctrl + ,` | Quick settings toggle (notification sounds) | `settings-hub.sh quick` |
-| `Super + Alt + ,` | Toggle Eww detailed settings panel | `settings-eww.sh` |
+| `Super + Alt + ,` | Open Rofi settings editor | `settings/editor.sh` |
 | `Super + Ctrl + Alt + ,` | Apply per-app routing to focused app | `app-routing-apply-focused.sh` |
-| `Super + Ctrl + Y` | Restore Waybar panel | `panel-switch.sh waybar` |
+| `Super + Ctrl + Y` | Switch panel to Wayle when installed | `panel-switch.sh wayle` |
 | `Super + Shift + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
-| `Super + Ctrl + Alt + Y` | Toggle desktop widgets (behind windows) | `eww-desktop-toggle.sh toggle` |
+| `Super + Ctrl + Alt + Y` | Toggle panel | `panel-switch.sh toggle` |
 | `Super + Escape` | Power menu | `power-menu.sh` |
 | `Super + Ctrl + L` | Lock screen | `lock.sh` |
 
@@ -88,7 +94,7 @@ flowchart LR
 | `Super + Ctrl + 0` | Open/focus telemetry dashboard on workspace 10 (`0` key slot) |
 | `Super + Ctrl + Shift + 0` | Reset telemetry dashboard session and reopen it |
 | `Super + Ctrl + 9` | Open logs workspace launcher (workspace 9) |
-| `Super + Ctrl + Shift + 9` | Open logs workspace stack (journal + waybar logs) |
+| `Super + Ctrl + Shift + 9` | Open logs workspace stack (journal + panel logs) |
 | `Super + [` / `Super + ]` | Prev / next workspace |
 | `Super + mouse wheel` | Prev / next workspace |
 

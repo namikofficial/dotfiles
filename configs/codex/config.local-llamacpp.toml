@@ -1,0 +1,15 @@
+# Copy relevant parts into ~/.codex/config.toml if you want to try local provider.
+# NOTE: Codex custom providers currently use Responses API wire format only.
+# Your local endpoint must support /v1/responses.
+
+model = "qwen-coder"
+model_provider = "llamacpp"
+
+[model_providers.llamacpp]
+name = "llama.cpp local"
+base_url = "http://127.0.0.1:8080/v1"
+env_key = "LLAMA_CPP_API_KEY"
+wire_api = "responses"
+
+[model_providers.llamacpp.http_headers]
+"Authorization" = "Bearer local"

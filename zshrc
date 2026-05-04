@@ -372,6 +372,9 @@ for user_bin in "$HOME/.local/bin" "$HOME/.cargo/bin" "$HOME/bin"; do
   [ -d "$user_bin" ] && path=("$user_bin" $path)
 done
 
+# Kage substrate entrypoint (desktop command/runtime orchestrator)
+alias kage="$HOME/.config/hypr/scripts/kage"
+
 find_codex_bin_dir() {
   emulate -L zsh
   typeset -a latest_node_dirs
@@ -416,6 +419,7 @@ path=(
 
 # Android Studio
 export ANDROID_STUDIO="/opt/android-studio"
+export _JAVA_AWT_WM_NONREPARENTING=1
 
 # Gradle
 export GRADLE_HOME="$HOME/gradle/gradle-8.13"
@@ -651,6 +655,12 @@ if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
   done
 fi
 
+# Source git functions AFTER forgit to override its aliases with our functions
+DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
+if [ -f "$DOTFILES_HOME/zsh/git-functions.zsh" ]; then
+  source "$DOTFILES_HOME/zsh/git-functions.zsh"
+fi
+
 typeset -gi __nox_syntax_highlight_loaded=0
 for plugin in \
   "$HOME/.local/share/zsh/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh" \
@@ -817,6 +827,8 @@ typeset -ga preexec_functions precmd_functions
 
 # Aliases
 DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
+
+# Then source main aliases
 if [ -f "$DOTFILES_HOME/aliases.zsh" ]; then
   source "$DOTFILES_HOME/aliases.zsh"
 fi
@@ -847,3 +859,8 @@ if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
   printf 'zsh startup: %.2fms\n' "$startup_elapsed_ms"
   zprof
 fi
+
+# Local LLM aliases
+alias llama-gemma="llama-start gemma"
+alias llama-code="llama-start code"
+alias llama-status="curl -s http://127.0.0.1:8000/v1/models | jq '.data[0].id' 2>/dev/null || echo 'Server not running'"

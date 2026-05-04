@@ -7,10 +7,7 @@ mkdir -p "$cache_dir"
 hooks_dir="$HOME/.config/hypr/scripts/theme-hooks.d"
 
 palette_json="$cache_dir/theme-palette.json"
-waybar_colors="$cache_dir/theme-colors-waybar.css"
-swaync_colors="$cache_dir/theme-colors-swaync.css"
 rofi_colors="$cache_dir/theme-colors-rofi.rasi"
-eww_colors="$cache_dir/theme-colors-eww.scss"
 kitty_colors="$cache_dir/theme-colors-kitty.conf"
 hyprlock_colors="$cache_dir/theme-colors-hyprlock.conf"
 gtk3_css="$HOME/.config/gtk-3.0/gtk.css"
@@ -27,8 +24,6 @@ kvantum_theme_dir="$kvantum_dir/NoxflowDynamic"
 kvantum_theme_conf="$kvantum_theme_dir/NoxflowDynamic.kvconfig"
 kvantum_theme_svg="$kvantum_theme_dir/NoxflowDynamic.svg"
 kvantum_main_conf="$kvantum_dir/kvantum.kvconfig"
-waybar_before_hash=""
-waybar_after_hash=""
 kitty_runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
 
 kitty_remote_all() {
@@ -38,10 +33,6 @@ kitty_remote_all() {
     kitty @ --to "unix:$sock" "$@" >/dev/null 2>&1 || true
   done
 }
-
-if [ -f "$waybar_colors" ]; then
-  waybar_before_hash="$(sha256sum "$waybar_colors" | awk '{print $1}')"
-fi
 
 if [ -z "$wall" ] || [ ! -f "$wall" ]; then
   if [ -f "$HOME/.cache/current-wallpaper" ]; then
@@ -286,34 +277,6 @@ muted_rgb="$(hex_to_rgb_csv "$muted")"
 accent_rgb="$(hex_to_rgb_csv "$accent")"
 accent2_rgb="$(hex_to_rgb_csv "$accent2")"
 
-cat > "$waybar_colors" <<EOF2
-@define-color bg ${bg};
-@define-color bg_soft ${bg_soft};
-@define-color surface ${surface};
-@define-color text ${text};
-@define-color muted ${muted};
-@define-color accent ${accent};
-@define-color accent2 ${accent2};
-@define-color warn ${warn};
-@define-color danger ${danger};
-EOF2
-
-if [ -f "$waybar_colors" ]; then
-  waybar_after_hash="$(sha256sum "$waybar_colors" | awk '{print $1}')"
-fi
-
-cat > "$swaync_colors" <<EOF2
-@define-color bg ${bg};
-@define-color bg_soft ${bg_soft};
-@define-color surface ${surface};
-@define-color text ${text};
-@define-color muted ${muted};
-@define-color accent ${accent};
-@define-color accent2 ${accent2};
-@define-color warn ${warn};
-@define-color danger ${danger};
-EOF2
-
 cat > "$rofi_colors" <<EOF2
 * {
     bg: ${bg}ef;
@@ -324,16 +287,6 @@ cat > "$rofi_colors" <<EOF2
     good: ${accent2};
     bad: ${danger};
 }
-EOF2
-
-cat > "$eww_colors" <<EOF2
-\$bg: rgba($(hex_to_rgb_csv "$bg"), 0.78);
-\$surface: rgba($(hex_to_rgb_csv "$surface"), 0.84);
-\$border: rgba($(hex_to_rgb_csv "$accent"), 0.18);
-\$text: ${text};
-\$muted: ${muted};
-\$accent: ${accent};
-\$accent2: ${accent2};
 EOF2
 
 cat > "$kitty_colors" <<EOF2
@@ -551,6 +504,27 @@ EOF2
 
 printf '%s\n' "$accent" > "$cache_dir/current-accent"
 
+apply_wayle_palette() {
+  command -v wayle >/dev/null 2>&1 || return 0
+
+  wayle config set styling.palette.bg "\"$bg\"" >/dev/null 2>&1 || return 0
+  wayle config set styling.palette.surface "\"$surface\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.elevated "\"$bg_soft\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.fg "\"$text\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.fg-muted "\"$muted\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.primary "\"$accent\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.red "\"$danger\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.yellow "\"$warn\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.green "\"$accent2\"" >/dev/null 2>&1 || true
+  wayle config set styling.palette.blue "\"$accent\"" >/dev/null 2>&1 || true
+
+  if systemctl --user is-active --quiet wayle.service 2>/dev/null || pgrep -x wayle >/dev/null 2>&1; then
+    wayle panel restart >/dev/null 2>&1 || true
+  fi
+}
+
+apply_wayle_palette
+
 # Optional external themers (run only if installed).
 if command -v wal >/dev/null 2>&1; then
   timeout 15 wal -q -n -i "$wall" >/dev/null 2>&1 || true
@@ -564,16 +538,8 @@ if command -v pywalfox >/dev/null 2>&1; then
   timeout 15 pywalfox update >/dev/null 2>&1 || true
 fi
 
-if pgrep -x waybar >/dev/null 2>&1 && [ "$waybar_before_hash" != "$waybar_after_hash" ]; then
-  pkill -USR2 -x waybar >/dev/null 2>&1 || true
-fi
-
-if command -v swaync-client >/dev/null 2>&1; then
-  timeout 3 swaync-client -rs >/dev/null 2>&1 || true
-fi
-
-if command -v eww >/dev/null 2>&1 && [ -d "$HOME/.config/eww" ]; then
-  eww --config "$HOME/.config/eww" reload >/dev/null 2>&1 || true
+if command -v wayle >/dev/null 2>&1; then
+  wayle panel restart >/dev/null 2>&1 || true
 fi
 
 kitty_remote_all set-colors -a "$kitty_colors"

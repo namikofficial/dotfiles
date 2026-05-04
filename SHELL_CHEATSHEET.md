@@ -55,7 +55,7 @@
 - Set performance mode: `powerprofilesctl set performance`
 - Set power-saver mode: `powerprofilesctl set power-saver`
 - Battery summary: `batt`
-- Enable detailed Waybar GPU polling (off by default): `export WAYBAR_GPU_DEEP_POLL=1; pkill -x waybar; waybar & disown`
+- Wayle status/media data is built into the shell; no separate Waybar GPU polling flow.
 
 ## Git
 - Status short: `gss`
@@ -121,10 +121,10 @@
 - `Super + Shift + I`: toggle night light
 - `Super + Shift + T`: OCR selected area to clipboard
 - `Super + Ctrl + R`: toggle screen recording
-- `Super + Y`: toggle widget panel (Eww)
-- `Super + Ctrl + Y`: restore Waybar panel
+- `Super + Y`: workspace overview
+- `Super + Ctrl + Y`: switch panel to Wayle when installed
 - `Super + Shift + Y`: toggle panel visibility only
-- `Super + Ctrl + Alt + Y`: toggle desktop widgets
+- `Super + Ctrl + Alt + Y`: toggle the current panel shell
 - `Fn + 2/3/4/5`: AI helper (`ask`/`clipboard`/`shell`/`debug`)
 - `Super + Alt + 2`: freeform AI prompt with no preset base prompt
 - `Super + Alt + 3/4/5`: fallback AI helper (`clipboard`/`shell`/`debug`)
@@ -200,7 +200,7 @@
 - Reload shell config: `exec zsh`
 - Reload Hyprland config: `hyprctl reload`
 - Restart portal services: `systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk`
-- Restart Waybar cleanly: `~/.config/hypr/scripts/restart-waybar.sh`
+- Restore preferred panel: `~/.config/hypr/scripts/panel-switch.sh show`
 - Toggle NetworkManager tray applet: `~/.config/hypr/scripts/nm-applet-toggle.sh`
 
 ## Reboot Runbook (3 commands)

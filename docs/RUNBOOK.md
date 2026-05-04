@@ -32,7 +32,6 @@ flowchart TD
 
 - `~/Documents/code/dotfiles/logs/pre-reboot-latest.log`
 - `~/Documents/code/dotfiles/logs/post-reboot-latest.log`
-- `~/.local/state/noxflow/waybar.log`
 - `~/Documents/code/dotfiles/logs/health-latest.log`
 
 ## What The Scripts Check

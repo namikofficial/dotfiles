@@ -4,32 +4,32 @@ SideBarPage=operations
 ThumbnailBarIsVisible=true
 
 [ImageView]
-ThumbnailSplitterSizes=321,92
+ThumbnailSplitterSizes=719,206
 
 [MainWindow]
 MenuBar=Disabled
 
 [Recent Files]
-File1[$e]=$HOME/Downloads/Screenshot_20260426-022313.jpg
-File10[$e]=$HOME/Downloads/Screenshot_20260426-130849.jpg
-File2[$e]=$HOME/Downloads/Screenshot_20260426-023127.jpg
-File3[$e]=$HOME/Downloads/Screenshot_20260426-023116.jpg
-File4[$e]=$HOME/Downloads/Screenshot_20260426-022759.png
-File5[$e]=$HOME/Downloads/Screenshot_20260426-124856.jpg
-File6[$e]=$HOME/Downloads/Screenshot_20260426-124900.jpg
-File7[$e]=$HOME/Downloads/Screenshot_20260426-125747.jpg
-File8[$e]=$HOME/Downloads/Screenshot_20260426-125753.jpg
-File9[$e]=$HOME/Downloads/Screenshot_20260426-130843.jpg
-Name1[$e]=Screenshot_20260426-022313.jpg
-Name10[$e]=Screenshot_20260426-130849.jpg
-Name2[$e]=Screenshot_20260426-023127.jpg
-Name3[$e]=Screenshot_20260426-023116.jpg
-Name4[$e]=Screenshot_20260426-022759.png
-Name5[$e]=Screenshot_20260426-124856.jpg
-Name6[$e]=Screenshot_20260426-124900.jpg
-Name7[$e]=Screenshot_20260426-125747.jpg
-Name8[$e]=Screenshot_20260426-125753.jpg
-Name9[$e]=Screenshot_20260426-130843.jpg
+File1[$e]=$HOME/Downloads/Screenshot_20260426-023127.jpg
+File10[$e]=$HOME/Downloads/ChatGPT Image Apr 29, 2026, 10_51_03 PM.png
+File2[$e]=$HOME/Downloads/Screenshot_20260426-023116.jpg
+File3[$e]=$HOME/Downloads/Screenshot_20260426-022759.png
+File4[$e]=$HOME/Downloads/Screenshot_20260426-124856.jpg
+File5[$e]=$HOME/Downloads/Screenshot_20260426-124900.jpg
+File6[$e]=$HOME/Downloads/Screenshot_20260426-125747.jpg
+File7[$e]=$HOME/Downloads/Screenshot_20260426-125753.jpg
+File8[$e]=$HOME/Downloads/Screenshot_20260426-130843.jpg
+File9[$e]=$HOME/Downloads/Screenshot_20260426-130849.jpg
+Name1[$e]=Screenshot_20260426-023127.jpg
+Name10[$e]=ChatGPT Image Apr 29, 2026, 10_51_03 PM.png
+Name2[$e]=Screenshot_20260426-023116.jpg
+Name3[$e]=Screenshot_20260426-022759.png
+Name4[$e]=Screenshot_20260426-124856.jpg
+Name5[$e]=Screenshot_20260426-124900.jpg
+Name6[$e]=Screenshot_20260426-125747.jpg
+Name7[$e]=Screenshot_20260426-125753.jpg
+Name8[$e]=Screenshot_20260426-130843.jpg
+Name9[$e]=Screenshot_20260426-130849.jpg
 
 [SideBar]
 InformationSplitterSizes=220,255

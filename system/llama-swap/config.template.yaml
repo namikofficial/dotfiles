@@ -1,0 +1,24 @@
+# llama-swap: one OpenAI-compatible endpoint, one model loaded at a time.
+# Source: https://github.com/mostlygeek/llama-swap
+
+healthCheckTimeout: 120
+logRequests: true
+
+models:
+  gemma-3-4b:
+    cmd: >
+      __LLAMA_SERVER__
+      --host 127.0.0.1
+      --port ${PORT}
+      --model __MODEL_ROOT__/google_gemma-3-4b-it-Q4_K_M.gguf
+      --ctx-size 32768
+      --n-gpu-layers 99
+      --threads 8
+      --parallel 1
+      --jinja
+    aliases:
+      - local
+      - gemma
+      - gemma4
+      - gemma-3-4b
+      - google_gemma-3-4b-it-Q4_K_M.gguf

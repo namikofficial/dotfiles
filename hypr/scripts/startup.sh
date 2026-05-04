@@ -75,7 +75,7 @@ if [ -x "$HOME/.config/hypr/scripts/lib/log.sh" ]; then
   "$HOME/.config/hypr/scripts/lib/log.sh" --init >/dev/null 2>&1 || true
 fi
 
-# Apply generated settings overlays for Hypr/SwayNC at session start.
+# Apply generated settings overlays for Hypr/Wayle at session start.
 if [ -x "$HOME/.config/hypr/scripts/settingsctl" ]; then
   (
     sleep 0.5
@@ -145,18 +145,9 @@ if command -v gnome-keyring-daemon >/dev/null 2>&1; then
 fi
 
 run_once avizo-service avizo-service
-# Keep a single panel engine active by default to avoid tray/DND duplication.
-pkill -x hyprpanel >/dev/null 2>&1 || true
-pkill -x ags >/dev/null 2>&1 || true
-"$HOME/.config/hypr/scripts/restart-waybar.sh" >/dev/null 2>&1 || true
-ensure_single_process waybar
-
-# Optional desktop-widget layer (Eww) for richer visual dashboard.
-if [ "${HYPR_ENABLE_EWW_DESKTOP:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/eww-desktop-toggle.sh" ]; then
-  (
-    sleep 2
-    "$HOME/.config/hypr/scripts/eww-desktop-toggle.sh" show >/dev/null 2>&1 || true
-  ) &
+# Wayle is the only managed panel shell.
+if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
+  "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
 fi
 
 run_cmd_if_not "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh" "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh"
@@ -197,35 +188,6 @@ if [ "${HYPR_LOAD_HYPREXPO_AT_STARTUP:-0}" = "1" ] && [ -f "$hyprexpo_plugin" ];
   ) &
 fi
 
-# Waybar occasionally races Hyprland startup on cold boots; retry once.
-if resolve_cmd waybar >/dev/null 2>&1; then
-  (
-    sleep 2
-    if ! pgrep -x waybar >/dev/null 2>&1; then
-      "$(resolve_cmd waybar)" >/dev/null 2>&1 &
-    fi
-  ) &
-fi
-
-# Notifications: swaync mode by default; custom mode remains opt-in.
-if [ -x "$HOME/.config/hypr/scripts/notif-mode.sh" ]; then
-  (
-    sleep 0.8
-    "$HOME/.config/hypr/scripts/notif-mode.sh" "${HYPR_NOTIF_MODE:-swaync}" >/dev/null 2>&1 || true
-  ) &
-else
-  if resolve_cmd swaync >/dev/null 2>&1; then
-    run_once swaync swaync
-    pkill -x dunst >/dev/null 2>&1 || true
-  else
-    run_once dunst dunst
-  fi
-fi
-
-if resolve_cmd swww >/dev/null 2>&1; then
-  run_cmd_if_not '^swww-daemon$' swww-daemon
-fi
-
 # Start whichever polkit agent is available.
 for agent in \
   hyprpolkitagent \
@@ -260,6 +222,19 @@ if [ -n "$wlpaste_bin" ] && [ -n "$cliphist_bin" ]; then
   "$wlpaste_bin" --type text --watch "$cliphist_bin" store >/dev/null 2>&1 &
   "$wlpaste_bin" --type image --watch "$cliphist_bin" store >/dev/null 2>&1 &
 fi
+
+# Start kage project watch daemon
+(
+  sleep 2
+  _kage_watch_pid_file="${HOME}/.cache/kage/project-watch.pid"
+  if [ -f "$_kage_watch_pid_file" ]; then
+    _kage_wpid="$(cat "$_kage_watch_pid_file" 2>/dev/null || true)"
+    [ -n "$_kage_wpid" ] && kill -0 "$_kage_wpid" 2>/dev/null && true || \
+      "$HOME/.config/hypr/scripts/kage" project watch >/dev/null 2>&1 &
+  else
+    "$HOME/.config/hypr/scripts/kage" project watch >/dev/null 2>&1 &
+  fi
+) &
 
 # Set default wallpaper + sync theme after daemon boot.
 if [ -x "$HOME/.config/hypr/scripts/set-wallpaper.sh" ]; then
