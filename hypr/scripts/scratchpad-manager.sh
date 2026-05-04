@@ -28,6 +28,7 @@ registry_file="$HOME/.config/hypr/scripts/scratchpad-registry.toml"
 dashboard_pidfile="$state_dir/scratchpad-dashboard.pid"
 scratch_state="$state_dir/scratchpad-state.json"
 scene_state="$state_dir/scratchpad-scene-state.json"
+log_context_file="$state_dir/scratchpad-log-context"
 dashboard_log="$state_dir/scratchpad-dashboard.log"
 
 spatial_visible() {
@@ -68,6 +69,13 @@ client_address() {
 
 active_window_json() {
   hyprctl -j activewindow 2>/dev/null || printf '{}\n'
+}
+
+active_window_matches_class() {
+  local class_name="$1"
+  active_window_json | jq -e --arg class_name "$class_name" '
+    ((.class // "") | ascii_downcase) == ($class_name | ascii_downcase)
+  ' >/dev/null 2>&1
 }
 
 focused_monitor_json() {
@@ -244,7 +252,11 @@ spawn_ai() {
 }
 
 spawn_logs() {
-  kitty --class noxflow-scratch-logs --title "Logs" -e zsh -lic 'journalctl -f --no-hostname --no-pager || exec zsh -l'
+  local context="${1:-$(context_cwd)}"
+  printf '%s\n' "$context" > "$log_context_file"
+  NOXFLOW_LOG_CONTEXT="$context" kitty --class noxflow-scratch-logs --title "Logs" -e zsh -lic '
+    exec "$HOME/.config/hypr/scripts/project-logs.sh" "$NOXFLOW_LOG_CONTEXT"
+  ' >/dev/null 2>&1 &
 }
 
 spawn_pad_process() {
@@ -255,7 +267,7 @@ spawn_pad_process() {
     db) spawn_db >/dev/null 2>&1 & ;;
     browser-devtools) spawn_browser_devtools >/dev/null 2>&1 || true ;;
     ai) spawn_ai >/dev/null 2>&1 & ;;
-    logs) spawn_logs >/dev/null 2>&1 & ;;
+    logs) spawn_logs "${NOXFLOW_LOG_CONTEXT:-$(context_cwd)}" ;;
     *) return 1 ;;
   esac
 }
@@ -287,11 +299,90 @@ normal_workspace_window_json() {
   ' 2>/dev/null || printf '{}\n'
 }
 
+context_window_json() {
+  local workspace active normal
+  workspace="$(active_workspace_id)"
+  active="$(active_window_json)"
+  normal="$(normal_workspace_window_json "$workspace")"
+  python3 - "$workspace" "$active" "$normal" <<'PY'
+import json, sys
+
+workspace = int(sys.argv[1])
+try:
+    active = json.loads(sys.argv[2])
+except Exception:
+    active = {}
+try:
+    normal = json.loads(sys.argv[3])
+except Exception:
+    normal = {}
+
+def is_scratch(client):
+    cls = str(client.get("class", ""))
+    title = str(client.get("title", ""))
+    return cls.lower().startswith("noxflow-scratch") or title == "Spatial Scratchpad"
+
+if active.get("pid") and not is_scratch(active) and int(active.get("workspace", {}).get("id", 0) or 0) == workspace:
+    print(json.dumps(active))
+elif normal.get("pid"):
+    print(json.dumps(normal))
+else:
+    print("{}")
+PY
+}
+
+context_cwd() {
+  local pid cwd
+  pid="$(context_window_json | jq -r '.pid // empty' 2>/dev/null || true)"
+  if [ -n "$pid" ]; then
+    cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
+    if [ -n "$cwd" ] && [ -d "$cwd" ]; then
+      printf '%s\n' "$cwd"
+      return 0
+    fi
+  fi
+  printf '%s\n' "$HOME"
+}
+
+forget_client() {
+  local address="$1"
+  [ -n "$address" ] || return 0
+  hyprctl dispatch closewindow "address:$address" >/dev/null 2>&1 || true
+  for _ in {1..20}; do
+    hyprctl -j clients 2>/dev/null | jq -e --arg address "$address" '
+      any(.[]; (.address // "") == $address)
+    ' >/dev/null 2>&1 || return 0
+    sleep 0.05
+  done
+}
+
 launch_overlay_pad() {
-  local pad="$1" class_name address
+  local pad="$1" class_name address context current_context
   class_name="$(pad_class "$pad")"
   [ -n "$class_name" ] || return 1
-  window_exists "$class_name" || spawn_pad_process "$pad"
+
+  if spatial_visible && active_window_matches_class "$class_name"; then
+    toggle_workspace
+    update_state "$pad" ready
+    return 0
+  fi
+
+  if [ "$pad" = "logs" ]; then
+    context="${NOXFLOW_LOG_CONTEXT:-$(context_cwd)}"
+    current_context="$(cat "$log_context_file" 2>/dev/null || true)"
+    address="$(client_address "$class_name" || true)"
+    if [ -n "$address" ] && [ "$current_context" != "$context" ]; then
+      forget_client "$address"
+    fi
+  fi
+
+  if ! window_exists "$class_name"; then
+    if [ "$pad" = "logs" ]; then
+      NOXFLOW_LOG_CONTEXT="$context" spawn_pad_process "$pad"
+    else
+      spawn_pad_process "$pad"
+    fi
+  fi
   address="$(wait_for_client "$class_name" || true)"
   [ -n "$address" ] || return 0
   hyprctl dispatch movetoworkspacesilent "special:$(workspace_for),address:$address" >/dev/null 2>&1 || true

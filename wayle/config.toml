@@ -194,7 +194,7 @@ on-action = '''brightnessctl -m | awk -F',' '{gsub(/%/, "", $4); p=$4+0; printf(
 
 [[modules.custom]]
 id = "logs"
-command = '''printf('{"text":"LOG","tooltip":"Open logs workspace"}\n')'''
+command = '''printf('{"text":"LOG","tooltip":"Open context-aware project logs"}\n')'''
 mode = "poll"
 interval-ms = 10000
 format = "LOG"
@@ -204,7 +204,7 @@ label-max-length = 4
 button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/logs-workspace.sh open"
+left-click = "/home/namik/.config/hypr/scripts/scratchpad-manager.sh launch logs"
 
 [[modules.custom]]
 id = "quick"
@@ -246,8 +246,8 @@ label-show = true
 button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-muted"
-left-click = "llm-manager status"
-on-action = "notify-send 'LLM' 'Status: see logs with llm-manager logs'"
+left-click = "/home/namik/.config/hypr/scripts/scratchpad-manager.sh launch ai"
+on-action = "kitty -e zsh -lc 'llama-swap-manager status; read -r -p \"Press enter to close\"'"
 
 [modules.battery]
 left-click = "dropdown:battery"

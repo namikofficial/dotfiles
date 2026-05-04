@@ -4,8 +4,12 @@ set -euo pipefail
 endpoint="${LLM_CHAT_ENDPOINT:-http://127.0.0.1:8080/v1/chat/completions}"
 health="${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}"
 model="${LLM_CHAT_MODEL:-local}"
-export LD_LIBRARY_PATH="${LLAMA_LIBRARY_PATH:-$HOME/.local/lib}:${LD_LIBRARY_PATH:-}"
-export GGML_BACKEND_PATH="${LLAMA_BACKEND_PATH:-${LLAMA_LIBRARY_PATH:-$HOME/.local/lib}/libggml-cpu-x64.so}"
+if [ -n "${LLAMA_LIBRARY_PATH:-}" ]; then
+  export LD_LIBRARY_PATH="${LLAMA_LIBRARY_PATH}:${LD_LIBRARY_PATH:-}"
+fi
+if [ -n "${LLAMA_BACKEND_PATH:-}" ]; then
+  export GGML_BACKEND_PATH="$LLAMA_BACKEND_PATH"
+fi
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -30,16 +34,23 @@ start_server() {
 }
 
 diagnose_server() {
-  if command -v llama-server >/dev/null 2>&1; then
-    missing="$(ldd "$(command -v llama-server)" 2>/dev/null | awk '/not found/ {print "  " $1}' || true)"
+  local server_bin
+  server_bin="${LLAMA_SERVER_BIN:-/usr/bin/llama-server}"
+  if [ ! -x "$server_bin" ]; then
+    server_bin="$(command -v llama-server 2>/dev/null || true)"
+  fi
+  if [ -n "$server_bin" ]; then
+    missing="$(ldd "$server_bin" 2>/dev/null | awk '/not found/ {print "  " $1}' || true)"
     if [ -n "$missing" ]; then
       printf '\nllama-server is installed but cannot load these shared libraries:\n%s\n' "$missing"
       printf 'Reinstall/fix the llama.cpp package before the AI scratchpad can answer.\n'
     fi
+    printf '\nllama-server devices:\n'
+    "$server_bin" --list-devices 2>&1 | sed -n '1,10p' || true
   fi
-  if [ -f "$HOME/.cache/kage/llm-logs/llm.log" ]; then
-    printf '\nLast llama.cpp log lines:\n'
-    tail -n 12 "$HOME/.cache/kage/llm-logs/llm.log" 2>/dev/null || true
+  if [ -f "$HOME/.cache/kage/llm-logs/llama-swap.log" ]; then
+    printf '\nLast llama-swap log lines:\n'
+    tail -n 12 "$HOME/.cache/kage/llm-logs/llama-swap.log" 2>/dev/null || true
   fi
 }
 

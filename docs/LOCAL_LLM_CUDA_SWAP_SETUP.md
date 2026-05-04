@@ -11,11 +11,13 @@ If AUR prompts for sudo during install, allow it and finish the transaction.
 
 ## Required model files
 
-Put coder model files in `~/models`:
+The default model root is `~/llama-models` because this machine already keeps the local GGUF files there.
 
-- `~/models/qwen-coder.gguf` (primary)
-- optional: `~/models/llama-3.2-3b-instruct.gguf`
-- optional: `~/models/mistral-7b-instruct.gguf`
+- `~/llama-models/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf` (primary `local` alias)
+- optional: `~/llama-models/llama-3.2-3b-instruct.gguf`
+- optional: `~/llama-models/mistral-7b-instruct.gguf`
+
+Override with `LLAMA_MODEL_ROOT=/path/to/models` if needed.
 
 ## Start router
 
