@@ -131,7 +131,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - ``Super + ` ``: toggle the full spatial scratch scene with a responsive main/AI/runner layout
 - `Super + S`: compact scratchpad dashboard for scene, AI, runner, shell, and side tools; press again to close
 - `Super + Ctrl + S`: toggle the project runner terminal rooted in the focused repo
-- `Super + Alt + S`: toggle the OpenCode AI scratchpad rooted in the focused repo, using the local llama-swap models
+- `Super + Alt + S`: toggle the AI workspace shell rooted in the focused repo, with local OpenCode/llama-swap config ready; run `opencode` manually when you want it
 - `Super + Ctrl + Alt + S`: toggle the database scratchpad
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)

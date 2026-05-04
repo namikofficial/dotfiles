@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch OpenCode against the local llama-swap endpoint, with a resilient chat fallback.
+# Open a project-rooted AI shell with the local llama-swap/OpenCode config ready.
 
 set -euo pipefail
 
@@ -112,6 +112,42 @@ opencode_bin() {
   return 1
 }
 
+load_opencode_mcp_env() {
+  local mcp_file="${HOME}/.copilot/mcp.json"
+  command -v jq >/dev/null 2>&1 || return 0
+
+  local obsidian_rest_config="${HOME}/Documents/notes/namikBrain/.obsidian/plugins/obsidian-local-rest-api/data.json"
+  local value
+  if [ -f "$obsidian_rest_config" ]; then
+    value="$(jq -r '.apiKey // empty' "$obsidian_rest_config" 2>/dev/null || true)"
+    [ -n "$value" ] && export OBSIDIAN_API_KEY="${OBSIDIAN_API_KEY:-$value}"
+
+    local insecure_enabled insecure_port secure_port
+    insecure_enabled="$(jq -r '.enableInsecureServer // false' "$obsidian_rest_config" 2>/dev/null || true)"
+    insecure_port="$(jq -r '.insecurePort // 27123' "$obsidian_rest_config" 2>/dev/null || true)"
+    secure_port="$(jq -r '.port // 27124' "$obsidian_rest_config" 2>/dev/null || true)"
+    if [ "$insecure_enabled" = "true" ]; then
+      export OBSIDIAN_BASE_URL="${OBSIDIAN_BASE_URL:-http://127.0.0.1:${insecure_port}}"
+      export OBSIDIAN_VERIFY_SSL="${OBSIDIAN_VERIFY_SSL:-false}"
+    else
+      export OBSIDIAN_BASE_URL="${OBSIDIAN_BASE_URL:-https://127.0.0.1:${secure_port}}"
+      export OBSIDIAN_VERIFY_SSL="${OBSIDIAN_VERIFY_SSL:-false}"
+    fi
+    export OBSIDIAN_ENABLE_CACHE="${OBSIDIAN_ENABLE_CACHE:-false}"
+  fi
+
+  [ -f "$mcp_file" ] || return 0
+
+  local key
+  for key in \
+    OBSIDIAN_VAULT_PATH
+  do
+    [ -n "${!key:-}" ] && continue
+    value="$(jq -r --arg key "$key" '.mcpServers.obsidian.env[$key] // empty' "$mcp_file" 2>/dev/null || true)"
+    [ -n "$value" ] && export "$key=$value"
+  done
+}
+
 launch_opencode() {
   local model="$1" context="$2" bin
   bin="$(opencode_bin)" || return 1
@@ -141,7 +177,7 @@ context_dir="$(choose_context_dir)"
 cd "$context_dir"
 
 printf '%s\n' "╔════════════════════════════════════════════════════════════════╗"
-printf '%s\n' "║                  OpenCode Local AI Scratchpad                 ║"
+printf '%s\n' "║                  Local AI Workspace Shell                     ║"
 printf '%s\n' "╚════════════════════════════════════════════════════════════════╝"
 printf '\n'
 
@@ -155,13 +191,26 @@ model="$(select_model)" || {
   exec zsh -li
 }
 
+ensure_opencode_config || {
+  printf '%sOpenCode config template is missing: %s%s\n' "$C_RED" "$OPENCODE_TEMPLATE" "$C_RESET"
+}
+load_opencode_mcp_env
+export LLM_CHAT_MODEL="$model"
+export OPENCODE_MODEL="${OPENCODE_MODEL:-llamacpp/$model}"
+export NOXFLOW_AI_CONTEXT="$context_dir"
+
 available_models="$(remote_models | paste -sd ',' - | sed 's/,/, /g')"
 printf '%sWorkspace:%s %s\n' "$C_DIM" "$C_RESET" "$context_dir"
 printf '%sModel:%s %s\n' "$C_DIM" "$C_RESET" "$model"
 printf '%sAvailable:%s %s\n\n' "$C_DIM" "$C_RESET" "${available_models:-none}"
 
-if launch_opencode "$model" "$context_dir"; then
-  exit 0
+if [ "${NOXFLOW_AI_AUTOSTART:-0}" = "1" ]; then
+  if launch_opencode "$model" "$context_dir"; then
+    exit 0
+  fi
+  printf '%sOpenCode auto-start failed. Keeping an interactive shell instead.%s\n\n' "$C_YELLOW" "$C_RESET"
 fi
 
-launch_enhanced_chat "$model" "$context_dir"
+printf '%sReady.%s Run %sopencode%s when you want the local AI agent.\n' "$C_GREEN" "$C_RESET" "$C_BOLD" "$C_RESET"
+printf '%sTip:%s you are already in the project root, and the OpenCode MCP env/config is prepared for this shell.\n\n' "$C_DIM" "$C_RESET"
+exec zsh -li

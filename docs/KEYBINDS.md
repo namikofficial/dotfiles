@@ -38,7 +38,7 @@ flowchart LR
 | `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
 | `Super + S` | Spatial scratchpad dashboard | `scratchpad-manager.sh menu` |
 | `Super + Ctrl + S` | Logs scratchpad | `scratchpad-manager.sh launch logs` |
-| `Super + Alt + S` | AI scratchpad | `scratchpad-manager.sh launch ai` |
+| `Super + Alt + S` | AI workspace shell | `scratchpad-manager.sh launch ai` |
 | `Super + Ctrl + Alt + S` | Database scratchpad | `scratchpad-manager.sh launch db` |
 | `Super + Alt + O` | Obsidian scratchpad/focus | `scratchpad-manager.sh launch obsidian` |
 | `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |

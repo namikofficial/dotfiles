@@ -20,6 +20,44 @@
       }
     }
   },
+  "mcp": {
+    "chrome-devtools": {
+      "type": "local",
+      "command": ["npx", "-y", "chrome-devtools-mcp"],
+      "enabled": true,
+      "timeout": 8000
+    },
+    "browser": {
+      "type": "local",
+      "command": ["npx", "-y", "@browsermcp/mcp"],
+      "enabled": true,
+      "timeout": 8000
+    },
+    "obsidian": {
+      "type": "local",
+      "command": ["npx", "obsidian-mcp-server"],
+      "environment": {
+        "OBSIDIAN_API_KEY": "{env:OBSIDIAN_API_KEY}",
+        "OBSIDIAN_BASE_URL": "{env:OBSIDIAN_BASE_URL}",
+        "OBSIDIAN_VERIFY_SSL": "{env:OBSIDIAN_VERIFY_SSL}",
+        "OBSIDIAN_ENABLE_CACHE": "{env:OBSIDIAN_ENABLE_CACHE}"
+      },
+      "enabled": false,
+      "timeout": 10000
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true,
+      "timeout": 10000
+    }
+  },
+  "skills": {
+    "paths": [
+      "/home/namik/Documents/code/dotfiles/configs/opencode/skills",
+      "/home/namik/.codex/skills"
+    ]
+  },
   "model": "llamacpp/gemma-3-4b",
   "small_model": "llamacpp/gemma-3-4b"
 }

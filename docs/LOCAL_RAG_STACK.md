@@ -27,6 +27,15 @@ That script is idempotent. You can rerun it to:
 - start the local `qdrant` Docker container
 - refresh the `rag` CLI symlink in `~/.local/bin/rag`
 
+## Reindex after schema changes
+
+The current local index format is `rag-v4` / `semantic-lines-v4`. If your local SQLite/Qdrant state was built with an older schema, reset and rebuild it:
+
+```bash
+rag clean --all
+rag index ~/Documents/code/dotfiles --profile balanced
+```
+
 ## Commands
 
 ```bash

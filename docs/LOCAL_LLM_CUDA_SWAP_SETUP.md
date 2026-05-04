@@ -44,6 +44,14 @@ Runtime path expected by OpenCode:
 
 The install script links that runtime file back to `configs/opencode/opencode.local-llamacpp.json`.
 
+Current runtime behavior:
+
+- the AI scratchpad opens a project-rooted shell, not OpenCode automatically
+- from that shell, run `opencode` when you want to start the local AI agent
+- the runtime config now also carries OpenCode MCP setup, extra skill paths, and local plugins
+- enabled MCP servers: `chrome-devtools`, `browser`, `context7`
+- `obsidian` is configured but left disabled by default until the local REST bridge is healthy
+
 OpenCode docs used:
 
 - providers: <https://opencode.ai/docs/providers/>
