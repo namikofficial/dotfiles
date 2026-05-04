@@ -46,6 +46,48 @@ DEFAULT_CONFIG = {
     "embedding_model": "BAAI/bge-small-en-v1.5",
     "retrieval_context_tokens": 12000,
     "answer_max_tokens": 2500,
+    "key_aliases": {
+        "mod": "SUPER",
+        "mainmod": "SUPER",
+        "win": "SUPER",
+        "windows": "SUPER",
+        "cmd": "SUPER",
+        "ctrl": "CTRL",
+        "control": "CTRL",
+    },
+    "retrieval": {
+        "max_chunks_per_file": 3,
+        "max_fact_files": 8,
+        "max_summary_files": 8,
+    },
+    "context_budget": {
+        "total_tokens": 12000,
+        "memory_tokens": 1800,
+        "facts_tokens": 1800,
+        "file_summary_tokens": 2200,
+        "chunk_tokens": 6000,
+        "reserved_answer_tokens": 2200,
+    },
+    "indexing": {
+        "profile": "balanced",
+    },
+    "index_profiles": {
+        "fast": {
+            "facts": True,
+            "file_summaries": False,
+            "repo_memory": False,
+        },
+        "balanced": {
+            "facts": True,
+            "file_summaries": True,
+            "repo_memory": False,
+        },
+        "deep": {
+            "facts": True,
+            "file_summaries": True,
+            "repo_memory": True,
+        },
+    },
     "reranker": {
         "enabled": True,
         "mode": "heuristic",
@@ -245,8 +287,28 @@ class IndexInterrupted(Exception):
 
 def load_config() -> dict:
     config = json.loads(json.dumps(DEFAULT_CONFIG))
+    raw_config: dict = {}
     if CONFIG_PATH.exists():
-        config = merge_nested_dicts(config, json.loads(CONFIG_PATH.read_text()))
+        raw_config = json.loads(CONFIG_PATH.read_text())
+        config = merge_nested_dicts(config, raw_config)
+    if "context_budget" not in raw_config and "retrieval_context_tokens" in raw_config:
+        total_tokens = int(raw_config["retrieval_context_tokens"])
+        config["context_budget"]["total_tokens"] = total_tokens
+        config["context_budget"]["chunk_tokens"] = max(
+            2000,
+            total_tokens
+            - config["context_budget"]["memory_tokens"]
+            - config["context_budget"]["facts_tokens"]
+            - config["context_budget"]["file_summary_tokens"],
+        )
+    if "context_budget" in raw_config and "total_tokens" not in raw_config["context_budget"]:
+        config["context_budget"]["total_tokens"] = raw_config.get(
+            "retrieval_context_tokens", config["context_budget"]["total_tokens"]
+        )
+    config["context_budget"]["reserved_answer_tokens"] = raw_config.get(
+        "answer_max_tokens",
+        config["context_budget"]["reserved_answer_tokens"],
+    )
     return config
 
 
@@ -1046,7 +1108,14 @@ def remove_file_chunks(conn: sqlite3.Connection, client: QdrantClient, config: d
     conn.execute("DELETE FROM file_summaries WHERE repo = ? AND path = ?", (repo, rel_path))
 
 
-def index_repo(conn: sqlite3.Connection, client: QdrantClient, config: dict, root: Path, changed_only: bool) -> tuple[int, int]:
+def index_repo(
+    conn: sqlite3.Connection,
+    client: QdrantClient,
+    config: dict,
+    root: Path,
+    changed_only: bool,
+    profile: dict,
+) -> tuple[int, int]:
     ensure_collection(client, config)
     root, repo = repo_identity(root)
     existing = {
@@ -1088,7 +1157,7 @@ def index_repo(conn: sqlite3.Connection, client: QdrantClient, config: dict, roo
             chunks = chunk_text(file_path, content, kind, language)
             if not chunks:
                 continue
-            facts = extract_facts(file_path, content, language, kind)
+            facts = extract_facts(file_path, content, language, kind) if profile["facts"] else []
 
             remove_file_chunks(conn, client, config, repo, rel_path)
 
@@ -1147,9 +1216,13 @@ def index_repo(conn: sqlite3.Connection, client: QdrantClient, config: dict, roo
                     (chunk_id, repo, rel_path, chunk.symbol, chunk.content),
                 )
 
-            replace_file_facts(conn, repo, rel_path, file_hash, facts)
-            summary, symbols = summarize_file(rel_path, language, kind, chunks, facts)
-            replace_file_summary(conn, repo, rel_path, file_hash, language, kind, summary, symbols, len(facts))
+            if profile["facts"]:
+                replace_file_facts(conn, repo, rel_path, file_hash, facts)
+            if profile["file_summaries"]:
+                summary, symbols = summarize_file(rel_path, language, kind, chunks, facts)
+                replace_file_summary(conn, repo, rel_path, file_hash, language, kind, summary, symbols, len(facts))
+            else:
+                conn.execute("DELETE FROM file_summaries WHERE repo = ? AND path = ?", (repo, rel_path))
 
             for batch in batched(points, 64):
                 client.upsert(collection_name=config["qdrant_collection"], points=list(batch), wait=True)
@@ -1258,26 +1331,25 @@ def recent_hits(conn: sqlite3.Connection, query: str, repo: str | None) -> list[
     return [row["chunk_id"] for row in conn.execute(sql, params).fetchall()]
 
 
-def normalize_query_keybind_tokens(query: str) -> list[str]:
+def normalize_query_keybind_tokens(query: str, config: dict) -> list[str]:
     normalized = []
     mapping = {
         "super": "SUPER",
-        "ctrl": "CTRL",
-        "control": "CTRL",
         "alt": "ALT",
         "shift": "SHIFT",
         "grave": "GRAVE",
+        **config["key_aliases"],
     }
     for token in query_terms(query):
         normalized.append(mapping.get(token, token.upper() if len(token) == 1 else token))
     return list(dict.fromkeys(normalized))
 
 
-def fact_hits(conn: sqlite3.Connection, query: str, repo: str | None, intent: str) -> list[sqlite3.Row]:
+def fact_hits(conn: sqlite3.Connection, query: str, repo: str | None, intent: str, config: dict) -> list[sqlite3.Row]:
     if intent == "keybind":
         sql = "SELECT * FROM facts WHERE kind = 'keybind'" + (" AND repo = ?" if repo else "")
         rows = conn.execute(sql, [repo] if repo else []).fetchall()
-        query_tokens = normalize_query_keybind_tokens(query)
+        query_tokens = normalize_query_keybind_tokens(query, config)
         scored = []
         for row in rows:
             score = 0.0
@@ -1374,6 +1446,37 @@ def repo_memory_row(conn: sqlite3.Connection, repo: str | None) -> sqlite3.Row |
     if not repo:
         return None
     return conn.execute("SELECT * FROM repo_memory WHERE repo = ?", (repo,)).fetchone()
+
+
+def get_index_profile(config: dict, override: str | None) -> tuple[str, dict]:
+    profile_name = override or config["indexing"]["profile"]
+    profile = config["index_profiles"].get(profile_name)
+    if profile is None:
+        raise SystemExit(f"Unknown index profile: {profile_name}")
+    return profile_name, profile
+
+
+def limit_rows_per_file(rows: Sequence[sqlite3.Row], max_per_file: int) -> list[sqlite3.Row]:
+    limited: list[sqlite3.Row] = []
+    counts: dict[str, int] = {}
+    for row in rows:
+        key = row["path"]
+        if counts.get(key, 0) >= max_per_file:
+            continue
+        counts[key] = counts.get(key, 0) + 1
+        limited.append(row)
+    return limited
+
+
+def limit_rows_by_file_count(rows: Sequence[sqlite3.Row], max_files: int) -> list[sqlite3.Row]:
+    limited: list[sqlite3.Row] = []
+    seen_files: set[str] = set()
+    for row in rows:
+        if row["path"] not in seen_files and len(seen_files) >= max_files:
+            continue
+        seen_files.add(row["path"])
+        limited.append(row)
+    return limited
 
 
 def reciprocal_rank_fusion(*rank_lists: Sequence[str]) -> dict[str, float]:
@@ -1594,7 +1697,7 @@ def retrieve(
     semantic = semantic_hits(client, config, rewrites, repo)
     keyword = keyword_hits(conn, rewrites, repo)
     recent = recent_hits(conn, query, repo)
-    facts = fact_hits(conn, query, repo, intent)
+    facts = fact_hits(conn, query, repo, intent, config)
     summaries = file_summary_hits(conn, query, repo, intent)
     memory = repo_memory_row(conn, repo)
     fact_paths = {row["path"] for row in facts}
@@ -1776,16 +1879,26 @@ def cmd_index(args: argparse.Namespace) -> int:
     conn = connect_db()
     client = get_qdrant(config)
     root = Path(args.path).expanduser().resolve()
+    profile_name, profile = get_index_profile(config, args.profile)
     console.print(f"[cyan]Indexing[/cyan] {root} ...")
     try:
-        changed_files, total_chunks = index_repo(conn, client, config, root, changed_only=args.changed_only)
+        changed_files, total_chunks = index_repo(
+            conn, client, config, root, changed_only=args.changed_only, profile=profile
+        )
     except IndexInterrupted as exc:
         console.print(
             f"[yellow]Cancelled.[/yellow] Kept {exc.changed_files} completed files and {exc.total_chunks} chunks. "
             "Rerun [bold]rag index --changed-only[/bold] to continue from the current directory."
         )
         return 130
-    console.print(f"[green]Indexed[/green] {changed_files} files and {total_chunks} chunks from {root}")
+    if profile["repo_memory"]:
+        repo = repo_identity(root)[1]
+        console.print(f"[cyan]Refreshing repo memory[/cyan] for {repo} ...")
+        store_repo_memory(conn, repo, generate_repo_memory(conn, config, repo))
+    console.print(
+        f"[green]Indexed[/green] {changed_files} files and {total_chunks} chunks from {root} "
+        f"(profile: {profile_name})"
+    )
     return 0
 
 
@@ -1793,6 +1906,7 @@ def cmd_reindex(args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
     client = get_qdrant(config)
+    profile_name, profile = get_index_profile(config, args.profile)
     repos = conn.execute("SELECT root FROM indexed_repos ORDER BY repo").fetchall()
     if not repos:
         console.print("[yellow]No repos indexed yet.[/yellow]")
@@ -1803,7 +1917,7 @@ def cmd_reindex(args: argparse.Namespace) -> int:
         root = Path(row["root"])
         console.print(f"[cyan]Reindexing[/cyan] {root} ...")
         try:
-            changed_files, chunks = index_repo(conn, client, config, root, changed_only=True)
+            changed_files, chunks = index_repo(conn, client, config, root, changed_only=True, profile=profile)
         except IndexInterrupted as exc:
             total_files += exc.changed_files
             total_chunks += exc.total_chunks
@@ -1813,7 +1927,11 @@ def cmd_reindex(args: argparse.Namespace) -> int:
             return 130
         total_files += changed_files
         total_chunks += chunks
-    console.print(f"[green]Reindexed[/green] {total_files} changed files and {total_chunks} chunks")
+        if profile["repo_memory"]:
+            repo = repo_identity(root)[1]
+            console.print(f"[cyan]Refreshing repo memory[/cyan] for {repo} ...")
+            store_repo_memory(conn, repo, generate_repo_memory(conn, config, repo))
+    console.print(f"[green]Reindexed[/green] {total_files} changed files and {total_chunks} chunks (profile: {profile_name})")
     return 0
 
 
