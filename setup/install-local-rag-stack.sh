@@ -36,19 +36,44 @@ fi
 "$VENV/bin/python" -m pip install --upgrade pip >/dev/null
 "$VENV/bin/pip" install -r "$REQUIREMENTS_FILE" >/dev/null
 
-if [ ! -f "$CONFIG_FILE" ]; then
-  cat >"$CONFIG_FILE" <<EOF
-{
-  "qdrant_url": "http://127.0.0.1:6333",
-  "qdrant_collection": "local-rag-chunks",
-  "answer_url": "http://127.0.0.1:8080/v1/chat/completions",
-  "answer_model": "local",
-  "embedding_model": "BAAI/bge-small-en-v1.5",
-  "retrieval_context_tokens": 12000,
-  "answer_max_tokens": 2500
+"$VENV/bin/python" - <<PY
+import json
+from pathlib import Path
+
+config_path = Path(${CONFIG_FILE@Q})
+defaults = {
+    "qdrant_url": "http://127.0.0.1:6333",
+    "qdrant_collection": "local-rag-chunks",
+    "answer_url": "http://127.0.0.1:8080/v1/chat/completions",
+    "answer_model": "local",
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "retrieval_context_tokens": 12000,
+    "answer_max_tokens": 2500,
+    "reranker": {
+        "enabled": True,
+        "mode": "heuristic",
+        "top_k_input": 30,
+        "top_k_output": 12,
+        "content_weight": 0.03,
+        "path_weight": 0.02,
+        "symbol_weight": 0.02,
+    },
 }
-EOF
-fi
+
+def merge(base, override):
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+current = {}
+if config_path.exists():
+    current = json.loads(config_path.read_text())
+config_path.write_text(json.dumps(merge(defaults, current), indent=2) + "\\n")
+PY
 
 if ! "$CONTAINER_RUNTIME" info >/dev/null 2>&1; then
   printf '%s daemon is not reachable. Start it, then rerun this script.\n' "$CONTAINER_RUNTIME" >&2
@@ -79,6 +104,7 @@ printf '  CLI:     %s\n' "$HOME/.local/bin/rag"
 printf '  SQLite:  %s\n' "${RAG_HOME}/rag.sqlite3"
 printf '  Qdrant:  http://127.0.0.1:6333\n'
 printf '  Storage: %s\n' "${RAG_HOME}/qdrant_storage"
+printf '  Rerank:  enabled by default on this machine\n'
 printf '\nVerify:\n'
 printf '  rag doctor\n'
 printf '\nIndex this repo:\n'

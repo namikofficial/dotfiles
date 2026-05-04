@@ -1,12 +1,14 @@
 # Local RAG stack
 
-This repo now includes a repeatable local RAG bootstrap aimed at the current laptop profile:
+This repo now includes a repeatable local RAG bootstrap aimed at the current laptop profile and broader repo work, not just dotfiles:
 
 - **Answer model:** Gemma 3 4B Q4_K_M via local llama-swap
 - **Vector store:** Qdrant (local Docker container)
 - **Dense embeddings:** FastEmbed with **`BAAI/bge-small-en-v1.5`** by default
 - **Keyword retrieval:** SQLite FTS5 over the indexed chunks
 - **Hybrid retrieval:** dense + keyword + metadata fusion
+- **Reranker:** lightweight heuristic reranker enabled by default on this machine
+- **Code focus:** tuned for TypeScript, JavaScript, Rust, Kotlin, shell, and mixed config repos
 
 ## Install / repair the stack
 
@@ -26,13 +28,15 @@ That script is idempotent. You can rerun it to:
 
 ```bash
 rag doctor
-rag index ~/Documents/code/dotfiles
-rag index ~/Documents/code/dotfiles --changed-only
+rag index ~/Documents/code/noxflow
+rag index ~/Documents/code/noxflow --changed-only
 rag status
-rag search "scratchpad manager"
-rag ask "How does the AI scratchpad choose its model?"
+rag search "AuthService.login"
+rag search "scratchpad manager" --no-rerank
+rag ask "How does tenant scoping work?"
+rag ask "How does the AI scratchpad choose its model?" --rerank
 rag reindex
-rag clean --repo dotfiles
+rag clean --repo noxflow
 rag clean --all
 ```
 
@@ -41,11 +45,19 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
 ## Machine-tuned defaults
 
 - The default embedding model is **`BAAI/bge-small-en-v1.5`** because it is lighter and faster for this machine.
+- The default reranker is a lightweight local heuristic stage and is **enabled by default** here. You can override it per query with `--rerank` or `--no-rerank`.
+- The chunker now recognizes more mixed-repo shapes, including TypeScript/JavaScript arrow functions, Rust modules/traits, Kotlin classes/functions, shell function/alias/env blocks, TOML sections, YAML top-level sections, and Hyprland config anchors.
 - If you want higher retrieval quality later, edit `~/ai-rag/config.json` and switch:
 
 ```json
 {
-  "embedding_model": "BAAI/bge-m3"
+  "embedding_model": "BAAI/bge-m3",
+  "reranker": {
+    "enabled": true,
+    "mode": "heuristic",
+    "top_k_input": 30,
+    "top_k_output": 12
+  }
 }
 ```
 
@@ -55,7 +67,7 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
 2. pull semantic hits from Qdrant
 3. pull keyword hits from SQLite FTS
 4. merge with reciprocal rank fusion
-5. rerank by lexical/path/symbol overlap
+5. rerank by lexical/path/symbol overlap (enabled by default, but optional)
 6. send only the best chunks to Gemma
 
 ## Notes
@@ -64,6 +76,7 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
 - It already supports:
   - repo-aware indexing
   - changed-file reindexing
+  - reranker toggles with `--rerank` / `--no-rerank`
   - metadata with path / repo / kind / symbol / line ranges
   - answer prompts with file citations
 - It intentionally does **not** try to index lockfiles, build artifacts, binaries, or media by default.
