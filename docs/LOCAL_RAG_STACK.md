@@ -32,6 +32,7 @@ That script is idempotent. You can rerun it to:
 ```bash
 rag doctor
 cd ~/Documents/code/noxflow && rag index
+rag index --profile fast
 rag index ~/Documents/code/noxflow --changed-only
 rag status
 rag search "AuthService.login"
@@ -40,9 +41,11 @@ rag search "scratchpad manager" --no-rerank
 rag facts list --kind keybind
 rag facts keybind scratchpad
 rag facts tool docker
+rag trace keybind Super Alt S
 rag summarize-files --changed-only
 rag summarize
 rag memory show
+rag memory status
 rag memory refresh
 rag memory clear --repo dotfiles
 rag ask "How does tenant scoping work?"
@@ -61,7 +64,14 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
 - The default embedding model is **`BAAI/bge-small-en-v1.5`** because it is lighter and faster for this machine.
 - The default reranker is a **heuristic local scoring pass, not a separate model reranker**, and is **enabled by default** here. You can override it per query with `--rerank` or `--no-rerank`.
 - The chunker now recognizes more mixed-repo shapes, including TypeScript/JavaScript arrow functions, Rust modules/traits, Kotlin classes/functions, shell function/alias/env/case/tool blocks, TOML sections, YAML top-level sections, HTML/CSS sections, GTK/XML-style UI objects, and Hyprland config anchors.
+- Structured fact extraction now also covers `package.json` scripts/dependencies/workspaces, Docker Compose services/ports/dependencies/environment keys, and Nest-style TypeScript controllers/routes/services/entities.
 - Facts and file summaries are generated during indexing, so `rag reindex` refreshes them alongside the chunk/vector index.
+- Indexing profiles let you trade speed for richer derived state:
+  - `fast`: chunks + facts only
+  - `balanced`: chunks + facts + file summaries
+  - `deep`: chunks + facts + file summaries + repo memory refresh
+- Context packing now uses separate budgets for repo memory, facts, file summaries, and chunks instead of one shared token pool.
+- Retrieval diversity limits keep one file from dominating the final context window.
 - If you want higher retrieval quality later, edit `~/ai-rag/config.json` and switch:
 
 ```json
@@ -83,9 +93,10 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
 3. pull keyword hits from SQLite FTS
 4. pull matching facts and file summaries from SQLite
 5. merge chunk candidates with reciprocal rank fusion
-6. rerank by lexical/path/symbol overlap (enabled by default, but optional)
-7. optionally prepend repo memory for `rag ask --memory`
-8. send the structured context to Gemma
+6. apply diversity limits so one file does not crowd out the rest
+7. rerank by lexical/path/symbol overlap (enabled by default, but optional)
+8. optionally prepend repo memory for `rag ask --memory`
+9. pack sections with per-section token budgets and send the result to Gemma
 
 ## Notes
 
@@ -97,8 +108,9 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
   - retrieval debugging with `rag search --explain`
   - packed-context inspection with `rag ask --show-context`
   - structured `rag facts` queries
+  - trace-style fact inspection with `rag trace`
   - file summaries via `rag summarize-files`
-  - repo memory via `rag summarize` / `rag memory show` / `rag ask --memory`
+  - repo memory via `rag summarize` / `rag memory show` / `rag memory status` / `rag ask --memory`
   - metadata with path / repo / kind / symbol / line ranges
   - answer prompts with file citations
 - It intentionally does **not** try to index lockfiles, build artifacts, binaries, or media by default.

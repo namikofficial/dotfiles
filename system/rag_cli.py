@@ -18,7 +18,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, TypedDict
 
 from gitignore_parser import parse_gitignore
 from pathspec import PathSpec
@@ -276,6 +276,16 @@ class Fact:
     line: int
     confidence: float = 1.0
     source: str = "extractor"
+
+
+class RepoMemoryStatus(TypedDict):
+    repo: str
+    root: str
+    status: str
+    reasons: list[str]
+    memory_updated_at: float | None
+    last_indexed: float
+    chunk_count: int
 
 
 class IndexInterrupted(Exception):
@@ -761,6 +771,170 @@ def extract_yaml_facts(text: str) -> list[Fact]:
     return facts
 
 
+def extract_compose_yaml_facts(text: str) -> list[Fact]:
+    facts: list[Fact] = []
+    in_services = False
+    current_service = ""
+    current_list_key = ""
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if indent == 0:
+            current_list_key = ""
+            current_service = ""
+            in_services = stripped.startswith("services:")
+            continue
+        if not in_services:
+            continue
+        if indent == 2 and stripped.endswith(":"):
+            current_service = stripped[:-1].strip().strip('"').strip("'")
+            facts.append(Fact("compose-service", current_service, "declared", line_no))
+            current_list_key = ""
+            continue
+        if not current_service:
+            continue
+        if indent >= 6 and current_list_key == "environment" and ":" in stripped and not stripped.startswith("- "):
+            env_key, env_value = stripped.split(":", 1)
+            facts.append(
+                Fact(
+                    "compose-env",
+                    f"{current_service}.{env_key.strip()}",
+                    normalize_fact_value(env_value) or "set",
+                    line_no,
+                )
+            )
+            continue
+        if indent >= 4 and ":" in stripped and not stripped.startswith("- "):
+            key, value = stripped.split(":", 1)
+            key = key.strip()
+            value = normalize_fact_value(value)
+            if key in {"ports", "depends_on", "profiles", "environment"}:
+                current_list_key = key
+                if value:
+                    facts.append(Fact("compose-config", f"{current_service}.{key}", value, line_no))
+                continue
+            current_list_key = ""
+            if key in {"image", "build", "command", "container_name", "restart"} and value:
+                facts.append(Fact("compose-config", f"{current_service}.{key}", value, line_no))
+            elif key in {"target", "dockerfile"} and value:
+                facts.append(Fact("compose-build", f"{current_service}.{key}", value, line_no))
+            continue
+        if indent >= 6 and stripped.startswith("- ") and current_list_key:
+            item = normalize_fact_value(stripped[2:])
+            if not item:
+                continue
+            if current_list_key == "ports":
+                facts.append(Fact("compose-port", current_service, item, line_no))
+            elif current_list_key == "depends_on":
+                facts.append(Fact("compose-depends-on", current_service, item, line_no))
+            elif current_list_key == "profiles":
+                facts.append(Fact("compose-profile", current_service, item, line_no))
+            elif current_list_key == "environment":
+                env_key, _, env_value = item.partition("=")
+                facts.append(Fact("compose-env", f"{current_service}.{env_key}", env_value or "set", line_no))
+            continue
+    return facts
+
+
+DECORATOR_PATTERN = re.compile(r"@(?P<name>Controller|Get|Post|Put|Patch|Delete|All|Injectable|Entity|Module)\s*(?:\((?P<args>[^)]*)\))?")
+CLASS_PATTERN = re.compile(r"^\s*(?:export\s+)?class\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)")
+METHOD_PATTERN = re.compile(r"^\s*(?:public\s+|private\s+|protected\s+)?(?:async\s+)?(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(")
+
+
+def decorator_arg_value(raw_args: str | None) -> str:
+    if not raw_args:
+        return ""
+    if match := re.search(r"""['"]([^'"]+)['"]""", raw_args):
+        return match.group(1)
+    return normalize_fact_value(raw_args)
+
+
+def extract_typescript_backend_facts(text: str) -> list[Fact]:
+    facts: list[Fact] = []
+    pending_decorators: list[tuple[str, str, int]] = []
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("//"):
+            continue
+        if match := DECORATOR_PATTERN.match(stripped):
+            pending_decorators.append((match.group("name"), decorator_arg_value(match.group("args")), line_no))
+            continue
+        if match := CLASS_PATTERN.match(line):
+            class_name = match.group("name")
+            handled = False
+            for decorator_name, decorator_value, decorator_line in pending_decorators:
+                if decorator_name == "Controller":
+                    facts.append(Fact("route-controller", class_name, decorator_value or "/", decorator_line))
+                    handled = True
+                elif decorator_name == "Injectable":
+                    facts.append(Fact("service", class_name, "injectable", decorator_line))
+                    handled = True
+                elif decorator_name == "Entity":
+                    facts.append(Fact("entity", class_name, decorator_value or class_name, decorator_line))
+                    handled = True
+                elif decorator_name == "Module":
+                    facts.append(Fact("module", class_name, "nest-module", decorator_line))
+                    handled = True
+            if not handled:
+                if class_name.endswith("Controller"):
+                    facts.append(Fact("route-controller", class_name, "controller", line_no))
+                elif class_name.endswith("Service"):
+                    facts.append(Fact("service", class_name, "class", line_no))
+                elif class_name.endswith("Entity"):
+                    facts.append(Fact("entity", class_name, class_name, line_no))
+            pending_decorators = []
+            continue
+        if match := METHOD_PATTERN.match(line):
+            method_name = match.group("name")
+            for decorator_name, decorator_value, decorator_line in pending_decorators:
+                if decorator_name in {"Get", "Post", "Put", "Patch", "Delete", "All"}:
+                    path = decorator_value or "/"
+                    facts.append(Fact("route-handler", f"{decorator_name.upper()} {path}", method_name, decorator_line))
+            pending_decorators = []
+            continue
+        if pending_decorators and not stripped.startswith("@"):
+            pending_decorators = []
+    return facts
+
+
+def extract_package_json_facts(text: str) -> list[Fact]:
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(parsed, dict):
+        return []
+    facts: list[Fact] = []
+    for field in ("name", "version", "type", "packageManager"):
+        value = parsed.get(field)
+        if isinstance(value, str):
+            facts.append(Fact("package-field", field, value, 1))
+    scripts = parsed.get("scripts")
+    if isinstance(scripts, dict):
+        for key, value in scripts.items():
+            if isinstance(value, str):
+                facts.append(Fact("package-script", key, value, 1))
+    for section, kind in (
+        ("dependencies", "dependency"),
+        ("devDependencies", "dev-dependency"),
+        ("peerDependencies", "peer-dependency"),
+        ("optionalDependencies", "optional-dependency"),
+    ):
+        values = parsed.get(section)
+        if isinstance(values, dict):
+            for key, value in values.items():
+                if isinstance(value, str):
+                    facts.append(Fact(kind, key, value, 1))
+    workspaces = parsed.get("workspaces")
+    if isinstance(workspaces, list):
+        for item in workspaces:
+            if isinstance(item, str):
+                facts.append(Fact("workspace", item, "declared", 1))
+    return facts
+
+
 def extract_json_facts(path: Path, text: str) -> list[Fact]:
     try:
         parsed = json.loads(text)
@@ -795,6 +969,8 @@ def extract_sql_facts(text: str) -> list[Fact]:
 
 
 def extract_facts(path: Path, text: str, language: str, kind: str) -> list[Fact]:
+    if language in {"typescript", "javascript"}:
+        return extract_typescript_backend_facts(text)
     if language == "shell":
         return extract_shell_facts(text)
     if language == "hyprland":
@@ -803,6 +979,10 @@ def extract_facts(path: Path, text: str, language: str, kind: str) -> list[Fact]
         return extract_package_facts(text, manager="pacman")
     if path.name == "aur-packages.txt":
         return extract_package_facts(text, manager="aur")
+    if path.name == "package.json":
+        return extract_package_json_facts(text)
+    if path.name in {"docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}:
+        return extract_compose_yaml_facts(text)
     if path.suffix.lower() == ".toml":
         return extract_toml_facts(text)
     if path.suffix.lower() in {".yaml", ".yml"}:
@@ -1331,8 +1511,7 @@ def recent_hits(conn: sqlite3.Connection, query: str, repo: str | None) -> list[
     return [row["chunk_id"] for row in conn.execute(sql, params).fetchall()]
 
 
-def normalize_query_keybind_tokens(query: str, config: dict) -> list[str]:
-    normalized = []
+def normalize_keybind_token(token: str, config: dict) -> str:
     mapping = {
         "super": "SUPER",
         "alt": "ALT",
@@ -1340,9 +1519,34 @@ def normalize_query_keybind_tokens(query: str, config: dict) -> list[str]:
         "grave": "GRAVE",
         **config["key_aliases"],
     }
+    cleaned = token.strip().strip("$").lower()
+    if not cleaned:
+        return ""
+    if cleaned in mapping:
+        return mapping[cleaned]
+    return cleaned.upper()
+
+
+def normalize_query_keybind_tokens(query: str, config: dict) -> list[str]:
+    normalized = []
     for token in query_terms(query):
-        normalized.append(mapping.get(token, token.upper() if len(token) == 1 else token))
+        normalized_token = normalize_keybind_token(token, config)
+        if normalized_token:
+            normalized.append(normalized_token)
     return list(dict.fromkeys(normalized))
+
+
+def keybind_fact_tokens(key: str, config: dict) -> set[str]:
+    mapping = {
+        part
+        for part in re.split(r"[^A-Za-z0-9_$]+", key)
+        if part
+    }
+    return {
+        normalized
+        for normalized in (normalize_keybind_token(part, config) for part in mapping)
+        if normalized
+    }
 
 
 def fact_hits(conn: sqlite3.Connection, query: str, repo: str | None, intent: str, config: dict) -> list[sqlite3.Row]:
@@ -1351,14 +1555,21 @@ def fact_hits(conn: sqlite3.Connection, query: str, repo: str | None, intent: st
         rows = conn.execute(sql, [repo] if repo else []).fetchall()
         query_tokens = normalize_query_keybind_tokens(query, config)
         scored = []
+        required_key = query_tokens[-1] if query_tokens else None
         for row in rows:
             score = 0.0
-            key_upper = row["key"].upper()
+            fact_tokens = keybind_fact_tokens(row["key"], config)
             value_lower = row["value"].lower()
             path_lower = row["path"].lower()
+            overlap = 0
             for token in query_tokens:
-                if token in key_upper:
+                if token in fact_tokens:
                     score += 3.0
+                    overlap += 1
+            if required_key and required_key not in {"SUPER", "ALT", "CTRL", "SHIFT"} and required_key not in fact_tokens:
+                continue
+            if len(query_tokens) > 1 and overlap < 2:
+                continue
             if "scratchpad" in value_lower:
                 score += 2.0
             if "hypr" in path_lower:
@@ -1557,19 +1768,23 @@ def reranker_enabled(config: dict, override: bool | None) -> bool:
 
 def gather_context(
     rows: Sequence[sqlite3.Row],
-    budget_tokens: int,
+    config: dict,
     facts: Sequence[sqlite3.Row] | None = None,
     summaries: Sequence[sqlite3.Row] | None = None,
     memory: str | None = None,
 ) -> tuple[str, list[str]]:
+    budgets = config["context_budget"]
+    total_budget = budgets["total_tokens"]
     sections: list[str] = []
     seen_files: list[str] = []
     used = 0
 
-    def append_block(block: str, file_ref: str | None = None) -> bool:
+    def append_block(block: str, file_ref: str | None = None, limit: int | None = None) -> bool:
         nonlocal used
         block_tokens = approx_tokens(block)
-        if used + block_tokens > budget_tokens:
+        if limit is not None and block_tokens > limit:
+            return False
+        if used + block_tokens > total_budget:
             return False
         sections.append(block)
         used += block_tokens
@@ -1578,47 +1793,72 @@ def gather_context(
         return True
 
     if memory:
-        append_block(f"<repo_memory>\n{memory}\n</repo_memory>")
+        append_block(f"<repo_memory>\n{memory}\n</repo_memory>", limit=budgets["memory_tokens"])
 
     if facts:
+        limited_facts = limit_rows_by_file_count(facts, config["retrieval"]["max_fact_files"])
         fact_blocks: list[str] = []
-        for index, fact in enumerate(facts, start=1):
-            fact_blocks.append(
+        fact_used = 0
+        for index, fact in enumerate(limited_facts, start=1):
+            block = (
                 f"[FACT {index}] {fact['repo']}/{fact['path']}:{fact['line']}\n"
                 f"kind={fact['kind']} key={fact['key']}\n"
                 f"value={fact['value']}"
             )
+            block_tokens = approx_tokens(block)
+            if fact_used + block_tokens > budgets["facts_tokens"]:
+                break
+            fact_used += block_tokens
+            fact_blocks.append(
+                block
+            )
             seen_files.append(f"{fact['repo']}/{fact['path']}:{fact['line']}")
-        append_block("<facts>\n" + "\n\n".join(fact_blocks) + "\n</facts>")
+        if fact_blocks:
+            append_block("<facts>\n" + "\n\n".join(fact_blocks) + "\n</facts>", limit=budgets["facts_tokens"])
 
     if summaries:
+        limited_summaries = limit_rows_by_file_count(summaries, config["retrieval"]["max_summary_files"])
         summary_blocks: list[str] = []
-        for index, summary in enumerate(summaries, start=1):
-            summary_blocks.append(
+        summary_used = 0
+        for index, summary in enumerate(limited_summaries, start=1):
+            block = (
                 f"[SUMMARY {index}] {summary['repo']}/{summary['path']}\n"
                 f"kind={summary['kind']} language={summary['language']}\n"
                 f"symbols={summary['symbols'] or '-'}\n"
                 f"{summary['summary']}"
             )
+            block_tokens = approx_tokens(block)
+            if summary_used + block_tokens > budgets["file_summary_tokens"]:
+                break
+            summary_used += block_tokens
+            summary_blocks.append(
+                block
+            )
             seen_files.append(f"{summary['repo']}/{summary['path']}")
-        append_block("<file_summaries>\n" + "\n\n".join(summary_blocks) + "\n</file_summaries>")
+        if summary_blocks:
+            append_block(
+                "<file_summaries>\n" + "\n\n".join(summary_blocks) + "\n</file_summaries>",
+                limit=budgets["file_summary_tokens"],
+            )
 
     chunk_blocks: list[str] = []
-    for row in rows:
+    chunk_used = 0
+    for row in limit_rows_per_file(rows, config["retrieval"]["max_chunks_per_file"]):
         block = (
             f"[{len(chunk_blocks)+1}] {row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}\n"
             f"kind={row['kind']} language={row['language']} symbol={row['symbol'] or '-'}\n"
             f"{row['content']}"
         )
-        prospective = "<chunks>\n" + "\n\n".join(chunk_blocks + [block]) + "\n</chunks>"
-        if used + approx_tokens(prospective) > budget_tokens:
+        block_tokens = approx_tokens(block)
+        if chunk_used + block_tokens > budgets["chunk_tokens"]:
             break
+        chunk_used += block_tokens
         chunk_blocks.append(block)
         file_ref = f"{row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}"
         if file_ref not in seen_files:
             seen_files.append(file_ref)
     if chunk_blocks:
-        append_block("<chunks>\n" + "\n\n".join(chunk_blocks) + "\n</chunks>")
+        append_block("<chunks>\n" + "\n\n".join(chunk_blocks) + "\n</chunks>", limit=budgets["chunk_tokens"])
     return "\n\n".join(sections), list(dict.fromkeys(seen_files))
 
 
@@ -1874,6 +2114,60 @@ def store_repo_memory(conn: sqlite3.Connection, repo: str, summary: str) -> None
     conn.commit()
 
 
+def repo_memory_status_rows(conn: sqlite3.Connection, repo: str | None = None) -> list[RepoMemoryStatus]:
+    sql = """
+        SELECT ir.repo, ir.root, ir.last_indexed,
+               rm.updated_at AS memory_updated_at,
+               rm.index_schema AS memory_index_schema,
+               rm.source_chunk_count AS memory_chunk_count
+        FROM indexed_repos ir
+        LEFT JOIN repo_memory rm ON rm.repo = ir.repo
+    """
+    params: list[str] = []
+    if repo:
+        sql += " WHERE ir.repo = ?"
+        params.append(repo)
+    sql += " ORDER BY ir.repo"
+    rows = conn.execute(sql, params).fetchall()
+    results: list[RepoMemoryStatus] = []
+    for row in rows:
+        repo_name = str(row["repo"])
+        root = str(row["root"])
+        last_indexed = float(row["last_indexed"])
+        memory_updated_at = float(row["memory_updated_at"]) if row["memory_updated_at"] is not None else None
+        current_chunk_count = int(
+            conn.execute("SELECT COUNT(*) FROM chunks WHERE repo = ?", (repo_name,)).fetchone()[0]
+        )
+        reasons: list[str] = []
+        status = "fresh"
+        if memory_updated_at is None:
+            status = "missing"
+            reasons.append("no repo memory stored")
+        else:
+            if row["memory_index_schema"] != INDEX_SCHEMA:
+                status = "stale"
+                reasons.append(f"schema {row['memory_index_schema']} != {INDEX_SCHEMA}")
+            if last_indexed > memory_updated_at:
+                status = "stale"
+                reasons.append("repo indexed after memory refresh")
+            memory_chunk_count = int(row["memory_chunk_count"] or 0)
+            if abs(current_chunk_count - memory_chunk_count) >= 25:
+                status = "stale"
+                reasons.append(f"chunk count drifted ({memory_chunk_count} -> {current_chunk_count})")
+        results.append(
+            {
+                "repo": repo_name,
+                "root": root,
+                "status": status,
+                "reasons": reasons,
+                "memory_updated_at": memory_updated_at,
+                "last_indexed": last_indexed,
+                "chunk_count": current_chunk_count,
+            }
+        )
+    return results
+
+
 def cmd_index(args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
@@ -1962,6 +2256,29 @@ def cmd_status(_args: argparse.Namespace) -> int:
         + ("enabled" if config["reranker"]["enabled"] else "disabled")
         + f" ({config['reranker']['mode']})"
     )
+    profile_name, _profile = get_index_profile(config, None)
+    console.print(f"Index profile: {profile_name}")
+    console.print(
+        "Context budget: "
+        f"{config['context_budget']['total_tokens']} total / "
+        f"{config['context_budget']['memory_tokens']} memory / "
+        f"{config['context_budget']['facts_tokens']} facts / "
+        f"{config['context_budget']['file_summary_tokens']} summaries / "
+        f"{config['context_budget']['chunk_tokens']} chunks / "
+        f"{config['context_budget']['reserved_answer_tokens']} answer reserve"
+    )
+    console.print(
+        "Retrieval diversity: "
+        f"{config['retrieval']['max_chunks_per_file']} chunks/file, "
+        f"{config['retrieval']['max_fact_files']} fact files, "
+        f"{config['retrieval']['max_summary_files']} summary files"
+    )
+    memory_statuses = repo_memory_status_rows(conn)
+    if memory_statuses:
+        fresh = sum(1 for row in memory_statuses if row["status"] == "fresh")
+        stale = sum(1 for row in memory_statuses if row["status"] == "stale")
+        missing = sum(1 for row in memory_statuses if row["status"] == "missing")
+        console.print(f"Repo memory freshness: {fresh} fresh, {stale} stale, {missing} missing")
     console.print("Last indexed:")
     rows = conn.execute(
         "SELECT repo, root, last_indexed FROM indexed_repos ORDER BY last_indexed DESC"
@@ -2057,7 +2374,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
         return 1
     context, files = gather_context(
         rows,
-        config["retrieval_context_tokens"],
+        config,
         facts=facts,
         summaries=summaries,
         memory=memory["summary"] if args.memory and memory else None,
@@ -2102,6 +2419,26 @@ def cmd_memory(args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
     repo = resolve_repo_name(conn, args.repo)
+    if args.memory_command == "status":
+        rows = repo_memory_status_rows(conn, repo)
+        if not rows:
+            console.print("[yellow]No indexed repos yet.[/yellow]")
+            return 0
+        table = Table(title="Repo memory status")
+        table.add_column("repo")
+        table.add_column("status")
+        table.add_column("memory")
+        table.add_column("detail")
+        for row in rows:
+            memory_updated = (
+                datetime.fromtimestamp(row["memory_updated_at"]).strftime("%Y-%m-%d %H:%M")
+                if row["memory_updated_at"]
+                else "-"
+            )
+            detail = "; ".join(row["reasons"]) if row["reasons"] else f"{row['chunk_count']} chunks"
+            table.add_row(row["repo"], str(row["status"]), memory_updated, detail)
+        console.print(table)
+        return 0
     if args.memory_command == "show":
         if not repo:
             raise SystemExit("No repo selected. Use --repo or run inside an indexed repo.")
@@ -2172,6 +2509,94 @@ def cmd_facts(args: argparse.Namespace) -> int:
     return 0
 
 
+def trace_fact_rows(
+    conn: sqlite3.Connection,
+    config: dict,
+    kind: str,
+    query: str,
+    repo: str | None,
+    limit: int,
+) -> list[sqlite3.Row]:
+    if kind == "keybind":
+        return fact_hits(conn, query, repo, "keybind", config)[:limit]
+    sql = """
+        SELECT fact_id, repo, path, kind, key, value, line, confidence, updated_at
+        FROM facts
+        WHERE kind = ? AND (key LIKE ? OR value LIKE ? OR path LIKE ?)
+    """
+    params: list[object] = [kind, f"%{query}%", f"%{query}%", f"%{query}%"]
+    if repo:
+        sql += " AND repo = ?"
+        params.append(repo)
+    sql += " ORDER BY confidence DESC, updated_at DESC LIMIT ?"
+    params.append(limit)
+    return conn.execute(sql, params).fetchall()
+
+
+def trace_nearby_chunks(
+    conn: sqlite3.Connection,
+    repo: str,
+    path: str,
+    line: int,
+    limit: int = 2,
+) -> list[sqlite3.Row]:
+    return conn.execute(
+        """
+        SELECT repo, path, start_line, end_line, kind, language, symbol, content,
+               CASE
+                   WHEN start_line <= ? AND end_line >= ? THEN 0
+                   ELSE MIN(ABS(start_line - ?), ABS(end_line - ?))
+               END AS distance
+        FROM chunks
+        WHERE repo = ? AND path = ?
+        ORDER BY distance ASC, start_line ASC
+        LIMIT ?
+        """,
+        (line, line, line, line, repo, path, limit),
+    ).fetchall()
+
+
+def cmd_trace(args: argparse.Namespace) -> int:
+    config = load_config()
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    query = " ".join(args.query)
+    rows = trace_fact_rows(conn, config, args.kind, query, repo, args.limit)
+    if not rows:
+        console.print("[yellow]No matching facts found.[/yellow]")
+        return 1
+
+    table = Table(title=f"RAG trace: {args.kind}")
+    table.add_column("#", justify="right")
+    table.add_column("key")
+    table.add_column("value")
+    table.add_column("file")
+    for index, row in enumerate(rows, start=1):
+        table.add_row(
+            str(index),
+            row["key"],
+            str(row["value"])[:90],
+            f"{row['repo']}/{row['path']}:{row['line']}",
+        )
+    console.print(table)
+
+    for index, row in enumerate(rows, start=1):
+        console.print()
+        console.print(f"[bold]{index}. {row['repo']}/{row['path']}:{row['line']}[/bold]")
+        console.print(f"kind={row['kind']} key={row['key']}")
+        console.print(f"value={row['value']}")
+        chunks = trace_nearby_chunks(conn, row["repo"], row["path"], int(row["line"]))
+        if not chunks:
+            continue
+        console.print("[dim]Nearby evidence[/dim]")
+        for chunk in chunks:
+            console.print(
+                f"- {chunk['start_line']}-{chunk['end_line']} {chunk['kind']} {chunk['symbol'] or '-'}"
+            )
+            console.print(chunk["content"].strip())
+    return 0
+
+
 def cmd_doctor(_args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
@@ -2224,6 +2649,23 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         "ok" if config["reranker"]["enabled"] else "off",
         f"{config['reranker']['mode']} (top {config['reranker']['top_k_output']})",
     )
+    profile_name, _profile = get_index_profile(config, None)
+    table.add_row("index profile", "ok", profile_name)
+    table.add_row(
+        "context budget",
+        "ok",
+        (
+            f"total={config['context_budget']['total_tokens']} "
+            f"memory={config['context_budget']['memory_tokens']} "
+            f"facts={config['context_budget']['facts_tokens']} "
+            f"summaries={config['context_budget']['file_summary_tokens']} "
+            f"chunks={config['context_budget']['chunk_tokens']}"
+        ),
+    )
+    memory_statuses = repo_memory_status_rows(conn)
+    stale_count = sum(1 for row in memory_statuses if row["status"] == "stale")
+    missing_count = sum(1 for row in memory_statuses if row["status"] == "missing")
+    table.add_row("memory freshness", "ok" if not stale_count and not missing_count else "warn", f"{stale_count} stale, {missing_count} missing")
     console.print(table)
     return 0
 
@@ -2243,6 +2685,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--changed-only",
         action="store_true",
         help="Skip files whose content hash has not changed.",
+    )
+    index_parser.add_argument(
+        "--profile",
+        choices=["fast", "balanced", "deep"],
+        help="Indexing profile to use (defaults to config indexing.profile).",
     )
     index_parser.set_defaults(func=cmd_index)
 
@@ -2300,6 +2747,11 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser.set_defaults(func=cmd_search)
 
     reindex_parser = subparsers.add_parser("reindex", help="Reindex changed files in previously indexed repos")
+    reindex_parser.add_argument(
+        "--profile",
+        choices=["fast", "balanced", "deep"],
+        help="Indexing profile to use (defaults to config indexing.profile).",
+    )
     reindex_parser.set_defaults(func=cmd_reindex)
 
     summarize_files_parser = subparsers.add_parser(
@@ -2318,8 +2770,8 @@ def build_parser() -> argparse.ArgumentParser:
     summarize_parser.add_argument("--repo", help="Summarize one indexed repo")
     summarize_parser.set_defaults(func=cmd_summarize)
 
-    memory_parser = subparsers.add_parser("memory", help="Show, refresh, or clear repo memory")
-    memory_parser.add_argument("memory_command", choices=["show", "refresh", "clear"])
+    memory_parser = subparsers.add_parser("memory", help="Show, refresh, clear, or inspect repo memory")
+    memory_parser.add_argument("memory_command", choices=["show", "refresh", "clear", "status"])
     memory_parser.add_argument("--repo", help="Target repo name")
     memory_parser.add_argument("--all", action="store_true", help="Apply clear to all repos")
     memory_parser.set_defaults(func=cmd_memory)
@@ -2330,6 +2782,13 @@ def build_parser() -> argparse.ArgumentParser:
     facts_parser.add_argument("--repo", help="Filter to one repo")
     facts_parser.add_argument("--kind", help="Fact kind filter when using `rag facts list`")
     facts_parser.set_defaults(func=cmd_facts)
+
+    trace_parser = subparsers.add_parser("trace", help="Trace facts back to nearby indexed evidence")
+    trace_parser.add_argument("kind", help="Fact kind to trace, like keybind, tool, alias, env, or sql-object")
+    trace_parser.add_argument("query", nargs="+", help="Search text for the trace query")
+    trace_parser.add_argument("--repo", help="Filter to one repo")
+    trace_parser.add_argument("--limit", type=int, default=5, help="Maximum fact matches to trace")
+    trace_parser.set_defaults(func=cmd_trace)
 
     status_parser = subparsers.add_parser("status", help="Show quick local RAG status")
     status_parser.set_defaults(func=cmd_status)

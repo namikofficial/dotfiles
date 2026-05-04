@@ -49,6 +49,10 @@ defaults = {
     "embedding_model": "BAAI/bge-small-en-v1.5",
     "retrieval_context_tokens": 12000,
     "answer_max_tokens": 2500,
+    "key_aliases": {
+        "ctrl": "CTRL",
+        "control": "CTRL",
+    },
     "reranker": {
         "enabled": True,
         "mode": "heuristic",
@@ -57,6 +61,39 @@ defaults = {
         "content_weight": 0.03,
         "path_weight": 0.02,
         "symbol_weight": 0.02,
+    },
+    "retrieval": {
+        "max_chunks_per_file": 3,
+        "max_fact_files": 8,
+        "max_summary_files": 8,
+    },
+    "context_budget": {
+        "total_tokens": 12000,
+        "memory_tokens": 1800,
+        "facts_tokens": 1800,
+        "file_summary_tokens": 2200,
+        "chunk_tokens": 6000,
+        "reserved_answer_tokens": 2200,
+    },
+    "indexing": {
+        "profile": "balanced",
+    },
+    "index_profiles": {
+        "fast": {
+            "facts": True,
+            "file_summaries": False,
+            "repo_memory": False,
+        },
+        "balanced": {
+            "facts": True,
+            "file_summaries": True,
+            "repo_memory": False,
+        },
+        "deep": {
+            "facts": True,
+            "file_summaries": True,
+            "repo_memory": True,
+        },
     },
 }
 
