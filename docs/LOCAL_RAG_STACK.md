@@ -8,6 +8,9 @@ This repo now includes a repeatable local RAG bootstrap aimed at the current lap
 - **Keyword retrieval:** SQLite FTS5 over the indexed chunks
 - **Hybrid retrieval:** dense + keyword + metadata fusion
 - **Reranker:** lightweight heuristic reranker enabled by default on this machine
+- **Facts layer:** exact structured facts for aliases, keybinds, env vars, tools, config keys, and SQL objects
+- **File summaries:** cheap routing summaries per indexed file
+- **Repo memory:** durable repo-level summary usable during `rag ask --memory`
 - **Code focus:** tuned for TypeScript, JavaScript, React/TSX, Rust, Kotlin, HTML, CSS, shell, GTK/XML-style UI files, and mixed config repos
 
 ## Install / repair the stack
@@ -34,8 +37,17 @@ rag status
 rag search "AuthService.login"
 rag search "AuthService.login" --explain
 rag search "scratchpad manager" --no-rerank
+rag facts list --kind keybind
+rag facts keybind scratchpad
+rag facts tool docker
+rag summarize-files --changed-only
+rag summarize
+rag memory show
+rag memory refresh
+rag memory clear --repo dotfiles
 rag ask "How does tenant scoping work?"
 rag ask "How does tenant scoping work?" --show-context
+rag ask "What does Super Alt S do?" --memory
 rag ask "How does the AI scratchpad choose its model?" --rerank
 rag reindex
 rag clean --repo noxflow
@@ -49,6 +61,7 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
 - The default embedding model is **`BAAI/bge-small-en-v1.5`** because it is lighter and faster for this machine.
 - The default reranker is a **heuristic local scoring pass, not a separate model reranker**, and is **enabled by default** here. You can override it per query with `--rerank` or `--no-rerank`.
 - The chunker now recognizes more mixed-repo shapes, including TypeScript/JavaScript arrow functions, Rust modules/traits, Kotlin classes/functions, shell function/alias/env/case/tool blocks, TOML sections, YAML top-level sections, HTML/CSS sections, GTK/XML-style UI objects, and Hyprland config anchors.
+- Facts and file summaries are generated during indexing, so `rag reindex` refreshes them alongside the chunk/vector index.
 - If you want higher retrieval quality later, edit `~/ai-rag/config.json` and switch:
 
 ```json
@@ -68,9 +81,11 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
 1. rewrite each question into a few query variants
 2. pull semantic hits from Qdrant
 3. pull keyword hits from SQLite FTS
-4. merge with reciprocal rank fusion
-5. rerank by lexical/path/symbol overlap (enabled by default, but optional)
-6. send only the best chunks to Gemma
+4. pull matching facts and file summaries from SQLite
+5. merge chunk candidates with reciprocal rank fusion
+6. rerank by lexical/path/symbol overlap (enabled by default, but optional)
+7. optionally prepend repo memory for `rag ask --memory`
+8. send the structured context to Gemma
 
 ## Notes
 
@@ -81,6 +96,9 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
   - reranker toggles with `--rerank` / `--no-rerank`
   - retrieval debugging with `rag search --explain`
   - packed-context inspection with `rag ask --show-context`
+  - structured `rag facts` queries
+  - file summaries via `rag summarize-files`
+  - repo memory via `rag summarize` / `rag memory show` / `rag ask --memory`
   - metadata with path / repo / kind / symbol / line ranges
   - answer prompts with file citations
 - It intentionally does **not** try to index lockfiles, build artifacts, binaries, or media by default.

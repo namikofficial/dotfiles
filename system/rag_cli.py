@@ -56,8 +56,8 @@ DEFAULT_CONFIG = {
         "symbol_weight": 0.02,
     },
 }
-INDEX_SCHEMA = "rag-v3"
-CHUNKER_NAME = "semantic-lines-v3"
+INDEX_SCHEMA = "rag-v4"
+CHUNKER_NAME = "semantic-lines-v4"
 
 DEFAULT_IGNORE_PATTERNS = [
     "node_modules/",
@@ -165,6 +165,10 @@ SYMBOL_PATTERNS = [
     re.compile(r"^\s*(?:data\s+|sealed\s+|enum\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)"),
     re.compile(r"^\s*object\s+([A-Za-z_][A-Za-z0-9_]*)"),
     re.compile(r"^\s*(?:override\s+|suspend\s+|inline\s+)*fun\s+([A-Za-z_][A-Za-z0-9_]*)"),
+    re.compile(
+        r"^\s*create\s+(?:or\s+replace\s+)?(?:table|view|function|procedure|trigger|index)\s+([A-Za-z_][A-Za-z0-9_.]*)",
+        re.IGNORECASE,
+    ),
 ]
 SHELL_FUNCTION_PATTERN = re.compile(
     r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z0-9_.-]*)\s*(?:\(\s*\))?\s*\{"
@@ -220,6 +224,16 @@ class Chunk:
     end_line: int
     symbol: str
     kind: str
+
+
+@dataclass
+class Fact:
+    kind: str
+    key: str
+    value: str
+    line: int
+    confidence: float = 1.0
+    source: str = "extractor"
 
 
 class IndexInterrupted(Exception):
@@ -282,6 +296,48 @@ def ensure_db(conn: sqlite3.Connection) -> None:
             path,
             symbol,
             content
+        );
+
+        CREATE TABLE IF NOT EXISTS facts (
+            fact_id TEXT PRIMARY KEY,
+            repo TEXT NOT NULL,
+            path TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT NOT NULL,
+            line INTEGER NOT NULL,
+            confidence REAL NOT NULL DEFAULT 1.0,
+            source TEXT NOT NULL DEFAULT 'extractor',
+            file_hash TEXT NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_facts_repo_kind_key ON facts(repo, kind, key);
+        CREATE INDEX IF NOT EXISTS idx_facts_repo_path ON facts(repo, path);
+        CREATE INDEX IF NOT EXISTS idx_facts_value ON facts(value);
+
+        CREATE TABLE IF NOT EXISTS file_summaries (
+            repo TEXT NOT NULL,
+            path TEXT NOT NULL,
+            file_hash TEXT NOT NULL,
+            language TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            summary TEXT NOT NULL,
+            symbols TEXT,
+            facts_count INTEGER NOT NULL DEFAULT 0,
+            updated_at REAL NOT NULL,
+            PRIMARY KEY(repo, path)
+        );
+
+        CREATE TABLE IF NOT EXISTS repo_memory (
+            repo TEXT PRIMARY KEY,
+            root TEXT NOT NULL,
+            summary TEXT NOT NULL,
+            architecture TEXT,
+            important_paths TEXT,
+            conventions TEXT,
+            updated_at REAL NOT NULL,
+            index_schema TEXT NOT NULL,
+            source_chunk_count INTEGER NOT NULL
         );
         """
     )
@@ -534,6 +590,249 @@ def xml_ui_symbol(line: str) -> str:
     return tag
 
 
+def normalize_fact_value(value: str) -> str:
+    return value.strip().strip('"').strip("'")
+
+
+def extract_shell_facts(text: str) -> list[Fact]:
+    facts: list[Fact] = []
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if match := SHELL_ALIAS_PATTERN.search(line):
+            _, _, value = stripped.partition("=")
+            facts.append(Fact("alias", match.group(1), normalize_fact_value(value), line_no))
+            continue
+        if match := SHELL_EXPORT_PATTERN.search(line):
+            _, _, value = stripped.partition("=")
+            facts.append(Fact("env", match.group(1), normalize_fact_value(value), line_no))
+            continue
+        if match := SHELL_FUNCTION_PATTERN.search(line):
+            facts.append(Fact("function", match.group(1), "defined", line_no))
+        if match := SHELL_CASE_BRANCH_PATTERN.search(line):
+            facts.append(Fact("case-branch", match.group(1), "case branch", line_no))
+        for pattern in SHELL_TOOL_PATTERNS:
+            if match := pattern.search(line):
+                facts.append(Fact("tool", match.group(1), "required", line_no))
+                break
+    return facts
+
+
+def extract_hyprland_facts(text: str) -> list[Fact]:
+    facts: list[Fact] = []
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = [part.strip() for part in stripped.split("=", 1)]
+        if key.startswith("bind"):
+            parts = [part.strip() for part in value.split(",")]
+            if len(parts) >= 4:
+                mods = normalize_hyprland_mods(parts[0])
+                key_name = parts[1].upper()
+                action = ", ".join(parts[2:])
+                facts.append(Fact("keybind", f"{mods}+{key_name}", action, line_no))
+            continue
+        if key in {"exec", "exec-once"}:
+            command = value
+            command_name = Path(command.split()[0]).name if command else "-"
+            facts.append(Fact("startup" if key == "exec-once" else "exec", command_name, command, line_no))
+            continue
+        if key == "env":
+            env_key, _, env_value = value.partition(",")
+            facts.append(Fact("env", env_key.strip(), env_value.strip(), line_no))
+            continue
+        if key.startswith("windowrule"):
+            facts.append(Fact("windowrule", value[:80], value, line_no))
+    return facts
+
+
+def extract_package_facts(text: str, manager: str) -> list[Fact]:
+    facts: list[Fact] = []
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        package = stripped.split("|", 1)[0].strip()
+        facts.append(Fact("package", package, manager, line_no))
+    return facts
+
+
+def extract_toml_facts(text: str) -> list[Fact]:
+    facts: list[Fact] = []
+    current_section = ""
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if match := TOML_SECTION_PATTERN.search(line):
+            current_section = match.group(1).strip()
+            facts.append(Fact("config-section", current_section, "section", line_no))
+            continue
+        if "=" in stripped:
+            key, value = [part.strip() for part in stripped.split("=", 1)]
+            full_key = f"{current_section}.{key}" if current_section else key
+            facts.append(Fact("config-key", full_key, normalize_fact_value(value), line_no))
+    return facts
+
+
+def extract_yaml_facts(text: str) -> list[Fact]:
+    facts: list[Fact] = []
+    current_section = ""
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        if not line.strip() or line.strip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        stripped = line.strip()
+        if indent == 0 and ":" in stripped:
+            key, value = stripped.split(":", 1)
+            current_section = key.strip()
+            facts.append(Fact("config-section", current_section, "section", line_no))
+            if value.strip():
+                facts.append(Fact("config-key", current_section, normalize_fact_value(value), line_no))
+        elif indent > 0 and ":" in stripped:
+            key, value = stripped.split(":", 1)
+            full_key = f"{current_section}.{key.strip()}" if current_section else key.strip()
+            if value.strip():
+                facts.append(Fact("config-key", full_key, normalize_fact_value(value), line_no))
+    return facts
+
+
+def extract_json_facts(path: Path, text: str) -> list[Fact]:
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(parsed, dict):
+        return []
+    facts: list[Fact] = []
+    for key, value in parsed.items():
+        if isinstance(value, (str, int, float, bool)):
+            facts.append(Fact("config-key", key, str(value), 1))
+        elif isinstance(value, dict):
+            facts.append(Fact("config-section", key, "object", 1))
+            for nested_key, nested_value in list(value.items())[:12]:
+                if isinstance(nested_value, (str, int, float, bool)):
+                    facts.append(Fact("config-key", f"{key}.{nested_key}", str(nested_value), 1))
+        elif isinstance(value, list) and value and all(isinstance(item, str) for item in value[:5]):
+            facts.append(Fact("config-key", key, ", ".join(value[:5]), 1))
+    return facts
+
+
+def extract_sql_facts(text: str) -> list[Fact]:
+    facts: list[Fact] = []
+    pattern = re.compile(
+        r"^\s*create\s+(?:or\s+replace\s+)?(?P<kind>table|view|function|procedure|trigger|index)\s+(?P<name>[A-Za-z_][A-Za-z0-9_.]*)",
+        re.IGNORECASE,
+    )
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        if match := pattern.search(line):
+            facts.append(Fact("sql-object", match.group("name"), match.group("kind").lower(), line_no))
+    return facts
+
+
+def extract_facts(path: Path, text: str, language: str, kind: str) -> list[Fact]:
+    if language == "shell":
+        return extract_shell_facts(text)
+    if language == "hyprland":
+        return extract_hyprland_facts(text)
+    if path.name == "pacman-packages.txt":
+        return extract_package_facts(text, manager="pacman")
+    if path.name == "aur-packages.txt":
+        return extract_package_facts(text, manager="aur")
+    if path.suffix.lower() == ".toml":
+        return extract_toml_facts(text)
+    if path.suffix.lower() in {".yaml", ".yml"}:
+        return extract_yaml_facts(text)
+    if path.suffix.lower() == ".json":
+        return extract_json_facts(path, text)
+    if language == "sql":
+        return extract_sql_facts(text)
+    return []
+
+
+def summarize_file(
+    rel_path: str,
+    language: str,
+    kind: str,
+    chunks: Sequence[Chunk],
+    facts: Sequence[Fact],
+) -> tuple[str, str]:
+    symbols = list(dict.fromkeys(chunk.symbol for chunk in chunks if chunk.symbol))[:12]
+    fact_labels = list(dict.fromkeys(f"{fact.kind}:{fact.key}" for fact in facts))[:8]
+    summary_bits = [f"{Path(rel_path).name} is a {language} {kind} file"]
+    if symbols:
+        summary_bits.append("covering " + ", ".join(symbols[:5]))
+    if fact_labels:
+        summary_bits.append("with notable facts " + ", ".join(fact_labels[:5]))
+    return ". ".join(summary_bits) + ".", " | ".join(symbols)
+
+
+def replace_file_facts(
+    conn: sqlite3.Connection,
+    repo: str,
+    rel_path: str,
+    file_hash: str,
+    facts: Sequence[Fact],
+) -> None:
+    conn.execute("DELETE FROM facts WHERE repo = ? AND path = ?", (repo, rel_path))
+    now = time.time()
+    for fact in facts:
+        fact_key = f"{repo}:{rel_path}:{fact.kind}:{fact.key}:{fact.line}:{file_hash}"
+        fact_id = str(uuid.uuid5(uuid.NAMESPACE_URL, fact_key))
+        conn.execute(
+            """
+            INSERT INTO facts (
+                fact_id, repo, path, kind, key, value, line,
+                confidence, source, file_hash, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                fact_id,
+                repo,
+                rel_path,
+                fact.kind,
+                fact.key,
+                fact.value,
+                fact.line,
+                fact.confidence,
+                fact.source,
+                file_hash,
+                now,
+            ),
+        )
+
+
+def replace_file_summary(
+    conn: sqlite3.Connection,
+    repo: str,
+    rel_path: str,
+    file_hash: str,
+    language: str,
+    kind: str,
+    summary: str,
+    symbols: str,
+    facts_count: int,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO file_summaries (
+            repo, path, file_hash, language, kind, summary, symbols, facts_count, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(repo, path) DO UPDATE SET
+            file_hash=excluded.file_hash,
+            language=excluded.language,
+            kind=excluded.kind,
+            summary=excluded.summary,
+            symbols=excluded.symbols,
+            facts_count=excluded.facts_count,
+            updated_at=excluded.updated_at
+        """,
+        (repo, rel_path, file_hash, language, kind, summary, symbols, facts_count, time.time()),
+    )
+
+
 def chunk_by_anchors(lines: list[str], anchors: list[tuple[int, str]], size: int, overlap: int, kind: str) -> list[Chunk]:
     if not anchors:
         return chunk_by_lines(lines, size=size, overlap=overlap, kind=kind)
@@ -743,6 +1042,8 @@ def remove_file_chunks(conn: sqlite3.Connection, client: QdrantClient, config: d
         )
     conn.execute("DELETE FROM chunks WHERE repo = ? AND path = ?", (repo, rel_path))
     conn.execute("DELETE FROM chunks_fts WHERE repo = ? AND path = ?", (repo, rel_path))
+    conn.execute("DELETE FROM facts WHERE repo = ? AND path = ?", (repo, rel_path))
+    conn.execute("DELETE FROM file_summaries WHERE repo = ? AND path = ?", (repo, rel_path))
 
 
 def index_repo(conn: sqlite3.Connection, client: QdrantClient, config: dict, root: Path, changed_only: bool) -> tuple[int, int]:
@@ -787,6 +1088,7 @@ def index_repo(conn: sqlite3.Connection, client: QdrantClient, config: dict, roo
             chunks = chunk_text(file_path, content, kind, language)
             if not chunks:
                 continue
+            facts = extract_facts(file_path, content, language, kind)
 
             remove_file_chunks(conn, client, config, repo, rel_path)
 
@@ -844,6 +1146,10 @@ def index_repo(conn: sqlite3.Connection, client: QdrantClient, config: dict, roo
                     "INSERT INTO chunks_fts (chunk_id, repo, path, symbol, content) VALUES (?, ?, ?, ?, ?)",
                     (chunk_id, repo, rel_path, chunk.symbol, chunk.content),
                 )
+
+            replace_file_facts(conn, repo, rel_path, file_hash, facts)
+            summary, symbols = summarize_file(rel_path, language, kind, chunks, facts)
+            replace_file_summary(conn, repo, rel_path, file_hash, language, kind, summary, symbols, len(facts))
 
             for batch in batched(points, 64):
                 client.upsert(collection_name=config["qdrant_collection"], points=list(batch), wait=True)
@@ -952,6 +1258,124 @@ def recent_hits(conn: sqlite3.Connection, query: str, repo: str | None) -> list[
     return [row["chunk_id"] for row in conn.execute(sql, params).fetchall()]
 
 
+def normalize_query_keybind_tokens(query: str) -> list[str]:
+    normalized = []
+    mapping = {
+        "super": "SUPER",
+        "ctrl": "CTRL",
+        "control": "CTRL",
+        "alt": "ALT",
+        "shift": "SHIFT",
+        "grave": "GRAVE",
+    }
+    for token in query_terms(query):
+        normalized.append(mapping.get(token, token.upper() if len(token) == 1 else token))
+    return list(dict.fromkeys(normalized))
+
+
+def fact_hits(conn: sqlite3.Connection, query: str, repo: str | None, intent: str) -> list[sqlite3.Row]:
+    if intent == "keybind":
+        sql = "SELECT * FROM facts WHERE kind = 'keybind'" + (" AND repo = ?" if repo else "")
+        rows = conn.execute(sql, [repo] if repo else []).fetchall()
+        query_tokens = normalize_query_keybind_tokens(query)
+        scored = []
+        for row in rows:
+            score = 0.0
+            key_upper = row["key"].upper()
+            value_lower = row["value"].lower()
+            path_lower = row["path"].lower()
+            for token in query_tokens:
+                if token in key_upper:
+                    score += 3.0
+            if "scratchpad" in value_lower:
+                score += 2.0
+            if "hypr" in path_lower:
+                score += 1.0
+            if score > 0:
+                scored.append((score, row))
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return [row for _score, row in scored[:12]]
+    if intent == "tool":
+        sql = "SELECT * FROM facts WHERE kind = 'tool'" + (" AND repo = ?" if repo else "")
+        rows = conn.execute(sql, [repo] if repo else []).fetchall()
+        terms = query_terms(query)
+        scored = []
+        for row in rows:
+            score = 0.0
+            key_lower = row["key"].lower()
+            value_lower = row["value"].lower()
+            for term in terms:
+                if term in key_lower:
+                    score += 3.0
+                if term in value_lower:
+                    score += 1.0
+            if score > 0:
+                scored.append((score, row))
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return [row for _score, row in scored[:12]]
+    terms = query_terms(query)[:8]
+    if not terms:
+        return []
+    clauses = []
+    params: list[str] = []
+    for term in terms:
+        clauses.append("(key LIKE ? OR value LIKE ?)")
+        params.extend([f"%{term}%", f"%{term}%"])
+    sql = "SELECT * FROM facts WHERE " + " OR ".join(clauses)
+    if repo:
+        sql += " AND repo = ?"
+        params.append(repo)
+    sql += " ORDER BY confidence DESC, updated_at DESC LIMIT 12"
+    return conn.execute(sql, params).fetchall()
+
+
+def file_summary_hits(conn: sqlite3.Connection, query: str, repo: str | None, intent: str) -> list[sqlite3.Row]:
+    terms = query_terms(query)[:8]
+    if not terms:
+        return []
+    clauses = []
+    params: list[str] = []
+    for term in terms:
+        clauses.append("(path LIKE ? OR summary LIKE ? OR symbols LIKE ?)")
+        params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
+    sql = "SELECT * FROM file_summaries WHERE " + " OR ".join(clauses)
+    if repo:
+        sql += " AND repo = ?"
+        params.append(repo)
+    sql += " ORDER BY updated_at DESC LIMIT 20"
+    rows = conn.execute(sql, params).fetchall()
+    if intent not in {"keybind", "tool"}:
+        return rows[:10]
+    scored = []
+    for row in rows:
+        score = 0.0
+        path_lower = row["path"].lower()
+        summary_lower = row["summary"].lower()
+        symbols_lower = (row["symbols"] or "").lower()
+        if intent == "keybind":
+            if any(token in path_lower for token in ("hypr", "keybind", "cheatsheet")):
+                score += 2.0
+            if "keybind" in summary_lower or "bind:" in symbols_lower:
+                score += 2.0
+        elif intent == "tool":
+            if row["language"] == "shell":
+                score += 2.0
+            if "tool:" in symbols_lower:
+                score += 2.0
+        for term in terms:
+            if term in path_lower or term in summary_lower or term in symbols_lower:
+                score += 1.0
+        scored.append((score, row))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [row for _score, row in scored[:10]]
+
+
+def repo_memory_row(conn: sqlite3.Connection, repo: str | None) -> sqlite3.Row | None:
+    if not repo:
+        return None
+    return conn.execute("SELECT * FROM repo_memory WHERE repo = ?", (repo,)).fetchone()
+
+
 def reciprocal_rank_fusion(*rank_lists: Sequence[str]) -> dict[str, float]:
     scores: dict[str, float] = {}
     for rank_list in rank_lists:
@@ -978,6 +1402,8 @@ def rerank_chunks(
     base_scores: dict[str, float],
     config: dict,
     intent: str,
+    fact_paths: set[str],
+    summary_paths: set[str],
 ) -> list[sqlite3.Row]:
     reranker_config = config["reranker"]
     query_terms_set = set(query_terms(query))
@@ -1011,6 +1437,10 @@ def rerank_chunks(
                 final_score += 0.2
             if row["language"] == "shell":
                 final_score += 0.05
+        if row["path"] in fact_paths:
+            final_score += 0.18
+        if row["path"] in summary_paths:
+            final_score += 0.1
         scored.append((final_score, row))
     scored.sort(key=lambda item: item[0], reverse=True)
     return [row for _score, row in scored[: reranker_config["top_k_output"]]]
@@ -1022,23 +1452,71 @@ def reranker_enabled(config: dict, override: bool | None) -> bool:
     return override
 
 
-def gather_context(rows: Sequence[sqlite3.Row], budget_tokens: int) -> tuple[str, list[str]]:
-    chunks = []
+def gather_context(
+    rows: Sequence[sqlite3.Row],
+    budget_tokens: int,
+    facts: Sequence[sqlite3.Row] | None = None,
+    summaries: Sequence[sqlite3.Row] | None = None,
+    memory: str | None = None,
+) -> tuple[str, list[str]]:
+    sections: list[str] = []
     seen_files: list[str] = []
     used = 0
+
+    def append_block(block: str, file_ref: str | None = None) -> bool:
+        nonlocal used
+        block_tokens = approx_tokens(block)
+        if used + block_tokens > budget_tokens:
+            return False
+        sections.append(block)
+        used += block_tokens
+        if file_ref and file_ref not in seen_files:
+            seen_files.append(file_ref)
+        return True
+
+    if memory:
+        append_block(f"<repo_memory>\n{memory}\n</repo_memory>")
+
+    if facts:
+        fact_blocks: list[str] = []
+        for index, fact in enumerate(facts, start=1):
+            fact_blocks.append(
+                f"[FACT {index}] {fact['repo']}/{fact['path']}:{fact['line']}\n"
+                f"kind={fact['kind']} key={fact['key']}\n"
+                f"value={fact['value']}"
+            )
+            seen_files.append(f"{fact['repo']}/{fact['path']}:{fact['line']}")
+        append_block("<facts>\n" + "\n\n".join(fact_blocks) + "\n</facts>")
+
+    if summaries:
+        summary_blocks: list[str] = []
+        for index, summary in enumerate(summaries, start=1):
+            summary_blocks.append(
+                f"[SUMMARY {index}] {summary['repo']}/{summary['path']}\n"
+                f"kind={summary['kind']} language={summary['language']}\n"
+                f"symbols={summary['symbols'] or '-'}\n"
+                f"{summary['summary']}"
+            )
+            seen_files.append(f"{summary['repo']}/{summary['path']}")
+        append_block("<file_summaries>\n" + "\n\n".join(summary_blocks) + "\n</file_summaries>")
+
+    chunk_blocks: list[str] = []
     for row in rows:
         block = (
-            f"[{len(chunks)+1}] {row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}\n"
+            f"[{len(chunk_blocks)+1}] {row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}\n"
             f"kind={row['kind']} language={row['language']} symbol={row['symbol'] or '-'}\n"
             f"{row['content']}"
         )
-        block_tokens = approx_tokens(block)
-        if used + block_tokens > budget_tokens:
+        prospective = "<chunks>\n" + "\n\n".join(chunk_blocks + [block]) + "\n</chunks>"
+        if used + approx_tokens(prospective) > budget_tokens:
             break
-        chunks.append(block)
-        used += block_tokens
-        seen_files.append(f"{row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}")
-    return "\n\n".join(chunks), seen_files
+        chunk_blocks.append(block)
+        file_ref = f"{row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}"
+        if file_ref not in seen_files:
+            seen_files.append(file_ref)
+    if chunk_blocks:
+        append_block("<chunks>\n" + "\n\n".join(chunk_blocks) + "\n</chunks>")
+    return "\n\n".join(sections), list(dict.fromkeys(seen_files))
 
 
 def print_retrieval_explain(debug: dict, rows: Sequence[sqlite3.Row]) -> None:
@@ -1049,6 +1527,9 @@ def print_retrieval_explain(debug: dict, rows: Sequence[sqlite3.Row]) -> None:
     console.print(f"semantic hits: {debug['semantic_hits']}")
     console.print(f"keyword hits: {debug['keyword_hits']}")
     console.print(f"recent/path hits: {debug['recent_hits']}")
+    console.print(f"fact hits: {debug['fact_hits']}")
+    console.print(f"file summary hits: {debug['file_summary_hits']}")
+    console.print(f"repo memory: {'loaded' if debug['memory_loaded'] else 'not loaded'}")
     console.print(f"merged unique: {debug['merged_unique']}")
     console.print(f"intent: {debug['intent']}")
     console.print(
@@ -1067,25 +1548,17 @@ def print_retrieval_explain(debug: dict, rows: Sequence[sqlite3.Row]) -> None:
         )
 
 
-def ask_llm(config: dict, question: str, context: str) -> str:
-    system_prompt = (
-        "You are a repo-aware local coding assistant. Use the supplied context first, stay concrete, "
-        "prefer code and runtime config over prose docs when they disagree, and cite file paths with "
-        "line ranges in your answer when possible."
-    )
+def complete_llm(config: dict, system_prompt: str, user_prompt: str, max_tokens: int | None = None) -> str:
     payload = json.dumps(
         {
             "model": config["answer_model"],
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": f"Question:\n{question}\n\nContext:\n{context}\n\nReturn a concise answer and cite files.",
-                },
+                {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.1,
             "stream": False,
-            "max_tokens": config["answer_max_tokens"],
+            "max_tokens": max_tokens or config["answer_max_tokens"],
         }
     ).encode()
     request = urllib.request.Request(
@@ -1098,6 +1571,16 @@ def ask_llm(config: dict, question: str, context: str) -> str:
     return body.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
 
 
+def ask_llm(config: dict, question: str, context: str) -> str:
+    system_prompt = (
+        "You are a repo-aware local coding assistant. Use the supplied context first, stay concrete, "
+        "prefer code and runtime config over prose docs when they disagree, and cite file paths with "
+        "line ranges in your answer when possible."
+    )
+    user_prompt = f"Question:\n{question}\n\nContext:\n{context}\n\nReturn a concise answer and cite files."
+    return complete_llm(config, system_prompt, user_prompt)
+
+
 def retrieve(
     conn: sqlite3.Connection,
     client: QdrantClient,
@@ -1105,12 +1588,17 @@ def retrieve(
     query: str,
     repo: str | None,
     use_reranker: bool,
- ) -> tuple[list[sqlite3.Row], dict]:
+) -> tuple[list[sqlite3.Row], list[sqlite3.Row], list[sqlite3.Row], sqlite3.Row | None, dict]:
     rewrites = rewrite_queries(query)
     intent = detect_intent(query)
     semantic = semantic_hits(client, config, rewrites, repo)
     keyword = keyword_hits(conn, rewrites, repo)
     recent = recent_hits(conn, query, repo)
+    facts = fact_hits(conn, query, repo, intent)
+    summaries = file_summary_hits(conn, query, repo, intent)
+    memory = repo_memory_row(conn, repo)
+    fact_paths = {row["path"] for row in facts}
+    summary_paths = {row["path"] for row in summaries}
     scores = reciprocal_rank_fusion(semantic, keyword, recent)
     ranked_ids = [chunk_id for chunk_id, _ in sorted(scores.items(), key=lambda item: item[1], reverse=True)]
     rows = load_chunks(conn, ranked_ids[: config["reranker"]["top_k_input"]])
@@ -1119,14 +1607,168 @@ def retrieve(
         "semantic_hits": len(semantic),
         "keyword_hits": len(keyword),
         "recent_hits": len(recent),
+        "fact_hits": len(facts),
+        "file_summary_hits": len(summaries),
+        "memory_loaded": memory is not None,
         "merged_unique": len(scores),
         "ranking_enabled": use_reranker,
         "ranking_mode": config["reranker"]["mode"],
         "intent": intent,
     }
     if use_reranker:
-        return rerank_chunks(query, rows, scores, config, intent), debug
-    return rows[: config["reranker"]["top_k_output"]], debug
+        return (
+            rerank_chunks(query, rows, scores, config, intent, fact_paths, summary_paths),
+            facts,
+            summaries,
+            memory,
+            debug,
+        )
+    return rows[: config["reranker"]["top_k_output"]], facts, summaries, memory, debug
+
+
+def resolve_repo_name(conn: sqlite3.Connection, explicit_repo: str | None) -> str | None:
+    if explicit_repo:
+        return explicit_repo
+    inferred = infer_repo_filter(conn, None)
+    if inferred:
+        return inferred
+    rows = conn.execute("SELECT repo FROM indexed_repos ORDER BY repo").fetchall()
+    if len(rows) == 1:
+        return rows[0]["repo"]
+    return None
+
+
+def refresh_file_summaries(conn: sqlite3.Connection, repo: str | None = None, changed_only: bool = False) -> int:
+    sql = (
+        "SELECT repo, path, file_hash, language, kind FROM chunks "
+        + ("WHERE repo = ? " if repo else "")
+        + "GROUP BY repo, path, file_hash, language, kind ORDER BY repo, path"
+    )
+    params = [repo] if repo else []
+    rows = conn.execute(sql, params).fetchall()
+    refreshed = 0
+    for row in rows:
+        existing = conn.execute(
+            "SELECT file_hash FROM file_summaries WHERE repo = ? AND path = ?",
+            (row["repo"], row["path"]),
+        ).fetchone()
+        if changed_only and existing and existing["file_hash"] == row["file_hash"]:
+            continue
+        chunk_rows = conn.execute(
+            "SELECT symbol, content, start_line, end_line, kind FROM chunks WHERE repo = ? AND path = ? ORDER BY chunk_index",
+            (row["repo"], row["path"]),
+        ).fetchall()
+        chunks = [
+            Chunk(
+                content=chunk["content"],
+                start_line=chunk["start_line"],
+                end_line=chunk["end_line"],
+                symbol=chunk["symbol"] or "",
+                kind=chunk["kind"],
+            )
+            for chunk in chunk_rows
+        ]
+        facts = [
+            Fact(
+                kind=fact["kind"],
+                key=fact["key"],
+                value=fact["value"],
+                line=fact["line"],
+                confidence=fact["confidence"],
+                source=fact["source"],
+            )
+            for fact in conn.execute(
+                "SELECT * FROM facts WHERE repo = ? AND path = ? ORDER BY line",
+                (row["repo"], row["path"]),
+            ).fetchall()
+        ]
+        summary, symbols = summarize_file(row["path"], row["language"], row["kind"], chunks, facts)
+        replace_file_summary(
+            conn,
+            row["repo"],
+            row["path"],
+            row["file_hash"],
+            row["language"],
+            row["kind"],
+            summary,
+            symbols,
+            len(facts),
+        )
+        refreshed += 1
+    conn.commit()
+    return refreshed
+
+
+def generate_repo_memory(
+    conn: sqlite3.Connection,
+    config: dict,
+    repo: str,
+) -> str:
+    repo_row = conn.execute("SELECT root FROM indexed_repos WHERE repo = ?", (repo,)).fetchone()
+    if repo_row is None:
+        raise SystemExit(f"Repo not indexed: {repo}")
+    summary_rows = conn.execute(
+        "SELECT path, summary, symbols FROM file_summaries WHERE repo = ? ORDER BY facts_count DESC, updated_at DESC LIMIT 24",
+        (repo,),
+    ).fetchall()
+    fact_rows = conn.execute(
+        """
+        SELECT path, kind, key, value, line FROM facts
+        WHERE repo = ?
+        ORDER BY
+            CASE kind
+                WHEN 'keybind' THEN 0
+                WHEN 'tool' THEN 1
+                WHEN 'env' THEN 2
+                WHEN 'startup' THEN 3
+                WHEN 'exec' THEN 4
+                WHEN 'package' THEN 5
+                WHEN 'sql-object' THEN 6
+                WHEN 'alias' THEN 7
+                ELSE 20
+            END,
+            updated_at DESC
+        LIMIT 32
+        """,
+        (repo,),
+    ).fetchall()
+    file_summary_text = "\n".join(
+        f"- {row['path']}: {row['summary']} (symbols: {row['symbols'] or '-'})" for row in summary_rows
+    )
+    fact_text = "\n".join(
+        f"- {row['path']}:{row['line']} kind={row['kind']} key={row['key']} value={row['value']}" for row in fact_rows
+    )
+    system_prompt = (
+        "You are creating durable memory for a local repo assistant. Summarize this repo for future retrieval. "
+        "Focus on purpose, architecture, important entry points, conventions, risky scripts, local setup commands, "
+        "backend/database touchpoints, and important runtime paths. Avoid temporary details. Return markdown with stable headings."
+    )
+    user_prompt = (
+        f"Repo: {repo}\nRoot: {repo_row['root']}\n\nFile summaries:\n{file_summary_text}\n\nFacts:\n{fact_text}\n"
+    )
+    return complete_llm(config, system_prompt, user_prompt, max_tokens=1400)
+
+
+def store_repo_memory(conn: sqlite3.Connection, repo: str, summary: str) -> None:
+    repo_row = conn.execute("SELECT root FROM indexed_repos WHERE repo = ?", (repo,)).fetchone()
+    if repo_row is None:
+        raise SystemExit(f"Repo not indexed: {repo}")
+    chunk_count = conn.execute("SELECT COUNT(*) FROM chunks WHERE repo = ?", (repo,)).fetchone()[0]
+    conn.execute(
+        """
+        INSERT INTO repo_memory (
+            repo, root, summary, architecture, important_paths, conventions, updated_at, index_schema, source_chunk_count
+        ) VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?)
+        ON CONFLICT(repo) DO UPDATE SET
+            root=excluded.root,
+            summary=excluded.summary,
+            updated_at=excluded.updated_at,
+            index_schema=excluded.index_schema,
+            source_chunk_count=excluded.source_chunk_count
+        """,
+        (repo, repo_row["root"], summary, time.time(), INDEX_SCHEMA, chunk_count),
+    )
+    conn.commit()
 
 
 def cmd_index(args: argparse.Namespace) -> int:
@@ -1192,6 +1834,9 @@ def cmd_status(_args: argparse.Namespace) -> int:
     console.print()
     console.print(f"Repos indexed: {conn.execute('SELECT COUNT(*) FROM indexed_repos').fetchone()[0]}")
     console.print(f"Chunks: {conn.execute('SELECT COUNT(*) FROM chunks').fetchone()[0]}")
+    console.print(f"Facts: {conn.execute('SELECT COUNT(*) FROM facts').fetchone()[0]}")
+    console.print(f"File summaries: {conn.execute('SELECT COUNT(*) FROM file_summaries').fetchone()[0]}")
+    console.print(f"Repo memories: {conn.execute('SELECT COUNT(*) FROM repo_memory').fetchone()[0]}")
     console.print(f"Embedding model: {config['embedding_model']}")
     console.print(f"Answer model: {config['answer_model']}")
     console.print(
@@ -1223,6 +1868,9 @@ def cmd_clean(args: argparse.Namespace) -> int:
             client.delete_collection(config["qdrant_collection"])
         conn.execute("DELETE FROM chunks")
         conn.execute("DELETE FROM chunks_fts")
+        conn.execute("DELETE FROM facts")
+        conn.execute("DELETE FROM file_summaries")
+        conn.execute("DELETE FROM repo_memory")
         conn.execute("DELETE FROM indexed_repos")
         conn.commit()
         ensure_collection(client, config)
@@ -1243,6 +1891,9 @@ def cmd_clean(args: argparse.Namespace) -> int:
         )
     conn.execute("DELETE FROM chunks WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM chunks_fts WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM facts WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM file_summaries WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM repo_memory WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM indexed_repos WHERE repo = ?", (repo,))
     conn.commit()
     console.print(f"[green]Cleared[/green] repo state for {repo}")
@@ -1254,7 +1905,7 @@ def cmd_search(args: argparse.Namespace) -> int:
     conn = connect_db()
     client = get_qdrant(config)
     repo = infer_repo_filter(conn, args.repo)
-    rows, debug = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
+    rows, facts, summaries, memory, debug = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
     if args.explain:
         print_retrieval_explain(debug, rows)
         console.print()
@@ -1282,11 +1933,17 @@ def cmd_ask(args: argparse.Namespace) -> int:
     conn = connect_db()
     client = get_qdrant(config)
     repo = infer_repo_filter(conn, args.repo)
-    rows, debug = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
+    rows, facts, summaries, memory, debug = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
     if not rows:
         console.print("[yellow]No indexed context matched that query.[/yellow]")
         return 1
-    context, files = gather_context(rows, config["retrieval_context_tokens"])
+    context, files = gather_context(
+        rows,
+        config["retrieval_context_tokens"],
+        facts=facts,
+        summaries=summaries,
+        memory=memory["summary"] if args.memory and memory else None,
+    )
     if args.show_context:
         print_retrieval_explain(debug, rows)
         console.print("\n[bold]Context:[/bold]")
@@ -1298,6 +1955,102 @@ def cmd_ask(args: argparse.Namespace) -> int:
     console.print("\n[bold]Relevant files:[/bold]")
     for item in files:
         console.print(f"- {item}")
+    return 0
+
+
+def cmd_summarize_files(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    refreshed = refresh_file_summaries(conn, repo=repo, changed_only=args.changed_only)
+    scope = repo or "all indexed repos"
+    console.print(f"[green]Refreshed[/green] {refreshed} file summaries for {scope}")
+    return 0
+
+
+def cmd_summarize(args: argparse.Namespace) -> int:
+    config = load_config()
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    if not repo:
+        raise SystemExit("No repo selected. Use --repo or run inside an indexed repo.")
+    console.print(f"[cyan]Summarizing[/cyan] {repo} ...")
+    summary = generate_repo_memory(conn, config, repo)
+    store_repo_memory(conn, repo, summary)
+    console.print(f"[green]Stored[/green] repo memory for {repo}")
+    return 0
+
+
+def cmd_memory(args: argparse.Namespace) -> int:
+    config = load_config()
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    if args.memory_command == "show":
+        if not repo:
+            raise SystemExit("No repo selected. Use --repo or run inside an indexed repo.")
+        row = conn.execute("SELECT summary FROM repo_memory WHERE repo = ?", (repo,)).fetchone()
+        if row is None:
+            console.print(f"[yellow]No repo memory stored for {repo}.[/yellow]")
+            return 0
+        console.print(row["summary"])
+        return 0
+    if args.memory_command == "refresh":
+        if not repo:
+            raise SystemExit("No repo selected. Use --repo or run inside an indexed repo.")
+        summary = generate_repo_memory(conn, config, repo)
+        store_repo_memory(conn, repo, summary)
+        console.print(f"[green]Refreshed[/green] repo memory for {repo}")
+        return 0
+    if args.memory_command == "clear":
+        if args.all:
+            conn.execute("DELETE FROM repo_memory")
+            conn.commit()
+            console.print("[green]Cleared[/green] all repo memory")
+            return 0
+        if not repo:
+            raise SystemExit("No repo selected. Use --repo, run inside an indexed repo, or use --all.")
+        conn.execute("DELETE FROM repo_memory WHERE repo = ?", (repo,))
+        conn.commit()
+        console.print(f"[green]Cleared[/green] repo memory for {repo}")
+        return 0
+    raise SystemExit(f"Unknown memory command: {args.memory_command}")
+
+
+def cmd_facts(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    if args.subject == "list":
+        sql = "SELECT repo, path, kind, key, value, line FROM facts"
+        params: list[str] = []
+        clauses: list[str] = []
+        if repo:
+            clauses.append("repo = ?")
+            params.append(repo)
+        if args.kind:
+            clauses.append("kind = ?")
+            params.append(args.kind)
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
+        sql += " ORDER BY repo, path, line LIMIT 40"
+        rows = conn.execute(sql, params).fetchall()
+    else:
+        if not args.query:
+            raise SystemExit("Use `rag facts list` or `rag facts <kind> <query>`")
+        query = " ".join(args.query)
+        sql = "SELECT repo, path, kind, key, value, line FROM facts WHERE kind = ? AND (key LIKE ? OR value LIKE ?)"
+        params = [args.subject, f"%{query}%", f"%{query}%"]
+        if repo:
+            sql += " AND repo = ?"
+            params.append(repo)
+        sql += " ORDER BY confidence DESC, updated_at DESC LIMIT 30"
+        rows = conn.execute(sql, params).fetchall()
+    table = Table(title="RAG facts")
+    table.add_column("kind")
+    table.add_column("key")
+    table.add_column("value")
+    table.add_column("file")
+    for row in rows:
+        table.add_row(row["kind"], row["key"], str(row["value"])[:80], f"{row['repo']}/{row['path']}:{row['line']}")
+    console.print(table)
     return 0
 
 
@@ -1328,6 +2081,10 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     repo_count = conn.execute("SELECT COUNT(*) AS count FROM indexed_repos").fetchone()["count"]
     chunk_count = conn.execute("SELECT COUNT(*) AS count FROM chunks").fetchone()["count"]
     table.add_row("sqlite", "ok", f"{repo_count} repos, {chunk_count} chunks")
+    fact_count = conn.execute("SELECT COUNT(*) AS count FROM facts").fetchone()["count"]
+    summary_count = conn.execute("SELECT COUNT(*) AS count FROM file_summaries").fetchone()["count"]
+    memory_count = conn.execute("SELECT COUNT(*) AS count FROM repo_memory").fetchone()["count"]
+    table.add_row("memory", "ok", f"{fact_count} facts, {summary_count} file summaries, {memory_count} repo memories")
 
     try:
         models_url = config["answer_url"].replace("/chat/completions", "/models")
@@ -1375,6 +2132,11 @@ def build_parser() -> argparse.ArgumentParser:
     ask_parser.add_argument("query")
     ask_parser.add_argument("--repo", help="Filter to a repo name")
     ask_parser.add_argument(
+        "--memory",
+        action="store_true",
+        help="Prepend stored repo memory before facts, file summaries, and chunks.",
+    )
+    ask_parser.add_argument(
         "--show-context",
         action="store_true",
         help="Print the packed retrieval context before the answer.",
@@ -1421,6 +2183,35 @@ def build_parser() -> argparse.ArgumentParser:
 
     reindex_parser = subparsers.add_parser("reindex", help="Reindex changed files in previously indexed repos")
     reindex_parser.set_defaults(func=cmd_reindex)
+
+    summarize_files_parser = subparsers.add_parser(
+        "summarize-files",
+        help="Refresh file summaries from indexed chunks and facts",
+    )
+    summarize_files_parser.add_argument("--repo", help="Refresh summaries for one repo")
+    summarize_files_parser.add_argument(
+        "--changed-only",
+        action="store_true",
+        help="Only refresh summaries whose file hash no longer matches.",
+    )
+    summarize_files_parser.set_defaults(func=cmd_summarize_files)
+
+    summarize_parser = subparsers.add_parser("summarize", help="Generate durable repo memory")
+    summarize_parser.add_argument("--repo", help="Summarize one indexed repo")
+    summarize_parser.set_defaults(func=cmd_summarize)
+
+    memory_parser = subparsers.add_parser("memory", help="Show, refresh, or clear repo memory")
+    memory_parser.add_argument("memory_command", choices=["show", "refresh", "clear"])
+    memory_parser.add_argument("--repo", help="Target repo name")
+    memory_parser.add_argument("--all", action="store_true", help="Apply clear to all repos")
+    memory_parser.set_defaults(func=cmd_memory)
+
+    facts_parser = subparsers.add_parser("facts", help="List or query structured facts")
+    facts_parser.add_argument("subject", help="Use `list` or a fact kind like alias, keybind, env, tool, sql-object")
+    facts_parser.add_argument("query", nargs="*", help="Search text when querying a fact kind")
+    facts_parser.add_argument("--repo", help="Filter to one repo")
+    facts_parser.add_argument("--kind", help="Fact kind filter when using `rag facts list`")
+    facts_parser.set_defaults(func=cmd_facts)
 
     status_parser = subparsers.add_parser("status", help="Show quick local RAG status")
     status_parser.set_defaults(func=cmd_status)
