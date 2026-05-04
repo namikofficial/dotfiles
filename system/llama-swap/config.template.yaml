@@ -1,0 +1,53 @@
+# llama-swap: one OpenAI-compatible endpoint, one model loaded at a time.
+# Source: https://github.com/mostlygeek/llama-swap
+
+healthCheckTimeout: 120
+logRequests: true
+
+models:
+  qwen-coder:
+    cmd: >
+      llama-server
+      --host 127.0.0.1
+      --port ${PORT}
+      --model __MODEL_ROOT__/qwen-coder.gguf
+      --ctx-size 32768
+      --n-gpu-layers 99
+      --threads 8
+      --parallel 1
+      --jinja
+    aliases:
+      - local
+      - coder
+      - qwen
+      - qwen-coder.gguf
+
+  llama-3.2-3b:
+    cmd: >
+      llama-server
+      --host 127.0.0.1
+      --port ${PORT}
+      --model __MODEL_ROOT__/llama-3.2-3b-instruct.gguf
+      --ctx-size 32768
+      --n-gpu-layers 99
+      --threads 8
+      --parallel 1
+      --jinja
+    aliases:
+      - llama32
+      - llama32-3b
+
+  mistral-7b:
+    cmd: >
+      llama-server
+      --host 127.0.0.1
+      --port ${PORT}
+      --model __MODEL_ROOT__/mistral-7b-instruct.gguf
+      --ctx-size 32768
+      --n-gpu-layers 99
+      --threads 8
+      --parallel 1
+      --jinja
+    aliases:
+      - mistral
+      - mistral7b

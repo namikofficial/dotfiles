@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-endpoint="${LLM_CHAT_ENDPOINT:-http://127.0.0.1:8000/v1/chat/completions}"
-health="${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8000/health}"
+endpoint="${LLM_CHAT_ENDPOINT:-http://127.0.0.1:8080/v1/chat/completions}"
+health="${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}"
 model="${LLM_CHAT_MODEL:-local}"
 export LD_LIBRARY_PATH="${LLAMA_LIBRARY_PATH:-$HOME/.local/lib}:${LD_LIBRARY_PATH:-}"
 export GGML_BACKEND_PATH="${LLAMA_BACKEND_PATH:-${LLAMA_LIBRARY_PATH:-$HOME/.local/lib}/libggml-cpu-x64.so}"
@@ -18,11 +18,14 @@ need_cmd curl
 need_cmd jq
 
 start_server() {
-  if command -v llm-manager >/dev/null 2>&1; then
+  if command -v llama-swap-manager >/dev/null 2>&1; then
+    printf 'Starting local llama-swap endpoint...\n'
+    llama-swap-manager start || true
+  elif command -v llm-manager >/dev/null 2>&1; then
     printf 'Starting local llama.cpp server...\n'
     llm-manager start llama || true
   else
-    printf 'llm-manager is unavailable. Start llama-server manually, then reopen this pane.\n'
+    printf 'llama-swap-manager and llm-manager are unavailable. Start local server manually, then reopen this pane.\n'
   fi
 }
 
