@@ -4,7 +4,6 @@
 set -euo pipefail
 
 LLM_BASE_URL="${LLM_BASE_URL:-http://127.0.0.1:8080/v1}"
-LLM_ENDPOINT="${LLM_CHAT_ENDPOINT:-${LLM_BASE_URL}/chat/completions}"
 HEALTH_ENDPOINT="${LLM_HEALTH_ENDPOINT:-${LLM_BASE_URL}/models}"
 OPENCODE_TEMPLATE="${HOME}/Documents/code/dotfiles/configs/opencode/opencode.local-llamacpp.json"
 OPENCODE_RUNTIME_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
@@ -14,7 +13,6 @@ AI_CONTEXT="${NOXFLOW_AI_CONTEXT:-$PWD}"
 C_BOLD='\033[1m'
 C_DIM='\033[2m'
 C_GREEN='\033[32m'
-C_CYAN='\033[36m'
 C_YELLOW='\033[33m'
 C_RED='\033[31m'
 C_RESET='\033[0m'
@@ -137,15 +135,10 @@ load_opencode_mcp_env() {
   fi
 
   [ -f "$mcp_file" ] || return 0
-
-  local key
-  for key in \
-    OBSIDIAN_VAULT_PATH
-  do
-    [ -n "${!key:-}" ] && continue
-    value="$(jq -r --arg key "$key" '.mcpServers.obsidian.env[$key] // empty' "$mcp_file" 2>/dev/null || true)"
-    [ -n "$value" ] && export "$key=$value"
-  done
+  if [ -z "${OBSIDIAN_VAULT_PATH:-}" ]; then
+    value="$(jq -r '.mcpServers.obsidian.env.OBSIDIAN_VAULT_PATH // empty' "$mcp_file" 2>/dev/null || true)"
+    [ -n "$value" ] && export OBSIDIAN_VAULT_PATH="$value"
+  fi
 }
 
 launch_opencode() {
