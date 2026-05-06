@@ -67,9 +67,9 @@ fi
 mkdir -p "$HOME/.cache/zsh"
 
 # Completion list behavior:
-# - Use a high positive LISTMAX so completion results list immediately.
-# - This avoids the "do you wish to see all ... possibilities" prompt.
-LISTMAX=1000
+# - LISTMAX=0 disables the "do you wish to see all ... possibilities" confirmation.
+# - This makes completion candidates list immediately when there are many matches.
+LISTMAX=0
 
 # zsh-completions (must be in fpath before compinit)
 if [ -d "$HOME/.local/share/zsh/plugins/zsh-completions/src" ]; then
