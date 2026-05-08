@@ -18,15 +18,19 @@ from rag.state import (
     add_command,
     add_decision,
     add_error,
+    add_test_failure,
     add_todo,
     compact_session,
     detect_memory_conflicts,
     format_operational_state,
     list_memory_entries,
     load_operational_state,
+    normalize_error_text,
     record_session,
     remember_memory,
     session_compaction_details,
+    upsert_github_context,
+    upsert_git_context,
 )
 from rag.storage import ensure_db
 
@@ -54,6 +58,12 @@ class CliStateTest(unittest.TestCase):
         handoff_args = parser.parse_args(["handoff", "codex", "prepare context"])
         self.assertEqual(handoff_args.command, "handoff")
         self.assertEqual(handoff_args.target, "codex")
+        context_git_args = parser.parse_args(["context", "git", "--refresh"])
+        self.assertEqual(context_git_args.context_command, "git")
+        context_failure_args = parser.parse_args(
+            ["context", "test-failure", "add", "pytest -q", "--output", "AssertionError"]
+        )
+        self.assertEqual(context_failure_args.failure_command, "add")
         memory_args = parser.parse_args(
             ["memory", "remember", "known_stack", "backend", "node", "nest", "--global-scope"]
         )
@@ -78,7 +88,46 @@ class CliStateTest(unittest.TestCase):
         add_todo(conn, "dotfiles", "Add agent mode", detail="Ship explicit CLI surfaces")
         add_decision(conn, "dotfiles", "Use explicit modes", "Keep ask as compatibility alias")
         add_command(conn, "dotfiles", "python -m unittest tests.rag.test_retrieval", purpose="RAG regression check")
-        add_error(conn, "dotfiles", "database is locked", fix_text="Retry after the active run finishes")
+        add_error(
+            conn,
+            "dotfiles",
+            "database is locked at src/db.py:42",
+            fix_text="Retry after the active run finishes",
+            command="pytest tests/rag/test_retrieval.py",
+            exit_code=1,
+        )
+        add_test_failure(
+            conn,
+            "dotfiles",
+            "pytest tests/rag/test_retrieval.py",
+            "AssertionError: expected 1 == 2\n at RetrievalTest.test_case tests/rag/test_retrieval.py:88",
+            runner="pytest",
+            exit_code=1,
+        )
+        upsert_github_context(
+            conn,
+            "dotfiles",
+            "pr",
+            42,
+            "Improve retrieval diagnostics",
+            body="Adds debug output for context sources",
+            changed_files=["system/rag/retrieval.py"],
+            comments=["Looks good overall"],
+        )
+        upsert_git_context(
+            conn,
+            "dotfiles",
+            "feature/retrieval",
+            head_commit="abc123",
+            indexed_branch="main",
+            indexed_commit="def456",
+            dirty=True,
+            status_short=" M system/rag/retrieval.py",
+            diff_text="+ new explain output",
+            staged_diff_text="",
+            recent_log_text="abc123 Improve retrieval diagnostics",
+            changed_files=["system/rag/retrieval.py"],
+        )
         remember_memory(conn, None, "known_stack", "backend", "Node NestJS MikroORM Postgres", global_scope=True)
         remember_memory(conn, "dotfiles", "repo_conventions", "handoffs", "Prefer concise markdown handoffs")
         session_id = record_session(
@@ -93,12 +142,17 @@ class CliStateTest(unittest.TestCase):
         )
         compact_row = compact_session(conn, session_id)
         self.assertIsNotNone(compact_row)
+        if compact_row is None:
+            self.fail("session compaction should exist")
         details = session_compaction_details(compact_row)
         self.assertIn("rag memory pack dotfiles --write-file", details["commands"][0])
         state = format_operational_state(load_operational_state(conn, "dotfiles"))
         self.assertIn("Add agent mode", state)
         self.assertIn("Use explicit modes", state)
         self.assertIn("database is locked", state)
+        self.assertIn("Test failures", state)
+        self.assertIn("GitHub context", state)
+        self.assertIn("Git context", state)
         self.assertIn("Known stack", state)
         self.assertIn("Repo conventions", state)
         self.assertIn("Session compactions", state)
@@ -135,6 +189,11 @@ class CliStateTest(unittest.TestCase):
         self.assertIn("## Repo conventions", content)
         self.assertIn("## Tool taxonomy", content)
         self.assertTrue(metadata["has_repo_memory"])
+
+    def test_error_normalization_ignores_line_numbers(self) -> None:
+        first = normalize_error_text("RuntimeError: boom at src/app.py:12")
+        second = normalize_error_text("RuntimeError: boom at src/app.py:48")
+        self.assertEqual(first, second)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sqlite3
@@ -148,15 +149,39 @@ def add_error(
     error_text: str,
     fix_text: str | None = None,
     notes: str | None = None,
+    command: str | None = None,
+    exit_code: int | None = None,
     source_session_id: str | None = None,
 ) -> int:
     now = time.time()
+    normalized_error = normalize_error_text(error_text)
+    fingerprint_hash = fingerprint_error(normalized_error)
+    stack_symbols = json.dumps(extract_stack_symbols(error_text))
+    file_paths = json.dumps(extract_file_paths(error_text))
     cursor = conn.execute(
         """
-        INSERT INTO error_memory (repo, error_text, fix_text, notes, source_session_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO error_memory (
+            repo, error_text, fix_text, notes, normalized_error, fingerprint_hash,
+            stack_symbols_json, file_paths_json, command, exit_code,
+            source_session_id, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (repo, error_text.strip(), fix_text, notes, source_session_id, now, now),
+        (
+            repo,
+            error_text.strip(),
+            fix_text,
+            notes,
+            normalized_error,
+            fingerprint_hash,
+            stack_symbols,
+            file_paths,
+            command,
+            exit_code,
+            source_session_id,
+            now,
+            now,
+        ),
     )
     conn.commit()
     return int(cursor.lastrowid)
@@ -167,6 +192,233 @@ def list_errors(conn: sqlite3.Connection, repo: str | None, limit: int) -> list[
     clause, params = _scope_clause(repo)
     return conn.execute(
         f"SELECT * FROM error_memory{clause} ORDER BY updated_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+
+def normalize_error_text(text: str) -> str:
+    normalized = text.strip()
+    normalized = re.sub(r"\b0x[0-9a-fA-F]+\b", "0x<hex>", normalized)
+    normalized = re.sub(
+        r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b",
+        "<uuid>",
+        normalized,
+    )
+    normalized = re.sub(r"\b(line|col(?:umn)?|position|errno|exit code)\s+\d+\b", r"\1 <n>", normalized, flags=re.I)
+    normalized = re.sub(r"(?<=[:(])\d+(?=(?::\d+)?[)\s]|$)", "<n>", normalized)
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized.strip().lower()
+
+
+
+def fingerprint_error(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+
+def extract_file_paths(text: str) -> list[str]:
+    paths: list[str] = []
+    for match in re.finditer(r"(?<![A-Za-z0-9_])([~./A-Za-z0-9_-][A-Za-z0-9_./-]*\.[A-Za-z0-9]{1,8})(?::\d+(?::\d+)?)?", text):
+        path = match.group(1).strip()
+        if "/" not in path and "." not in path:
+            continue
+        paths.append(path)
+    return list(dict.fromkeys(paths))[:12]
+
+
+
+def extract_stack_symbols(text: str) -> list[str]:
+    symbols = [
+        match.group(1)
+        for match in re.finditer(r"\bat\s+([A-Za-z_][A-Za-z0-9_.$<>:#-]+)", text)
+    ]
+    return list(dict.fromkeys(symbols))[:12]
+
+
+
+def upsert_git_context(
+    conn: sqlite3.Connection,
+    repo: str,
+    branch: str,
+    *,
+    head_commit: str | None,
+    indexed_branch: str | None,
+    indexed_commit: str | None,
+    dirty: bool,
+    status_short: str,
+    diff_text: str,
+    staged_diff_text: str,
+    recent_log_text: str,
+    changed_files: list[str],
+) -> None:
+    now = time.time()
+    conn.execute(
+        """
+        INSERT INTO git_context (
+            repo, branch, head_commit, indexed_branch, indexed_commit, dirty,
+            status_short, diff_text, staged_diff_text, recent_log_text, changed_files_json, captured_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(repo, branch) DO UPDATE SET
+            head_commit = excluded.head_commit,
+            indexed_branch = excluded.indexed_branch,
+            indexed_commit = excluded.indexed_commit,
+            dirty = excluded.dirty,
+            status_short = excluded.status_short,
+            diff_text = excluded.diff_text,
+            staged_diff_text = excluded.staged_diff_text,
+            recent_log_text = excluded.recent_log_text,
+            changed_files_json = excluded.changed_files_json,
+            captured_at = excluded.captured_at
+        """,
+        (
+            repo,
+            branch,
+            head_commit,
+            indexed_branch,
+            indexed_commit,
+            1 if dirty else 0,
+            status_short.strip(),
+            diff_text.strip(),
+            staged_diff_text.strip(),
+            recent_log_text.strip(),
+            json.dumps(changed_files),
+            now,
+        ),
+    )
+    conn.commit()
+
+
+
+def list_git_contexts(conn: sqlite3.Connection, repo: str | None, limit: int = 10) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM git_context{clause} ORDER BY captured_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+
+def upsert_github_context(
+    conn: sqlite3.Connection,
+    repo: str | None,
+    ref_type: str,
+    ref_number: int,
+    title: str,
+    *,
+    body: str = "",
+    changed_files: list[str] | None = None,
+    comments: list[str] | None = None,
+    review_comments: list[str] | None = None,
+    ci_logs_text: str = "",
+    linked_issues: list[str] | None = None,
+    source: str = "manual",
+) -> None:
+    now = time.time()
+    conn.execute(
+        """
+        INSERT INTO github_context (
+            repo, ref_type, ref_number, title, body, changed_files_json, comments_json,
+            review_comments_json, ci_logs_text, linked_issues_json, source, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(repo, ref_type, ref_number) DO UPDATE SET
+            title = excluded.title,
+            body = excluded.body,
+            changed_files_json = excluded.changed_files_json,
+            comments_json = excluded.comments_json,
+            review_comments_json = excluded.review_comments_json,
+            ci_logs_text = excluded.ci_logs_text,
+            linked_issues_json = excluded.linked_issues_json,
+            source = excluded.source,
+            updated_at = excluded.updated_at
+        """,
+        (
+            repo,
+            ref_type,
+            ref_number,
+            title.strip(),
+            body.strip(),
+            json.dumps(changed_files or []),
+            json.dumps(comments or []),
+            json.dumps(review_comments or []),
+            ci_logs_text.strip(),
+            json.dumps(linked_issues or []),
+            source,
+            now,
+        ),
+    )
+    conn.commit()
+
+
+
+def list_github_contexts(
+    conn: sqlite3.Connection,
+    repo: str | None,
+    *,
+    ref_type: str | None = None,
+    limit: int = 10,
+) -> list[sqlite3.Row]:
+    clauses: list[str] = []
+    params: list[object] = []
+    if repo:
+        clauses.append("repo = ?")
+        params.append(repo)
+    if ref_type:
+        clauses.append("ref_type = ?")
+        params.append(ref_type)
+    sql = "SELECT * FROM github_context"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY updated_at DESC LIMIT ?"
+    params.append(limit)
+    return conn.execute(sql, params).fetchall()
+
+
+
+def add_test_failure(
+    conn: sqlite3.Connection,
+    repo: str | None,
+    command: str,
+    output_text: str,
+    *,
+    runner: str | None = None,
+    exit_code: int | None = None,
+    source: str = "local",
+) -> int:
+    now = time.time()
+    normalized_error = normalize_error_text(output_text)
+    fingerprint_hash = fingerprint_error(normalized_error)
+    cursor = conn.execute(
+        """
+        INSERT INTO test_failure_memory (
+            repo, runner, command, output_text, normalized_error, fingerprint_hash,
+            stack_symbols_json, file_paths_json, exit_code, source, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            repo,
+            runner,
+            command.strip(),
+            output_text.strip(),
+            normalized_error,
+            fingerprint_hash,
+            json.dumps(extract_stack_symbols(output_text)),
+            json.dumps(extract_file_paths(output_text)),
+            exit_code,
+            source,
+            now,
+            now,
+        ),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+
+def list_test_failures(conn: sqlite3.Connection, repo: str | None, limit: int) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM test_failure_memory{clause} ORDER BY updated_at DESC LIMIT ?",
         params + [limit],
     ).fetchall()
 
@@ -479,12 +731,56 @@ def session_compaction_details(row: sqlite3.Row) -> dict[str, list[str]]:
 
 
 
+def add_eval_case(
+    conn: sqlite3.Connection,
+    repo: str | None,
+    query: str,
+    expected_files: list[str],
+    *,
+    mode: str = "deep",
+    notes: str | None = None,
+) -> int:
+    now = time.time()
+    cursor = conn.execute(
+        """
+        INSERT INTO eval_cases (repo, query, mode, expected_files_json, notes, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (repo, query.strip(), mode, json.dumps(expected_files), notes, now, now),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+
+def list_eval_cases(conn: sqlite3.Connection, repo: str | None, limit: int) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM eval_cases{clause} ORDER BY updated_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+
+def get_eval_case(conn: sqlite3.Connection, case_id: int) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM eval_cases WHERE case_id = ?", (case_id,)).fetchone()
+
+
+
+def eval_case_expected_files(row: sqlite3.Row) -> list[str]:
+    return json.loads(row["expected_files_json"] or "[]")
+
+
+
 def load_operational_state(conn: sqlite3.Connection, repo: str | None) -> dict[str, list[sqlite3.Row]]:
     return {
         "todos": list_todos(conn, repo, status="all", limit=6),
         "decisions": list_decisions(conn, repo, limit=6),
         "commands": list_commands(conn, repo, limit=6),
         "errors": list_errors(conn, repo, limit=6),
+        "git_contexts": list_git_contexts(conn, repo, limit=2),
+        "github_contexts": list_github_contexts(conn, repo, limit=4),
+        "test_failures": list_test_failures(conn, repo, limit=4),
         "sessions": list_sessions(conn, repo, limit=4),
         "memory_entries": list_memory_entries(conn, repo, limit=12, scope="all", status="active"),
         "compactions": list_session_compactions(conn, repo, limit=3),
@@ -528,6 +824,34 @@ def format_operational_state(state: dict[str, list[sqlite3.Row]]) -> str:
             + "\n".join(
                 f"- error: {row['error_text']}" + (f" | fix: {row['fix_text']}" if row["fix_text"] else "")
                 for row in errors
+            )
+        )
+    test_failures = state.get("test_failures", [])
+    if test_failures:
+        sections.append(
+            "## Test failures\n"
+            + "\n".join(
+                f"- `{row['command']}` [{row['fingerprint_hash']}]"
+                + (f" exit={row['exit_code']}" if row["exit_code"] is not None else "")
+                for row in test_failures
+            )
+        )
+    github_contexts = state.get("github_contexts", [])
+    if github_contexts:
+        sections.append(
+            "## GitHub context\n"
+            + "\n".join(
+                f"- {row['ref_type']} #{row['ref_number']}: {row['title']}"
+                for row in github_contexts
+            )
+        )
+    git_contexts = state.get("git_contexts", [])
+    if git_contexts:
+        sections.append(
+            "## Git context\n"
+            + "\n".join(
+                f"- {row['branch']} dirty={'yes' if row['dirty'] else 'no'} changed={', '.join(json.loads(row['changed_files_json'] or '[]')[:4]) or '-'}"
+                for row in git_contexts
             )
         )
     memory_entries = state.get("memory_entries", [])

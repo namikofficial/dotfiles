@@ -9,11 +9,12 @@ This repo now includes a repeatable local RAG bootstrap aimed at the current lap
 - **Hybrid retrieval:** dense + keyword + metadata fusion
 - **Reranker:** lightweight heuristic reranker enabled by default on this machine
 - **Query intelligence:** richer intent detection, developer abbreviations, symbol-aware rewrites, typo-tolerant lookup, and metadata boosts
-- **Facts layer:** exact structured facts for aliases, keybinds, env vars, tools, config keys, and SQL objects
+- **Facts layer:** exact structured facts for aliases, keybinds, env vars, tools, config keys, SQL/schema objects, systems-language surfaces, data stores, and local infra
 - **File summaries:** cheap routing summaries per indexed file
 - **Repo memory:** durable repo-level summary usable during `rag ask --memory`
 - **Mode surfaces:** explicit `rag quick`, `rag deep`, `rag agent`, and target-specific `rag handoff`
 - **Operational state:** structured todos, decisions, commands, errors, sessions, developer memory notes, context packs, and session compactions stored in SQLite
+- **Active-work context:** git diff snapshots, branch/index mismatch reporting, GitHub issue/PR context, test-failure transcripts, and exact error fingerprints
 - **Code focus:** tuned for TypeScript, JavaScript, React/TSX, Rust, Kotlin, HTML, CSS, shell, GTK/XML-style UI files, and mixed config repos
 
 ## Install / repair the stack
@@ -61,7 +62,10 @@ rag todo add "Add reranker support" --repo dotfiles
 rag todo list --repo dotfiles
 rag decision add "Use explicit modes" "Keep rag ask as a compatibility alias" --repo dotfiles
 rag command add "python -m unittest tests.rag.test_retrieval" --purpose "RAG regression check" --repo dotfiles
-rag error add "database is locked" --fix "retry after the active command finishes" --repo dotfiles
+rag error add "database is locked" --fix "retry after the active command finishes" --command "pytest tests/rag/test_retrieval.py" --exit-code 1 --repo dotfiles
+rag context git --refresh --repo dotfiles
+rag context github pr 123 --repo dotfiles
+rag context test-failure add "pytest tests/rag/test_retrieval.py" --output "AssertionError: ..." --runner pytest --exit-code 1 --repo dotfiles
 rag session list --repo dotfiles
 rag summarize-files --changed-only
 rag summarize
@@ -93,7 +97,7 @@ When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **
 - The default reranker is a **heuristic local scoring pass, not a separate model reranker**, and is **enabled by default** here. You can override it per query with `--rerank` or `--no-rerank`.
 - Query rewriting now expands common developer shorthand like `cfg`, `svc`, `db`, and symbol-shaped queries like `AuthService.login`, then lightly corrects close typos from indexed path/symbol vocabulary.
 - The chunker now recognizes more mixed-repo shapes, including TypeScript/JavaScript arrow functions, Rust modules/traits, Kotlin classes/functions, shell function/alias/env/case/tool blocks, TOML sections, YAML top-level sections, HTML/CSS sections, GTK/XML-style UI objects, and Hyprland config anchors.
-- Structured fact extraction now also covers `package.json` scripts/dependencies/workspaces, Docker Compose services/ports/dependencies/environment keys, and Nest-style TypeScript controllers/routes/services/entities.
+- Structured fact extraction now also covers `package.json` scripts/dependencies/workspaces, Cargo/Rust, Go/go.mod, C/kernel-module patterns, Postgres/MSSQL schema details, Mongo/Redis usage, Grafana/Prometheus config, Dockerfile/Compose, systemd units, zsh dotfiles, richer Nest/Node facts (modules/providers/guards/interceptors/pipes/queues/relations), Express/Fastify routes, React/frontend surfaces (components/hooks/routes/query keys/forms/stores), and TS/dev-tooling config files such as `tsconfig`, Vite, Vitest, Jest, Playwright, ESLint, Prettier, and Commitlint.
 - Facts and file summaries are generated during indexing, so `rag reindex` refreshes them alongside the chunk/vector index.
 - Code indexing now keeps a developer profile, optional Tree-sitter parsing with regex fallback, AST/regex-derived symbol records, import/export edges, and a semantic line index for better code-aware recall.
 - Indexed code files also carry package metadata so monorepos can produce file dependency edges and deterministic package summaries.
@@ -132,8 +136,9 @@ When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **
 6. apply diversity limits so one file does not crowd out the rest
 7. rerank by lexical/path/symbol overlap (enabled by default, but optional)
 8. route between quick / deep / agent behavior instead of treating every task the same way
-9. prepend repo memory and operational state for deeper tasks when available
-10. pack sections with per-section token budgets and send the result to Gemma, or emit a coding-agent handoff packet
+9. prepend repo memory, operational state, and active-work context (git/PR/test failures/errors) for deeper tasks when available
+10. run a missing-context pass for caller/tests/config/docs/error logs when the first retrieval is too narrow
+11. pack sections with per-section token budgets and send the result to Gemma, or emit a coding-agent handoff packet
 
 ## Notes
 
@@ -151,6 +156,10 @@ When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **
   - file summaries via `rag summarize-files`
   - repo memory via `rag summarize` / `rag memory show` / `rag memory status` / `rag ask --memory`
   - structured operational memory via `rag todo`, `rag decision`, `rag command`, `rag error`, `rag session`, and `rag memory remember`
+  - branch-aware git snapshots via `rag context git`
+  - GitHub issue/PR context ingestion via `rag context github`
+  - exact error fingerprints plus stored local/CI test failures via `rag error` and `rag context test-failure`
+  - missing-context reporting in `rag search --explain` / `rag ask --show-context`
   - reusable context packs via `rag memory pack`
   - coding-agent handoff generation via `rag agent ... --target-agent ...` or `rag handoff <target> ...`
   - metadata with path / repo / kind / symbol / line ranges

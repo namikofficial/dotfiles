@@ -8,6 +8,15 @@ from .runtime import CONFIG_PATH
 DEFAULT_CONFIG = {
     "qdrant_url": "http://127.0.0.1:6333",
     "qdrant_collection": "local-rag-chunks",
+    "qdrant_vectors": {
+        "dense_name": "dense",
+        "sparse_name": "sparse",
+    },
+    "qdrant_sparse": {
+        "enabled": True,
+        "model": "Qdrant/bm25",
+        "max_terms": 128,
+    },
     "answer_url": "http://127.0.0.1:8080/v1/chat/completions",
     "answer_model": "local",
     "embedding_model": "BAAI/bge-small-en-v1.5",
@@ -26,12 +35,23 @@ DEFAULT_CONFIG = {
         "max_chunks_per_file": 3,
         "max_fact_files": 8,
         "max_summary_files": 8,
+        "max_context_sources": 6,
     },
     "retrieval_pipeline": {
         "rewrite_limit": 3,
         "semantic_limit": 10,
         "keyword_limit": 10,
         "recent_limit": 10,
+        "definition_limit": 8,
+        "graph_seed_limit": 6,
+        "graph_limit": 8,
+        "neighbor_limit": 6,
+        "use_qdrant_query_api": True,
+        "use_definition_first": True,
+        "use_graph_expansion": True,
+        "use_neighbor_chunks": True,
+        "use_database_routing": True,
+        "use_config_trace": True,
     },
     "query_intelligence": {
         "abbreviations": {
@@ -59,6 +79,8 @@ DEFAULT_CONFIG = {
             "symbol": ["function", "method", "class", "symbol", "import", "interface", "type", "hook"],
             "path": ["path", "file", "folder", "directory", "module", "under", "inside", "src/", "tests/"],
             "config": ["config", "configuration", "setting", "settings", "env", "variable", "flag", "option"],
+            "config_trace": ["trace", "flow", "where", "used", "loaded", "read", "resolved", "wire", "wiring"],
+            "database": ["database", "db", "postgres", "postgresql", "mysql", "sqlite", "mssql", "mongo", "mongodb", "redis", "schema", "table", "column", "entity", "migration", "orm", "repository", "collection", "query"],
             "sql": ["sql", "query", "table", "column", "index", "migration", "schema", "postgres", "postgresql", "mysql", "sqlite", "mssql", "mongo", "mongodb", "redis"],
             "error": ["error", "exception", "traceback", "stack trace", "failed", "failure", "undefined", "panic", "enoent"],
         },
@@ -121,12 +143,13 @@ DEFAULT_CONFIG = {
             },
         },
         "intent_fact_kinds": {
-            "config": ["config-key", "config-section", "env", "compose-config", "compose-env", "package-field", "package-script"],
-            "error": ["package-script", "compose-service", "tool"],
-            "path": ["config-key", "config-section", "route-handler", "route-controller", "package-script"],
-            "sql": ["sql-object", "entity"],
-            "symbol": ["function", "service", "entity", "module", "route-controller", "route-handler"],
-            "tool": ["tool", "alias", "package-script", "compose-service"],
+            "config": ["config-key", "config-section", "env", "compose-config", "compose-env", "package-field", "package-script", "tsconfig-option", "tsconfig-alias", "tool-config", "tool-alias"],
+            "database": ["sql-object", "entity", "repository", "mongo-collection", "redis-key", "compose-service", "config-key"],
+            "error": ["package-script", "compose-service", "tool", "tool-config"],
+            "path": ["config-key", "config-section", "route-handler", "route-controller", "frontend-route", "package-script", "tsconfig-alias", "tool-alias"],
+            "sql": ["sql-object", "entity", "repository"],
+            "symbol": ["function", "service", "entity", "module", "route-controller", "route-handler", "component", "hook", "page", "layout", "frontend-provider", "guard", "interceptor", "pipe", "dto", "repository"],
+            "tool": ["tool", "alias", "package-script", "compose-service", "tool-config", "tool-alias"],
         },
         "typo_tolerance": {
             "enabled": True,
@@ -147,6 +170,7 @@ DEFAULT_CONFIG = {
     "context_budget": {
         "total_tokens": 12000,
         "memory_tokens": 1800,
+        "context_source_tokens": 2400,
         "facts_tokens": 1800,
         "file_summary_tokens": 2200,
         "chunk_tokens": 6000,
@@ -263,6 +287,49 @@ DEFAULT_CONFIG = {
         "content_weight": 0.03,
         "path_weight": 0.02,
         "symbol_weight": 0.02,
+        "model_name": "",
+        "model_device": "cpu",
+        "model_weight": 0.2,
+        "fallback_to_heuristic": True,
+        "explain_top_n": 5,
+    },
+    "ranking_profiles": {
+        "default": {
+            "definition_bonus": 0.12,
+            "graph_bonus": 0.08,
+            "neighbor_bonus": 0.03,
+            "fact_path_bonus": 0.18,
+            "summary_path_bonus": 0.1,
+            "config_bonus": 0.0,
+            "database_bonus": 0.0,
+            "docs_bonus": 0.0,
+        },
+        "symbol": {
+            "definition_bonus": 0.32,
+            "graph_bonus": 0.12,
+        },
+        "path": {
+            "definition_bonus": 0.22,
+            "graph_bonus": 0.1,
+            "neighbor_bonus": 0.05,
+        },
+        "config": {
+            "config_bonus": 0.22,
+            "graph_bonus": 0.14,
+        },
+        "database": {
+            "definition_bonus": 0.24,
+            "graph_bonus": 0.18,
+            "database_bonus": 0.24,
+        },
+        "error": {
+            "graph_bonus": 0.14,
+            "docs_bonus": 0.12,
+        },
+        "tool": {
+            "config_bonus": 0.08,
+            "graph_bonus": 0.1,
+        },
     },
 }
 

@@ -10,6 +10,7 @@ from qdrant_client import QdrantClient, models
 
 from .runtime import CHUNKER_NAME, DB_PATH, INDEX_SCHEMA, RAG_HOME
 from .settings import DEFAULT_CONFIG
+from .types import SupportsQdrantCollectionAdmin
 
 try:
     from fastembed import TextEmbedding
@@ -77,7 +78,9 @@ def ensure_db(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS indexed_repos (
             repo TEXT PRIMARY KEY,
             root TEXT NOT NULL,
-            last_indexed REAL NOT NULL
+            last_indexed REAL NOT NULL,
+            last_indexed_branch TEXT,
+            last_indexed_commit TEXT
         );
 
         CREATE TABLE IF NOT EXISTS chunks (
@@ -293,11 +296,18 @@ def ensure_db(conn: sqlite3.Connection) -> None:
             error_text TEXT NOT NULL,
             fix_text TEXT,
             notes TEXT,
+            normalized_error TEXT,
+            fingerprint_hash TEXT,
+            stack_symbols_json TEXT NOT NULL DEFAULT '[]',
+            file_paths_json TEXT NOT NULL DEFAULT '[]',
+            command TEXT,
+            exit_code INTEGER,
             source_session_id TEXT,
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_error_memory_repo_updated ON error_memory(repo, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_error_memory_repo_hash ON error_memory(repo, fingerprint_hash, updated_at);
 
         CREATE TABLE IF NOT EXISTS task_sessions (
             session_id TEXT PRIMARY KEY,
@@ -367,8 +377,74 @@ def ensure_db(conn: sqlite3.Connection) -> None:
             UNIQUE(domain, tool)
         );
         CREATE INDEX IF NOT EXISTS idx_tool_taxonomy_domain ON tool_taxonomy(domain, tool);
+
+        CREATE TABLE IF NOT EXISTS git_context (
+            repo TEXT NOT NULL,
+            branch TEXT NOT NULL,
+            head_commit TEXT,
+            indexed_branch TEXT,
+            indexed_commit TEXT,
+            dirty INTEGER NOT NULL DEFAULT 0,
+            status_short TEXT NOT NULL DEFAULT '',
+            diff_text TEXT NOT NULL DEFAULT '',
+            staged_diff_text TEXT NOT NULL DEFAULT '',
+            recent_log_text TEXT NOT NULL DEFAULT '',
+            changed_files_json TEXT NOT NULL DEFAULT '[]',
+            captured_at REAL NOT NULL,
+            PRIMARY KEY(repo, branch)
+        );
+        CREATE INDEX IF NOT EXISTS idx_git_context_repo_captured ON git_context(repo, captured_at);
+
+        CREATE TABLE IF NOT EXISTS github_context (
+            repo TEXT,
+            ref_type TEXT NOT NULL,
+            ref_number INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL DEFAULT '',
+            changed_files_json TEXT NOT NULL DEFAULT '[]',
+            comments_json TEXT NOT NULL DEFAULT '[]',
+            review_comments_json TEXT NOT NULL DEFAULT '[]',
+            ci_logs_text TEXT NOT NULL DEFAULT '',
+            linked_issues_json TEXT NOT NULL DEFAULT '[]',
+            source TEXT NOT NULL DEFAULT 'manual',
+            updated_at REAL NOT NULL,
+            PRIMARY KEY(repo, ref_type, ref_number)
+        );
+        CREATE INDEX IF NOT EXISTS idx_github_context_repo_updated ON github_context(repo, updated_at);
+
+        CREATE TABLE IF NOT EXISTS test_failure_memory (
+            failure_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            repo TEXT,
+            runner TEXT,
+            command TEXT NOT NULL,
+            output_text TEXT NOT NULL,
+            normalized_error TEXT NOT NULL,
+            fingerprint_hash TEXT NOT NULL,
+            stack_symbols_json TEXT NOT NULL DEFAULT '[]',
+            file_paths_json TEXT NOT NULL DEFAULT '[]',
+            exit_code INTEGER,
+            source TEXT NOT NULL DEFAULT 'local',
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_test_failure_repo_updated ON test_failure_memory(repo, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_test_failure_repo_hash ON test_failure_memory(repo, fingerprint_hash, updated_at);
+
+        CREATE TABLE IF NOT EXISTS eval_cases (
+            case_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            repo TEXT,
+            query TEXT NOT NULL,
+            mode TEXT NOT NULL DEFAULT 'deep',
+            expected_files_json TEXT NOT NULL DEFAULT '[]',
+            notes TEXT,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_eval_cases_repo_updated ON eval_cases(repo, updated_at);
         """
     )
+    ensure_column(conn, "indexed_repos", "last_indexed_branch", "TEXT")
+    ensure_column(conn, "indexed_repos", "last_indexed_commit", "TEXT")
     ensure_column(conn, "chunks", "index_schema", "TEXT")
     ensure_column(conn, "chunks", "embedding_model", "TEXT")
     ensure_column(conn, "chunks", "chunker", "TEXT")
@@ -380,12 +456,24 @@ def ensure_db(conn: sqlite3.Connection) -> None:
     ensure_column(conn, "repo_memory", "changed_files_json", "TEXT NOT NULL DEFAULT '[]'")
     ensure_column(conn, "repo_memory", "changed_symbols_json", "TEXT NOT NULL DEFAULT '[]'")
     ensure_column(conn, "repo_memory", "freshness_score", "REAL NOT NULL DEFAULT 1.0")
+    ensure_column(conn, "error_memory", "normalized_error", "TEXT")
+    ensure_column(conn, "error_memory", "fingerprint_hash", "TEXT")
+    ensure_column(conn, "error_memory", "stack_symbols_json", "TEXT NOT NULL DEFAULT '[]'")
+    ensure_column(conn, "error_memory", "file_paths_json", "TEXT NOT NULL DEFAULT '[]'")
+    ensure_column(conn, "error_memory", "command", "TEXT")
+    ensure_column(conn, "error_memory", "exit_code", "INTEGER")
     conn.execute("UPDATE chunks SET index_schema = ? WHERE index_schema IS NULL", (INDEX_SCHEMA,))
     conn.execute(
         "UPDATE chunks SET embedding_model = ? WHERE embedding_model IS NULL",
         (DEFAULT_CONFIG["embedding_model"],),
     )
     conn.execute("UPDATE chunks SET chunker = ? WHERE chunker IS NULL", (CHUNKER_NAME,))
+    conn.execute(
+        "UPDATE error_memory SET normalized_error = TRIM(LOWER(error_text)) WHERE normalized_error IS NULL"
+    )
+    conn.execute(
+        "UPDATE error_memory SET fingerprint_hash = '' WHERE fingerprint_hash IS NULL"
+    )
     seed_tool_taxonomy(conn)
     conn.commit()
 
@@ -431,7 +519,7 @@ def collection_vector_size(collection_info) -> int:
 
 
 
-def ensure_collection(client: QdrantClient, config: dict) -> None:
+def ensure_collection(client: SupportsQdrantCollectionAdmin, config: dict) -> None:
     collection = config["qdrant_collection"]
     embedder = get_embedder(config)
     sample = list(embedder.embed(["bootstrap vector size probe"]))[0]
@@ -462,6 +550,32 @@ def git_root_for(path: Path) -> Path | None:
     except subprocess.CalledProcessError:
         return None
     return Path(output)
+
+
+
+def git_branch_for(path: Path) -> str | None:
+    try:
+        output = subprocess.check_output(
+            ["git", "-C", str(path), "branch", "--show-current"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except subprocess.CalledProcessError:
+        return None
+    return output or None
+
+
+
+def git_head_commit_for(path: Path) -> str | None:
+    try:
+        output = subprocess.check_output(
+            ["git", "-C", str(path), "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except subprocess.CalledProcessError:
+        return None
+    return output or None
 
 
 

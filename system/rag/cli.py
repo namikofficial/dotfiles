@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import json
+import re
 import sqlite3
+import subprocess
+import time
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -22,11 +26,19 @@ from .memory import (
     write_context_pack_file,
 )
 from .retrieval import (
+    approx_tokens,
+    analysis_for_plan,
+    build_retrieval_plan,
     RetrievalPlan,
+    capture_git_context,
+    expected_missing_context_categories,
     fact_hits,
     gather_context,
     print_retrieval_explain,
     reranker_enabled,
+    row_file_type_match_count,
+    row_path_match_count,
+    row_symbol_match_count,
     retrieve,
 )
 from .runtime import CONFIG_PATH, DB_PATH, console
@@ -35,16 +47,24 @@ from .state import (
     add_command,
     add_decision,
     add_error,
+    add_eval_case,
+    add_test_failure,
     add_todo,
     compact_session,
     detect_memory_conflicts,
+    eval_case_expected_files,
     format_operational_state,
+    get_eval_case,
     get_session,
+    list_git_contexts,
+    list_github_contexts,
     list_commands,
     list_decisions,
+    list_eval_cases,
     list_errors,
     list_memory_entries,
     list_sessions,
+    list_test_failures,
     list_todos,
     load_operational_state,
     record_session,
@@ -52,9 +72,19 @@ from .state import (
     save_handoff,
     session_compaction_details,
     session_files,
+    upsert_github_context,
     update_todo_status,
 )
-from .storage import connect_db, ensure_collection, get_qdrant, infer_repo_filter, resolve_repo_name, repo_identity
+from .storage import (
+    connect_db,
+    ensure_collection,
+    get_embedder,
+    get_qdrant,
+    git_branch_for,
+    infer_repo_filter,
+    resolve_repo_name,
+    repo_identity,
+)
 from .types import IndexInterrupted
 
 
@@ -192,6 +222,136 @@ def render_handoff(
     return "\n".join(sections).strip()
 
 
+SECRET_PATTERN = re.compile(
+    r"(?i)(password|passwd|secret|token|api[_-]?key|authorization|cookie|session|private[_-]?key|aws_secret_access_key)"
+)
+REDACT_ASSIGNMENT_PATTERN = re.compile(r"(?i)\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|KEY)[A-Z0-9_]*)=([^\s]+)")
+
+
+def retrieve_for_cli(
+    query: str,
+    *,
+    repo: str | None,
+    mode: str,
+    rerank: bool | None = None,
+) -> tuple[sqlite3.Connection, dict, str | None, object]:
+    config = load_config()
+    conn = connect_db()
+    client = get_qdrant(config)
+    resolved_repo = infer_repo_filter(conn, repo)
+    effective_config = get_mode_profile(config, mode)
+    result = retrieve(
+        conn,
+        client,
+        effective_config,
+        query,
+        resolved_repo,
+        reranker_enabled(effective_config, rerank),
+        mode=mode,
+    )
+    return conn, effective_config, resolved_repo, result
+
+
+def humanize_missing_label(label: str) -> str:
+    mapping = {
+        "definition file": "definition / service file",
+        "caller file": "caller / route entry file",
+        "test file": "test coverage",
+        "config file": "config or env file",
+        "schema/entity file": "schema / entity / model file",
+        "related docs": "docs / troubleshooting notes",
+        "error log": "recent error logs",
+    }
+    return mapping.get(label, label)
+
+
+def compact_file_refs(items: list[str], limit: int = 6) -> list[str]:
+    normalized: list[str] = []
+    for item in items:
+        base = item.split(":", 1)[0]
+        if base not in normalized:
+            normalized.append(base)
+    return normalized[:limit]
+
+
+def sanitize_imported_command(command: str) -> str | None:
+    stripped = command.strip()
+    if not stripped:
+        return None
+    if SECRET_PATTERN.search(stripped):
+        return None
+    redacted = REDACT_ASSIGNMENT_PATTERN.sub(r"\1=<redacted>", stripped)
+    if "://" in redacted:
+        redacted = re.sub(r"://([^/\s:@]+):([^/\s@]+)@", r"://\1:<redacted>@", redacted)
+    return redacted
+
+
+def parse_zsh_history_line(line: str) -> tuple[str, int | None] | None:
+    stripped = line.strip()
+    if not stripped:
+        return None
+    match = re.match(r"^:\s+\d+:(\d+);(.*)$", stripped)
+    if match:
+        return match.group(2).strip(), None
+    return stripped, None
+
+
+def expected_files_from_result(result, *, limit: int = 6) -> list[str]:
+    file_refs = [row["path"] for row in result.rows[:limit]]
+    file_refs.extend(row["path"] for row in result.summaries[:limit])
+    return compact_file_refs(file_refs, limit=limit)
+
+
+def render_markdown_pack(query: str, mode: str, route_reason: str, context: str, files: list[str], debug: dict) -> str:
+    file_lines = [f"- {item}" for item in files[:12]] or ["- none"]
+    sections = [
+        f"# Query pack: {query}",
+        "",
+        f"- mode: {mode}",
+        f"- route: {route_reason}",
+        f"- intent: {debug.get('intent', '-')}",
+        "",
+        "## Files",
+        *file_lines,
+        "",
+        "## Retrieval",
+        f"- rewrites: {len(debug.get('rewrites', []))}",
+        f"- selected chunks: {len(files)}",
+        f"- missing-context desired: {', '.join(debug.get('missing_context_desired', [])) or '-'}",
+        "",
+        "## Context",
+        "```text",
+        context.strip(),
+        "```",
+    ]
+    return "\n".join(sections).strip()
+
+
+def render_query_inspection(result, mode: str, route_reason: str) -> str:
+    analysis = result.plan.analysis
+    expected = [humanize_missing_label(item) for item in expected_missing_context_categories(result.plan)]
+    lines = [
+        f"intent: {result.plan.intent}",
+        f"mode: {mode}",
+        f"route reason: {route_reason}",
+        "expanded queries:",
+        *[f"- {rewrite}" for rewrite in result.plan.rewrites],
+    ]
+    if analysis is not None:
+        if analysis.corrected_terms:
+            lines.extend(["typo corrections:", *[f"- {term}" for term in analysis.corrected_terms]])
+        if analysis.preferred_languages or analysis.preferred_kinds:
+            preferred = [
+                *[f"language:{item}" for item in analysis.preferred_languages],
+                *[f"kind:{item}" for item in analysis.preferred_kinds],
+                *[f"path:{item}" for item in analysis.preferred_paths],
+            ]
+            lines.extend(["preferences:", *[f"- {item}" for item in preferred[:10]]])
+    if expected:
+        lines.extend(["expected files:", *[f"- {item}" for item in expected]])
+    return "\n".join(lines)
+
+
 def run_query_mode(args: argparse.Namespace) -> int:
     config = load_config()
     mode, route_reason = resolved_mode(args, config)
@@ -219,6 +379,7 @@ def run_query_mode(args: argparse.Namespace) -> int:
         effective_config,
         facts=result.facts,
         summaries=result.summaries,
+        context_sources=result.context_sources,
         memory=optional_repo_memory(args, result, effective_config),
         operational_state=state_text,
         operational_state_tokens=int(effective_config["answer"]["operational_state_tokens"]),
@@ -343,6 +504,9 @@ def cmd_status(_args: argparse.Namespace) -> int:
     console.print(f"Repo memories: {conn.execute('SELECT COUNT(*) FROM repo_memory').fetchone()[0]}")
     console.print(f"Memory notes: {conn.execute('SELECT COUNT(*) FROM developer_memory').fetchone()[0]}")
     console.print(f"Context packs: {conn.execute('SELECT COUNT(*) FROM context_packs').fetchone()[0]}")
+    console.print(f"Git snapshots: {conn.execute('SELECT COUNT(*) FROM git_context').fetchone()[0]}")
+    console.print(f"GitHub refs: {conn.execute('SELECT COUNT(*) FROM github_context').fetchone()[0]}")
+    console.print(f"Test failures: {conn.execute('SELECT COUNT(*) FROM test_failure_memory').fetchone()[0]}")
     console.print(f"Todos: {conn.execute('SELECT COUNT(*) FROM task_todos').fetchone()[0]}")
     console.print(f"Decisions: {conn.execute('SELECT COUNT(*) FROM task_decisions').fetchone()[0]}")
     console.print(f"Sessions: {conn.execute('SELECT COUNT(*) FROM task_sessions').fetchone()[0]}")
@@ -405,11 +569,14 @@ def cmd_clean(args: argparse.Namespace) -> int:
         conn.execute("DELETE FROM repo_memory")
         conn.execute("DELETE FROM developer_memory")
         conn.execute("DELETE FROM context_packs")
+        conn.execute("DELETE FROM git_context")
+        conn.execute("DELETE FROM github_context")
         conn.execute("DELETE FROM indexed_repos")
         conn.execute("DELETE FROM task_todos")
         conn.execute("DELETE FROM task_decisions")
         conn.execute("DELETE FROM command_memory")
         conn.execute("DELETE FROM error_memory")
+        conn.execute("DELETE FROM test_failure_memory")
         conn.execute("DELETE FROM task_sessions")
         conn.execute("DELETE FROM session_compactions")
         conn.commit()
@@ -434,16 +601,177 @@ def cmd_clean(args: argparse.Namespace) -> int:
     conn.execute("DELETE FROM repo_memory WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM developer_memory WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM context_packs WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM git_context WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM github_context WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM indexed_repos WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM task_todos WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM task_decisions WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM command_memory WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM error_memory WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM test_failure_memory WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM task_sessions WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM session_compactions WHERE repo = ?", (repo,))
     conn.commit()
     console.print(f"[green]Cleared[/green] repo state for {repo}")
     return 0
+
+
+def fetch_github_context_from_gh(root: Path, ref_type: str, ref_number: int) -> dict[str, object]:
+    if ref_type == "pr":
+        payload = json.loads(
+            subprocess.check_output(
+                [
+                    "gh",
+                    "pr",
+                    "view",
+                    str(ref_number),
+                    "--json",
+                    "title,body,files,comments,reviews,closingIssuesReferences",
+                ],
+                cwd=str(root),
+                text=True,
+            )
+        )
+        ci_logs = ""
+        try:
+            ci_logs = subprocess.check_output(
+                ["gh", "pr", "checks", str(ref_number)],
+                cwd=str(root),
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()
+        except subprocess.CalledProcessError:
+            ci_logs = ""
+        return {
+            "title": payload.get("title", ""),
+            "body": payload.get("body", ""),
+            "changed_files": [row.get("path", "") for row in payload.get("files", []) if row.get("path")],
+            "comments": [row.get("body", "") for row in payload.get("comments", []) if row.get("body")],
+            "review_comments": [row.get("body", "") for row in payload.get("reviews", []) if row.get("body")],
+            "linked_issues": [
+                f"#{row.get('number')}" for row in payload.get("closingIssuesReferences", []) if row.get("number")
+            ],
+            "ci_logs_text": ci_logs,
+            "source": "gh",
+        }
+    payload = json.loads(
+        subprocess.check_output(
+            [
+                "gh",
+                "issue",
+                "view",
+                str(ref_number),
+                "--json",
+                "title,body,comments,closedByPullRequests",
+            ],
+            cwd=str(root),
+            text=True,
+        )
+    )
+    return {
+        "title": payload.get("title", ""),
+        "body": payload.get("body", ""),
+        "changed_files": [],
+        "comments": [row.get("body", "") for row in payload.get("comments", []) if row.get("body")],
+        "review_comments": [],
+        "linked_issues": [
+            f"PR #{row.get('number')}" for row in payload.get("closedByPullRequests", []) if row.get("number")
+        ],
+        "ci_logs_text": "",
+        "source": "gh",
+    }
+
+
+def cmd_context(args: argparse.Namespace) -> int:
+    config = load_config()
+    conn = connect_db()
+    repo = resolve_repo_name(conn, getattr(args, "repo", None))
+    if args.context_command == "git":
+        if not repo:
+            raise SystemExit("No repo selected. Use --repo or run inside an indexed repo.")
+        row = capture_git_context(conn, repo) if args.refresh else None
+        if row is None:
+            rows = list_git_contexts(conn, repo, limit=1)
+            row = rows[0] if rows else capture_git_context(conn, repo)
+        if row is None:
+            console.print(f"[yellow]No git context available for {repo}.[/yellow]")
+            return 1
+        console.print(f"[bold]{repo}[/bold] branch={row['branch']} dirty={'yes' if row['dirty'] else 'no'}")
+        console.print(f"head={row['head_commit'] or '-'} indexed_branch={row['indexed_branch'] or '-'} indexed_commit={row['indexed_commit'] or '-'}")
+        console.print("\n[bold]Status[/bold]")
+        console.print(row["status_short"] or "-")
+        console.print("\n[bold]Diff[/bold]")
+        console.print((row["diff_text"] or "-")[:1200])
+        console.print("\n[bold]Staged diff[/bold]")
+        console.print((row["staged_diff_text"] or "-")[:1200])
+        return 0
+    if args.context_command == "github":
+        if args.manual:
+            if not args.title:
+                raise SystemExit("--title is required with --manual")
+            payload = {
+                "title": args.title,
+                "body": args.body or "",
+                "changed_files": args.changed_file or [],
+                "comments": args.comment or [],
+                "review_comments": args.review_comment or [],
+                "linked_issues": args.linked_issue or [],
+                "ci_logs_text": args.ci_log or "",
+                "source": "manual",
+            }
+        else:
+            repo_row = conn.execute("SELECT root FROM indexed_repos WHERE repo = ?", (repo,)).fetchone()
+            if repo_row is None:
+                raise SystemExit("GitHub ingestion requires an indexed repo or --manual fields.")
+            try:
+                payload = fetch_github_context_from_gh(Path(repo_row["root"]), args.ref_type, args.number)
+            except subprocess.CalledProcessError as exc:
+                raise SystemExit(f"gh failed to ingest {args.ref_type} #{args.number}: {exc}") from exc
+        upsert_github_context(
+            conn,
+            repo,
+            args.ref_type,
+            args.number,
+            payload["title"],
+            body=str(payload.get("body", "")),
+            changed_files=list(payload.get("changed_files", [])),
+            comments=list(payload.get("comments", [])),
+            review_comments=list(payload.get("review_comments", [])),
+            ci_logs_text=str(payload.get("ci_logs_text", "")),
+            linked_issues=list(payload.get("linked_issues", [])),
+            source=str(payload.get("source", "manual")),
+        )
+        console.print(f"[green]Stored[/green] {args.ref_type} #{args.number} context")
+        return 0
+    if args.context_command == "test-failure":
+        if args.failure_command == "list":
+            rows = list_test_failures(conn, repo, args.limit)
+            table = Table(title="RAG test failures")
+            table.add_column("id", justify="right")
+            table.add_column("command")
+            table.add_column("fingerprint")
+            table.add_column("repo")
+            for row in rows:
+                table.add_row(str(row["failure_id"]), row["command"][:60], row["fingerprint_hash"], row["repo"] or "-")
+            console.print(table)
+            return 0
+        output_text = args.output or ""
+        if args.output_file:
+            output_text = Path(args.output_file).expanduser().read_text()
+        if not output_text.strip():
+            raise SystemExit("Provide --output or --output-file")
+        failure_id = add_test_failure(
+            conn,
+            repo,
+            args.command_text,
+            output_text,
+            runner=args.runner,
+            exit_code=args.exit_code,
+            source=args.source,
+        )
+        console.print(f"[green]Stored[/green] test failure {failure_id}")
+        return 0
+    raise SystemExit(f"Unknown context command: {args.context_command}")
 
 
 def cmd_search(args: argparse.Namespace) -> int:
@@ -472,6 +800,203 @@ def cmd_search(args: argparse.Namespace) -> int:
         )
     console.print(table)
     return 0
+
+
+def cmd_inspect(args: argparse.Namespace) -> int:
+    config = load_config()
+    mode, route_reason = resolved_mode(args, config)
+    _conn, _effective_config, _repo, result = retrieve_for_cli(
+        args.query,
+        repo=args.repo,
+        mode=mode,
+        rerank=args.rerank,
+    )
+    console.print(render_query_inspection(result, mode, route_reason))
+    return 0
+
+
+def cmd_missing(args: argparse.Namespace) -> int:
+    config = load_config()
+    mode, _route_reason = resolved_mode(args, config)
+    _conn, _effective_config, _repo, result = retrieve_for_cli(
+        args.query,
+        repo=args.repo,
+        mode=mode,
+        rerank=args.rerank,
+    )
+    desired = [humanize_missing_label(item) for item in result.debug.get("missing_context_desired", [])]
+    added = [humanize_missing_label(item) for item in result.debug.get("missing_context_added", [])]
+    remaining = [humanize_missing_label(item) for item in result.debug.get("missing_context_remaining", [])]
+    console.print("[bold]Need:[/bold]")
+    for item in desired or ["nothing special detected"]:
+        console.print(f"- {item}")
+    if added:
+        console.print("\n[bold]Added automatically:[/bold]")
+        for item in added:
+            console.print(f"- {item}")
+    if remaining:
+        console.print("\n[bold]Still missing:[/bold]")
+        for item in remaining:
+            console.print(f"- {item}")
+    suggestions = [row["path"] for row in result.summaries[:6]]
+    if suggestions:
+        console.print("\n[bold]Candidate files:[/bold]")
+        for item in compact_file_refs(suggestions):
+            console.print(f"- {item}")
+    return 0
+
+
+def find_path_rows(conn: sqlite3.Connection, repo: str | None, path: str) -> list[sqlite3.Row]:
+    normalized = path.strip()
+    rows = conn.execute(
+        """
+        SELECT * FROM chunks
+        WHERE (? IS NULL OR repo = ?)
+          AND (path = ? OR path LIKE ? OR path LIKE ?)
+        ORDER BY modified_at DESC, chunk_index ASC
+        LIMIT 6
+        """,
+        (repo, repo, normalized, f"%/{normalized}", f"%{normalized}%"),
+    ).fetchall()
+    return rows
+
+
+def cmd_why(args: argparse.Namespace) -> int:
+    config = load_config()
+    mode, route_reason = resolved_mode(args, config)
+    conn, effective_config, repo, result = retrieve_for_cli(
+        args.query,
+        repo=args.repo,
+        mode=mode,
+        rerank=args.rerank,
+    )
+    path_rows = find_path_rows(conn, repo, args.path)
+    if not path_rows:
+        console.print(f"[yellow]No indexed file matched {args.path}.[/yellow]")
+        return 1
+    target_paths = {row["path"] for row in path_rows}
+    selected = [row for row in result.rows if row["path"] in target_paths]
+    analysis = analysis_for_plan(result.plan, effective_config)
+    facts = [row for row in result.facts if row["path"] in target_paths]
+    summaries = [row for row in result.summaries if row["path"] in target_paths]
+    console.print(f"[bold]Why[/bold] {next(iter(target_paths))}")
+    console.print(f"mode={mode} intent={result.plan.intent} route={route_reason}")
+    for row in path_rows[:2]:
+        path_score = row_path_match_count(row["path"].lower(), analysis)
+        symbol_score = row_symbol_match_count((row["symbol"] or "").lower(), analysis)
+        type_score = row_file_type_match_count(row["language"], row["kind"], row["path"].lower(), analysis)
+        console.print(
+            f"- chunk {row['start_line']}-{row['end_line']} selected={'yes' if row in selected else 'no'} "
+            f"path_match={path_score} symbol_match={symbol_score} type_match={type_score}"
+        )
+    console.print(f"- facts on file: {len(facts)}")
+    console.print(f"- summaries on file: {len(summaries)}")
+    if selected:
+        console.print("- final selection: yes")
+    else:
+        console.print("- final selection: no")
+        nearby = [row["path"] for row in result.rows[:5]]
+        if nearby:
+            console.print("- selected instead:")
+            for item in compact_file_refs(nearby, limit=5):
+                console.print(f"  - {item}")
+    return 0
+
+
+def matching_symbol_rows(conn: sqlite3.Connection, repo: str | None, query: str, limit: int = 6) -> list[sqlite3.Row]:
+    tokens = [token for token in re.split(r"[^A-Za-z0-9_.$#/:-]+", query) if token]
+    params: list[object] = []
+    clauses: list[str] = []
+    for token in tokens[:6]:
+        clauses.append("(name LIKE ? OR qualified_name LIKE ? OR path LIKE ?)")
+        params.extend([f"%{token}%", f"%{token}%", f"%{token}%"])
+    sql = "SELECT * FROM symbols"
+    if clauses:
+        sql += " WHERE (" + " OR ".join(clauses) + ")"
+        if repo:
+            sql += " AND repo = ?"
+            params.append(repo)
+    elif repo:
+        sql += " WHERE repo = ?"
+        params.append(repo)
+    sql += " ORDER BY updated_at DESC, start_line ASC LIMIT ?"
+    params.append(limit)
+    return conn.execute(sql, params).fetchall()
+
+
+def matching_route_facts(conn: sqlite3.Connection, repo: str | None, route_text: str, limit: int = 6) -> list[sqlite3.Row]:
+    sql = """
+        SELECT * FROM facts
+        WHERE kind = 'route-handler'
+          AND (key LIKE ? OR value LIKE ? OR path LIKE ?)
+    """
+    params: list[object] = [f"%{route_text}%", f"%{route_text}%", f"%{route_text}%"]
+    if repo:
+        sql += " AND repo = ?"
+        params.append(repo)
+    sql += " ORDER BY updated_at DESC LIMIT ?"
+    params.append(limit)
+    return conn.execute(sql, params).fetchall()
+
+
+def render_dependency_graph(conn: sqlite3.Connection, repo: str | None, seed_paths: list[str], header: str) -> int:
+    if not seed_paths:
+        console.print("[yellow]No graph matches found.[/yellow]")
+        return 1
+    console.print(f"[bold]{header}[/bold]")
+    shown: set[str] = set()
+    for path in seed_paths[:6]:
+        if path in shown:
+            continue
+        shown.add(path)
+        console.print(f"* {path}")
+        outbound = conn.execute(
+            """
+            SELECT dependency_kind, dependency, target_path
+            FROM file_dependencies
+            WHERE (? IS NULL OR repo = ?) AND source_path = ?
+            ORDER BY updated_at DESC, line ASC LIMIT 8
+            """,
+            (repo, repo, path),
+        ).fetchall()
+        inbound = conn.execute(
+            """
+            SELECT source_path, dependency_kind
+            FROM file_dependencies
+            WHERE (? IS NULL OR repo = ?) AND target_path = ?
+            ORDER BY updated_at DESC, line ASC LIMIT 8
+            """,
+            (repo, repo, path),
+        ).fetchall()
+        for row in outbound:
+            console.print(f"  -> {row['dependency_kind']}: {row['target_path'] or row['dependency']}")
+        for row in inbound:
+            console.print(f"  <- {row['dependency_kind']}: {row['source_path']}")
+    return 0
+
+
+def cmd_graph(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    if args.route:
+        route_text = " ".join(args.route)
+        rows = matching_route_facts(conn, repo, route_text)
+        paths = [row["path"] for row in rows]
+        return render_dependency_graph(conn, repo, paths, f"Route graph: {route_text}")
+    if args.db:
+        rows = conn.execute(
+            """
+            SELECT path FROM facts
+            WHERE kind IN ('sql-object', 'entity', 'repository')
+              AND (key LIKE ? OR value LIKE ? OR path LIKE ?)
+              AND (? IS NULL OR repo = ?)
+            ORDER BY updated_at DESC LIMIT 8
+            """,
+            (f"%{args.db}%", f"%{args.db}%", f"%{args.db}%", repo, repo),
+        ).fetchall()
+        return render_dependency_graph(conn, repo, [row["path"] for row in rows], f"DB graph: {args.db}")
+    rows = matching_symbol_rows(conn, repo, args.query or "")
+    return render_dependency_graph(conn, repo, [row["path"] for row in rows], f"Symbol graph: {args.query}")
 
 
 def cmd_ask(args: argparse.Namespace) -> int:
@@ -773,14 +1298,29 @@ def cmd_error_memory(args: argparse.Namespace) -> int:
         rows = list_errors(conn, repo, args.limit)
         table = Table(title="RAG errors")
         table.add_column("id", justify="right")
+        table.add_column("fingerprint")
         table.add_column("error")
         table.add_column("fix")
         table.add_column("repo")
         for row in rows:
-            table.add_row(str(row["error_id"]), row["error_text"][:80], (row["fix_text"] or "-")[:80], row["repo"] or "-")
+            table.add_row(
+                str(row["error_id"]),
+                (row["fingerprint_hash"] or "-")[:16],
+                row["error_text"][:80],
+                (row["fix_text"] or "-")[:80],
+                row["repo"] or "-",
+            )
         console.print(table)
         return 0
-    error_id = add_error(conn, repo, args.error_text, fix_text=args.fix, notes=args.notes)
+    error_id = add_error(
+        conn,
+        repo,
+        args.error_text,
+        fix_text=args.fix,
+        notes=args.notes,
+        command=args.command_text,
+        exit_code=args.exit_code,
+    )
     console.print(f"[green]Added[/green] error {error_id}")
     return 0
 
@@ -868,6 +1408,20 @@ def trace_fact_rows(
     if kind == "keybind":
         plan = RetrievalPlan(query=query, repo=repo, rewrites=[], intent="keybind", mode="quick")
         return fact_hits(conn, plan, config)[:limit]
+    if kind == "route":
+        sql = """
+            SELECT fact_id, repo, path, kind, key, value, line, confidence, updated_at
+            FROM facts
+            WHERE kind IN ('route-handler', 'route-controller')
+              AND (key LIKE ? OR value LIKE ? OR path LIKE ?)
+        """
+        params: list[object] = [f"%{query}%", f"%{query}%", f"%{query}%"]
+        if repo:
+            sql += " AND repo = ?"
+            params.append(repo)
+        sql += " ORDER BY confidence DESC, updated_at DESC LIMIT ?"
+        params.append(limit)
+        return conn.execute(sql, params).fetchall()
     sql = """
         SELECT fact_id, repo, path, kind, key, value, line, confidence, updated_at
         FROM facts
@@ -910,6 +1464,35 @@ def cmd_trace(args: argparse.Namespace) -> int:
     conn = connect_db()
     repo = resolve_repo_name(conn, args.repo)
     query = " ".join(args.query)
+    if args.kind == "symbol":
+        rows = matching_symbol_rows(conn, repo, query, limit=args.limit)
+        if not rows:
+            console.print("[yellow]No matching symbols found.[/yellow]")
+            return 1
+        table = Table(title="RAG trace: symbol")
+        table.add_column("#", justify="right")
+        table.add_column("symbol")
+        table.add_column("kind")
+        table.add_column("file")
+        for index, row in enumerate(rows, start=1):
+            table.add_row(
+                str(index),
+                row["qualified_name"],
+                row["kind"],
+                f"{row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}",
+            )
+        console.print(table)
+        for row in rows:
+            console.print()
+            console.print(f"[bold]{row['qualified_name']}[/bold] ({row['kind']})")
+            console.print(f"file={row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}")
+            chunks = trace_nearby_chunks(conn, row["repo"], row["path"], int(row["start_line"]))
+            for chunk in chunks:
+                console.print(
+                    f"- {chunk['start_line']}-{chunk['end_line']} {chunk['kind']} {chunk['symbol'] or '-'}"
+                )
+                console.print(chunk["content"].strip())
+        return 0
     rows = trace_fact_rows(conn, config, args.kind, query, repo, args.limit)
     if not rows:
         console.print("[yellow]No matching facts found.[/yellow]")
@@ -944,7 +1527,7 @@ def cmd_trace(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_doctor(_args: argparse.Namespace) -> int:
+def cmd_doctor(args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
     client = get_qdrant(config)
@@ -977,16 +1560,35 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     memory_note_count = conn.execute("SELECT COUNT(*) AS count FROM developer_memory").fetchone()["count"]
     context_pack_count = conn.execute("SELECT COUNT(*) AS count FROM context_packs").fetchone()["count"]
     compaction_count = conn.execute("SELECT COUNT(*) AS count FROM session_compactions").fetchone()["count"]
+    git_context_count = conn.execute("SELECT COUNT(*) AS count FROM git_context").fetchone()["count"]
+    github_context_count = conn.execute("SELECT COUNT(*) AS count FROM github_context").fetchone()["count"]
+    test_failure_count = conn.execute("SELECT COUNT(*) AS count FROM test_failure_memory").fetchone()["count"]
+    eval_case_count = conn.execute("SELECT COUNT(*) AS count FROM eval_cases").fetchone()["count"]
     table.add_row(
         "memory",
         "ok",
         (
             f"{fact_count} facts, {summary_count} file summaries, {memory_count} repo memories, "
             f"{memory_note_count} memory notes, {context_pack_count} context packs, "
+            f"{git_context_count} git snapshots, {github_context_count} GitHub refs, {test_failure_count} test failures, "
             f"{todo_count} todos, {decision_count} decisions, {session_count} sessions, "
-            f"{compaction_count} compactions"
+            f"{compaction_count} compactions, {eval_case_count} eval cases"
         ),
     )
+    if args.deep:
+        try:
+            ensure_collection(client, config)
+            table.add_row("collection vector size", "ok", config["embedding_model"])
+        except Exception as exc:
+            table.add_row("collection vector size", "fail", str(exc))
+        try:
+            _ = get_embedder(config)
+            table.add_row("embedding model", "ok", config["embedding_model"])
+        except Exception as exc:
+            table.add_row("embedding model", "fail", str(exc))
+        table.add_row("fts populated", "ok" if chunk_count else "warn", str(chunk_count))
+        table.add_row("facts populated", "ok" if fact_count else "warn", str(fact_count))
+        table.add_row("file summaries", "ok" if summary_count else "warn", str(summary_count))
     try:
         with urllib.request.urlopen(
             urllib.request.Request(
@@ -999,7 +1601,8 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         table.add_row("answer model", "ok", config["answer_model"])
     except Exception as exc:  # pragma: no cover
         table.add_row("answer model", "fail", str(exc))
-    table.add_row("embedding model", "ok", config["embedding_model"])
+    if not args.deep:
+        table.add_row("embedding model", "ok", config["embedding_model"])
     table.add_row(
         "reranker",
         "ok" if config["reranker"]["enabled"] else "off",
@@ -1022,6 +1625,12 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     stale_count = sum(1 for row in memory_statuses if row["status"] == "stale")
     missing_count = sum(1 for row in memory_statuses if row["status"] == "missing")
     table.add_row("memory freshness", "ok" if not stale_count and not missing_count else "warn", f"{stale_count} stale, {missing_count} missing")
+    if args.deep:
+        try:
+            response = ask_llm(config, "reply with ok", "<chunks>\nhealth check\n</chunks>", mode="quick")
+            table.add_row("answer generation", "ok" if response else "warn", (response or "-")[:60])
+        except Exception as exc:  # pragma: no cover
+            table.add_row("answer generation", "fail", str(exc))
     console.print(table)
     return 0
 
@@ -1182,6 +1791,81 @@ def build_parser() -> argparse.ArgumentParser:
     )
     search_parser.set_defaults(func=cmd_search)
 
+    add_query_parser("inspect", "Inspect query rewrites, intent, and routing details", cmd_inspect, include_mode_flag=True)
+    add_query_parser("missing", "Show missing-context detection for a query", cmd_missing, include_mode_flag=True)
+
+    why_parser = subparsers.add_parser("why", help="Explain why a file did or did not match a query")
+    why_parser.add_argument("query")
+    why_parser.add_argument("path", help="Indexed file path to explain")
+    why_parser.add_argument("--repo", help="Filter to a repo name")
+    why_rerank_group = why_parser.add_mutually_exclusive_group()
+    why_rerank_group.add_argument(
+        "--rerank",
+        dest="rerank",
+        action="store_true",
+        default=None,
+        help="Force the reranker on for this query.",
+    )
+    why_rerank_group.add_argument(
+        "--no-rerank",
+        dest="rerank",
+        action="store_false",
+        help="Skip the reranker for this query.",
+    )
+    why_parser.add_argument(
+        "--mode",
+        choices=["auto", "quick", "deep", "agent"],
+        default="auto",
+        help="Routing mode for this explanation query.",
+    )
+    why_parser.set_defaults(func=cmd_why)
+
+    graph_parser = subparsers.add_parser("graph", help="Show a lightweight dependency graph from a symbol, route, or database seed")
+    graph_parser.add_argument("query", nargs="?", help="Symbol or path text to seed the graph")
+    graph_parser.add_argument("--repo", help="Filter to a repo name")
+    graph_parser.add_argument("--route", nargs="+", help="Seed the graph from a route path/method")
+    graph_parser.add_argument("--db", help="Seed the graph from a database/table/entity name")
+    graph_parser.set_defaults(func=cmd_graph)
+
+    context_parser = subparsers.add_parser("context", help="Manage git, GitHub, and test-failure retrieval sources")
+    context_subparsers = context_parser.add_subparsers(dest="context_command", required=True)
+
+    context_git_parser = context_subparsers.add_parser("git", help="Show or refresh git diff/branch context")
+    context_git_parser.add_argument("--repo", help="Target repo name")
+    context_git_parser.add_argument("--refresh", action="store_true", help="Refresh the git snapshot before showing it")
+    context_git_parser.set_defaults(func=cmd_context)
+
+    context_github_parser = context_subparsers.add_parser("github", help="Ingest PR or issue context")
+    context_github_parser.add_argument("ref_type", choices=["issue", "pr"])
+    context_github_parser.add_argument("number", type=int)
+    context_github_parser.add_argument("--repo", help="Target repo name")
+    context_github_parser.add_argument("--manual", action="store_true", help="Store manual fields instead of calling gh")
+    context_github_parser.add_argument("--title", help="Manual title")
+    context_github_parser.add_argument("--body", help="Manual body")
+    context_github_parser.add_argument("--changed-file", action="append", help="Manual changed file (repeatable)")
+    context_github_parser.add_argument("--comment", action="append", help="Manual comment (repeatable)")
+    context_github_parser.add_argument("--review-comment", action="append", help="Manual review comment (repeatable)")
+    context_github_parser.add_argument("--ci-log", help="Manual CI log excerpt")
+    context_github_parser.add_argument("--linked-issue", action="append", help="Manual linked issue or PR reference")
+    context_github_parser.set_defaults(func=cmd_context)
+
+    context_failure_parser = context_subparsers.add_parser("test-failure", help="Store or inspect test failure output")
+    context_failure_subparsers = context_failure_parser.add_subparsers(dest="failure_command", required=True)
+    context_failure_list = context_failure_subparsers.add_parser("list", help="List stored test failures")
+    context_failure_list.add_argument("--repo", help="Target repo name")
+    context_failure_list.add_argument("--limit", type=int, default=20)
+    context_failure_list.set_defaults(func=cmd_context)
+    context_failure_add = context_failure_subparsers.add_parser("add", help="Store a test failure transcript")
+    context_failure_add.add_argument("command_text")
+    context_failure_add.add_argument("--repo", help="Target repo name")
+    context_failure_add.add_argument("--runner")
+    context_failure_add.add_argument("--exit-code", type=int)
+    context_failure_add.add_argument("--source", choices=["local", "ci"], default="local")
+    output_group = context_failure_add.add_mutually_exclusive_group(required=True)
+    output_group.add_argument("--output", help="Inline failure output text")
+    output_group.add_argument("--output-file", help="Path to a failure output file")
+    context_failure_add.set_defaults(func=cmd_context)
+
     reindex_parser = subparsers.add_parser("reindex", help="Reindex changed files in previously indexed repos")
     reindex_parser.add_argument(
         "--profile",
@@ -1335,6 +2019,8 @@ def build_parser() -> argparse.ArgumentParser:
     error_add_parser.add_argument("--repo", help="Scope to one repo")
     error_add_parser.add_argument("--fix")
     error_add_parser.add_argument("--notes")
+    error_add_parser.add_argument("--command", dest="command_text", help="Command that produced the error")
+    error_add_parser.add_argument("--exit-code", type=int, help="Exit code for the failing command")
     error_add_parser.set_defaults(func=cmd_error_memory)
 
     session_parser = subparsers.add_parser("session", help="Inspect saved RAG sessions")
@@ -1371,6 +2057,11 @@ def build_parser() -> argparse.ArgumentParser:
     clean_parser.set_defaults(func=cmd_clean)
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local RAG health")
+    doctor_parser.add_argument(
+        "--deep",
+        action="store_true",
+        help="Run deeper health checks, including embedder/vector sizing and a lightweight answer-generation probe.",
+    )
     doctor_parser.set_defaults(func=cmd_doctor)
     return parser
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypedDict
+from typing import Any, Protocol, Sequence, TypedDict
 
 
 @dataclass
@@ -36,6 +36,20 @@ class RepoMemoryStatus(TypedDict):
     changed_files: list[str]
     changed_symbols: list[str]
     freshness_score: float
+
+
+class SupportsQdrantCollectionAdmin(Protocol):
+    def collection_exists(self, collection_name: str) -> bool: ...
+
+    def get_collection(self, collection_name: str) -> Any: ...
+
+    def create_collection(self, collection_name: str, vectors_config: Any) -> Any: ...
+
+
+class SupportsQdrantPointOps(Protocol):
+    def upsert(self, collection_name: str, points: Sequence[Any], wait: bool = True) -> Any: ...
+
+    def delete(self, collection_name: str, points_selector: Any, wait: bool = True) -> Any: ...
 
 
 class IndexInterrupted(Exception):

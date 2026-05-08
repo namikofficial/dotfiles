@@ -1,18 +1,29 @@
 from __future__ import annotations
 
 import difflib
+import json
 import math
 import re
 import sqlite3
+import subprocess
+import time
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Sequence
 
 from qdrant_client import QdrantClient, models
 
 from .memory import taxonomy_terms_for_query
 from .runtime import console
-from .state import list_memory_entries
-from .storage import get_embedder
+from .state import (
+    extract_file_paths,
+    extract_stack_symbols,
+    fingerprint_error,
+    list_memory_entries,
+    normalize_error_text,
+    upsert_git_context,
+)
+from .storage import get_embedder, git_branch_for, git_head_commit_for
 
 STOPWORDS = {
     "a",
@@ -112,6 +123,11 @@ class RetrievalCandidates:
     facts: list[sqlite3.Row] = field(default_factory=list)
     summaries: list[sqlite3.Row] = field(default_factory=list)
     memory: sqlite3.Row | None = None
+    git_context: sqlite3.Row | None = None
+    github_refs: list[sqlite3.Row] = field(default_factory=list)
+    test_failures: list[sqlite3.Row] = field(default_factory=list)
+    error_matches: list[sqlite3.Row] = field(default_factory=list)
+    timings_ms: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -121,7 +137,16 @@ class RetrievalResult:
     facts: list[sqlite3.Row]
     summaries: list[sqlite3.Row]
     memory: sqlite3.Row | None
+    context_sources: list["ContextSource"]
     debug: dict
+
+
+@dataclass(frozen=True)
+class ContextSource:
+    source_type: str
+    title: str
+    content: str
+    file_refs: tuple[str, ...] = ()
 
 
 def approx_tokens(text: str) -> int:
@@ -147,6 +172,18 @@ def raw_query_tokens(query: str) -> list[str]:
 
 def query_terms(query: str) -> list[str]:
     return [token.lower() for token in raw_query_tokens(query) if token.lower() not in STOPWORDS]
+
+
+def fts_match_terms(terms: Sequence[str], *, limit: int = 12) -> str:
+    sanitized: list[str] = []
+    for term in terms:
+        cleaned = re.sub(r'[^A-Za-z0-9_*"]+', " ", term).strip()
+        if not cleaned:
+            continue
+        sanitized.extend(part for part in cleaned.split() if part)
+        if len(sanitized) >= limit:
+            break
+    return " OR ".join(sanitized[:limit])
 
 
 def looks_like_path_token(token: str) -> bool:
@@ -496,6 +533,203 @@ def weak_recency_bonus(modified_at: float | None, max_modified_at: float, config
     )
 
 
+def truncate_text(text: str, limit: int) -> str:
+    stripped = text.strip()
+    if len(stripped) <= limit:
+        return stripped
+    return stripped[: limit - 3].rstrip() + "..."
+
+
+def repo_index_row(conn: sqlite3.Connection, repo: str | None) -> sqlite3.Row | None:
+    if not repo:
+        return None
+    return conn.execute("SELECT * FROM indexed_repos WHERE repo = ?", (repo,)).fetchone()
+
+
+def capture_git_context(conn: sqlite3.Connection, repo: str | None) -> sqlite3.Row | None:
+    repo_row = repo_index_row(conn, repo)
+    if repo_row is None:
+        return None
+    root = Path(repo_row["root"])
+    branch = git_branch_for(root)
+    if not branch:
+        return None
+
+    def run_git(*args: str) -> str:
+        try:
+            return subprocess.check_output(
+                ["git", "-C", str(root), *args],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()
+        except subprocess.CalledProcessError:
+            return ""
+
+    status_short = run_git("status", "--short")
+    diff_text = run_git("diff", "--", ".")
+    staged_diff_text = run_git("diff", "--staged", "--", ".")
+    recent_log_text = run_git("log", "--oneline", "-20")
+    changed_files = [
+        line[3:].strip()
+        for line in status_short.splitlines()
+        if len(line.strip()) >= 4
+    ]
+    upsert_git_context(
+        conn,
+        str(repo),
+        branch,
+        head_commit=git_head_commit_for(root),
+        indexed_branch=repo_row["last_indexed_branch"],
+        indexed_commit=repo_row["last_indexed_commit"],
+        dirty=bool(status_short.strip()),
+        status_short=status_short,
+        diff_text=diff_text,
+        staged_diff_text=staged_diff_text,
+        recent_log_text=recent_log_text,
+        changed_files=changed_files,
+    )
+    return conn.execute(
+        "SELECT * FROM git_context WHERE repo = ? AND branch = ?",
+        (repo, branch),
+    ).fetchone()
+
+
+def git_context_relevant(plan: RetrievalPlan, row: sqlite3.Row | None) -> bool:
+    if row is None:
+        return False
+    lowered = plan.query.lower()
+    markers = (
+        "diff",
+        "staged",
+        "unstaged",
+        "branch",
+        "working tree",
+        "current work",
+        "changed",
+        "commit",
+        "pr ",
+        "issue ",
+        "failing",
+        "error",
+        "broken",
+    )
+    return plan.mode in {"deep", "agent"} or bool(row["dirty"]) or any(marker in lowered for marker in markers)
+
+
+def extract_reference_numbers(query: str) -> list[int]:
+    numbers = [int(match) for match in re.findall(r"(?:#|pr\s+|issue\s+)(\d+)", query.lower())]
+    return list(dict.fromkeys(numbers))
+
+
+def github_context_hits(conn: sqlite3.Connection, plan: RetrievalPlan) -> list[sqlite3.Row]:
+    clauses: list[str] = []
+    params: list[object] = []
+    if plan.repo:
+        clauses.append("repo = ?")
+        params.append(plan.repo)
+    numbers = extract_reference_numbers(plan.query)
+    if numbers:
+        placeholders = ",".join("?" for _ in numbers)
+        clauses.append(f"ref_number IN ({placeholders})")
+        params.extend(numbers)
+    else:
+        analysis = analysis_for_plan(plan)
+        term_clauses = []
+        for term in list(analysis.expanded_terms)[:6]:
+            term_clauses.append("(title LIKE ? OR body LIKE ? OR changed_files_json LIKE ? OR comments_json LIKE ?)")
+            params.extend([f"%{term}%", f"%{term}%", f"%{term}%", f"%{term}%"])
+        if term_clauses:
+            clauses.append("(" + " OR ".join(term_clauses) + ")")
+    sql = "SELECT * FROM github_context"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY updated_at DESC LIMIT 4"
+    return conn.execute(sql, params).fetchall()
+
+
+def exact_query_fingerprint(query: str) -> str | None:
+    normalized = normalize_error_text(query)
+    if len(normalized) < 12 or (
+        "error" not in normalized and "failed" not in normalized and "traceback" not in normalized
+    ):
+        return None
+    return fingerprint_error(normalized)
+
+
+def test_failure_hits(conn: sqlite3.Connection, plan: RetrievalPlan) -> list[sqlite3.Row]:
+    fingerprint = exact_query_fingerprint(plan.query)
+    if fingerprint:
+        rows = conn.execute(
+            """
+            SELECT * FROM test_failure_memory
+            WHERE fingerprint_hash = ?
+              AND (? IS NULL OR repo = ?)
+            ORDER BY updated_at DESC
+            LIMIT 4
+            """,
+            (fingerprint, plan.repo, plan.repo),
+        ).fetchall()
+        if rows:
+            return rows
+    analysis = analysis_for_plan(plan)
+    terms = list(analysis.expanded_terms)[:6]
+    if not terms and plan.intent != "error":
+        return []
+    clauses: list[str] = []
+    params: list[object] = []
+    if plan.repo:
+        clauses.append("repo = ?")
+        params.append(plan.repo)
+    term_clauses = []
+    for term in terms:
+        term_clauses.append("(output_text LIKE ? OR command LIKE ? OR file_paths_json LIKE ?)")
+        params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
+    if term_clauses:
+        clauses.append("(" + " OR ".join(term_clauses) + ")")
+    sql = "SELECT * FROM test_failure_memory"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY updated_at DESC LIMIT 4"
+    return conn.execute(sql, params).fetchall()
+
+
+def error_matches(conn: sqlite3.Connection, plan: RetrievalPlan) -> list[sqlite3.Row]:
+    fingerprint = exact_query_fingerprint(plan.query)
+    if fingerprint:
+        rows = conn.execute(
+            """
+            SELECT * FROM error_memory
+            WHERE fingerprint_hash = ?
+              AND (? IS NULL OR repo = ?)
+            ORDER BY updated_at DESC
+            LIMIT 4
+            """,
+            (fingerprint, plan.repo, plan.repo),
+        ).fetchall()
+        if rows:
+            return rows
+    analysis = analysis_for_plan(plan)
+    terms = list(analysis.expanded_terms)[:6]
+    if not terms and plan.intent != "error":
+        return []
+    clauses: list[str] = []
+    params: list[object] = []
+    if plan.repo:
+        clauses.append("repo = ?")
+        params.append(plan.repo)
+    term_clauses = []
+    for term in terms:
+        term_clauses.append("(error_text LIKE ? OR fix_text LIKE ? OR file_paths_json LIKE ?)")
+        params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
+    if term_clauses:
+        clauses.append("(" + " OR ".join(term_clauses) + ")")
+    sql = "SELECT * FROM error_memory"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY updated_at DESC LIMIT 4"
+    return conn.execute(sql, params).fetchall()
+
+
 def semantic_hits(client: QdrantClient, config: dict, plan: RetrievalPlan) -> list[str]:
     hits: list[str] = []
     embedder = get_embedder(config)
@@ -520,7 +754,9 @@ def keyword_hits(conn: sqlite3.Connection, config: dict, plan: RetrievalPlan) ->
         tokens = query_terms(rewrite)
         if not tokens:
             continue
-        match = " OR ".join(tokens[:12])
+        match = fts_match_terms(tokens)
+        if not match:
+            continue
         sql = (
             "SELECT chunk_id FROM chunks_fts WHERE chunks_fts MATCH ?"
             + (" AND repo = ?" if plan.repo else "")
@@ -538,7 +774,9 @@ def semantic_line_hits(conn: sqlite3.Connection, config: dict, plan: RetrievalPl
         tokens = query_terms(rewrite)
         if not tokens:
             continue
-        match = " OR ".join(tokens[:12])
+        match = fts_match_terms(tokens)
+        if not match:
+            continue
         sql = (
             "SELECT chunk_id FROM semantic_lines_fts WHERE semantic_lines_fts MATCH ?"
             + (" AND repo = ?" if plan.repo else "")
@@ -553,12 +791,15 @@ def symbol_hits(conn: sqlite3.Connection, plan: RetrievalPlan) -> list[str]:
     terms = query_terms(plan.query)[:10]
     if not terms:
         return []
+    match = fts_match_terms(terms, limit=10)
+    if not match:
+        return []
     sql = (
         "SELECT symbol_id FROM symbols_fts WHERE symbols_fts MATCH ?"
         + (" AND repo = ?" if plan.repo else "")
         + " LIMIT 20"
     )
-    params = [" OR ".join(terms)] + ([plan.repo] if plan.repo else [])
+    params = [match] + ([plan.repo] if plan.repo else [])
     symbol_rows = conn.execute(sql, params).fetchall()
     hits: list[str] = []
     for row in symbol_rows:
@@ -795,6 +1036,316 @@ def repo_memory_row(conn: sqlite3.Connection, repo: str | None) -> sqlite3.Row |
     return conn.execute("SELECT * FROM repo_memory WHERE repo = ?", (repo,)).fetchone()
 
 
+def json_list(value: str | None) -> list[str]:
+    if not value:
+        return []
+    try:
+        loaded = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(loaded, list):
+        return []
+    return [str(item) for item in loaded if str(item).strip()]
+
+
+def primary_paths(rows: Sequence[sqlite3.Row]) -> list[str]:
+    return list(dict.fromkeys(str(row["path"]) for row in rows if row["path"]))[:6]
+
+
+def supporting_rows_for_paths(conn: sqlite3.Connection, repo: str | None, paths: Sequence[str]) -> list[sqlite3.Row]:
+    if not repo or not paths:
+        return []
+    seen: set[str] = set()
+    results: list[sqlite3.Row] = []
+    for path in paths:
+        row = conn.execute(
+            """
+            SELECT * FROM chunks
+            WHERE repo = ? AND path = ?
+            ORDER BY modified_at DESC, chunk_index ASC
+            LIMIT 1
+            """,
+            (repo, path),
+        ).fetchone()
+        if row is not None and row["chunk_id"] not in seen:
+            seen.add(str(row["chunk_id"]))
+            results.append(row)
+    return results
+
+
+def supporting_summaries_for_paths(conn: sqlite3.Connection, repo: str | None, paths: Sequence[str]) -> list[sqlite3.Row]:
+    if not repo or not paths:
+        return []
+    seen: set[tuple[str, str]] = set()
+    results: list[sqlite3.Row] = []
+    for path in paths:
+        row = conn.execute(
+            """
+            SELECT * FROM file_summaries
+            WHERE repo = ? AND path = ?
+            ORDER BY updated_at DESC
+            LIMIT 1
+            """,
+            (repo, path),
+        ).fetchone()
+        key = (repo, path)
+        if row is not None and key not in seen:
+            seen.add(key)
+            results.append(row)
+    return results
+
+
+def supplementary_summary_search(
+    conn: sqlite3.Connection,
+    repo: str | None,
+    terms: Sequence[str],
+    *,
+    kind: str | None = None,
+    path_markers: Sequence[str] = (),
+    limit: int = 3,
+) -> list[sqlite3.Row]:
+    clauses: list[str] = []
+    params: list[object] = []
+    if repo:
+        clauses.append("repo = ?")
+        params.append(repo)
+    if kind:
+        clauses.append("kind = ?")
+        params.append(kind)
+    marker_clauses = []
+    for marker in path_markers:
+        marker_clauses.append("path LIKE ?")
+        params.append(f"%{marker}%")
+    term_clauses = []
+    for term in unique_terms(terms)[:6]:
+        term_clauses.append("(path LIKE ? OR summary LIKE ? OR symbols LIKE ?)")
+        params.extend([f"%{term}%", f"%{term}%", f"%{term}%"])
+    if marker_clauses:
+        clauses.append("(" + " OR ".join(marker_clauses) + ")")
+    if term_clauses:
+        clauses.append("(" + " OR ".join(term_clauses) + ")")
+    sql = "SELECT * FROM file_summaries"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY updated_at DESC LIMIT ?"
+    params.append(limit)
+    return conn.execute(sql, params).fetchall()
+
+
+def expected_missing_context_categories(plan: RetrievalPlan) -> list[str]:
+    desired: list[str] = []
+    if plan.intent in {"symbol", "path", "general"}:
+        desired.extend(["definition file", "caller file", "test file"])
+    if plan.intent in {"config", "tool", "error"}:
+        desired.append("config file")
+    if plan.intent == "sql" or any(
+        token in plan.query.lower() for token in ("schema", "entity", "model", "table", "migration", "orm")
+    ):
+        desired.append("schema/entity file")
+    if plan.intent in {"error", "general", "symbol"}:
+        desired.append("related docs")
+    if plan.intent == "error":
+        desired.append("error log")
+    return unique_terms(desired)
+
+
+
+def detect_missing_context(
+    conn: sqlite3.Connection,
+    plan: RetrievalPlan,
+    rows: Sequence[sqlite3.Row],
+    summaries: Sequence[sqlite3.Row],
+    candidates: RetrievalCandidates,
+) -> tuple[dict[str, list[str]], list[sqlite3.Row], list[sqlite3.Row]]:
+    analysis = analysis_for_plan(plan)
+    observed = {
+        "test file": any("test" in row["path"].lower() or "spec" in row["path"].lower() for row in rows)
+        or any("test" in row["path"].lower() or "spec" in row["path"].lower() for row in summaries),
+        "config file": any(row["kind"] == "config" for row in rows)
+        or any(row["kind"] == "config" for row in summaries),
+        "related docs": any(row["kind"] == "docs" or row["path"].lower().endswith(".md") for row in rows)
+        or any(row["kind"] == "docs" or row["path"].lower().endswith(".md") for row in summaries),
+        "schema/entity file": any(
+            any(marker in row["path"].lower() for marker in ("schema", "entity", "model", "migration"))
+            for row in [*rows, *summaries]
+        ),
+        "definition file": any(row["symbol"] for row in rows) or plan.intent == "path",
+        "caller file": any(
+            "test" in row["path"].lower() or "spec" in row["path"].lower()
+            for row in [*rows, *summaries]
+        ),
+        "error log": bool(candidates.test_failures or candidates.error_matches),
+    }
+    selected_paths = primary_paths(rows)
+    desired = expected_missing_context_categories(plan)
+    added: list[str] = []
+    extra_summaries: list[sqlite3.Row] = []
+    extra_rows: list[sqlite3.Row] = []
+    term_seed = [*analysis.expanded_terms, *selected_paths]
+
+    def add_summaries(category: str, rows_to_add: Sequence[sqlite3.Row]) -> None:
+        if rows_to_add:
+            added.append(category)
+            extra_summaries.extend(rows_to_add)
+
+    missing = [category for category in desired if not observed.get(category, False)]
+    for category in missing:
+        if category == "test file":
+            stems = [Path(path).stem.replace(".test", "").replace(".spec", "") for path in selected_paths]
+            add_summaries(category, supplementary_summary_search(conn, plan.repo, stems or term_seed, path_markers=("test", "spec", "__tests__"), limit=2))
+        elif category == "config file":
+            add_summaries(category, supplementary_summary_search(conn, plan.repo, term_seed, kind="config", limit=2))
+        elif category == "related docs":
+            doc_rows = supplementary_summary_search(
+                conn,
+                plan.repo,
+                term_seed,
+                kind="docs",
+                path_markers=("docs", "readme"),
+                limit=2,
+            )
+            if not doc_rows:
+                doc_rows = supplementary_summary_search(
+                    conn,
+                    plan.repo,
+                    [],
+                    kind="docs",
+                    path_markers=("docs", "readme"),
+                    limit=2,
+                )
+            add_summaries(category, doc_rows)
+        elif category == "schema/entity file":
+            add_summaries(category, supplementary_summary_search(conn, plan.repo, term_seed, path_markers=("schema", "entity", "model", "migration"), limit=2))
+        elif category == "definition file" and plan.repo:
+            definition_rows = supporting_rows_for_paths(conn, plan.repo, selected_paths[:1])
+            if definition_rows:
+                added.append(category)
+                extra_rows.extend(definition_rows)
+        elif category == "caller file" and plan.repo and selected_paths:
+            caller_rows = conn.execute(
+                f"""
+                SELECT source_path
+                FROM file_dependencies
+                WHERE repo = ?
+                  AND source_path != target_path
+                  AND target_path IN ({",".join("?" for _ in selected_paths)})
+                ORDER BY updated_at DESC
+                LIMIT 2
+                """,
+                [plan.repo, *selected_paths],
+            ).fetchall()
+            caller_paths = [str(row["source_path"]) for row in caller_rows]
+            supporting = supporting_rows_for_paths(conn, plan.repo, caller_paths)
+            if supporting:
+                added.append(category)
+                extra_rows.extend(supporting)
+                continue
+            caller_summaries = supporting_summaries_for_paths(conn, plan.repo, caller_paths)
+            if caller_summaries:
+                added.append(category)
+                extra_summaries.extend(caller_summaries)
+    unresolved = [category for category in desired if category not in added and not observed.get(category, False)]
+    unique_extra_rows = {row["chunk_id"]: row for row in extra_rows}
+    unique_extra_summaries = {(row["repo"], row["path"]): row for row in extra_summaries}
+    return {"desired": desired, "added": added, "missing": unresolved}, list(unique_extra_rows.values()), list(unique_extra_summaries.values())
+
+
+def build_context_sources(
+    candidates: RetrievalCandidates,
+    missing_report: dict[str, list[str]],
+) -> list[ContextSource]:
+    sources: list[ContextSource] = []
+    git_row = candidates.git_context
+    if git_row is not None and git_context_relevant(candidates.plan, git_row):
+        changed_files = json_list(git_row["changed_files_json"])
+        branch_note = ""
+        if git_row["indexed_branch"] and git_row["indexed_branch"] != git_row["branch"]:
+            branch_note = f"\nindexed_branch={git_row['indexed_branch']} (mismatch)"
+        sources.append(
+            ContextSource(
+                source_type="git",
+                title=f"git branch {git_row['branch']}",
+                content=(
+                    f"branch={git_row['branch']} head={git_row['head_commit'] or '-'} dirty={'yes' if git_row['dirty'] else 'no'}"
+                    f"{branch_note}\nindexed_commit={git_row['indexed_commit'] or '-'}\n"
+                    f"changed_files={', '.join(changed_files[:8]) or '-'}\n"
+                    f"status:\n{truncate_text(git_row['status_short'], 400) or '-'}\n"
+                    f"unstaged diff:\n{truncate_text(git_row['diff_text'], 600) or '-'}\n"
+                    f"staged diff:\n{truncate_text(git_row['staged_diff_text'], 600) or '-'}\n"
+                    f"recent log:\n{truncate_text(git_row['recent_log_text'], 400) or '-'}"
+                ),
+                file_refs=tuple(changed_files[:8]),
+            )
+        )
+    for row in candidates.github_refs:
+        changed_files = json_list(row["changed_files_json"])
+        comments = json_list(row["comments_json"])
+        review_comments = json_list(row["review_comments_json"])
+        linked = json_list(row["linked_issues_json"])
+        sources.append(
+            ContextSource(
+                source_type="github",
+                title=f"{row['ref_type']} #{row['ref_number']}",
+                content=(
+                    f"title={row['title']}\nbody={truncate_text(row['body'], 500) or '-'}\n"
+                    f"changed_files={', '.join(changed_files[:8]) or '-'}\n"
+                    f"linked={', '.join(linked[:6]) or '-'}\n"
+                    f"comments={truncate_text(' | '.join(comments[:3]), 300) or '-'}\n"
+                    f"review_comments={truncate_text(' | '.join(review_comments[:3]), 300) or '-'}\n"
+                    f"ci={truncate_text(row['ci_logs_text'], 300) or '-'}"
+                ),
+                file_refs=tuple(changed_files[:8]),
+            )
+        )
+    for row in candidates.test_failures:
+        file_refs = tuple(json_list(row["file_paths_json"])[:8])
+        stack_symbols = json_list(row["stack_symbols_json"])
+        sources.append(
+            ContextSource(
+                source_type="test_failure",
+                title=f"test failure {row['fingerprint_hash']}",
+                content=(
+                    f"command={row['command']} exit_code={row['exit_code'] if row['exit_code'] is not None else '-'} "
+                    f"runner={row['runner'] or '-'} source={row['source']}\n"
+                    f"files={', '.join(file_refs) or '-'}\n"
+                    f"symbols={', '.join(stack_symbols[:6]) or '-'}\n"
+                    f"output={truncate_text(row['output_text'], 700)}"
+                ),
+                file_refs=file_refs,
+            )
+        )
+    for row in candidates.error_matches:
+        file_refs = tuple(json_list(row["file_paths_json"])[:8])
+        stack_symbols = json_list(row["stack_symbols_json"])
+        sources.append(
+            ContextSource(
+                source_type="error",
+                title=f"error {row['fingerprint_hash'] or '-'}",
+                content=(
+                    f"normalized={truncate_text(row['normalized_error'] or normalize_error_text(row['error_text']), 240)}\n"
+                    f"command={row['command'] or '-'} exit_code={row['exit_code'] if row['exit_code'] is not None else '-'}\n"
+                    f"files={', '.join(file_refs) or '-'}\n"
+                    f"symbols={', '.join(stack_symbols[:6]) or '-'}\n"
+                    f"fix={truncate_text(row['fix_text'] or '', 220) or '-'}"
+                ),
+                file_refs=file_refs,
+            )
+        )
+    if missing_report.get("desired"):
+        sources.append(
+            ContextSource(
+                source_type="missing_context",
+                title="missing context detector",
+                content=(
+                    f"desired={', '.join(missing_report['desired']) or '-'}\n"
+                    f"added={', '.join(missing_report.get('added', [])) or '-'}\n"
+                    f"still_missing={', '.join(missing_report.get('missing', [])) or '-'}"
+                ),
+            )
+        )
+    return sources
+
+
 def limit_rows_per_file(rows: Sequence[sqlite3.Row], max_per_file: int) -> list[sqlite3.Row]:
     limited: list[sqlite3.Row] = []
     counts: dict[str, int] = {}
@@ -914,16 +1465,69 @@ def collect_retrieval_candidates(
     config: dict,
     plan: RetrievalPlan,
 ) -> RetrievalCandidates:
+    timings_ms: dict[str, float] = {}
+    started = time.perf_counter()
+    git_row = capture_git_context(conn, plan.repo)
+    timings_ms["git_context"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    semantic_ids = semantic_hits(client, config, plan)
+    timings_ms["semantic"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    keyword_ids = keyword_hits(conn, config, plan)
+    timings_ms["keyword"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    semantic_line_ids = semantic_line_hits(conn, config, plan)
+    timings_ms["semantic_lines"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    symbol_ids = symbol_hits(conn, plan)
+    timings_ms["symbol_lookup"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    recent_ids = recent_hits(conn, config, plan)
+    timings_ms["recent"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    facts = fact_hits(conn, plan, config)
+    timings_ms["facts"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    summaries = file_summary_hits(conn, plan, config)
+    timings_ms["summaries"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    memory = repo_memory_row(conn, plan.repo)
+    timings_ms["memory"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    github_refs = github_context_hits(conn, plan)
+    timings_ms["github"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    test_failures = test_failure_hits(conn, plan)
+    timings_ms["test_failures"] = (time.perf_counter() - started) * 1000
+
+    started = time.perf_counter()
+    errors = error_matches(conn, plan)
+    timings_ms["errors"] = (time.perf_counter() - started) * 1000
     return RetrievalCandidates(
         plan=plan,
-        semantic_ids=semantic_hits(client, config, plan),
-        keyword_ids=keyword_hits(conn, config, plan),
-        semantic_line_ids=semantic_line_hits(conn, config, plan),
-        symbol_ids=symbol_hits(conn, plan),
-        recent_ids=recent_hits(conn, config, plan),
-        facts=fact_hits(conn, plan, config),
-        summaries=file_summary_hits(conn, plan, config),
-        memory=repo_memory_row(conn, plan.repo),
+        semantic_ids=semantic_ids,
+        keyword_ids=keyword_ids,
+        semantic_line_ids=semantic_line_ids,
+        symbol_ids=symbol_ids,
+        recent_ids=recent_ids,
+        facts=facts,
+        summaries=summaries,
+        memory=memory,
+        git_context=git_row if git_context_relevant(plan, git_row) else None,
+        github_refs=github_refs,
+        test_failures=test_failures,
+        error_matches=errors,
+        timings_ms=timings_ms,
     )
 
 
@@ -933,6 +1537,7 @@ def rank_retrieval_candidates(
     candidates: RetrievalCandidates,
     use_reranker: bool,
 ) -> RetrievalResult:
+    started = time.perf_counter()
     fact_paths = {row["path"] for row in candidates.facts}
     summary_paths = {row["path"] for row in candidates.summaries}
     scores = reciprocal_rank_fusion(
@@ -944,6 +1549,8 @@ def rank_retrieval_candidates(
     )
     ranked_ids = [chunk_id for chunk_id, _ in sorted(scores.items(), key=lambda item: item[1], reverse=True)]
     rows = load_chunks(conn, ranked_ids[: config["reranker"]["top_k_input"]])
+    candidates.timings_ms["load_chunks"] = (time.perf_counter() - started) * 1000
+    started = time.perf_counter()
     selected_rows = (
         rerank_chunks(
             candidates.plan,
@@ -956,6 +1563,32 @@ def rank_retrieval_candidates(
         if use_reranker
         else rows[: config["reranker"]["top_k_output"]]
     )
+    candidates.timings_ms["rerank"] = (time.perf_counter() - started) * 1000
+    started = time.perf_counter()
+    missing_report, extra_rows, extra_summaries = detect_missing_context(
+        conn,
+        candidates.plan,
+        selected_rows,
+        candidates.summaries,
+        candidates,
+    )
+    candidates.timings_ms["missing_context"] = (time.perf_counter() - started) * 1000
+    if extra_rows:
+        merged_rows = list(selected_rows)
+        seen_chunk_ids = {row["chunk_id"] for row in merged_rows}
+        for row in extra_rows:
+            if row["chunk_id"] not in seen_chunk_ids:
+                seen_chunk_ids.add(row["chunk_id"])
+                merged_rows.append(row)
+        selected_rows = merged_rows
+    if extra_summaries:
+        seen_summaries = {(row["repo"], row["path"]) for row in candidates.summaries}
+        for row in extra_summaries:
+            key = (row["repo"], row["path"])
+            if key not in seen_summaries:
+                seen_summaries.add(key)
+                candidates.summaries.append(row)
+    context_sources = build_context_sources(candidates, missing_report)
     debug = {
         "rewrites": candidates.plan.rewrites,
         "semantic_hits": len(candidates.semantic_ids),
@@ -973,6 +1606,14 @@ def rank_retrieval_candidates(
         "mode": candidates.plan.mode,
         "typo_corrections": list(candidates.plan.analysis.corrected_terms) if candidates.plan.analysis else [],
         "preferred_languages": list(candidates.plan.analysis.preferred_languages) if candidates.plan.analysis else [],
+        "git_context": bool(candidates.git_context),
+        "github_refs": len(candidates.github_refs),
+        "test_failures": len(candidates.test_failures),
+        "error_matches": len(candidates.error_matches),
+        "missing_context_desired": missing_report.get("desired", []),
+        "missing_context_added": missing_report.get("added", []),
+        "missing_context_remaining": missing_report.get("missing", []),
+        "timings_ms": {key: round(value, 2) for key, value in candidates.timings_ms.items()},
     }
     return RetrievalResult(
         plan=candidates.plan,
@@ -980,6 +1621,7 @@ def rank_retrieval_candidates(
         facts=candidates.facts,
         summaries=candidates.summaries,
         memory=candidates.memory,
+        context_sources=context_sources,
         debug=debug,
     )
 
@@ -1003,6 +1645,7 @@ def gather_context(
     config: dict,
     facts: Sequence[sqlite3.Row] | None = None,
     summaries: Sequence[sqlite3.Row] | None = None,
+    context_sources: Sequence[ContextSource] | None = None,
     memory: str | None = None,
     operational_state: str | None = None,
     operational_state_tokens: int = 0,
@@ -1034,6 +1677,23 @@ def gather_context(
 
     if memory:
         append_block(f"<repo_memory>\n{memory}\n</repo_memory>", limit=budgets["memory_tokens"])
+
+    if context_sources:
+        source_blocks: list[str] = []
+        source_used = 0
+        source_limit = int(budgets.get("context_source_tokens", budgets["file_summary_tokens"]))
+        for index, source in enumerate(context_sources, start=1):
+            block = f"[SOURCE {index}] type={source.source_type} title={source.title}\n{source.content}"
+            block_tokens = approx_tokens(block)
+            if source_used + block_tokens > source_limit:
+                break
+            source_used += block_tokens
+            source_blocks.append(block)
+            for file_ref in source.file_refs:
+                if file_ref not in seen_files:
+                    seen_files.append(file_ref)
+        if source_blocks:
+            append_block("<context_sources>\n" + "\n\n".join(source_blocks) + "\n</context_sources>", limit=source_limit)
 
     if facts:
         limited_facts = limit_rows_by_file_count(facts, config["retrieval"]["max_fact_files"])
@@ -1111,6 +1771,10 @@ def print_retrieval_explain(debug: dict, rows: Sequence[sqlite3.Row]) -> None:
     console.print(f"fact hits: {debug['fact_hits']}")
     console.print(f"file summary hits: {debug['file_summary_hits']}")
     console.print(f"repo memory: {'loaded' if debug['memory_loaded'] else 'not loaded'}")
+    console.print(f"git context: {'loaded' if debug.get('git_context') else 'not loaded'}")
+    console.print(f"github refs: {debug.get('github_refs', 0)}")
+    console.print(f"test failures: {debug.get('test_failures', 0)}")
+    console.print(f"error matches: {debug.get('error_matches', 0)}")
     console.print(f"merged unique: {debug['merged_unique']}")
     console.print(f"mode: {debug['mode']}")
     console.print(f"intent: {debug['intent']}")
@@ -1126,6 +1790,16 @@ def print_retrieval_explain(debug: dict, rows: Sequence[sqlite3.Row]) -> None:
             else f"{debug['ranking_mode']} disabled"
         )
     )
+    if debug.get("missing_context_desired"):
+        console.print(f"missing-context desired: {', '.join(debug['missing_context_desired'])}")
+        console.print(f"missing-context added: {', '.join(debug.get('missing_context_added', [])) or '-'}")
+        console.print(f"missing-context remaining: {', '.join(debug.get('missing_context_remaining', [])) or '-'}")
+    timings = debug.get("timings_ms") or {}
+    if timings:
+        console.print(
+            "timings (ms): "
+            + ", ".join(f"{name}={value:.2f}" if isinstance(value, float) else f"{name}={value}" for name, value in timings.items())
+        )
     console.print("\n[bold]Selected:[/bold]")
     for index, row in enumerate(rows[:10], start=1):
         console.print(
