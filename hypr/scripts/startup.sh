@@ -106,7 +106,8 @@ if [ "${HYPR_WARM_DESKTOP_APPS:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/
 fi
 
 # Optional cold-start improvement: keep browser process hot in background.
-if [ "${HYPR_PRELAUNCH_BROWSER:-1}" = "1" ] && ! pgrep -x 'chrome|google-chrome|google-chrome-stable|chromium|chromium-browser' >/dev/null 2>&1; then
+# Default off to reduce login work; opt in with HYPR_PRELAUNCH_BROWSER=1.
+if [ "${HYPR_PRELAUNCH_BROWSER:-0}" = "1" ] && ! pgrep -x 'chrome|google-chrome|google-chrome-stable|chromium|chromium-browser' >/dev/null 2>&1; then
   (
     sleep 10
     for browser in google-chrome-stable google-chrome chromium chromium-browser; do

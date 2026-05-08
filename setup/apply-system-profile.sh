@@ -39,6 +39,11 @@ for template in "$SYS_DIR"/boot/loader/entries/*.conf; do
   chmod 644 "$dst"
 done
 
+if [[ -f "$SYS_DIR/boot/loader/loader.conf" ]]; then
+  backup /boot/loader/loader.conf
+  install -Dm644 "$SYS_DIR/boot/loader/loader.conf" /boot/loader/loader.conf
+fi
+
 install -Dm644 "$SYS_DIR/etc/systemd/system/noxflow-timeshift-auto.service" /etc/systemd/system/noxflow-timeshift-auto.service
 install -Dm644 "$SYS_DIR/etc/systemd/system/noxflow-timeshift-auto.timer" /etc/systemd/system/noxflow-timeshift-auto.timer
 
