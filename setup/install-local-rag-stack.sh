@@ -126,6 +126,7 @@ elif "$CONTAINER_RUNTIME" ps -a --format '{{.Names}}' | grep -Fxq "$QDRANT_CONTA
   "$CONTAINER_RUNTIME" start "$QDRANT_CONTAINER" >/dev/null
 else
   "$CONTAINER_RUNTIME" run -d \
+    --restart unless-stopped \
     --name "$QDRANT_CONTAINER" \
     -p 6333:6333 \
     -v "${RAG_HOME}/qdrant_storage:/qdrant/storage" \

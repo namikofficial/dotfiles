@@ -27,24 +27,17 @@ Text to explain:
 ${text_to_explain}"
 
 explanation=""
-for endpoint in "http://localhost:11434/api/generate" "http://127.0.0.1:8000/v1/completions"; do
-  if explanation="$(curl -s --max-time 15 "$endpoint" \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d "{\"prompt\":\"$prompt\",\"stream\":false,\"num_predict\":1000}" 2>/dev/null)"; then
-    [ -n "$explanation" ] && break
-  fi
-done
+explanation="$(curl -fsS --max-time 20 "http://127.0.0.1:8080/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -n --arg prompt "$prompt" '{model:"local",messages:[{role:"system",content:"You explain technical material deeply and clearly."},{role:"user",content:$prompt}],temperature:0.3,stream:false,max_tokens:1000}')" 2>/dev/null || true)"
 
 if [ -z "$explanation" ]; then
-  notify "❌ Local AI not running" "Start: llama-server (see LOCAL_AI_SETUP.md)"
+  notify "❌ Local AI not running" "Start: llama-swap-manager start"
   exit 1
 fi
 
 # Extract response
-explanation_text="$(printf '%s' "$explanation" | \
-  grep -o '"response":"[^"]*' | head -1 | cut -d'"' -f4 || \
-  printf '%s' "$explanation" | head -30)"
+explanation_text="$(jq -r '.choices[0].message.content // empty' <<<"$explanation" 2>/dev/null || true)"
 
 [ -n "$explanation_text" ] || { notify "❌ AI failed"; exit 1; }
 
@@ -64,6 +57,5 @@ printf '%s\n' "$formatted" | \
   rofi -dmenu -i -p "Explanation" "${rofi_theme_arg[@]}" >/dev/null 2>&1 || true
 
 notify "✓ Done" ""
-
 
 
