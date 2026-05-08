@@ -26,9 +26,181 @@ from .retrieval import (
     retrieve,
 )
 from .runtime import CONFIG_PATH, DB_PATH, console
-from .settings import get_index_profile, load_config
+from .settings import get_index_profile, get_mode_profile, load_config
+from .state import (
+    add_command,
+    add_decision,
+    add_error,
+    add_todo,
+    format_operational_state,
+    get_session,
+    list_commands,
+    list_decisions,
+    list_errors,
+    list_sessions,
+    list_todos,
+    load_operational_state,
+    record_session,
+    save_handoff,
+    session_files,
+    update_todo_status,
+)
 from .storage import connect_db, ensure_collection, get_qdrant, infer_repo_filter, resolve_repo_name, repo_identity
 from .types import IndexInterrupted
+
+
+def route_mode(query: str) -> tuple[str, str]:
+    lowered = query.lower()
+    terms = lowered.split()
+    agent_markers = (
+        "agent",
+        "handoff",
+        "codex",
+        "copilot",
+        "opencode",
+        "implement",
+        "migration",
+        "multi-step",
+        "prepare context",
+        "task graph",
+    )
+    deep_markers = (
+        "review",
+        "architecture",
+        "analyze",
+        "debug",
+        "investigate",
+        "cleanup",
+        "refactor",
+        "plan",
+        "workflow",
+        "broken",
+        "failing",
+        "why",
+    )
+    if any(marker in lowered for marker in agent_markers):
+        return "agent", "matched long-running implementation or handoff language"
+    if "\n" in query or len(terms) >= 18 or any(marker in lowered for marker in deep_markers):
+        return "deep", "matched analysis/debug depth heuristics"
+    return "quick", "defaulted to the fast question path"
+
+
+def resolved_mode(args: argparse.Namespace, config: dict) -> tuple[str, str]:
+    requested = getattr(args, "mode", None) or config["routing"]["default_mode"]
+    if requested and requested != "auto":
+        return requested, f"explicit {requested} mode"
+    return route_mode(args.query)
+
+
+def optional_repo_memory(args: argparse.Namespace, result, mode_config: dict) -> str | None:
+    use_memory = bool(mode_config["answer"]["use_memory"])
+    if getattr(args, "memory", False):
+        use_memory = True
+    return result.memory["summary"] if use_memory and result.memory else None
+
+
+def render_handoff(
+    query: str,
+    repo: str | None,
+    route_reason: str,
+    context: str,
+    files: list[str],
+    state_text: str | None,
+) -> str:
+    file_lines = [f"- {item}" for item in files] if files else ["- none captured"]
+    sections = [
+        "# Coding agent handoff",
+        "",
+        "## Goal",
+        query,
+        "",
+        "## Target repo",
+        repo or "unscoped",
+        "",
+        "## Constraints",
+        "- Stay grounded in retrieved files and state.",
+        "- Preserve current CLI compatibility surfaces unless the code demands otherwise.",
+        "- Prefer retrieval/ranking/state improvements over extra helper-model chains.",
+        "",
+        "## Routing",
+        f"- mode: agent",
+        f"- reason: {route_reason}",
+        "",
+    ]
+    if state_text:
+        sections.extend(["## Operational state", state_text, ""])
+    sections.extend(
+        [
+            "## Important files",
+            *file_lines,
+            "",
+            "## Retrieved context",
+            context or "No context packed.",
+            "",
+            "## Suggested first steps",
+            "- Re-open the important files and validate the retrieved context before editing.",
+            "- Turn any incomplete items into concrete code/test tasks.",
+            "- Keep changes small, then rerun the relevant tests.",
+        ]
+    )
+    return "\n".join(sections).strip()
+
+
+def run_query_mode(args: argparse.Namespace) -> int:
+    config = load_config()
+    mode, route_reason = resolved_mode(args, config)
+    effective_config = get_mode_profile(config, mode)
+    conn = connect_db()
+    client = get_qdrant(effective_config)
+    repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    result = retrieve(
+        conn,
+        client,
+        effective_config,
+        args.query,
+        repo,
+        reranker_enabled(effective_config, getattr(args, "rerank", None)),
+        mode=mode,
+    )
+    if not result.rows:
+        console.print("[yellow]No indexed context matched that query.[/yellow]")
+        return 1
+    state_text: str | None = None
+    if effective_config["answer"]["use_operational_state"]:
+        state_text = format_operational_state(load_operational_state(conn, repo))
+    context, files = gather_context(
+        result.rows,
+        effective_config,
+        facts=result.facts,
+        summaries=result.summaries,
+        memory=optional_repo_memory(args, result, effective_config),
+        operational_state=state_text,
+        operational_state_tokens=int(effective_config["answer"]["operational_state_tokens"]),
+    )
+    if getattr(args, "show_context", False):
+        print_retrieval_explain(result.debug, result.rows)
+        console.print(f"\n[bold]Route:[/bold] {mode} ({route_reason})")
+        console.print("\n[bold]Context:[/bold]")
+        console.print(context)
+        console.print()
+    if mode == "agent" and getattr(args, "output_format", "handoff") == "handoff":
+        output = render_handoff(args.query, repo, route_reason, context, files, state_text)
+        console.print(output)
+        session_id = record_session(conn, repo, mode, args.query, route_reason, "handoff", output, files)
+        if getattr(args, "save_handoff", False):
+            handoff_path = save_handoff(repo, args.query, output)
+            console.print(f"\n[green]Saved[/green] handoff to {handoff_path}")
+        console.print(f"\n[dim]Session {session_id} saved.[/dim]")
+        return 0
+    answer = ask_llm(effective_config, args.query, context, mode=mode)
+    console.print(f"[bold]{mode.title()} answer:[/bold]")
+    console.print(answer or "[red]No answer returned.[/red]")
+    console.print("\n[bold]Relevant files:[/bold]")
+    for item in files:
+        console.print(f"- {item}")
+    session_id = record_session(conn, repo, mode, args.query, route_reason, "answer", answer, files)
+    console.print(f"\n[dim]Session {session_id} saved.[/dim]")
+    return 0
 
 
 def cmd_index(args: argparse.Namespace) -> int:
@@ -111,6 +283,9 @@ def cmd_status(_args: argparse.Namespace) -> int:
     console.print(f"Facts: {conn.execute('SELECT COUNT(*) FROM facts').fetchone()[0]}")
     console.print(f"File summaries: {conn.execute('SELECT COUNT(*) FROM file_summaries').fetchone()[0]}")
     console.print(f"Repo memories: {conn.execute('SELECT COUNT(*) FROM repo_memory').fetchone()[0]}")
+    console.print(f"Todos: {conn.execute('SELECT COUNT(*) FROM task_todos').fetchone()[0]}")
+    console.print(f"Decisions: {conn.execute('SELECT COUNT(*) FROM task_decisions').fetchone()[0]}")
+    console.print(f"Sessions: {conn.execute('SELECT COUNT(*) FROM task_sessions').fetchone()[0]}")
     console.print(f"Embedding model: {config['embedding_model']}")
     console.print(f"Answer model: {config['answer_model']}")
     console.print(
@@ -168,6 +343,11 @@ def cmd_clean(args: argparse.Namespace) -> int:
         conn.execute("DELETE FROM file_summaries")
         conn.execute("DELETE FROM repo_memory")
         conn.execute("DELETE FROM indexed_repos")
+        conn.execute("DELETE FROM task_todos")
+        conn.execute("DELETE FROM task_decisions")
+        conn.execute("DELETE FROM command_memory")
+        conn.execute("DELETE FROM error_memory")
+        conn.execute("DELETE FROM task_sessions")
         conn.commit()
         ensure_collection(client, config)
         console.print("[green]Cleared[/green] all local RAG state")
@@ -189,6 +369,11 @@ def cmd_clean(args: argparse.Namespace) -> int:
     conn.execute("DELETE FROM file_summaries WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM repo_memory WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM indexed_repos WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM task_todos WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM task_decisions WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM command_memory WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM error_memory WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM task_sessions WHERE repo = ?", (repo,))
     conn.commit()
     console.print(f"[green]Cleared[/green] repo state for {repo}")
     return 0
@@ -223,33 +408,22 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 
 def cmd_ask(args: argparse.Namespace) -> int:
-    config = load_config()
-    conn = connect_db()
-    client = get_qdrant(config)
-    repo = infer_repo_filter(conn, args.repo)
-    result = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
-    if not result.rows:
-        console.print("[yellow]No indexed context matched that query.[/yellow]")
-        return 1
-    context, files = gather_context(
-        result.rows,
-        config,
-        facts=result.facts,
-        summaries=result.summaries,
-        memory=result.memory["summary"] if args.memory and result.memory else None,
-    )
-    if args.show_context:
-        print_retrieval_explain(result.debug, result.rows)
-        console.print("\n[bold]Context:[/bold]")
-        console.print(context)
-        console.print()
-    answer = ask_llm(config, args.query, context)
-    console.print("[bold]Answer:[/bold]")
-    console.print(answer or "[red]No answer returned.[/red]")
-    console.print("\n[bold]Relevant files:[/bold]")
-    for item in files:
-        console.print(f"- {item}")
-    return 0
+    return run_query_mode(args)
+
+
+def cmd_quick(args: argparse.Namespace) -> int:
+    args.mode = "quick"
+    return run_query_mode(args)
+
+
+def cmd_deep(args: argparse.Namespace) -> int:
+    args.mode = "deep"
+    return run_query_mode(args)
+
+
+def cmd_agent(args: argparse.Namespace) -> int:
+    args.mode = "agent"
+    return run_query_mode(args)
 
 
 def cmd_summarize_files(args: argparse.Namespace) -> int:
@@ -329,6 +503,129 @@ def cmd_memory(args: argparse.Namespace) -> int:
     raise SystemExit(f"Unknown memory command: {args.memory_command}")
 
 
+def cmd_todo(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    if args.todo_command == "list":
+        rows = list_todos(conn, repo, args.status, args.limit)
+        table = Table(title="RAG todos")
+        table.add_column("id", justify="right")
+        table.add_column("status")
+        table.add_column("title")
+        table.add_column("repo")
+        for row in rows:
+            table.add_row(str(row["todo_id"]), row["status"], row["title"], row["repo"] or "-")
+        console.print(table)
+        return 0
+    if args.todo_command == "add":
+        todo_id = add_todo(conn, repo, args.title, detail=args.detail, status=args.status)
+        console.print(f"[green]Added[/green] todo {todo_id}")
+        return 0
+    if args.todo_command == "done":
+        if not update_todo_status(conn, args.todo_id, "done"):
+            console.print(f"[yellow]Todo {args.todo_id} not found.[/yellow]")
+            return 1
+        console.print(f"[green]Completed[/green] todo {args.todo_id}")
+        return 0
+    if args.todo_command == "start":
+        if not update_todo_status(conn, args.todo_id, "in_progress"):
+            console.print(f"[yellow]Todo {args.todo_id} not found.[/yellow]")
+            return 1
+        console.print(f"[green]Marked[/green] todo {args.todo_id} in progress")
+        return 0
+    raise SystemExit(f"Unknown todo command: {args.todo_command}")
+
+
+def cmd_decision(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    if args.decision_command == "list":
+        rows = list_decisions(conn, repo, args.limit)
+        table = Table(title="RAG decisions")
+        table.add_column("id", justify="right")
+        table.add_column("title")
+        table.add_column("detail")
+        table.add_column("repo")
+        for row in rows:
+            table.add_row(str(row["decision_id"]), row["title"], row["detail"][:100], row["repo"] or "-")
+        console.print(table)
+        return 0
+    decision_id = add_decision(conn, repo, args.title, args.detail, rationale=args.rationale)
+    console.print(f"[green]Added[/green] decision {decision_id}")
+    return 0
+
+
+def cmd_command_memory(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    if args.command_memory_command == "list":
+        rows = list_commands(conn, repo, args.limit)
+        table = Table(title="RAG commands")
+        table.add_column("id", justify="right")
+        table.add_column("command")
+        table.add_column("purpose")
+        table.add_column("repo")
+        for row in rows:
+            table.add_row(str(row["command_id"]), row["command"], row["purpose"] or "-", row["repo"] or "-")
+        console.print(table)
+        return 0
+    command_id = add_command(conn, repo, args.command_text, purpose=args.purpose, notes=args.notes)
+    console.print(f"[green]Added[/green] command {command_id}")
+    return 0
+
+
+def cmd_error_memory(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    if args.error_command == "list":
+        rows = list_errors(conn, repo, args.limit)
+        table = Table(title="RAG errors")
+        table.add_column("id", justify="right")
+        table.add_column("error")
+        table.add_column("fix")
+        table.add_column("repo")
+        for row in rows:
+            table.add_row(str(row["error_id"]), row["error_text"][:80], (row["fix_text"] or "-")[:80], row["repo"] or "-")
+        console.print(table)
+        return 0
+    error_id = add_error(conn, repo, args.error_text, fix_text=args.fix, notes=args.notes)
+    console.print(f"[green]Added[/green] error {error_id}")
+    return 0
+
+
+def cmd_session(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = resolve_repo_name(conn, args.repo)
+    if args.session_command == "list":
+        rows = list_sessions(conn, repo, args.limit)
+        table = Table(title="RAG sessions")
+        table.add_column("id")
+        table.add_column("mode")
+        table.add_column("kind")
+        table.add_column("query")
+        for row in rows:
+            table.add_row(row["session_id"], row["mode"], row["output_kind"], row["query"][:90])
+        console.print(table)
+        return 0
+    row = get_session(conn, args.session_id)
+    if row is None:
+        console.print(f"[yellow]Session {args.session_id} not found.[/yellow]")
+        return 1
+    console.print(f"[bold]Session[/bold] {row['session_id']} [{row['mode']}]")
+    console.print(f"Repo: {row['repo'] or 'unscoped'}")
+    console.print(f"Reason: {row['route_reason']}")
+    console.print("\n[bold]Query:[/bold]")
+    console.print(row["query"])
+    console.print("\n[bold]Output:[/bold]")
+    console.print(row["output_text"])
+    files = session_files(row)
+    if files:
+        console.print("\n[bold]Files:[/bold]")
+        for item in files:
+            console.print(f"- {item}")
+    return 0
+
+
 def cmd_facts(args: argparse.Namespace) -> int:
     conn = connect_db()
     repo = resolve_repo_name(conn, args.repo)
@@ -377,7 +674,7 @@ def trace_fact_rows(
     limit: int,
 ) -> list[sqlite3.Row]:
     if kind == "keybind":
-        plan = RetrievalPlan(query=query, repo=repo, rewrites=[], intent="keybind")
+        plan = RetrievalPlan(query=query, repo=repo, rewrites=[], intent="keybind", mode="quick")
         return fact_hits(conn, plan, config)[:limit]
     sql = """
         SELECT fact_id, repo, path, kind, key, value, line, confidence, updated_at
@@ -482,7 +779,17 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     fact_count = conn.execute("SELECT COUNT(*) AS count FROM facts").fetchone()["count"]
     summary_count = conn.execute("SELECT COUNT(*) AS count FROM file_summaries").fetchone()["count"]
     memory_count = conn.execute("SELECT COUNT(*) AS count FROM repo_memory").fetchone()["count"]
-    table.add_row("memory", "ok", f"{fact_count} facts, {summary_count} file summaries, {memory_count} repo memories")
+    todo_count = conn.execute("SELECT COUNT(*) AS count FROM task_todos").fetchone()["count"]
+    decision_count = conn.execute("SELECT COUNT(*) AS count FROM task_decisions").fetchone()["count"]
+    session_count = conn.execute("SELECT COUNT(*) AS count FROM task_sessions").fetchone()["count"]
+    table.add_row(
+        "memory",
+        "ok",
+        (
+            f"{fact_count} facts, {summary_count} file summaries, {memory_count} repo memories, "
+            f"{todo_count} todos, {decision_count} decisions, {session_count} sessions"
+        ),
+    )
     try:
         with urllib.request.urlopen(
             urllib.request.Request(
@@ -526,6 +833,65 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="rag")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    def add_query_parser(
+        name: str,
+        help_text: str,
+        handler,
+        *,
+        include_mode_flag: bool = False,
+        default_output_format: str = "answer",
+    ) -> argparse.ArgumentParser:
+        query_parser = subparsers.add_parser(name, help=help_text)
+        query_parser.add_argument("query")
+        query_parser.add_argument("--repo", help="Filter to a repo name")
+        query_parser.add_argument(
+            "--memory",
+            action="store_true",
+            help="Force repo memory into the packed context for this run.",
+        )
+        query_parser.add_argument(
+            "--show-context",
+            action="store_true",
+            help="Print the packed retrieval context before the answer or handoff.",
+        )
+        rerank_group = query_parser.add_mutually_exclusive_group()
+        rerank_group.add_argument(
+            "--rerank",
+            dest="rerank",
+            action="store_true",
+            default=None,
+            help="Force the reranker on for this query.",
+        )
+        rerank_group.add_argument(
+            "--no-rerank",
+            dest="rerank",
+            action="store_false",
+            help="Skip the reranker for this query.",
+        )
+        if include_mode_flag:
+            query_parser.add_argument(
+                "--mode",
+                choices=["auto", "quick", "deep", "agent"],
+                default="auto",
+                help="Routing mode for `rag ask` (defaults to config routing.default_mode / auto).",
+            )
+        if name == "agent":
+            query_parser.add_argument(
+                "--output-format",
+                choices=["handoff", "answer"],
+                default=default_output_format,
+                help="Emit a coding-agent handoff or a direct answer.",
+            )
+            query_parser.add_argument(
+                "--save-handoff",
+                action="store_true",
+                help="Persist the generated handoff under ~/ai-rag/projects/<repo>/handoffs/.",
+            )
+        else:
+            query_parser.set_defaults(output_format=default_output_format, save_handoff=False)
+        query_parser.set_defaults(func=handler)
+        return query_parser
+
     index_parser = subparsers.add_parser("index", help="Index a repo or folder")
     index_parser.add_argument(
         "path",
@@ -545,34 +911,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     index_parser.set_defaults(func=cmd_index)
 
-    ask_parser = subparsers.add_parser("ask", help="Ask a question against the local index")
-    ask_parser.add_argument("query")
-    ask_parser.add_argument("--repo", help="Filter to a repo name")
-    ask_parser.add_argument(
-        "--memory",
-        action="store_true",
-        help="Prepend stored repo memory before facts, file summaries, and chunks.",
+    add_query_parser("ask", "Ask a question against the local index", cmd_ask, include_mode_flag=True)
+    add_query_parser("quick", "Force the fast retrieval+answer path", cmd_quick)
+    add_query_parser("deep", "Force the deeper retrieval+planning path", cmd_deep)
+    add_query_parser(
+        "agent",
+        "Build a longer-form answer or coding-agent handoff with operational state",
+        cmd_agent,
+        default_output_format="handoff",
     )
-    ask_parser.add_argument(
-        "--show-context",
-        action="store_true",
-        help="Print the packed retrieval context before the answer.",
-    )
-    ask_rerank_group = ask_parser.add_mutually_exclusive_group()
-    ask_rerank_group.add_argument(
-        "--rerank",
-        dest="rerank",
-        action="store_true",
-        default=None,
-        help="Force the reranker on for this query.",
-    )
-    ask_rerank_group.add_argument(
-        "--no-rerank",
-        dest="rerank",
-        action="store_false",
-        help="Skip the reranker for this query.",
-    )
-    ask_parser.set_defaults(func=cmd_ask)
 
     search_parser = subparsers.add_parser("search", help="Search indexed chunks")
     search_parser.add_argument("query")
@@ -627,6 +974,75 @@ def build_parser() -> argparse.ArgumentParser:
     memory_parser.add_argument("--repo", help="Target repo name")
     memory_parser.add_argument("--all", action="store_true", help="Apply clear to all repos")
     memory_parser.set_defaults(func=cmd_memory)
+
+    todo_parser = subparsers.add_parser("todo", help="Manage structured RAG todos")
+    todo_subparsers = todo_parser.add_subparsers(dest="todo_command", required=True)
+    todo_list_parser = todo_subparsers.add_parser("list", help="List todos")
+    todo_list_parser.add_argument("--repo", help="Filter to one repo")
+    todo_list_parser.add_argument("--status", choices=["open", "in_progress", "done", "all"], default="open")
+    todo_list_parser.add_argument("--limit", type=int, default=20)
+    todo_list_parser.set_defaults(func=cmd_todo)
+    todo_add_parser = todo_subparsers.add_parser("add", help="Add a todo")
+    todo_add_parser.add_argument("title")
+    todo_add_parser.add_argument("--repo", help="Scope to one repo")
+    todo_add_parser.add_argument("--detail")
+    todo_add_parser.add_argument("--status", choices=["open", "in_progress", "done"], default="open")
+    todo_add_parser.set_defaults(func=cmd_todo)
+    todo_done_parser = todo_subparsers.add_parser("done", help="Mark a todo done")
+    todo_done_parser.add_argument("todo_id", type=int)
+    todo_done_parser.set_defaults(func=cmd_todo)
+    todo_start_parser = todo_subparsers.add_parser("start", help="Mark a todo in progress")
+    todo_start_parser.add_argument("todo_id", type=int)
+    todo_start_parser.set_defaults(func=cmd_todo)
+
+    decision_parser = subparsers.add_parser("decision", help="Manage structured engineering decisions")
+    decision_subparsers = decision_parser.add_subparsers(dest="decision_command", required=True)
+    decision_list_parser = decision_subparsers.add_parser("list", help="List decisions")
+    decision_list_parser.add_argument("--repo", help="Filter to one repo")
+    decision_list_parser.add_argument("--limit", type=int, default=20)
+    decision_list_parser.set_defaults(func=cmd_decision)
+    decision_add_parser = decision_subparsers.add_parser("add", help="Record a decision")
+    decision_add_parser.add_argument("title")
+    decision_add_parser.add_argument("detail")
+    decision_add_parser.add_argument("--repo", help="Scope to one repo")
+    decision_add_parser.add_argument("--rationale")
+    decision_add_parser.set_defaults(func=cmd_decision)
+
+    command_parser = subparsers.add_parser("command", help="Remember useful commands")
+    command_subparsers = command_parser.add_subparsers(dest="command_memory_command", required=True)
+    command_list_parser = command_subparsers.add_parser("list", help="List remembered commands")
+    command_list_parser.add_argument("--repo", help="Filter to one repo")
+    command_list_parser.add_argument("--limit", type=int, default=20)
+    command_list_parser.set_defaults(func=cmd_command_memory)
+    command_add_parser = command_subparsers.add_parser("add", help="Store a useful command")
+    command_add_parser.add_argument("command_text")
+    command_add_parser.add_argument("--repo", help="Scope to one repo")
+    command_add_parser.add_argument("--purpose")
+    command_add_parser.add_argument("--notes")
+    command_add_parser.set_defaults(func=cmd_command_memory)
+
+    error_parser = subparsers.add_parser("error", help="Remember recurring errors and fixes")
+    error_subparsers = error_parser.add_subparsers(dest="error_command", required=True)
+    error_list_parser = error_subparsers.add_parser("list", help="List remembered errors")
+    error_list_parser.add_argument("--repo", help="Filter to one repo")
+    error_list_parser.add_argument("--limit", type=int, default=20)
+    error_list_parser.set_defaults(func=cmd_error_memory)
+    error_add_parser = error_subparsers.add_parser("add", help="Store an error/fix pair")
+    error_add_parser.add_argument("error_text")
+    error_add_parser.add_argument("--repo", help="Scope to one repo")
+    error_add_parser.add_argument("--fix")
+    error_add_parser.add_argument("--notes")
+    error_add_parser.set_defaults(func=cmd_error_memory)
+
+    session_parser = subparsers.add_parser("session", help="Inspect saved RAG sessions")
+    session_subparsers = session_parser.add_subparsers(dest="session_command", required=True)
+    session_list_parser = session_subparsers.add_parser("list", help="List saved sessions")
+    session_list_parser.add_argument("--repo", help="Filter to one repo")
+    session_list_parser.add_argument("--limit", type=int, default=20)
+    session_list_parser.set_defaults(func=cmd_session)
+    session_show_parser = session_subparsers.add_parser("show", help="Show one saved session")
+    session_show_parser.add_argument("session_id")
+    session_show_parser.set_defaults(func=cmd_session)
 
     facts_parser = subparsers.add_parser("facts", help="List or query structured facts")
     facts_parser.add_argument("subject", help="Use `list` or a fact kind like alias, keybind, env, tool, sql-object")

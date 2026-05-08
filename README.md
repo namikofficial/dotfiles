@@ -224,6 +224,8 @@ Notification panel now includes sticky "System Hub" controls (GPU/media/network/
 AI helper behavior:
 - Uses `codex exec` in a dedicated Kitty window when available.
 - Falls back to opening ChatGPT in browser if Codex CLI is unavailable.
+- `ask` / `clipboard` / `shell` / `debug` prompts now inject compact local context (Arch + Hyprland + zsh, current project state, common aliases, and installed tools) instead of a generic one-paragraph preamble.
+- `shell` and `debug` flows bias toward safer command blocks, validation steps, and machine-specific tooling such as `rg`, `fd`, `bat`, `eza`, `gh`, `dc`, and `k`.
 
 ## Apply changes
 

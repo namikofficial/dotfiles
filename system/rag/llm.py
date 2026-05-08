@@ -27,7 +27,19 @@ def complete_llm(config: dict, system_prompt: str, user_prompt: str, max_tokens:
     return body.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
 
 
-def ask_llm(config: dict, question: str, context: str) -> str:
+def ask_llm(config: dict, question: str, context: str, mode: str = "quick") -> str:
+    if mode == "deep":
+        system_prompt = (
+            "You are a repo-aware local coding assistant. Use the supplied context first, stay concrete, "
+            "prefer code and runtime config over prose docs when they disagree, and cite file paths with "
+            "line ranges when possible. For deeper tasks, return markdown with sections: Answer, Plan, Risks, "
+            "and Missing Context. Keep the plan actionable and grounded in the provided files."
+        )
+        user_prompt = (
+            f"Task:\n{question}\n\nContext:\n{context}\n\n"
+            "Return a grounded engineering analysis with the required sections and concise bullets."
+        )
+        return complete_llm(config, system_prompt, user_prompt)
     system_prompt = (
         "You are a repo-aware local coding assistant. Use the supplied context first, stay concrete, "
         "prefer code and runtime config over prose docs when they disagree, and cite file paths with "

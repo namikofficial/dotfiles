@@ -27,6 +27,12 @@ DEFAULT_CONFIG = {
         "max_fact_files": 8,
         "max_summary_files": 8,
     },
+    "retrieval_pipeline": {
+        "rewrite_limit": 3,
+        "semantic_limit": 10,
+        "keyword_limit": 10,
+        "recent_limit": 10,
+    },
     "context_budget": {
         "total_tokens": 12000,
         "memory_tokens": 1800,
@@ -34,6 +40,80 @@ DEFAULT_CONFIG = {
         "file_summary_tokens": 2200,
         "chunk_tokens": 6000,
         "reserved_answer_tokens": 2200,
+    },
+    "routing": {
+        "default_mode": "auto",
+    },
+    "mode_profiles": {
+        "quick": {
+            "retrieval_pipeline": {
+                "rewrite_limit": 2,
+                "semantic_limit": 12,
+                "keyword_limit": 12,
+                "recent_limit": 6,
+            },
+            "retrieval": {
+                "max_chunks_per_file": 2,
+                "max_fact_files": 4,
+                "max_summary_files": 4,
+            },
+            "reranker": {
+                "top_k_input": 12,
+                "top_k_output": 6,
+            },
+            "answer": {
+                "use_memory": False,
+                "use_operational_state": False,
+                "operational_state_tokens": 0,
+                "style": "quick",
+            },
+        },
+        "deep": {
+            "retrieval_pipeline": {
+                "rewrite_limit": 4,
+                "semantic_limit": 30,
+                "keyword_limit": 30,
+                "recent_limit": 12,
+            },
+            "retrieval": {
+                "max_chunks_per_file": 3,
+                "max_fact_files": 10,
+                "max_summary_files": 10,
+            },
+            "reranker": {
+                "top_k_input": 30,
+                "top_k_output": 10,
+            },
+            "answer": {
+                "use_memory": True,
+                "use_operational_state": True,
+                "operational_state_tokens": 1200,
+                "style": "deep",
+            },
+        },
+        "agent": {
+            "retrieval_pipeline": {
+                "rewrite_limit": 5,
+                "semantic_limit": 36,
+                "keyword_limit": 36,
+                "recent_limit": 14,
+            },
+            "retrieval": {
+                "max_chunks_per_file": 4,
+                "max_fact_files": 12,
+                "max_summary_files": 12,
+            },
+            "reranker": {
+                "top_k_input": 36,
+                "top_k_output": 12,
+            },
+            "answer": {
+                "use_memory": True,
+                "use_operational_state": True,
+                "operational_state_tokens": 1600,
+                "style": "agent",
+            },
+        },
     },
     "indexing": {
         "profile": "balanced",
@@ -123,3 +203,10 @@ def get_index_profile(config: dict, override: str | None) -> tuple[str, dict]:
     if profile is None:
         raise SystemExit(f"Unknown index profile: {profile_name}")
     return profile_name, profile
+
+
+def get_mode_profile(config: dict, mode: str) -> dict:
+    profile = config["mode_profiles"].get(mode)
+    if profile is None:
+        raise SystemExit(f"Unknown mode profile: {mode}")
+    return merge_nested_dicts(config, profile)

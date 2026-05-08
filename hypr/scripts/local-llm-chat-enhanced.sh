@@ -8,7 +8,6 @@ set -euo pipefail
 C_BOLD='\033[1m'
 C_DIM='\033[2m'
 C_GREEN='\033[32m'
-C_BLUE='\033[34m'
 C_CYAN='\033[36m'
 C_YELLOW='\033[33m'
 C_RED='\033[31m'
@@ -18,6 +17,7 @@ endpoint="${LLM_CHAT_ENDPOINT:-http://127.0.0.1:8080/v1/chat/completions}"
 health="${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}"
 model="${LLM_CHAT_MODEL:-local}"
 context_script="${HOME}/.config/hypr/scripts/get-project-context.sh"
+prompt_builder="${HOME}/.config/hypr/scripts/ai-helper-context.sh"
 msg_count=0
 
 if [ -n "${LLAMA_LIBRARY_PATH:-}" ]; then
@@ -101,6 +101,39 @@ format_context_system_prompt() {
   printf '%s\n' "$context_str"
 }
 
+format_context_summary() {
+  local ctx_json="$1"
+  local dir branch file project_type uncommitted
+
+  dir=$(echo "$ctx_json" | jq -r '.directory // "."' 2>/dev/null || echo ".")
+  branch=$(echo "$ctx_json" | jq -r '.git.branch // ""' 2>/dev/null || echo "")
+  file=$(echo "$ctx_json" | jq -r '.file // ""' 2>/dev/null || echo "")
+  project_type=$(echo "$ctx_json" | jq -r '.project_type // "unknown"' 2>/dev/null || echo "unknown")
+  uncommitted=$(echo "$ctx_json" | jq -r '.git.uncommitted_files // 0' 2>/dev/null || echo "0")
+
+  printf 'Workspace: %s' "$dir"
+  [ -n "$branch" ] && printf ' | branch %s' "$branch"
+  [ "$uncommitted" -gt 0 ] && printf ' | %s changed files' "$uncommitted"
+  [ -n "$project_type" ] && printf ' | %s' "$project_type"
+  [ -n "$file" ] && printf ' | focus %s' "$file"
+  printf '\n'
+}
+
+refresh_context() {
+  context_json="$(get_project_context)"
+
+  if [ -x "$prompt_builder" ]; then
+    context_prompt="$("$prompt_builder" prompt scratchpad 2>/dev/null || true)"
+    context_summary="$("$prompt_builder" summary 2>/dev/null || true)"
+  else
+    context_prompt=""
+    context_summary=""
+  fi
+
+  [ -n "$context_prompt" ] || context_prompt="$(format_context_system_prompt "$context_json")"
+  [ -n "$context_summary" ] || context_summary="$(format_context_summary "$context_json")"
+}
+
 # Header
 printf '%s\n' "╭─────────────────────────────────────────────────────────────╮"
 printf '%s\n' "│           Local LLM AI Scratchpad (CUDA-enabled)           │"
@@ -127,10 +160,9 @@ printf '%s✓ Server ready%s at %s\n' "$C_GREEN" "$C_RESET" "$endpoint"
 printf '%sModel:%s %s\n\n' "$C_DIM" "$C_RESET" "$model"
 
 # Get context
-context_json=$(get_project_context)
-context_prompt=$(format_context_system_prompt "$context_json")
+refresh_context
 
-printf '%sContext:%s %s\n' "$C_DIM" "$C_RESET" "$(echo "$context_json" | jq -r '.directory // "."')"
+printf '%sContext:%s\n%s\n' "$C_DIM" "$C_RESET" "$context_summary"
 printf '%sCommands:%s /exit, /clear, /context, /help\n\n' "$C_DIM" "$C_RESET"
 
 # History with context
@@ -146,12 +178,14 @@ while :; do
       break
       ;;
     /clear)
+      refresh_context
       history="[$(jq -n --arg content "$context_prompt" '{role:"system",content:$content}')]"
       printf '%s✓ Context cleared%s\n' "$C_GREEN" "$C_RESET"
       continue
       ;;
     /context)
-      printf '%s%s%s\n' "$C_BOLD" "$context_prompt" "$C_RESET"
+      refresh_context
+      printf '%s%s%s\n' "$C_BOLD" "$context_summary" "$C_RESET"
       continue
       ;;
     /help)
@@ -172,17 +206,16 @@ while :; do
 
   # Call API
   printf '%s⟳ Thinking...%s' "$C_YELLOW" "$C_RESET"
+  curl_rc=0
   response="$(curl -fsS --max-time 120 "$endpoint" \
     -H 'Content-Type: application/json' \
-    -d "$payload" 2>/tmp/noxflow-llm-error.$$ || true)"
+    -d "$payload" 2>&1)" || curl_rc=$?
 
-  if [ -z "$response" ]; then
+  if [ "${curl_rc:-0}" -ne 0 ] || [ -z "$response" ]; then
     printf '\r%s✗ Request failed%s\n' "$C_RED" "$C_RESET"
-    sed -n '1,8p' /tmp/noxflow-llm-error.$$ 2>/dev/null || true
-    rm -f /tmp/noxflow-llm-error.$$
+    printf '%s\n' "$response" | sed -n '1,8p'
     continue
   fi
-  rm -f /tmp/noxflow-llm-error.$$
 
   answer="$(jq -r '.choices[0].message.content // .content // empty' <<<"$response")"
   if [ -z "$answer" ]; then

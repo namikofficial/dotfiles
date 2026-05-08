@@ -47,6 +47,7 @@ class RetrievalPlan:
     repo: str | None
     rewrites: list[str]
     intent: str
+    mode: str
 
 
 @dataclass
@@ -83,7 +84,7 @@ def query_terms(query: str) -> list[str]:
     return [token.lower() for token in re.findall(r"[A-Za-z0-9_./:-]+", query) if token.lower() not in STOPWORDS]
 
 
-def rewrite_queries(query: str) -> list[str]:
+def rewrite_queries(query: str, limit: int | None = None) -> list[str]:
     terms = query_terms(query)
     rewrites = [query.strip()]
     if terms:
@@ -94,7 +95,10 @@ def rewrite_queries(query: str) -> list[str]:
             split_terms.extend(split_symbol_tokens(term))
         if split_terms:
             rewrites.append(" ".join(dict.fromkeys(split_terms)))
-    return [rewrite for rewrite in dict.fromkeys(rewrites) if rewrite]
+    unique = [rewrite for rewrite in dict.fromkeys(rewrites) if rewrite]
+    if limit is not None:
+        return unique[:limit]
+    return unique
 
 
 def detect_intent(query: str) -> str:
@@ -106,8 +110,17 @@ def detect_intent(query: str) -> str:
     return "general"
 
 
-def build_retrieval_plan(query: str, repo: str | None) -> RetrievalPlan:
-    return RetrievalPlan(query=query, repo=repo, rewrites=rewrite_queries(query), intent=detect_intent(query))
+def build_retrieval_plan(query: str, repo: str | None, mode: str = "quick", config: dict | None = None) -> RetrievalPlan:
+    rewrite_limit = None
+    if config is not None:
+        rewrite_limit = int(config["retrieval_pipeline"]["rewrite_limit"])
+    return RetrievalPlan(
+        query=query,
+        repo=repo,
+        rewrites=rewrite_queries(query, limit=rewrite_limit),
+        intent=detect_intent(query),
+        mode=mode,
+    )
 
 
 def qdrant_filter(repo: str | None) -> models.Filter | None:
@@ -121,22 +134,24 @@ def qdrant_filter(repo: str | None) -> models.Filter | None:
 def semantic_hits(client: QdrantClient, config: dict, plan: RetrievalPlan) -> list[str]:
     hits: list[str] = []
     embedder = get_embedder(config)
-    for rewrite in plan.rewrites[:3]:
+    limit = int(config["retrieval_pipeline"]["semantic_limit"])
+    for rewrite in plan.rewrites[: int(config["retrieval_pipeline"]["rewrite_limit"])]:
         vector = list(embedder.embed([rewrite]))[0].tolist()
         response = client.query_points(
             collection_name=config["qdrant_collection"],
             query=vector,
             query_filter=qdrant_filter(plan.repo),
-            limit=10,
+            limit=limit,
             with_payload=True,
         )
         hits.extend(str(result.id) for result in response.points)
     return hits
 
 
-def keyword_hits(conn: sqlite3.Connection, plan: RetrievalPlan) -> list[str]:
+def keyword_hits(conn: sqlite3.Connection, config: dict, plan: RetrievalPlan) -> list[str]:
     hits: list[str] = []
-    for rewrite in plan.rewrites[:3]:
+    limit = int(config["retrieval_pipeline"]["keyword_limit"])
+    for rewrite in plan.rewrites[: int(config["retrieval_pipeline"]["rewrite_limit"])]:
         tokens = query_terms(rewrite)
         if not tokens:
             continue
@@ -144,14 +159,14 @@ def keyword_hits(conn: sqlite3.Connection, plan: RetrievalPlan) -> list[str]:
         sql = (
             "SELECT chunk_id FROM chunks_fts WHERE chunks_fts MATCH ?"
             + (" AND repo = ?" if plan.repo else "")
-            + " LIMIT 10"
+            + " LIMIT ?"
         )
-        params = [match] + ([plan.repo] if plan.repo else [])
+        params = [match] + ([plan.repo] if plan.repo else []) + [limit]
         hits.extend(row["chunk_id"] for row in conn.execute(sql, params).fetchall())
     return hits
 
 
-def recent_hits(conn: sqlite3.Connection, plan: RetrievalPlan) -> list[str]:
+def recent_hits(conn: sqlite3.Connection, config: dict, plan: RetrievalPlan) -> list[str]:
     terms = query_terms(plan.query)[:6]
     if not terms:
         return []
@@ -164,7 +179,8 @@ def recent_hits(conn: sqlite3.Connection, plan: RetrievalPlan) -> list[str]:
     if plan.repo:
         sql += " AND repo = ?"
         params.append(plan.repo)
-    sql += " ORDER BY modified_at DESC LIMIT 10"
+    sql += " ORDER BY modified_at DESC LIMIT ?"
+    params.append(int(config["retrieval_pipeline"]["recent_limit"]))
     return [row["chunk_id"] for row in conn.execute(sql, params).fetchall()]
 
 
@@ -424,8 +440,8 @@ def collect_retrieval_candidates(
     return RetrievalCandidates(
         plan=plan,
         semantic_ids=semantic_hits(client, config, plan),
-        keyword_ids=keyword_hits(conn, plan),
-        recent_ids=recent_hits(conn, plan),
+        keyword_ids=keyword_hits(conn, config, plan),
+        recent_ids=recent_hits(conn, config, plan),
         facts=fact_hits(conn, plan, config),
         summaries=file_summary_hits(conn, plan),
         memory=repo_memory_row(conn, plan.repo),
@@ -468,6 +484,7 @@ def rank_retrieval_candidates(
         "ranking_enabled": use_reranker,
         "ranking_mode": config["reranker"]["mode"],
         "intent": candidates.plan.intent,
+        "mode": candidates.plan.mode,
     }
     return RetrievalResult(
         plan=candidates.plan,
@@ -486,8 +503,9 @@ def retrieve(
     query: str,
     repo: str | None,
     use_reranker: bool,
+    mode: str = "quick",
 ) -> RetrievalResult:
-    plan = build_retrieval_plan(query, repo)
+    plan = build_retrieval_plan(query, repo, mode=mode, config=config)
     candidates = collect_retrieval_candidates(conn, client, config, plan)
     return rank_retrieval_candidates(conn, config, candidates, use_reranker)
 
@@ -498,6 +516,8 @@ def gather_context(
     facts: Sequence[sqlite3.Row] | None = None,
     summaries: Sequence[sqlite3.Row] | None = None,
     memory: str | None = None,
+    operational_state: str | None = None,
+    operational_state_tokens: int = 0,
 ) -> tuple[str, list[str]]:
     budgets = config["context_budget"]
     total_budget = budgets["total_tokens"]
@@ -517,6 +537,12 @@ def gather_context(
         if file_ref and file_ref not in seen_files:
             seen_files.append(file_ref)
         return True
+
+    if operational_state:
+        append_block(
+            f"<operational_state>\n{operational_state}\n</operational_state>",
+            limit=operational_state_tokens or budgets["memory_tokens"],
+        )
 
     if memory:
         append_block(f"<repo_memory>\n{memory}\n</repo_memory>", limit=budgets["memory_tokens"])
@@ -596,6 +622,7 @@ def print_retrieval_explain(debug: dict, rows: Sequence[sqlite3.Row]) -> None:
     console.print(f"file summary hits: {debug['file_summary_hits']}")
     console.print(f"repo memory: {'loaded' if debug['memory_loaded'] else 'not loaded'}")
     console.print(f"merged unique: {debug['merged_unique']}")
+    console.print(f"mode: {debug['mode']}")
     console.print(f"intent: {debug['intent']}")
     console.print(
         "ranking pass: "

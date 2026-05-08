@@ -9,6 +9,7 @@ OPENCODE_TEMPLATE="${HOME}/Documents/code/dotfiles/configs/opencode/opencode.loc
 OPENCODE_RUNTIME_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 OPENCODE_RUNTIME_CONFIG="${OPENCODE_RUNTIME_DIR}/opencode.json"
 AI_CONTEXT="${NOXFLOW_AI_CONTEXT:-$PWD}"
+PROMPT_BUILDER="${HOME}/.config/hypr/scripts/ai-helper-context.sh"
 
 C_BOLD='\033[1m'
 C_DIM='\033[2m'
@@ -196,6 +197,10 @@ available_models="$(remote_models | paste -sd ',' - | sed 's/,/, /g')"
 printf '%sWorkspace:%s %s\n' "$C_DIM" "$C_RESET" "$context_dir"
 printf '%sModel:%s %s\n' "$C_DIM" "$C_RESET" "$model"
 printf '%sAvailable:%s %s\n\n' "$C_DIM" "$C_RESET" "${available_models:-none}"
+if [ -x "$PROMPT_BUILDER" ]; then
+  ai_summary="$("$PROMPT_BUILDER" summary 2>/dev/null | sed -n '1,3p')"
+  [ -n "$ai_summary" ] && printf '%s%s%s\n\n' "$C_DIM" "$ai_summary" "$C_RESET"
+fi
 
 if [ "${NOXFLOW_AI_AUTOSTART:-0}" = "1" ]; then
   if launch_opencode "$model" "$context_dir"; then
@@ -205,5 +210,5 @@ if [ "${NOXFLOW_AI_AUTOSTART:-0}" = "1" ]; then
 fi
 
 printf '%sReady.%s Run %sopencode%s when you want the local AI agent.\n' "$C_GREEN" "$C_RESET" "$C_BOLD" "$C_RESET"
-printf '%sTip:%s you are already in the project root, and the OpenCode MCP env/config is prepared for this shell.\n\n' "$C_DIM" "$C_RESET"
+printf '%sTip:%s you are already in the project root, the OpenCode MCP env/config is prepared, and the fallback scratchpad chat now carries local workstation context.\n\n' "$C_DIM" "$C_RESET"
 exec zsh -li

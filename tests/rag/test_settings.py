@@ -11,7 +11,7 @@ import sys
 
 sys.path.insert(0, str(SYSTEM_DIR))
 
-from rag.settings import load_config, write_merged_config
+from rag.settings import get_mode_profile, load_config, write_merged_config
 
 
 class SettingsTest(unittest.TestCase):
@@ -41,6 +41,13 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(persisted["answer_model"], "custom-local")
         self.assertEqual(persisted["answer_url"], "http://127.0.0.1:8080/v1/chat/completions")
         self.assertEqual(persisted["key_aliases"]["mod"], "SUPER")
+
+    def test_get_mode_profile_applies_deep_overrides(self) -> None:
+        config = load_config(Path("/does-not-exist"))
+        deep = get_mode_profile(config, "deep")
+        self.assertEqual(deep["retrieval_pipeline"]["semantic_limit"], 30)
+        self.assertEqual(deep["reranker"]["top_k_output"], 10)
+        self.assertTrue(deep["answer"]["use_memory"])
 
 
 if __name__ == "__main__":

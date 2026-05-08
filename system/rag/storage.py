@@ -102,6 +102,68 @@ def ensure_db(conn: sqlite3.Connection) -> None:
             index_schema TEXT NOT NULL,
             source_chunk_count INTEGER NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS task_todos (
+            todo_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            repo TEXT,
+            title TEXT NOT NULL,
+            detail TEXT,
+            status TEXT NOT NULL DEFAULT 'open',
+            source_session_id TEXT,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_todos_repo_status ON task_todos(repo, status, updated_at);
+
+        CREATE TABLE IF NOT EXISTS task_decisions (
+            decision_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            repo TEXT,
+            title TEXT NOT NULL,
+            detail TEXT NOT NULL,
+            rationale TEXT,
+            source_session_id TEXT,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_decisions_repo_updated ON task_decisions(repo, updated_at);
+
+        CREATE TABLE IF NOT EXISTS command_memory (
+            command_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            repo TEXT,
+            command TEXT NOT NULL,
+            purpose TEXT,
+            notes TEXT,
+            source_session_id TEXT,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_command_memory_repo_updated ON command_memory(repo, updated_at);
+
+        CREATE TABLE IF NOT EXISTS error_memory (
+            error_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            repo TEXT,
+            error_text TEXT NOT NULL,
+            fix_text TEXT,
+            notes TEXT,
+            source_session_id TEXT,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_error_memory_repo_updated ON error_memory(repo, updated_at);
+
+        CREATE TABLE IF NOT EXISTS task_sessions (
+            session_id TEXT PRIMARY KEY,
+            repo TEXT,
+            mode TEXT NOT NULL,
+            query TEXT NOT NULL,
+            route_reason TEXT NOT NULL,
+            output_kind TEXT NOT NULL,
+            output_text TEXT NOT NULL,
+            relevant_files_json TEXT NOT NULL DEFAULT '[]',
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_sessions_repo_created ON task_sessions(repo, created_at);
         """
     )
     ensure_column(conn, "chunks", "index_schema", "TEXT")

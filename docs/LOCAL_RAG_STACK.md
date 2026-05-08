@@ -11,6 +11,8 @@ This repo now includes a repeatable local RAG bootstrap aimed at the current lap
 - **Facts layer:** exact structured facts for aliases, keybinds, env vars, tools, config keys, and SQL objects
 - **File summaries:** cheap routing summaries per indexed file
 - **Repo memory:** durable repo-level summary usable during `rag ask --memory`
+- **Mode surfaces:** explicit `rag quick`, `rag deep`, and `rag agent`, with `rag ask` kept as an auto-routing compatibility command
+- **Operational state:** structured todos, decisions, commands, errors, and sessions stored in SQLite for deep/agent reuse
 - **Code focus:** tuned for TypeScript, JavaScript, React/TSX, Rust, Kotlin, HTML, CSS, shell, GTK/XML-style UI files, and mixed config repos
 
 ## Install / repair the stack
@@ -51,6 +53,15 @@ rag facts list --kind keybind
 rag facts keybind scratchpad
 rag facts tool docker
 rag trace keybind Super Alt S
+rag quick "what does this config do?"
+rag deep "review the retrieval architecture"
+rag agent "prepare a Codex handoff for the RAG CLI" --save-handoff
+rag todo add "Add reranker support" --repo dotfiles
+rag todo list --repo dotfiles
+rag decision add "Use explicit modes" "Keep rag ask as a compatibility alias" --repo dotfiles
+rag command add "python -m unittest tests.rag.test_retrieval" --purpose "RAG regression check" --repo dotfiles
+rag error add "database is locked" --fix "retry after the active command finishes" --repo dotfiles
+rag session list --repo dotfiles
 rag summarize-files --changed-only
 rag summarize
 rag memory show
@@ -66,7 +77,7 @@ rag clean --repo noxflow
 rag clean --all
 ```
 
-When you run `rag ask` or `rag search` **from inside an indexed git repo**, the CLI auto-scopes to that repo unless you override it with `--repo`.
+When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **from inside an indexed git repo**, the CLI auto-scopes to that repo unless you override it with `--repo`.
 
 ## Machine-tuned defaults
 
@@ -104,8 +115,9 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
 5. merge chunk candidates with reciprocal rank fusion
 6. apply diversity limits so one file does not crowd out the rest
 7. rerank by lexical/path/symbol overlap (enabled by default, but optional)
-8. optionally prepend repo memory for `rag ask --memory`
-9. pack sections with per-section token budgets and send the result to Gemma
+8. route between quick / deep / agent behavior instead of treating every task the same way
+9. prepend repo memory and operational state for deeper tasks when available
+10. pack sections with per-section token budgets and send the result to Gemma, or emit a coding-agent handoff packet
 
 ## Notes
 
@@ -116,10 +128,14 @@ When you run `rag ask` or `rag search` **from inside an indexed git repo**, the 
   - reranker toggles with `--rerank` / `--no-rerank`
   - retrieval debugging with `rag search --explain`
   - packed-context inspection with `rag ask --show-context`
+  - explicit `rag quick` / `rag deep` / `rag agent` mode surfaces
+  - auto-routed `rag ask --mode auto|quick|deep|agent`
   - structured `rag facts` queries
   - trace-style fact inspection with `rag trace`
   - file summaries via `rag summarize-files`
   - repo memory via `rag summarize` / `rag memory show` / `rag memory status` / `rag ask --memory`
+  - structured operational memory via `rag todo`, `rag decision`, `rag command`, `rag error`, and `rag session`
+  - coding-agent handoff generation via `rag agent ... --save-handoff`
   - metadata with path / repo / kind / symbol / line ranges
   - answer prompts with file citations
 - It intentionally does **not** try to index lockfiles, build artifacts, binaries, or media by default.
