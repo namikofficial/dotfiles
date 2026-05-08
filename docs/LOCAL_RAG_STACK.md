@@ -12,8 +12,8 @@ This repo now includes a repeatable local RAG bootstrap aimed at the current lap
 - **Facts layer:** exact structured facts for aliases, keybinds, env vars, tools, config keys, and SQL objects
 - **File summaries:** cheap routing summaries per indexed file
 - **Repo memory:** durable repo-level summary usable during `rag ask --memory`
-- **Mode surfaces:** explicit `rag quick`, `rag deep`, and `rag agent`, with `rag ask` kept as an auto-routing compatibility command
-- **Operational state:** structured todos, decisions, commands, errors, and sessions stored in SQLite for deep/agent reuse
+- **Mode surfaces:** explicit `rag quick`, `rag deep`, `rag agent`, and target-specific `rag handoff`
+- **Operational state:** structured todos, decisions, commands, errors, sessions, developer memory notes, context packs, and session compactions stored in SQLite
 - **Code focus:** tuned for TypeScript, JavaScript, React/TSX, Rust, Kotlin, HTML, CSS, shell, GTK/XML-style UI files, and mixed config repos
 
 ## Install / repair the stack
@@ -32,7 +32,7 @@ That script is idempotent. You can rerun it to:
 
 ## Reindex after schema changes
 
-The current local index format is `rag-v4` / `semantic-lines-v4`. If your local SQLite/Qdrant state was built with an older schema, reset and rebuild it:
+The current local index format is `rag-v5` / `semantic-lines-v5`. If your local SQLite/Qdrant state was built with an older schema, reset and rebuild it:
 
 ```bash
 rag clean --all
@@ -68,7 +68,14 @@ rag summarize
 rag memory show
 rag memory status
 rag memory refresh
+rag memory remember known_stack backend "node nest mikro-orm postgres" --global-scope
+rag memory notes --scope all
+rag memory conflicts --repo dotfiles
+rag memory compact --repo dotfiles
+rag memory pack dotfiles --repo dotfiles --target-agent codex --write-file
+rag memory taxonomy --query backend
 rag memory clear --repo dotfiles
+rag handoff codex "prepare a RAG memory handoff" --save-handoff
 rag ask "How does tenant scoping work?"
 rag ask "How does tenant scoping work?" --show-context
 rag ask "What does Super Alt S do?" --memory
@@ -88,11 +95,17 @@ When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **
 - The chunker now recognizes more mixed-repo shapes, including TypeScript/JavaScript arrow functions, Rust modules/traits, Kotlin classes/functions, shell function/alias/env/case/tool blocks, TOML sections, YAML top-level sections, HTML/CSS sections, GTK/XML-style UI objects, and Hyprland config anchors.
 - Structured fact extraction now also covers `package.json` scripts/dependencies/workspaces, Docker Compose services/ports/dependencies/environment keys, and Nest-style TypeScript controllers/routes/services/entities.
 - Facts and file summaries are generated during indexing, so `rag reindex` refreshes them alongside the chunk/vector index.
+- Code indexing now keeps a developer profile, optional Tree-sitter parsing with regex fallback, AST/regex-derived symbol records, import/export edges, and a semantic line index for better code-aware recall.
+- Indexed code files also carry package metadata so monorepos can produce file dependency edges and deterministic package summaries.
 - Indexing profiles let you trade speed for richer derived state:
   - `fast`: chunks + facts only
   - `balanced`: chunks + facts + file summaries
   - `deep`: chunks + facts + file summaries + repo memory refresh
 - Context packing now uses separate budgets for repo memory, facts, file summaries, and chunks instead of one shared token pool.
+- Developer memory is split by kind (`project_facts`, `developer_preferences`, `known_stack`, `tool_preferences`, `hardware_profile`, `repo_conventions`) and kept separate from repo summaries.
+- Context packs can be generated into SQLite and optional `.context/*.toon` files for reusable handoffs.
+- Repo memory freshness now tracks commit drift, changed files/symbols, and a freshness score.
+- Tool taxonomy data is stored locally and used to expand queries/reranking for stack-specific prompts.
 - Retrieval diversity limits keep one file from dominating the final context window.
 - Metadata ranking now strongly prefers matching paths, symbols, and hinted file types, while treating recency as a weak tiebreaker instead of the main signal.
 - If you want higher retrieval quality later, edit `~/ai-rag/config.json` and switch:
@@ -137,8 +150,9 @@ When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **
   - trace-style fact inspection with `rag trace`
   - file summaries via `rag summarize-files`
   - repo memory via `rag summarize` / `rag memory show` / `rag memory status` / `rag ask --memory`
-  - structured operational memory via `rag todo`, `rag decision`, `rag command`, `rag error`, and `rag session`
-  - coding-agent handoff generation via `rag agent ... --save-handoff`
+  - structured operational memory via `rag todo`, `rag decision`, `rag command`, `rag error`, `rag session`, and `rag memory remember`
+  - reusable context packs via `rag memory pack`
+  - coding-agent handoff generation via `rag agent ... --target-agent ...` or `rag handoff <target> ...`
   - metadata with path / repo / kind / symbol / line ranges
   - answer prompts with file citations
 - It intentionally does **not** try to index lockfiles, build artifacts, binaries, or media by default.

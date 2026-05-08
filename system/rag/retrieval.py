@@ -4,7 +4,7 @@ import difflib
 import math
 import re
 import sqlite3
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Sequence
 
 from qdrant_client import QdrantClient, models
@@ -106,12 +106,12 @@ class RetrievalCandidates:
     plan: RetrievalPlan
     semantic_ids: list[str]
     keyword_ids: list[str]
-    semantic_line_ids: list[str]
-    symbol_ids: list[str]
-    recent_ids: list[str]
-    facts: list[sqlite3.Row]
-    summaries: list[sqlite3.Row]
-    memory: sqlite3.Row | None
+    semantic_line_ids: list[str] = field(default_factory=list)
+    symbol_ids: list[str] = field(default_factory=list)
+    recent_ids: list[str] = field(default_factory=list)
+    facts: list[sqlite3.Row] = field(default_factory=list)
+    summaries: list[sqlite3.Row] = field(default_factory=list)
+    memory: sqlite3.Row | None = None
 
 
 @dataclass

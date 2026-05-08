@@ -1150,8 +1150,8 @@ def index_repo(
 ) -> tuple[int, int]:
     ensure_collection(client, config)
     root, repo = repo_identity(root)
-    package_index = build_repo_package_index(root, repo)
     all_files = list(iter_text_files(root))
+    package_index = build_repo_package_index(root, repo, all_files)
     known_rel_paths = {path.relative_to(root).as_posix() for path in all_files}
     existing = {
         row["path"]: {

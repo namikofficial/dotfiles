@@ -16,10 +16,9 @@ except ModuleNotFoundError:  # pragma: no cover
 from .types import Chunk
 
 try:  # pragma: no cover - optional dependency during tests
-    from tree_sitter_language_pack import get_parser, has_language
+    from tree_sitter_language_pack import get_parser
 except ImportError:  # pragma: no cover
     get_parser = None  # type: ignore[assignment]
-    has_language = None  # type: ignore[assignment]
 
 TREE_SITTER_LANGUAGE_MAP = {
     "typescript": "typescript",
@@ -204,7 +203,7 @@ def approx_tokens(text: str) -> int:
 
 @lru_cache(maxsize=1)
 def tree_sitter_available() -> bool:
-    return get_parser is not None and has_language is not None
+    return get_parser is not None
 
 
 @lru_cache(maxsize=32)
@@ -212,9 +211,12 @@ def parser_for_language(language: str):
     if not tree_sitter_available():
         return None
     mapped = TREE_SITTER_LANGUAGE_MAP.get(language)
-    if not mapped or not has_language(mapped):
+    if not mapped:
         return None
-    return get_parser(mapped)
+    try:
+        return get_parser(mapped)
+    except Exception:  # pragma: no cover - optional runtime capability probe
+        return None
 
 
 @lru_cache(maxsize=256)
@@ -261,13 +263,22 @@ def package_name_from_manifest(path: Path) -> tuple[str, str]:
 MANIFEST_NAMES = ("package.json", "Cargo.toml", "go.mod", "pyproject.toml")
 
 
-def build_repo_package_index(root: Path, repo_name: str) -> RepoPackageIndex:
+def build_repo_package_index(
+    root: Path,
+    repo_name: str,
+    candidate_paths: Sequence[Path] | None = None,
+) -> RepoPackageIndex:
     scopes = [PackageScope(repo_name, "", "repo", "")]
-    for manifest_name in MANIFEST_NAMES:
-        for manifest in root.rglob(manifest_name):
-            rel_dir = manifest.parent.relative_to(root).as_posix()
-            name, ecosystem = package_name_from_manifest(manifest)
-            scopes.append(PackageScope(name, "" if rel_dir == "." else rel_dir, ecosystem, manifest.relative_to(root).as_posix()))
+    manifests: list[Path] = []
+    if candidate_paths is None:
+        for manifest_name in MANIFEST_NAMES:
+            manifests.extend(root.rglob(manifest_name))
+    else:
+        manifests.extend(path for path in candidate_paths if path.name in MANIFEST_NAMES)
+    for manifest in manifests:
+        rel_dir = manifest.parent.relative_to(root).as_posix()
+        name, ecosystem = package_name_from_manifest(manifest)
+        scopes.append(PackageScope(name, "" if rel_dir == "." else rel_dir, ecosystem, manifest.relative_to(root).as_posix()))
     deduped: dict[tuple[str, str], PackageScope] = {}
     for scope in sorted(scopes, key=lambda item: (len(item.rel_path), item.rel_path)):
         deduped[(scope.name, scope.rel_path)] = scope
@@ -620,22 +631,30 @@ def extract_regex_symbols(text: str, language: str) -> list[SymbolRecord]:
     lines = text.splitlines()
     anchors: list[tuple[int, str, str, str, bool]] = []
     class_stack: list[tuple[int, str]] = []
+    brace_depth = 0
     for line_no, line in enumerate(lines, start=1):
         indent = len(line) - len(line.lstrip())
         if language == "python":
             while class_stack and indent <= class_stack[-1][0]:
+                class_stack.pop()
+        elif language in {"typescript", "javascript"}:
+            while class_stack and brace_depth <= class_stack[-1][0]:
                 class_stack.pop()
         for kind, pattern in patterns:
             match = pattern.search(line)
             if not match:
                 continue
             name = match.group(1)
-            parent = class_stack[-1][1] if class_stack and kind == "function" else ""
+            parent = class_stack[-1][1] if class_stack and kind in {"function", "method"} else ""
             if kind == "class" and language == "python":
                 class_stack.append((indent, name))
+            elif kind == "class" and language in {"typescript", "javascript"}:
+                class_stack.append((brace_depth, name))
             qualified = f"{parent}.{name}" if parent and kind in {"function", "method"} else name
             anchors.append((line_no, name, kind if not parent else "method", qualified, line.strip().startswith(("export ", "pub "))))
             break
+        if language in {"typescript", "javascript"}:
+            brace_depth += line.count("{") - line.count("}")
     symbols: list[SymbolRecord] = []
     for index, (line_no, name, kind, qualified, exported) in enumerate(anchors):
         end_line = anchors[index + 1][0] - 1 if index + 1 < len(anchors) else len(lines)

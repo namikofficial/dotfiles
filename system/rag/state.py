@@ -193,7 +193,7 @@ def remember_memory(
         WHERE kind = ?
           AND normalized_subject = ?
           AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
-        ORDER BY updated_at DESC
+        ORDER BY updated_at DESC, memory_id DESC
         """,
         (kind, normalized_subject, scoped_repo, scoped_repo),
     ).fetchall()
@@ -277,7 +277,7 @@ def list_memory_entries(
     sql = "SELECT * FROM developer_memory"
     if clauses:
         sql += " WHERE " + " AND ".join(clauses)
-    sql += " ORDER BY kind, CASE status WHEN 'active' THEN 0 WHEN 'conflict' THEN 1 ELSE 2 END, updated_at DESC LIMIT ?"
+    sql += " ORDER BY kind, CASE status WHEN 'active' THEN 0 WHEN 'conflict' THEN 1 ELSE 2 END, updated_at DESC, memory_id DESC LIMIT ?"
     params.append(limit)
     return conn.execute(sql, params).fetchall()
 
@@ -313,7 +313,7 @@ def detect_memory_conflicts(
             SELECT * FROM developer_memory
             WHERE kind = ? AND normalized_subject = ?
               AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
-            ORDER BY updated_at DESC
+            ORDER BY updated_at DESC, memory_id DESC
             """,
             (group["kind"], group["normalized_subject"], group["repo"], group["repo"]),
         ).fetchall()
