@@ -14,6 +14,16 @@ from gitignore_parser import parse_gitignore
 from pathspec import PathSpec
 from qdrant_client import QdrantClient, models
 
+from .code_intel import (
+    FileAnalysis,
+    build_repo_package_index,
+    build_semantic_lines,
+    chunk_code_with_symbols,
+    dedupe_symbols,
+    extract_regex_symbols,
+    package_summary_rows,
+    analyze_file,
+)
 from .runtime import CHUNKER_NAME, INDEX_SCHEMA
 from .storage import ensure_collection, get_embedder, repo_identity
 from .types import Chunk, Fact, IndexInterrupted
@@ -610,6 +620,7 @@ def replace_file_facts(
     conn: sqlite3.Connection,
     repo: str,
     rel_path: str,
+    package: str,
     file_hash: str,
     facts: Sequence[Fact],
 ) -> None:
@@ -621,14 +632,15 @@ def replace_file_facts(
         conn.execute(
             """
             INSERT INTO facts (
-                fact_id, repo, path, kind, key, value, line,
+                fact_id, repo, path, package, kind, key, value, line,
                 confidence, source, file_hash, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 fact_id,
                 repo,
                 rel_path,
+                package,
                 fact.kind,
                 fact.key,
                 fact.value,
@@ -645,6 +657,7 @@ def replace_file_summary(
     conn: sqlite3.Connection,
     repo: str,
     rel_path: str,
+    package: str,
     file_hash: str,
     language: str,
     kind: str,
@@ -655,9 +668,10 @@ def replace_file_summary(
     conn.execute(
         """
         INSERT INTO file_summaries (
-            repo, path, file_hash, language, kind, summary, symbols, facts_count, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            repo, path, package, file_hash, language, kind, summary, symbols, facts_count, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(repo, path) DO UPDATE SET
+            package=excluded.package,
             file_hash=excluded.file_hash,
             language=excluded.language,
             kind=excluded.kind,
@@ -666,8 +680,202 @@ def replace_file_summary(
             facts_count=excluded.facts_count,
             updated_at=excluded.updated_at
         """,
-        (repo, rel_path, file_hash, language, kind, summary, symbols, facts_count, time.time()),
+        (repo, rel_path, package, file_hash, language, kind, summary, symbols, facts_count, time.time()),
     )
+
+
+def replace_file_symbols(
+    conn: sqlite3.Connection,
+    repo: str,
+    rel_path: str,
+    package: str,
+    package_root: str,
+    language: str,
+    parser: str,
+    file_hash: str,
+    symbols,
+) -> None:
+    conn.execute("DELETE FROM symbols WHERE repo = ? AND path = ?", (repo, rel_path))
+    conn.execute("DELETE FROM symbols_fts WHERE repo = ? AND path = ?", (repo, rel_path))
+    now = time.time()
+    for symbol in symbols:
+        symbol_key = f"{repo}:{rel_path}:{symbol.qualified_name}:{symbol.start_line}:{file_hash}"
+        symbol_id = str(uuid.uuid5(uuid.NAMESPACE_URL, symbol_key))
+        conn.execute(
+            """
+            INSERT INTO symbols (
+                symbol_id, repo, path, package, package_root, language, kind, name, qualified_name,
+                signature, docstring, visibility, parent_symbol, start_line, end_line,
+                exported, parser, file_hash, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                symbol_id,
+                repo,
+                rel_path,
+                package,
+                package_root,
+                language,
+                symbol.kind,
+                symbol.name,
+                symbol.qualified_name,
+                symbol.signature,
+                symbol.docstring,
+                symbol.visibility,
+                symbol.parent_symbol,
+                symbol.start_line,
+                symbol.end_line,
+                int(symbol.exported),
+                parser,
+                file_hash,
+                now,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO symbols_fts (
+                symbol_id, repo, path, package, name, qualified_name, kind, signature, docstring
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                symbol_id,
+                repo,
+                rel_path,
+                package,
+                symbol.name,
+                symbol.qualified_name,
+                symbol.kind,
+                symbol.signature,
+                symbol.docstring,
+            ),
+        )
+
+
+def replace_file_dependencies(
+    conn: sqlite3.Connection,
+    repo: str,
+    rel_path: str,
+    package: str,
+    package_root: str,
+    file_hash: str,
+    dependencies,
+) -> None:
+    conn.execute("DELETE FROM file_dependencies WHERE repo = ? AND source_path = ?", (repo, rel_path))
+    now = time.time()
+    for dependency in dependencies:
+        edge_key = f"{repo}:{rel_path}:{dependency.raw_target}:{dependency.line}:{file_hash}"
+        edge_id = str(uuid.uuid5(uuid.NAMESPACE_URL, edge_key))
+        conn.execute(
+            """
+            INSERT INTO file_dependencies (
+                edge_id, repo, source_path, package, package_root, dependency, dependency_kind,
+                target_path, line, is_export, is_internal, file_hash, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                edge_id,
+                repo,
+                rel_path,
+                package,
+                package_root,
+                dependency.raw_target,
+                dependency.kind,
+                dependency.target_path or None,
+                dependency.line,
+                int(dependency.is_export),
+                int(dependency.is_internal),
+                file_hash,
+                now,
+            ),
+        )
+
+
+def replace_semantic_lines(
+    conn: sqlite3.Connection,
+    repo: str,
+    rel_path: str,
+    package: str,
+    language: str,
+    file_hash: str,
+    chunks: Sequence[tuple[str, Chunk]],
+    semantic_lines,
+) -> None:
+    conn.execute("DELETE FROM semantic_lines WHERE repo = ? AND path = ?", (repo, rel_path))
+    conn.execute("DELETE FROM semantic_lines_fts WHERE repo = ? AND path = ?", (repo, rel_path))
+    now = time.time()
+    for semantic_line in semantic_lines:
+        chunk_id = next(
+            (
+                chunk_id
+                for chunk_id, chunk in chunks
+                if chunk.start_line <= semantic_line.line_no <= chunk.end_line
+            ),
+            chunks[0][0] if chunks else "",
+        )
+        if not chunk_id:
+            continue
+        line_key = f"{chunk_id}:{semantic_line.line_no}:{file_hash}"
+        line_id = str(uuid.uuid5(uuid.NAMESPACE_URL, line_key))
+        conn.execute(
+            """
+            INSERT INTO semantic_lines (
+                line_id, chunk_id, repo, path, package, language, line_no, symbol, content, file_hash, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                line_id,
+                chunk_id,
+                repo,
+                rel_path,
+                package,
+                language,
+                semantic_line.line_no,
+                semantic_line.symbol,
+                semantic_line.content,
+                file_hash,
+                now,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO semantic_lines_fts (
+                line_id, chunk_id, repo, path, package, symbol, content
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                line_id,
+                chunk_id,
+                repo,
+                rel_path,
+                package,
+                semantic_line.symbol,
+                semantic_line.content,
+            ),
+        )
+
+
+def replace_package_summaries(conn: sqlite3.Connection, repo: str) -> None:
+    conn.execute("DELETE FROM package_summaries WHERE repo = ?", (repo,))
+    now = time.time()
+    for row in package_summary_rows(conn, repo):
+        conn.execute(
+            """
+            INSERT INTO package_summaries (
+                repo, package, package_root, summary, symbols, dependencies, file_count, paths, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                repo,
+                row["package"],
+                row["package_root"],
+                row["summary"],
+                row["symbols"],
+                row["dependencies"],
+                row["file_count"],
+                row["paths"],
+                now,
+            ),
+        )
 
 
 def chunk_by_anchors(lines: list[str], anchors: list[tuple[int, str]], size: int, overlap: int, kind: str) -> list[Chunk]:
@@ -742,8 +950,18 @@ def chunk_markdown(text: str) -> list[Chunk]:
     return [chunk for chunk in chunks if chunk.content]
 
 
-def chunk_code(text: str) -> list[Chunk]:
+def chunk_code(text: str, language: str, analysis: FileAnalysis | None = None) -> list[Chunk]:
+    symbols = tuple(analysis.symbols) if analysis else ()
+    if symbols:
+        chunks = chunk_code_with_symbols(text, symbols)
+        if chunks:
+            return chunks
     lines = text.splitlines()
+    regex_symbols = dedupe_symbols(extract_regex_symbols(text, language))
+    if regex_symbols:
+        chunks = chunk_code_with_symbols(text, regex_symbols)
+        if chunks:
+            return chunks
     anchors = [(index, extract_symbol(line)) for index, line in enumerate(lines) if extract_symbol(line)]
     return chunk_by_anchors(lines, anchors, size=220, overlap=40, kind="code")
 
@@ -825,7 +1043,13 @@ def chunk_xml_ui(text: str) -> list[Chunk]:
     return chunk_by_anchors(lines, anchors, size=200, overlap=28, kind="config")
 
 
-def chunk_text(path: Path, text: str, kind: str, language: str) -> list[Chunk]:
+def chunk_text(
+    path: Path,
+    text: str,
+    kind: str,
+    language: str,
+    analysis: FileAnalysis | None = None,
+) -> list[Chunk]:
     if kind == "docs":
         return chunk_markdown(text)
     if kind == "code":
@@ -835,7 +1059,7 @@ def chunk_text(path: Path, text: str, kind: str, language: str) -> list[Chunk]:
             return chunk_css(text)
         if language == "html":
             return chunk_html(text)
-        return chunk_code(text)
+        return chunk_code(text, language, analysis)
     if kind == "log":
         return chunk_by_lines(text.splitlines(), size=350, overlap=50, kind="log")
     if kind == "config":
@@ -908,6 +1132,11 @@ def remove_file_chunks(conn: sqlite3.Connection, client: QdrantClient, config: d
     conn.execute("DELETE FROM chunks WHERE repo = ? AND path = ?", (repo, rel_path))
     conn.execute("DELETE FROM chunks_fts WHERE repo = ? AND path = ?", (repo, rel_path))
     conn.execute("DELETE FROM facts WHERE repo = ? AND path = ?", (repo, rel_path))
+    conn.execute("DELETE FROM symbols WHERE repo = ? AND path = ?", (repo, rel_path))
+    conn.execute("DELETE FROM symbols_fts WHERE repo = ? AND path = ?", (repo, rel_path))
+    conn.execute("DELETE FROM semantic_lines WHERE repo = ? AND path = ?", (repo, rel_path))
+    conn.execute("DELETE FROM semantic_lines_fts WHERE repo = ? AND path = ?", (repo, rel_path))
+    conn.execute("DELETE FROM file_dependencies WHERE repo = ? AND source_path = ?", (repo, rel_path))
     conn.execute("DELETE FROM file_summaries WHERE repo = ? AND path = ?", (repo, rel_path))
 
 
@@ -921,6 +1150,9 @@ def index_repo(
 ) -> tuple[int, int]:
     ensure_collection(client, config)
     root, repo = repo_identity(root)
+    package_index = build_repo_package_index(root, repo)
+    all_files = list(iter_text_files(root))
+    known_rel_paths = {path.relative_to(root).as_posix() for path in all_files}
     existing = {
         row["path"]: {
             "file_hash": row["file_hash"],
@@ -938,7 +1170,7 @@ def index_repo(
     changed_files = 0
     total_chunks = 0
     try:
-        for file_path in iter_text_files(root):
+        for file_path in all_files:
             rel_path = file_path.relative_to(root).as_posix()
             content = read_text_file(file_path)
             if not content or not content.strip():
@@ -954,21 +1186,29 @@ def index_repo(
             }:
                 continue
             kind, language = detect_kind(file_path)
-            chunks = chunk_text(file_path, content, kind, language)
+            analysis = analyze_file(root, file_path, rel_path, content, language, package_index, known_rel_paths)
+            chunks = chunk_text(file_path, content, kind, language, analysis=analysis)
             if not chunks:
                 continue
             facts = extract_facts(file_path, content, language, kind) if profile["facts"] else []
+            semantic_lines = build_semantic_lines(
+                content,
+                analysis.symbols,
+                max_lines=int(config["indexing"].get("semantic_line_limit", 800)),
+            )
             remove_file_chunks(conn, client, config, repo, rel_path)
             texts = [chunk.content for chunk in chunks]
             vectors = list(get_embedder(config).embed(texts))
             modified_at = file_path.stat().st_mtime
             points = []
+            chunk_rows: list[tuple[str, Chunk]] = []
             for index, (chunk, vector) in enumerate(zip(chunks, vectors)):
                 chunk_key = f"{repo}:{rel_path}:{file_hash}:{index}:{chunk.start_line}:{chunk.end_line}"
                 chunk_id = str(uuid.uuid5(uuid.NAMESPACE_URL, chunk_key))
                 payload = {
                     "repo": repo,
                     "path": rel_path,
+                    "package": analysis.package,
                     "language": language,
                     "kind": chunk.kind,
                     "symbol": chunk.symbol,
@@ -984,16 +1224,18 @@ def index_repo(
                 conn.execute(
                     """
                     INSERT INTO chunks (
-                        chunk_id, repo, root, path, language, kind, symbol, modified_at,
+                        chunk_id, repo, root, path, package, package_root, language, kind, symbol, modified_at,
                         file_hash, index_schema, embedding_model, chunker, chunk_index,
                         start_line, end_line, content
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         chunk_id,
                         repo,
                         str(root),
                         rel_path,
+                        analysis.package,
+                        analysis.package_root,
                         language,
                         chunk.kind,
                         chunk.symbol,
@@ -1008,15 +1250,57 @@ def index_repo(
                         chunk.content,
                     ),
                 )
+                chunk_rows.append((chunk_id, chunk))
                 conn.execute(
                     "INSERT INTO chunks_fts (chunk_id, repo, path, symbol, content) VALUES (?, ?, ?, ?, ?)",
                     (chunk_id, repo, rel_path, chunk.symbol, chunk.content),
                 )
+            replace_file_symbols(
+                conn,
+                repo,
+                rel_path,
+                analysis.package,
+                analysis.package_root,
+                language,
+                analysis.parser,
+                file_hash,
+                analysis.symbols,
+            )
+            replace_file_dependencies(
+                conn,
+                repo,
+                rel_path,
+                analysis.package,
+                analysis.package_root,
+                file_hash,
+                analysis.dependencies,
+            )
+            replace_semantic_lines(
+                conn,
+                repo,
+                rel_path,
+                analysis.package,
+                language,
+                file_hash,
+                chunk_rows,
+                semantic_lines,
+            )
             if profile["facts"]:
-                replace_file_facts(conn, repo, rel_path, file_hash, facts)
+                replace_file_facts(conn, repo, rel_path, analysis.package, file_hash, facts)
             if profile["file_summaries"]:
                 summary, symbols = summarize_file(rel_path, language, kind, chunks, facts)
-                replace_file_summary(conn, repo, rel_path, file_hash, language, kind, summary, symbols, len(facts))
+                replace_file_summary(
+                    conn,
+                    repo,
+                    rel_path,
+                    analysis.package,
+                    file_hash,
+                    language,
+                    kind,
+                    summary,
+                    symbols,
+                    len(facts),
+                )
             else:
                 conn.execute("DELETE FROM file_summaries WHERE repo = ? AND path = ?", (repo, rel_path))
             for batch in batched(points, 64):
@@ -1030,6 +1314,7 @@ def index_repo(
     removed_paths = set(existing) - set(discovered)
     for rel_path in removed_paths:
         remove_file_chunks(conn, client, config, repo, rel_path)
+    replace_package_summaries(conn, repo)
     conn.execute(
         "INSERT INTO indexed_repos (repo, root, last_indexed) VALUES (?, ?, ?) "
         "ON CONFLICT(repo) DO UPDATE SET root=excluded.root, last_indexed=excluded.last_indexed",

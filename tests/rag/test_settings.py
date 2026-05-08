@@ -41,6 +41,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(persisted["answer_model"], "custom-local")
         self.assertEqual(persisted["answer_url"], "http://127.0.0.1:8080/v1/chat/completions")
         self.assertEqual(persisted["key_aliases"]["mod"], "SUPER")
+        self.assertEqual(persisted["query_intelligence"]["abbreviations"]["cfg"][0], "config")
 
     def test_get_mode_profile_applies_deep_overrides(self) -> None:
         config = load_config(Path("/does-not-exist"))

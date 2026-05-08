@@ -8,6 +8,7 @@ This repo now includes a repeatable local RAG bootstrap aimed at the current lap
 - **Keyword retrieval:** SQLite FTS5 over the indexed chunks
 - **Hybrid retrieval:** dense + keyword + metadata fusion
 - **Reranker:** lightweight heuristic reranker enabled by default on this machine
+- **Query intelligence:** richer intent detection, developer abbreviations, symbol-aware rewrites, typo-tolerant lookup, and metadata boosts
 - **Facts layer:** exact structured facts for aliases, keybinds, env vars, tools, config keys, and SQL objects
 - **File summaries:** cheap routing summaries per indexed file
 - **Repo memory:** durable repo-level summary usable during `rag ask --memory`
@@ -83,6 +84,7 @@ When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **
 
 - The default embedding model is **`BAAI/bge-small-en-v1.5`** because it is lighter and faster for this machine.
 - The default reranker is a **heuristic local scoring pass, not a separate model reranker**, and is **enabled by default** here. You can override it per query with `--rerank` or `--no-rerank`.
+- Query rewriting now expands common developer shorthand like `cfg`, `svc`, `db`, and symbol-shaped queries like `AuthService.login`, then lightly corrects close typos from indexed path/symbol vocabulary.
 - The chunker now recognizes more mixed-repo shapes, including TypeScript/JavaScript arrow functions, Rust modules/traits, Kotlin classes/functions, shell function/alias/env/case/tool blocks, TOML sections, YAML top-level sections, HTML/CSS sections, GTK/XML-style UI objects, and Hyprland config anchors.
 - Structured fact extraction now also covers `package.json` scripts/dependencies/workspaces, Docker Compose services/ports/dependencies/environment keys, and Nest-style TypeScript controllers/routes/services/entities.
 - Facts and file summaries are generated during indexing, so `rag reindex` refreshes them alongside the chunk/vector index.
@@ -92,6 +94,7 @@ When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **
   - `deep`: chunks + facts + file summaries + repo memory refresh
 - Context packing now uses separate budgets for repo memory, facts, file summaries, and chunks instead of one shared token pool.
 - Retrieval diversity limits keep one file from dominating the final context window.
+- Metadata ranking now strongly prefers matching paths, symbols, and hinted file types, while treating recency as a weak tiebreaker instead of the main signal.
 - If you want higher retrieval quality later, edit `~/ai-rag/config.json` and switch:
 
 ```json

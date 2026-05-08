@@ -9,11 +9,28 @@ from pathlib import Path
 
 from .runtime import RAG_HOME
 
+MEMORY_KIND_LABELS = {
+    "project_facts": "Project facts",
+    "developer_preferences": "Developer preferences",
+    "known_stack": "Known stack",
+    "tool_preferences": "Tool preferences",
+    "hardware_profile": "Hardware profile",
+    "repo_conventions": "Repo conventions",
+}
+VALID_MEMORY_KINDS = tuple(MEMORY_KIND_LABELS)
+
 
 def _scope_clause(repo: str | None) -> tuple[str, list[object]]:
     if repo:
         return " WHERE repo = ?", [repo]
     return "", []
+
+
+
+def _normalize_memory_subject(subject: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-")
+    return slug or "memory"
+
 
 
 def add_todo(
@@ -36,6 +53,7 @@ def add_todo(
     return int(cursor.lastrowid)
 
 
+
 def list_todos(conn: sqlite3.Connection, repo: str | None, status: str | None, limit: int) -> list[sqlite3.Row]:
     clauses: list[str] = []
     params: list[object] = []
@@ -53,6 +71,7 @@ def list_todos(conn: sqlite3.Connection, repo: str | None, status: str | None, l
     return conn.execute(sql, params).fetchall()
 
 
+
 def update_todo_status(conn: sqlite3.Connection, todo_id: int, status: str) -> bool:
     cursor = conn.execute(
         "UPDATE task_todos SET status = ?, updated_at = ? WHERE todo_id = ?",
@@ -60,6 +79,7 @@ def update_todo_status(conn: sqlite3.Connection, todo_id: int, status: str) -> b
     )
     conn.commit()
     return cursor.rowcount > 0
+
 
 
 def add_decision(
@@ -82,12 +102,14 @@ def add_decision(
     return int(cursor.lastrowid)
 
 
+
 def list_decisions(conn: sqlite3.Connection, repo: str | None, limit: int) -> list[sqlite3.Row]:
     clause, params = _scope_clause(repo)
     return conn.execute(
         f"SELECT * FROM task_decisions{clause} ORDER BY updated_at DESC LIMIT ?",
         params + [limit],
     ).fetchall()
+
 
 
 def add_command(
@@ -110,12 +132,14 @@ def add_command(
     return int(cursor.lastrowid)
 
 
+
 def list_commands(conn: sqlite3.Connection, repo: str | None, limit: int) -> list[sqlite3.Row]:
     clause, params = _scope_clause(repo)
     return conn.execute(
         f"SELECT * FROM command_memory{clause} ORDER BY updated_at DESC LIMIT ?",
         params + [limit],
     ).fetchall()
+
 
 
 def add_error(
@@ -138,12 +162,179 @@ def add_error(
     return int(cursor.lastrowid)
 
 
+
 def list_errors(conn: sqlite3.Connection, repo: str | None, limit: int) -> list[sqlite3.Row]:
     clause, params = _scope_clause(repo)
     return conn.execute(
         f"SELECT * FROM error_memory{clause} ORDER BY updated_at DESC LIMIT ?",
         params + [limit],
     ).fetchall()
+
+
+
+def remember_memory(
+    conn: sqlite3.Connection,
+    repo: str | None,
+    kind: str,
+    subject: str,
+    value: str,
+    *,
+    global_scope: bool = False,
+    source_session_id: str | None = None,
+) -> int:
+    if kind not in MEMORY_KIND_LABELS:
+        raise ValueError(f"Unknown memory kind: {kind}")
+    scoped_repo = None if global_scope else repo
+    normalized_subject = _normalize_memory_subject(subject)
+    now = time.time()
+    rows = conn.execute(
+        """
+        SELECT memory_id, value FROM developer_memory
+        WHERE kind = ?
+          AND normalized_subject = ?
+          AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
+        ORDER BY updated_at DESC
+        """,
+        (kind, normalized_subject, scoped_repo, scoped_repo),
+    ).fetchall()
+    normalized_value = value.strip()
+    for row in rows:
+        if str(row["value"]).strip() == normalized_value:
+            conn.execute(
+                """
+                UPDATE developer_memory
+                SET subject = ?, value = ?, status = 'active', updated_at = ?, last_used_at = ?
+                WHERE memory_id = ?
+                """,
+                (subject.strip(), normalized_value, now, now, row["memory_id"]),
+            )
+            conn.commit()
+            return int(row["memory_id"])
+    conn.execute(
+        """
+        UPDATE developer_memory
+        SET status = 'stale', updated_at = ?
+        WHERE kind = ?
+          AND normalized_subject = ?
+          AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
+          AND status = 'active'
+        """,
+        (now, kind, normalized_subject, scoped_repo, scoped_repo),
+    )
+    cursor = conn.execute(
+        """
+        INSERT INTO developer_memory (
+            repo, kind, subject, normalized_subject, value, status,
+            source_session_id, created_at, updated_at, last_used_at
+        )
+        VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
+        """,
+        (
+            scoped_repo,
+            kind,
+            subject.strip(),
+            normalized_subject,
+            normalized_value,
+            source_session_id,
+            now,
+            now,
+            now,
+        ),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+
+def list_memory_entries(
+    conn: sqlite3.Connection,
+    repo: str | None,
+    *,
+    kind: str | None = None,
+    limit: int = 20,
+    scope: str = "all",
+    status: str = "active",
+) -> list[sqlite3.Row]:
+    clauses: list[str] = []
+    params: list[object] = []
+    if scope == "global":
+        clauses.append("repo IS NULL")
+    elif scope == "repo":
+        if repo:
+            clauses.append("repo = ?")
+            params.append(repo)
+        else:
+            clauses.append("repo IS NOT NULL")
+    elif repo:
+        clauses.append("(repo = ? OR repo IS NULL)")
+        params.append(repo)
+    if kind:
+        clauses.append("kind = ?")
+        params.append(kind)
+    if status != "all":
+        clauses.append("status = ?")
+        params.append(status)
+    sql = "SELECT * FROM developer_memory"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY kind, CASE status WHEN 'active' THEN 0 WHEN 'conflict' THEN 1 ELSE 2 END, updated_at DESC LIMIT ?"
+    params.append(limit)
+    return conn.execute(sql, params).fetchall()
+
+
+
+def detect_memory_conflicts(
+    conn: sqlite3.Connection,
+    repo: str | None,
+    limit: int = 20,
+) -> list[dict[str, object]]:
+    clauses: list[str] = []
+    params: list[object] = []
+    if repo:
+        clauses.append("(repo = ? OR repo IS NULL)")
+        params.append(repo)
+    where_clause = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+    groups = conn.execute(
+        f"""
+        SELECT repo, kind, normalized_subject, COUNT(DISTINCT value) AS distinct_values
+        FROM developer_memory
+        {where_clause}
+        GROUP BY repo, kind, normalized_subject
+        HAVING COUNT(DISTINCT value) > 1
+        ORDER BY MAX(updated_at) DESC
+        LIMIT ?
+        """,
+        params + [limit],
+    ).fetchall()
+    conflicts: list[dict[str, object]] = []
+    for group in groups:
+        rows = conn.execute(
+            """
+            SELECT * FROM developer_memory
+            WHERE kind = ? AND normalized_subject = ?
+              AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
+            ORDER BY updated_at DESC
+            """,
+            (group["kind"], group["normalized_subject"], group["repo"], group["repo"]),
+        ).fetchall()
+        for row in rows[1:]:
+            if row["status"] == "active":
+                conn.execute(
+                    "UPDATE developer_memory SET status = 'conflict', updated_at = ? WHERE memory_id = ?",
+                    (time.time(), row["memory_id"]),
+                )
+        conn.commit()
+        conflicts.append(
+            {
+                "repo": group["repo"],
+                "kind": group["kind"],
+                "subject": rows[0]["subject"] if rows else group["normalized_subject"],
+                "values": [row["value"] for row in rows],
+                "statuses": [row["status"] for row in rows],
+            }
+        )
+    return conflicts
+
 
 
 def record_session(
@@ -181,6 +372,7 @@ def record_session(
     return session_id
 
 
+
 def list_sessions(conn: sqlite3.Connection, repo: str | None, limit: int) -> list[sqlite3.Row]:
     clause, params = _scope_clause(repo)
     return conn.execute(
@@ -189,12 +381,102 @@ def list_sessions(conn: sqlite3.Connection, repo: str | None, limit: int) -> lis
     ).fetchall()
 
 
+
 def get_session(conn: sqlite3.Connection, session_id: str) -> sqlite3.Row | None:
     return conn.execute("SELECT * FROM task_sessions WHERE session_id = ?", (session_id,)).fetchone()
 
 
+
 def session_files(row: sqlite3.Row) -> list[str]:
     return json.loads(row["relevant_files_json"] or "[]")
+
+
+
+def _extract_session_artifacts(query: str, output_text: str) -> dict[str, list[str]]:
+    commands = [
+        match.strip()
+        for match in re.findall(r"`([^`\n]+)`", output_text)
+        if len(match.strip()) >= 3
+    ]
+    errors = [
+        line.split("error:", 1)[1].strip()
+        for line in output_text.splitlines()
+        if "error:" in line.lower()
+    ]
+    todos = []
+    for line in output_text.splitlines():
+        stripped = line.strip()
+        lowered = stripped.lower()
+        if stripped.startswith("- [") or lowered.startswith("todo:") or lowered.startswith("- todo"):
+            todos.append(stripped)
+    if not todos and re.search(r"\b(add|fix|implement|refactor|review|debug)\b", query.lower()):
+        todos.append(query.strip())
+    decisions = [
+        line.strip()
+        for line in output_text.splitlines()
+        if line.strip().lower().startswith("decision:") or "## decisions" in line.lower()
+    ]
+    useful_facts = [
+        line.strip()
+        for line in output_text.splitlines()
+        if line.strip().startswith("- ") and any(token in line.lower() for token in ("repo", "mode", "reason", "file"))
+    ]
+    return {
+        "commands": list(dict.fromkeys(commands))[:6],
+        "errors": list(dict.fromkeys(errors))[:6],
+        "todos": list(dict.fromkeys(todos))[:6],
+        "decisions": list(dict.fromkeys(decisions))[:6],
+        "useful_facts": list(dict.fromkeys(useful_facts))[:6],
+    }
+
+
+
+def compact_session(conn: sqlite3.Connection, session_id: str) -> sqlite3.Row | None:
+    row = get_session(conn, session_id)
+    if row is None:
+        return None
+    now = time.time()
+    files = session_files(row)
+    file_summary = ", ".join(files[:4]) if files else "none"
+    output_preview = row["output_text"].strip().replace("\n", " ")[:280]
+    summary = (
+        f"[{row['mode']}] {row['query']} | files: {file_summary}"
+        + (f" | output: {output_preview}" if output_preview else "")
+    )
+    extracted = _extract_session_artifacts(str(row["query"]), str(row["output_text"]))
+    conn.execute(
+        """
+        INSERT INTO session_compactions (session_id, repo, mode, summary, extracted_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(session_id) DO UPDATE SET
+            repo = excluded.repo,
+            mode = excluded.mode,
+            summary = excluded.summary,
+            extracted_json = excluded.extracted_json,
+            updated_at = excluded.updated_at
+        """,
+        (session_id, row["repo"], row["mode"], summary, json.dumps(extracted), now, now),
+    )
+    conn.commit()
+    return conn.execute(
+        "SELECT * FROM session_compactions WHERE session_id = ?",
+        (session_id,),
+    ).fetchone()
+
+
+
+def list_session_compactions(conn: sqlite3.Connection, repo: str | None, limit: int) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM session_compactions{clause} ORDER BY updated_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+
+def session_compaction_details(row: sqlite3.Row) -> dict[str, list[str]]:
+    return json.loads(row["extracted_json"] or "{}")
+
 
 
 def load_operational_state(conn: sqlite3.Connection, repo: str | None) -> dict[str, list[sqlite3.Row]]:
@@ -204,12 +486,15 @@ def load_operational_state(conn: sqlite3.Connection, repo: str | None) -> dict[s
         "commands": list_commands(conn, repo, limit=6),
         "errors": list_errors(conn, repo, limit=6),
         "sessions": list_sessions(conn, repo, limit=4),
+        "memory_entries": list_memory_entries(conn, repo, limit=12, scope="all", status="active"),
+        "compactions": list_session_compactions(conn, repo, limit=3),
     }
+
 
 
 def format_operational_state(state: dict[str, list[sqlite3.Row]]) -> str:
     sections: list[str] = []
-    todos = state["todos"]
+    todos = state.get("todos", [])
     if todos:
         sections.append(
             "## Todos\n"
@@ -218,7 +503,7 @@ def format_operational_state(state: dict[str, list[sqlite3.Row]]) -> str:
                 for row in todos
             )
         )
-    decisions = state["decisions"]
+    decisions = state.get("decisions", [])
     if decisions:
         sections.append(
             "## Decisions\n"
@@ -227,7 +512,7 @@ def format_operational_state(state: dict[str, list[sqlite3.Row]]) -> str:
                 for row in decisions
             )
         )
-    commands = state["commands"]
+    commands = state.get("commands", [])
     if commands:
         sections.append(
             "## Useful commands\n"
@@ -236,7 +521,7 @@ def format_operational_state(state: dict[str, list[sqlite3.Row]]) -> str:
                 for row in commands
             )
         )
-    errors = state["errors"]
+    errors = state.get("errors", [])
     if errors:
         sections.append(
             "## Errors and fixes\n"
@@ -245,7 +530,30 @@ def format_operational_state(state: dict[str, list[sqlite3.Row]]) -> str:
                 for row in errors
             )
         )
-    sessions = state["sessions"]
+    memory_entries = state.get("memory_entries", [])
+    if memory_entries:
+        grouped: dict[str, list[sqlite3.Row]] = {kind: [] for kind in MEMORY_KIND_LABELS}
+        for row in memory_entries:
+            grouped.setdefault(row["kind"], []).append(row)
+        for kind in VALID_MEMORY_KINDS:
+            rows = grouped.get(kind, [])
+            if not rows:
+                continue
+            sections.append(
+                f"## {MEMORY_KIND_LABELS[kind]}\n"
+                + "\n".join(
+                    f"- {row['subject']}: {row['value']}"
+                    + (" [global]" if row["repo"] is None else "")
+                    for row in rows
+                )
+            )
+    compactions = state.get("compactions", [])
+    if compactions:
+        sections.append(
+            "## Session compactions\n"
+            + "\n".join(f"- {row['summary']}" for row in compactions)
+        )
+    sessions = state.get("sessions", [])
     if sessions:
         sections.append(
             "## Recent sessions\n"
@@ -254,9 +562,11 @@ def format_operational_state(state: dict[str, list[sqlite3.Row]]) -> str:
     return "\n\n".join(sections)
 
 
+
 def slugify(text: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return slug[:60] or "handoff"
+
 
 
 def save_handoff(repo: str | None, goal: str, content: str) -> Path:

@@ -31,6 +31,11 @@ class RepoMemoryStatus(TypedDict):
     memory_updated_at: float | None
     last_indexed: float
     chunk_count: int
+    summary_commit: str | None
+    current_commit: str | None
+    changed_files: list[str]
+    changed_symbols: list[str]
+    freshness_score: float
 
 
 class IndexInterrupted(Exception):
