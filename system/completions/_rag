@@ -1,0 +1,381 @@
+#compdef rag
+
+_rag_repos() {
+  local db="${RAG_HOME:-$HOME/ai-rag}/rag.sqlite3"
+  local -a repos
+  if command -v sqlite3 >/dev/null 2>&1 && [[ -r "$db" ]]; then
+    repos=("${(@f)$(sqlite3 "$db" 'SELECT repo FROM indexed_repos ORDER BY repo;' 2>/dev/null)}")
+    if (( ${#repos[@]} )); then
+      _describe -t repositories 'indexed repos' repos
+      return
+    fi
+  fi
+  _message 'no indexed repos found'
+}
+
+_rag_sessions() {
+  local db="${RAG_HOME:-$HOME/ai-rag}/rag.sqlite3"
+  local -a sessions
+  if command -v sqlite3 >/dev/null 2>&1 && [[ -r "$db" ]]; then
+    sessions=("${(@f)$(sqlite3 "$db" 'SELECT session_id FROM task_sessions ORDER BY created_at DESC LIMIT 40;' 2>/dev/null)}")
+    if (( ${#sessions[@]} )); then
+      _describe -t sessions 'saved sessions' sessions
+      return
+    fi
+  fi
+  _message 'no saved sessions found'
+}
+
+_rag_todos() {
+  local db="${RAG_HOME:-$HOME/ai-rag}/rag.sqlite3"
+  local -a todos
+  if command -v sqlite3 >/dev/null 2>&1 && [[ -r "$db" ]]; then
+    todos=("${(@f)$(sqlite3 "$db" 'SELECT todo_id FROM task_todos ORDER BY updated_at DESC LIMIT 40;' 2>/dev/null)}")
+    if (( ${#todos[@]} )); then
+      _describe -t todos 'todo ids' todos
+      return
+    fi
+  fi
+  _message 'no todos found'
+}
+
+_rag_common_query_args() {
+  _arguments -S \
+    '--repo[filter to a repo name]:repo:_rag_repos' \
+    '--memory[force repo memory into context]' \
+    '--show-context[print packed retrieval context]' \
+    '--rerank[force reranker on]' \
+    '--no-rerank[skip reranker]' \
+    '*:query text: '
+}
+
+_rag_subcommands=(
+  'index:index a repo or folder'
+  'ask:ask with automatic quick/deep/agent routing'
+  'quick:force fast retrieval and answer'
+  'deep:force deep retrieval and answer'
+  'agent:build an agent handoff or long answer'
+  'handoff:build a target-specific coding handoff'
+  'search:search indexed chunks'
+  'inspect:inspect query rewrites intent and routing'
+  'missing:show missing-context detection'
+  'suggest:suggest useful RAG workflows'
+  'why:explain why a file did or did not match'
+  'graph:show dependency graph from a symbol route or db seed'
+  'context:manage git GitHub and test-failure sources'
+  'reindex:reindex changed files'
+  'summarize-files:refresh file summaries'
+  'summarize:generate repo memory'
+  'memory:inspect repo memory notes packs and taxonomy'
+  'todo:manage structured RAG todos'
+  'decision:manage engineering decisions'
+  'command:remember useful commands'
+  'error:remember recurring errors and fixes'
+  'session:inspect saved RAG sessions'
+  'facts:list or query structured facts'
+  'trace:trace facts to indexed evidence'
+  'status:show quick local RAG status'
+  'clean:clear repo-specific or full local RAG state'
+  'doctor:check local RAG health'
+)
+
+_rag_fact_kinds=(
+  alias keybind env tool tool-alias tool-config config-key config-section
+  route route-handler route-controller symbol function service module entity
+  repository component hook page layout sql-object package-script compose-service
+)
+
+_rag_memory_kinds=(
+  project_facts developer_preferences known_stack tool_preferences hardware_profile repo_conventions
+)
+
+_rag() {
+  local context state state_descr line
+  typeset -A opt_args
+
+  _arguments -C \
+    '1:command:->command' \
+    '*::arg:->args'
+
+  case "$state" in
+    command)
+      _describe -t commands 'rag command' _rag_subcommands
+      ;;
+    args)
+      case "$words[2]" in
+        index)
+          _arguments -S \
+            '--changed-only[skip files whose content hash has not changed]' \
+            '--profile[indexing profile]:profile:(fast balanced deep)' \
+            '1:path:_files -/'
+          ;;
+        ask)
+          _arguments -S \
+            '--mode[routing mode]:mode:(auto quick deep agent)' \
+            '--repo[filter to a repo name]:repo:_rag_repos' \
+            '--memory[force repo memory into context]' \
+            '--show-context[print packed retrieval context]' \
+            '--rerank[force reranker on]' \
+            '--no-rerank[skip reranker]' \
+            '*:query text: '
+          ;;
+        quick|deep|inspect|missing)
+          _rag_common_query_args
+          ;;
+        agent)
+          _arguments -S \
+            '--repo[filter to a repo name]:repo:_rag_repos' \
+            '--memory[force repo memory into context]' \
+            '--show-context[print packed retrieval context]' \
+            '--rerank[force reranker on]' \
+            '--no-rerank[skip reranker]' \
+            '--output-format[output type]:format:(handoff answer)' \
+            '--save-handoff[persist generated handoff]' \
+            '--target-agent[handoff target]:target:(generic codex opencode copilot human)' \
+            '*:query text: '
+          ;;
+        handoff)
+          _arguments -S \
+            '1:target:(codex opencode copilot human)' \
+            '--repo[filter to a repo name]:repo:_rag_repos' \
+            '--memory[force repo memory into context]' \
+            '--show-context[print packed retrieval context]' \
+            '--rerank[force reranker on]' \
+            '--no-rerank[skip reranker]' \
+            '--save-handoff[persist generated handoff]' \
+            '*:query text: '
+          ;;
+        search)
+          _arguments -S \
+            '--repo[filter to a repo name]:repo:_rag_repos' \
+            '--explain[show retrieval-stage counts]' \
+            '--rerank[force reranker on]' \
+            '--no-rerank[skip reranker]' \
+            '*:query text: '
+          ;;
+        suggest)
+          _arguments -S '1:topic:(setup ask debug trace state memory handoff)'
+          ;;
+        why)
+          _arguments -S \
+            '--repo[filter to a repo name]:repo:_rag_repos' \
+            '--mode[routing mode]:mode:(auto quick deep agent)' \
+            '--rerank[force reranker on]' \
+            '--no-rerank[skip reranker]' \
+            '1:query text: ' \
+            '2:indexed path:_files'
+          ;;
+        graph)
+          _arguments -S \
+            '--repo[filter to a repo name]:repo:_rag_repos' \
+            '--route[seed from route path or method]:route text: ' \
+            '--db[seed from database table or entity]:database: ' \
+            '1:symbol or path: '
+          ;;
+        context)
+          _arguments -C \
+            '1:context source:(git github test-failure)' \
+            '*::context arg:->context_args'
+          case "$state" in
+            context_args)
+              case "$words[3]" in
+                git)
+                  _arguments -S \
+                    '--repo[target repo name]:repo:_rag_repos' \
+                    '--refresh[refresh snapshot before showing it]'
+                  ;;
+                github)
+                  _arguments -S \
+                    '1:ref type:(issue pr)' \
+                    '2:number: ' \
+                    '--repo[target repo name]:repo:_rag_repos' \
+                    '--manual[store manual fields instead of calling gh]' \
+                    '--title[manual title]:title: ' \
+                    '--body[manual body]:body: ' \
+                    '--changed-file[manual changed file]:file:_files' \
+                    '--comment[manual comment]:comment: ' \
+                    '--review-comment[manual review comment]:comment: ' \
+                    '--ci-log[manual CI log excerpt]:log: ' \
+                    '--linked-issue[manual linked issue or PR]:ref: '
+                  ;;
+                test-failure)
+                  _arguments -C \
+                    '1:test-failure command:(list add)' \
+                    '*::failure arg:->failure_args'
+                  case "$state" in
+                    failure_args)
+                      case "$words[4]" in
+                        list)
+                          _arguments -S '--repo[target repo name]:repo:_rag_repos' '--limit[result limit]:limit: '
+                          ;;
+                        add)
+                          _arguments -S \
+                            '1:command text: ' \
+                            '--repo[target repo name]:repo:_rag_repos' \
+                            '--runner[test runner]:runner:(pytest unittest cargo gradle npm)' \
+                            '--exit-code[exit code]:code: ' \
+                            '--source[source]:source:(local ci)' \
+                            '--output[inline failure output]:output: ' \
+                            '--output-file[path to failure output]:file:_files'
+                          ;;
+                      esac
+                      ;;
+                  esac
+                  ;;
+              esac
+              ;;
+          esac
+          ;;
+        reindex)
+          _arguments -S '--profile[indexing profile]:profile:(fast balanced deep)'
+          ;;
+        summarize-files)
+          _arguments -S '--repo[refresh summaries for one repo]:repo:_rag_repos' '--changed-only[only refresh changed summaries]'
+          ;;
+        summarize)
+          _arguments -S '--repo[summarize one indexed repo]:repo:_rag_repos'
+          ;;
+        memory)
+          _arguments -C \
+            '1:memory command:(status show refresh clear remember notes conflicts compact pack taxonomy)' \
+            '*::memory arg:->memory_args'
+          case "$state" in
+            memory_args)
+              case "$words[3]" in
+                status|show|refresh)
+                  _arguments -S '--repo[target repo name]:repo:_rag_repos'
+                  ;;
+                clear)
+                  _arguments -S '--repo[target repo name]:repo:_rag_repos' '--all[apply to all repos]'
+                  ;;
+                remember)
+                  _arguments -S \
+                    '1:kind:('"${_rag_memory_kinds[*]}"')' \
+                    '2:subject: ' \
+                    '*:value: ' \
+                    '--repo[scope to one repo]:repo:_rag_repos' \
+                    '--global-scope[store globally]'
+                  ;;
+                notes)
+                  _arguments -S \
+                    '--repo[target repo name]:repo:_rag_repos' \
+                    '--kind[memory kind]:kind:('"${_rag_memory_kinds[*]}"')' \
+                    '--scope[scope]:scope:(all repo global)' \
+                    '--status[status]:status:(active stale conflict all)' \
+                    '--limit[result limit]:limit: '
+                  ;;
+                conflicts)
+                  _arguments -S '--repo[target repo name]:repo:_rag_repos' '--limit[result limit]:limit: '
+                  ;;
+                compact)
+                  _arguments -S \
+                    '--repo[target repo name]:repo:_rag_repos' \
+                    '--session-id[compact one session]:session:_rag_sessions' \
+                    '--limit[result limit]:limit: '
+                  ;;
+                pack)
+                  _arguments -S \
+                    '1:pack name: ' \
+                    '--repo[target repo name]:repo:_rag_repos' \
+                    '--target-agent[target agent]:target:(generic codex opencode copilot human)' \
+                    '--write-file[write .context file]'
+                  ;;
+                taxonomy)
+                  _arguments -S \
+                    '--domain[domain filter]:domain: ' \
+                    '--query[search taxonomy]:query: ' \
+                    '--format[output format]:format:(table yaml)' \
+                    '--limit[result limit]:limit: '
+                  ;;
+              esac
+              ;;
+          esac
+          ;;
+        todo)
+          _arguments -C '1:todo command:(list add done start)' '*::todo arg:->todo_args'
+          case "$state" in
+            todo_args)
+              case "$words[3]" in
+                list)
+                  _arguments -S '--repo[filter to one repo]:repo:_rag_repos' '--status[status]:status:(open in_progress done all)' '--limit[result limit]:limit: '
+                  ;;
+                add)
+                  _arguments -S '1:title: ' '--repo[scope to one repo]:repo:_rag_repos' '--detail[detail]:detail: ' '--status[status]:status:(open in_progress done)'
+                  ;;
+                done|start)
+                  _arguments -S '1:todo id:_rag_todos'
+                  ;;
+              esac
+              ;;
+          esac
+          ;;
+        decision)
+          _arguments -C '1:decision command:(list add)' '*::decision arg:->decision_args'
+          case "$state" in
+            decision_args)
+              case "$words[3]" in
+                list) _arguments -S '--repo[filter to one repo]:repo:_rag_repos' '--limit[result limit]:limit: ' ;;
+                add) _arguments -S '1:title: ' '2:detail: ' '--repo[scope to one repo]:repo:_rag_repos' '--rationale[rationale]:rationale: ' ;;
+              esac
+              ;;
+          esac
+          ;;
+        command)
+          _arguments -C '1:command memory action:(list add)' '*::command arg:->command_args'
+          case "$state" in
+            command_args)
+              case "$words[3]" in
+                list) _arguments -S '--repo[filter to one repo]:repo:_rag_repos' '--limit[result limit]:limit: ' ;;
+                add) _arguments -S '1:command text: ' '--repo[scope to one repo]:repo:_rag_repos' '--purpose[purpose]:purpose: ' '--notes[notes]:notes: ' ;;
+              esac
+              ;;
+          esac
+          ;;
+        error)
+          _arguments -C '1:error memory action:(list add)' '*::error arg:->error_args'
+          case "$state" in
+            error_args)
+              case "$words[3]" in
+                list) _arguments -S '--repo[filter to one repo]:repo:_rag_repos' '--limit[result limit]:limit: ' ;;
+                add) _arguments -S '1:error text: ' '--repo[scope to one repo]:repo:_rag_repos' '--fix[fix text]:fix: ' '--notes[notes]:notes: ' '--command[command text]:command: ' '--exit-code[exit code]:code: ' ;;
+              esac
+              ;;
+          esac
+          ;;
+        session)
+          _arguments -C '1:session command:(list show)' '*::session arg:->session_args'
+          case "$state" in
+            session_args)
+              case "$words[3]" in
+                list) _arguments -S '--repo[filter to one repo]:repo:_rag_repos' '--limit[result limit]:limit: ' ;;
+                show) _arguments -S '1:session id:_rag_sessions' ;;
+              esac
+              ;;
+          esac
+          ;;
+        facts)
+          _arguments -S \
+            '1:subject:(list '"${_rag_fact_kinds[*]}"')' \
+            '*:query text: ' \
+            '--repo[filter to one repo]:repo:_rag_repos' \
+            '--kind[fact kind filter for list]:kind:('"${_rag_fact_kinds[*]}"')'
+          ;;
+        trace)
+          _arguments -S \
+            '1:kind:('"${_rag_fact_kinds[*]}"')' \
+            '*:query text: ' \
+            '--repo[filter to one repo]:repo:_rag_repos' \
+            '--limit[maximum matches]:limit: '
+          ;;
+        clean)
+          _arguments -S '--repo[clear one indexed repo]:repo:_rag_repos' '--all[clear the whole local index]'
+          ;;
+        doctor)
+          _arguments -S '--deep[run deeper health checks]'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_rag "$@"
