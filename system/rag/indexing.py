@@ -21,6 +21,7 @@ from qdrant_client import models
 
 from .code_intel import (
     FileAnalysis,
+    SymbolRecord,
     build_repo_package_index,
     build_semantic_lines,
     chunk_code_with_symbols,
@@ -451,7 +452,7 @@ def imported_modules(analysis: FileAnalysis | None) -> set[str]:
     return modules
 
 
-def symbol_lookup(analysis: FileAnalysis | None) -> dict[str, object]:
+def symbol_lookup(analysis: FileAnalysis | None) -> dict[str, SymbolRecord]:
     if analysis is None:
         return {}
     return {symbol.name: symbol for symbol in analysis.symbols}
