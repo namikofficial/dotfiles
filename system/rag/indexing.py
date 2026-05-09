@@ -1860,11 +1860,17 @@ def replace_file_facts(
     file_hash: str,
     facts: Sequence[Fact],
 ) -> None:
+    # Remove any existing facts for this file, then re-insert deduplicated facts.
     conn.execute("DELETE FROM facts WHERE repo = ? AND path = ?", (repo, rel_path))
     now = time.time()
+    seen: set[str] = set()
     for fact in facts:
         fact_key = f"{repo}:{rel_path}:{fact.kind}:{fact.key}:{fact.line}:{file_hash}"
         fact_id = str(uuid.uuid5(uuid.NAMESPACE_URL, fact_key))
+        # Skip duplicate facts (same computed id) to avoid UNIQUE constraint failures
+        if fact_id in seen:
+            continue
+        seen.add(fact_id)
         conn.execute(
             """
             INSERT INTO facts (
