@@ -11,10 +11,22 @@ import sys
 
 sys.path.insert(0, str(SYSTEM_DIR))
 
-from rag.settings import get_mode_profile, load_config, write_merged_config
+from rag.settings import (
+    DEFAULT_CONFIG,
+    get_mode_profile,
+    load_config,
+    missing_required_config_keys,
+    required_config_key_paths,
+    unknown_config_keys,
+    write_merged_config,
+)
 
 
 class SettingsTest(unittest.TestCase):
+    def test_default_config_uses_dense_qdrant_without_sparse_keys(self) -> None:
+        self.assertNotIn("qdrant_vectors", DEFAULT_CONFIG)
+        self.assertNotIn("qdrant_sparse", DEFAULT_CONFIG)
+
     def test_load_config_migrates_legacy_flat_tokens(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             config_path = Path(tmp) / "config.json"
@@ -49,6 +61,22 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(deep["retrieval_pipeline"]["semantic_limit"], 30)
         self.assertEqual(deep["reranker"]["top_k_output"], 10)
         self.assertTrue(deep["answer"]["use_memory"])
+
+    def test_unknown_config_keys_reports_unrecognized_paths(self) -> None:
+        raw = {
+            "answer_model": "local",
+            "unknown_root": True,
+            "retrieval_pipeline": {"semantic_limit": 20, "unknown_inner": 1},
+        }
+        unknown = unknown_config_keys(raw)
+        self.assertIn("unknown_root", unknown)
+        self.assertIn("retrieval_pipeline.unknown_inner", unknown)
+
+    def test_missing_required_config_keys_detects_removed_nodes(self) -> None:
+        config = load_config(Path("/does-not-exist"))
+        del config["retrieval_pipeline"]["semantic_limit"]
+        missing = missing_required_config_keys(config, required_config_key_paths())
+        self.assertIn("retrieval_pipeline.semantic_limit", missing)
 
 
 if __name__ == "__main__":

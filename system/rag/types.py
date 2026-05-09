@@ -52,6 +52,17 @@ class SupportsQdrantPointOps(Protocol):
     def delete(self, collection_name: str, points_selector: Any, wait: bool = True) -> Any: ...
 
 
+class SupportsQdrantQuery(Protocol):
+    def query_points(
+        self,
+        collection_name: str,
+        query: Any,
+        query_filter: Any,
+        limit: int,
+        with_payload: bool = True,
+    ) -> Any: ...
+
+
 class IndexInterrupted(Exception):
     def __init__(self, changed_files: int, total_chunks: int):
         super().__init__("index interrupted")

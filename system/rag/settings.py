@@ -8,15 +8,6 @@ from .runtime import CONFIG_PATH
 DEFAULT_CONFIG = {
     "qdrant_url": "http://127.0.0.1:6333",
     "qdrant_collection": "local-rag-chunks",
-    "qdrant_vectors": {
-        "dense_name": "dense",
-        "sparse_name": "sparse",
-    },
-    "qdrant_sparse": {
-        "enabled": True,
-        "model": "Qdrant/bm25",
-        "max_terms": 128,
-    },
     "answer_url": "http://127.0.0.1:8080/v1/chat/completions",
     "answer_model": "local",
     "embedding_model": "BAAI/bge-small-en-v1.5",
@@ -175,6 +166,11 @@ DEFAULT_CONFIG = {
         "file_summary_tokens": 2200,
         "chunk_tokens": 6000,
         "reserved_answer_tokens": 2200,
+    },
+    "context_pack_order": {
+        "quick": ["facts", "chunks", "file_summaries"],
+        "deep": ["operational_state", "context_sources", "facts", "repo_memory", "chunks", "file_summaries"],
+        "agent": ["operational_state", "context_sources", "facts", "repo_memory", "chunks", "file_summaries"],
     },
     "routing": {
         "default_mode": "auto",
@@ -397,3 +393,65 @@ def get_mode_profile(config: dict, mode: str) -> dict:
     if profile is None:
         raise SystemExit(f"Unknown mode profile: {mode}")
     return merge_nested_dicts(config, profile)
+
+
+LEGACY_CONFIG_KEYS = {
+    "retrieval_context_tokens",
+    "answer_max_tokens",
+}
+
+
+def _flatten_dict_paths(data: dict, prefix: str = "") -> set[str]:
+    paths: set[str] = set()
+    for key, value in data.items():
+        path = f"{prefix}.{key}" if prefix else key
+        paths.add(path)
+        if isinstance(value, dict):
+            paths.update(_flatten_dict_paths(value, path))
+    return paths
+
+
+def _has_path(config: dict, path: str) -> bool:
+    current: object = config
+    for segment in path.split("."):
+        if not isinstance(current, dict) or segment not in current:
+            return False
+        current = current[segment]
+    return True
+
+
+def required_config_key_paths(default_config: dict = DEFAULT_CONFIG) -> set[str]:
+    return _flatten_dict_paths(default_config)
+
+
+def missing_required_config_keys(config: dict, required_paths: set[str] | None = None) -> list[str]:
+    required = required_paths or required_config_key_paths()
+    return sorted(path for path in required if not _has_path(config, path))
+
+
+def unknown_config_keys(
+    raw_config: dict,
+    default_config: dict = DEFAULT_CONFIG,
+    *,
+    allowed_top_level: set[str] | None = None,
+) -> list[str]:
+    allowed = allowed_top_level or LEGACY_CONFIG_KEYS
+    unknown: list[str] = []
+
+    def walk(raw: dict, known: dict, prefix: str = "") -> None:
+        for key, value in raw.items():
+            path = f"{prefix}.{key}" if prefix else key
+            if not prefix and key in allowed:
+                continue
+            if key not in known:
+                unknown.append(path)
+                continue
+            known_value = known[key]
+            if isinstance(value, dict):
+                if isinstance(known_value, dict):
+                    walk(value, known_value, path)
+                else:
+                    unknown.append(path)
+
+    walk(raw_config, default_config)
+    return sorted(set(unknown))

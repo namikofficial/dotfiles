@@ -9,9 +9,9 @@ import subprocess
 import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Sequence
+from typing import Iterable, Sequence
 
-from qdrant_client import QdrantClient, models
+from qdrant_client import models
 
 from .memory import taxonomy_terms_for_query
 from .runtime import console
@@ -24,6 +24,7 @@ from .state import (
     upsert_git_context,
 )
 from .storage import get_embedder, git_branch_for, git_head_commit_for
+from .types import SupportsQdrantQuery
 
 STOPWORDS = {
     "a",
@@ -153,7 +154,7 @@ def approx_tokens(text: str) -> int:
     return max(1, math.ceil(len(text) / 4))
 
 
-def unique_terms(items: Sequence[str]) -> list[str]:
+def unique_terms(items: Iterable[str]) -> list[str]:
     return [item for item in dict.fromkeys(items) if item]
 
 
@@ -730,7 +731,7 @@ def error_matches(conn: sqlite3.Connection, plan: RetrievalPlan) -> list[sqlite3
     return conn.execute(sql, params).fetchall()
 
 
-def semantic_hits(client: QdrantClient, config: dict, plan: RetrievalPlan) -> list[str]:
+def semantic_hits(client: SupportsQdrantQuery, config: dict, plan: RetrievalPlan) -> list[str]:
     hits: list[str] = []
     embedder = get_embedder(config)
     limit = int(config["retrieval_pipeline"]["semantic_limit"])
@@ -834,7 +835,7 @@ def recent_hits(conn: sqlite3.Connection, config: dict, plan: RetrievalPlan) -> 
     if not metadata_terms and not analysis.preferred_languages and not analysis.preferred_kinds:
         return []
     clauses = []
-    params: list[str] = []
+    params: list[object] = []
     for term in metadata_terms:
         clauses.append("(path LIKE ? OR symbol LIKE ?)")
         params.extend([f"%{term}%", f"%{term}%"])
@@ -1461,7 +1462,7 @@ def reranker_enabled(config: dict, override: bool | None) -> bool:
 
 def collect_retrieval_candidates(
     conn: sqlite3.Connection,
-    client: QdrantClient,
+    client: SupportsQdrantQuery,
     config: dict,
     plan: RetrievalPlan,
 ) -> RetrievalCandidates:
@@ -1628,7 +1629,7 @@ def rank_retrieval_candidates(
 
 def retrieve(
     conn: sqlite3.Connection,
-    client: QdrantClient,
+    client: SupportsQdrantQuery,
     config: dict,
     query: str,
     repo: str | None,
@@ -1669,16 +1670,20 @@ def gather_context(
             seen_files.append(file_ref)
         return True
 
-    if operational_state:
-        append_block(
-            f"<operational_state>\n{operational_state}\n</operational_state>",
-            limit=operational_state_tokens or budgets["memory_tokens"],
-        )
+    def add_operational_state() -> None:
+        if operational_state:
+            append_block(
+                f"<operational_state>\n{operational_state}\n</operational_state>",
+                limit=operational_state_tokens or budgets["memory_tokens"],
+            )
 
-    if memory:
-        append_block(f"<repo_memory>\n{memory}\n</repo_memory>", limit=budgets["memory_tokens"])
+    def add_repo_memory() -> None:
+        if memory:
+            append_block(f"<repo_memory>\n{memory}\n</repo_memory>", limit=budgets["memory_tokens"])
 
-    if context_sources:
+    def add_context_sources() -> None:
+        if not context_sources:
+            return
         source_blocks: list[str] = []
         source_used = 0
         source_limit = int(budgets.get("context_source_tokens", budgets["file_summary_tokens"]))
@@ -1695,7 +1700,9 @@ def gather_context(
         if source_blocks:
             append_block("<context_sources>\n" + "\n\n".join(source_blocks) + "\n</context_sources>", limit=source_limit)
 
-    if facts:
+    def add_facts() -> None:
+        if not facts:
+            return
         limited_facts = limit_rows_by_file_count(facts, config["retrieval"]["max_fact_files"])
         fact_blocks: list[str] = []
         fact_used = 0
@@ -1714,7 +1721,9 @@ def gather_context(
         if fact_blocks:
             append_block("<facts>\n" + "\n\n".join(fact_blocks) + "\n</facts>", limit=budgets["facts_tokens"])
 
-    if summaries:
+    def add_file_summaries() -> None:
+        if not summaries:
+            return
         limited_summaries = limit_rows_by_file_count(summaries, config["retrieval"]["max_summary_files"])
         summary_blocks: list[str] = []
         summary_used = 0
@@ -1737,24 +1746,43 @@ def gather_context(
                 limit=budgets["file_summary_tokens"],
             )
 
-    chunk_blocks: list[str] = []
-    chunk_used = 0
-    for row in limit_rows_per_file(rows, config["retrieval"]["max_chunks_per_file"]):
-        block = (
-            f"[{len(chunk_blocks)+1}] {row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}\n"
-            f"kind={row['kind']} language={row['language']} package={(row['package'] if 'package' in row.keys() else '') or '-'} symbol={row['symbol'] or '-'}\n"
-            f"{row['content']}"
-        )
-        block_tokens = approx_tokens(block)
-        if chunk_used + block_tokens > budgets["chunk_tokens"]:
-            break
-        chunk_used += block_tokens
-        chunk_blocks.append(block)
-        file_ref = f"{row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}"
-        if file_ref not in seen_files:
-            seen_files.append(file_ref)
-    if chunk_blocks:
-        append_block("<chunks>\n" + "\n\n".join(chunk_blocks) + "\n</chunks>", limit=budgets["chunk_tokens"])
+    def add_chunks() -> None:
+        chunk_blocks: list[str] = []
+        chunk_used = 0
+        for row in limit_rows_per_file(rows, config["retrieval"]["max_chunks_per_file"]):
+            block = (
+                f"[{len(chunk_blocks)+1}] {row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}\n"
+                f"kind={row['kind']} language={row['language']} package={(row['package'] if 'package' in row.keys() else '') or '-'} symbol={row['symbol'] or '-'}\n"
+                f"{row['content']}"
+            )
+            block_tokens = approx_tokens(block)
+            if chunk_used + block_tokens > budgets["chunk_tokens"]:
+                break
+            chunk_used += block_tokens
+            chunk_blocks.append(block)
+            file_ref = f"{row['repo']}/{row['path']}:{row['start_line']}-{row['end_line']}"
+            if file_ref not in seen_files:
+                seen_files.append(file_ref)
+        if chunk_blocks:
+            append_block("<chunks>\n" + "\n\n".join(chunk_blocks) + "\n</chunks>", limit=budgets["chunk_tokens"])
+
+    mode_name = str(config.get("answer", {}).get("style", "default"))
+    default_order = ["operational_state", "repo_memory", "context_sources", "facts", "file_summaries", "chunks"]
+    configured_order = config.get("context_pack_order", {}).get(mode_name, default_order)
+    section_builders = {
+        "operational_state": add_operational_state,
+        "repo_memory": add_repo_memory,
+        "context_sources": add_context_sources,
+        "facts": add_facts,
+        "file_summaries": add_file_summaries,
+        "chunks": add_chunks,
+    }
+    for section_name in configured_order:
+        builder = section_builders.get(section_name)
+        if builder:
+            builder()
+    if "chunks" not in configured_order:
+        add_chunks()
     return "\n\n".join(sections), list(dict.fromkeys(seen_files))
 
 

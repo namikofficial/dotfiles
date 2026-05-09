@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import sqlite3
 import subprocess
 import time
@@ -13,6 +14,7 @@ from pathlib import Path
 from qdrant_client import models
 from rich.table import Table
 
+from .code_intel import tree_sitter_available
 from .indexing import index_repo
 from .llm import ask_llm, models_url
 from .memory import (
@@ -41,8 +43,15 @@ from .retrieval import (
     row_symbol_match_count,
     retrieve,
 )
-from .runtime import CONFIG_PATH, DB_PATH, console
-from .settings import get_index_profile, get_mode_profile, load_config
+from .runtime import CHUNKER_NAME, CONFIG_PATH, DB_PATH, INDEX_SCHEMA, console
+from .settings import (
+    get_index_profile,
+    get_mode_profile,
+    load_config,
+    missing_required_config_keys,
+    required_config_key_paths,
+    unknown_config_keys,
+)
 from .state import (
     add_command,
     add_decision,
@@ -76,6 +85,7 @@ from .state import (
     update_todo_status,
 )
 from .storage import (
+    collection_vector_size,
     connect_db,
     ensure_collection,
     get_embedder,
@@ -147,6 +157,7 @@ def render_handoff(
     state_text: str | None,
     *,
     target_agent: str = "generic",
+    missing_context: list[str] | None = None,
 ) -> str:
     file_lines = [f"- {item}" for item in files] if files else ["- none captured"]
     template_titles = {
@@ -219,6 +230,14 @@ def render_handoff(
             *template_steps.get(target_agent, template_steps["generic"]),
         ]
     )
+    if missing_context:
+        sections.extend(
+            [
+                "",
+                "## Missing context checklist",
+                *[f"- {humanize_missing_label(item)}" for item in missing_context],
+            ]
+        )
     return "\n".join(sections).strip()
 
 
@@ -400,6 +419,7 @@ def run_query_mode(args: argparse.Namespace) -> int:
             files,
             state_text,
             target_agent=target_agent,
+            missing_context=list(result.debug.get("missing_context_remaining", [])),
         )
         console.print(output)
         session_id = record_session(conn, repo, mode, args.query, route_reason, "handoff", output, files)
@@ -1528,80 +1548,232 @@ def cmd_trace(args: argparse.Namespace) -> int:
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
-    config = load_config()
-    conn = connect_db()
-    client = get_qdrant(config)
     table = Table(title="RAG doctor")
     table.add_column("check")
     table.add_column("status")
     table.add_column("detail")
+    failed = False
+    raw_config: dict = {}
+    config: dict | None = None
+    conn: sqlite3.Connection | None = None
+    client = None
+    github_context_count = 0
+
+    if CONFIG_PATH.exists():
+        try:
+            loaded_raw = json.loads(CONFIG_PATH.read_text())
+            if isinstance(loaded_raw, dict):
+                raw_config = loaded_raw
+                table.add_row("config file", "ok", str(CONFIG_PATH))
+            else:
+                failed = True
+                table.add_row("config file", "fail", f"{CONFIG_PATH} must contain a JSON object")
+        except (json.JSONDecodeError, OSError) as exc:
+            failed = True
+            table.add_row("config file", "fail", str(exc))
+    else:
+        failed = True
+        table.add_row("config file", "fail", f"missing: {CONFIG_PATH}")
+
     try:
+        config = load_config()
+        table.add_row("config merge", "ok", "loaded defaults + overrides")
+    except (json.JSONDecodeError, OSError, TypeError, ValueError) as exc:
+        failed = True
+        table.add_row("config merge", "fail", str(exc))
+        console.print(table)
+        return 1
+
+    required_paths = required_config_key_paths()
+    missing_paths = missing_required_config_keys(config, required_paths)
+    if missing_paths:
+        failed = True
+        table.add_row("config keys", "fail", ", ".join(missing_paths[:10]))
+    else:
+        table.add_row("config keys", "ok", f"{len(required_paths)} required keys present")
+
+    unknown_paths = unknown_config_keys(raw_config) if raw_config else []
+    if unknown_paths:
+        table.add_row("unknown config keys", "warn", ", ".join(unknown_paths[:10]))
+    else:
+        table.add_row("unknown config keys", "ok", "none")
+
+    try:
+        conn = connect_db()
+        table.add_row("sqlite open", "ok", str(DB_PATH))
+    except sqlite3.Error as exc:
+        failed = True
+        table.add_row("sqlite open", "fail", str(exc))
+
+    repo_count = 0
+    chunk_count = 0
+    fact_count = 0
+    summary_count = 0
+    if conn is not None:
+        required_tables = {
+            "indexed_repos",
+            "chunks",
+            "chunks_fts",
+            "facts",
+            "file_summaries",
+            "symbols",
+            "symbols_fts",
+            "semantic_lines",
+            "semantic_lines_fts",
+            "file_dependencies",
+            "repo_memory",
+            "task_todos",
+            "task_decisions",
+            "command_memory",
+            "error_memory",
+            "git_context",
+            "github_context",
+            "test_failure_memory",
+            "task_sessions",
+            "session_compactions",
+            "context_packs",
+            "eval_cases",
+        }
+        table_names = {
+            row["name"]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"
+            ).fetchall()
+        }
+        missing_tables = sorted(required_tables - table_names)
+        if missing_tables:
+            failed = True
+            table.add_row("sqlite schema", "fail", ", ".join(missing_tables[:10]))
+        else:
+            table.add_row("sqlite schema", "ok", f"{len(required_tables)} required tables present")
+
+        repo_count = int(conn.execute("SELECT COUNT(*) AS count FROM indexed_repos").fetchone()["count"])
+        chunk_count = int(conn.execute("SELECT COUNT(*) AS count FROM chunks").fetchone()["count"])
+        fact_count = int(conn.execute("SELECT COUNT(*) AS count FROM facts").fetchone()["count"])
+        summary_count = int(conn.execute("SELECT COUNT(*) AS count FROM file_summaries").fetchone()["count"])
+        memory_count = conn.execute("SELECT COUNT(*) AS count FROM repo_memory").fetchone()["count"]
+        todo_count = conn.execute("SELECT COUNT(*) AS count FROM task_todos").fetchone()["count"]
+        decision_count = conn.execute("SELECT COUNT(*) AS count FROM task_decisions").fetchone()["count"]
+        session_count = conn.execute("SELECT COUNT(*) AS count FROM task_sessions").fetchone()["count"]
+        memory_note_count = conn.execute("SELECT COUNT(*) AS count FROM developer_memory").fetchone()["count"]
+        context_pack_count = conn.execute("SELECT COUNT(*) AS count FROM context_packs").fetchone()["count"]
+        compaction_count = conn.execute("SELECT COUNT(*) AS count FROM session_compactions").fetchone()["count"]
+        git_context_count = conn.execute("SELECT COUNT(*) AS count FROM git_context").fetchone()["count"]
+        github_context_count = int(conn.execute("SELECT COUNT(*) AS count FROM github_context").fetchone()["count"])
+        test_failure_count = conn.execute("SELECT COUNT(*) AS count FROM test_failure_memory").fetchone()["count"]
+        eval_case_count = conn.execute("SELECT COUNT(*) AS count FROM eval_cases").fetchone()["count"]
+
+        table.add_row("sqlite data", "ok", f"{repo_count} repos, {chunk_count} chunks")
+        table.add_row(
+            "memory/state",
+            "ok",
+            (
+                f"{fact_count} facts, {summary_count} file summaries, {memory_count} repo memories, "
+                f"{memory_note_count} memory notes, {context_pack_count} context packs, "
+                f"{git_context_count} git snapshots, {github_context_count} GitHub refs, {test_failure_count} test failures, "
+                f"{todo_count} todos, {decision_count} decisions, {session_count} sessions, "
+                f"{compaction_count} compactions, {eval_case_count} eval cases"
+            ),
+        )
+        schema_drift = conn.execute(
+            "SELECT COUNT(*) AS count FROM chunks WHERE index_schema != ? OR chunker != ?",
+            (INDEX_SCHEMA, CHUNKER_NAME),
+        ).fetchone()["count"]
+        if schema_drift:
+            failed = True
+            table.add_row(
+                "index schema/chunker",
+                "fail",
+                f"{schema_drift} chunks not on {INDEX_SCHEMA}/{CHUNKER_NAME}",
+            )
+        else:
+            table.add_row("index schema/chunker", "ok", f"{INDEX_SCHEMA}/{CHUNKER_NAME}")
+
+    try:
+        client = get_qdrant(config)
         client.get_collections()
         table.add_row("qdrant", "ok", config["qdrant_url"])
     except Exception as exc:  # pragma: no cover
+        failed = True
         table.add_row("qdrant", "fail", str(exc))
-        console.print(table)
-        return 1
-    try:
-        collection = client.get_collection(config["qdrant_collection"])
-        points = str(collection.points_count)
-    except Exception:
-        points = "0"
-    table.add_row("collection", "ok", f"{config['qdrant_collection']} ({points} points)")
-    repo_count = conn.execute("SELECT COUNT(*) AS count FROM indexed_repos").fetchone()["count"]
-    chunk_count = conn.execute("SELECT COUNT(*) AS count FROM chunks").fetchone()["count"]
-    table.add_row("sqlite", "ok", f"{repo_count} repos, {chunk_count} chunks")
-    fact_count = conn.execute("SELECT COUNT(*) AS count FROM facts").fetchone()["count"]
-    summary_count = conn.execute("SELECT COUNT(*) AS count FROM file_summaries").fetchone()["count"]
-    memory_count = conn.execute("SELECT COUNT(*) AS count FROM repo_memory").fetchone()["count"]
-    todo_count = conn.execute("SELECT COUNT(*) AS count FROM task_todos").fetchone()["count"]
-    decision_count = conn.execute("SELECT COUNT(*) AS count FROM task_decisions").fetchone()["count"]
-    session_count = conn.execute("SELECT COUNT(*) AS count FROM task_sessions").fetchone()["count"]
-    memory_note_count = conn.execute("SELECT COUNT(*) AS count FROM developer_memory").fetchone()["count"]
-    context_pack_count = conn.execute("SELECT COUNT(*) AS count FROM context_packs").fetchone()["count"]
-    compaction_count = conn.execute("SELECT COUNT(*) AS count FROM session_compactions").fetchone()["count"]
-    git_context_count = conn.execute("SELECT COUNT(*) AS count FROM git_context").fetchone()["count"]
-    github_context_count = conn.execute("SELECT COUNT(*) AS count FROM github_context").fetchone()["count"]
-    test_failure_count = conn.execute("SELECT COUNT(*) AS count FROM test_failure_memory").fetchone()["count"]
-    eval_case_count = conn.execute("SELECT COUNT(*) AS count FROM eval_cases").fetchone()["count"]
-    table.add_row(
-        "memory",
-        "ok",
-        (
-            f"{fact_count} facts, {summary_count} file summaries, {memory_count} repo memories, "
-            f"{memory_note_count} memory notes, {context_pack_count} context packs, "
-            f"{git_context_count} git snapshots, {github_context_count} GitHub refs, {test_failure_count} test failures, "
-            f"{todo_count} todos, {decision_count} decisions, {session_count} sessions, "
-            f"{compaction_count} compactions, {eval_case_count} eval cases"
-        ),
-    )
+
     if args.deep:
+        table.add_row(
+            "tree-sitter",
+            "ok" if tree_sitter_available() else "warn",
+            "available" if tree_sitter_available() else "not installed; regex fallback active",
+        )
+
+        expected_size: int | None = None
         try:
-            ensure_collection(client, config)
-            table.add_row("collection vector size", "ok", config["embedding_model"])
+            embedder = get_embedder(config)
+            expected_size = len(list(embedder.embed(["doctor vector size probe"]))[0])
+            table.add_row("embedding model", "ok", f"{config['embedding_model']} ({expected_size} dims)")
         except Exception as exc:
-            table.add_row("collection vector size", "fail", str(exc))
-        try:
-            _ = get_embedder(config)
-            table.add_row("embedding model", "ok", config["embedding_model"])
-        except Exception as exc:
+            failed = True
             table.add_row("embedding model", "fail", str(exc))
+
+        if client is not None and expected_size is not None:
+            try:
+                collection_name = config["qdrant_collection"]
+                if not client.collection_exists(collection_name):
+                    failed = True
+                    table.add_row("collection", "fail", f"missing: {collection_name}")
+                else:
+                    collection = client.get_collection(collection_name)
+                    points = str(collection.points_count)
+                    actual_size = collection_vector_size(collection)
+                    if actual_size != expected_size:
+                        failed = True
+                        table.add_row(
+                            "collection vector size",
+                            "fail",
+                            f"{collection_name}: expected {expected_size}, got {actual_size}",
+                        )
+                    else:
+                        table.add_row(
+                            "collection vector size",
+                            "ok",
+                            f"{collection_name}: {actual_size} dims ({points} points)",
+                        )
+            except Exception as exc:
+                failed = True
+                table.add_row("collection vector size", "fail", str(exc))
+
+        try:
+            request = urllib.request.Request(
+                models_url(config["answer_url"]),
+                headers={"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8") or "{}")
+            model_ids = [entry.get("id", "") for entry in payload.get("data", []) if isinstance(entry, dict)]
+            if config["answer_model"] in model_ids:
+                table.add_row("llama /v1/models", "ok", f"model alias found: {config['answer_model']}")
+            else:
+                failed = True
+                detail = f"alias not found: {config['answer_model']}"
+                if model_ids:
+                    detail += f" (available: {', '.join(model_ids[:6])})"
+                table.add_row("llama /v1/models", "fail", detail)
+        except Exception as exc:  # pragma: no cover
+            failed = True
+            table.add_row("llama /v1/models", "fail", str(exc))
+
+        gh_path = shutil.which("gh")
+        if github_context_count > 0:
+            if gh_path:
+                table.add_row("gh cli", "ok", gh_path)
+            else:
+                failed = True
+                table.add_row("gh cli", "fail", "github context is populated but gh is missing")
+        else:
+            table.add_row("gh cli", "ok" if gh_path else "warn", gh_path or "optional (no GitHub context rows yet)")
+
         table.add_row("fts populated", "ok" if chunk_count else "warn", str(chunk_count))
         table.add_row("facts populated", "ok" if fact_count else "warn", str(fact_count))
         table.add_row("file summaries", "ok" if summary_count else "warn", str(summary_count))
-    try:
-        with urllib.request.urlopen(
-            urllib.request.Request(
-                models_url(config["answer_url"]),
-                headers={"Content-Type": "application/json"},
-            ),
-            timeout=5,
-        ):
-            pass
-        table.add_row("answer model", "ok", config["answer_model"])
-    except Exception as exc:  # pragma: no cover
-        table.add_row("answer model", "fail", str(exc))
-    if not args.deep:
+    else:
         table.add_row("embedding model", "ok", config["embedding_model"])
     table.add_row(
         "reranker",
@@ -1621,7 +1793,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             f"chunks={config['context_budget']['chunk_tokens']}"
         ),
     )
-    memory_statuses = repo_memory_status_rows(conn)
+    memory_statuses = repo_memory_status_rows(conn) if conn is not None else []
     stale_count = sum(1 for row in memory_statuses if row["status"] == "stale")
     missing_count = sum(1 for row in memory_statuses if row["status"] == "missing")
     table.add_row("memory freshness", "ok" if not stale_count and not missing_count else "warn", f"{stale_count} stale, {missing_count} missing")
@@ -1630,9 +1802,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             response = ask_llm(config, "reply with ok", "<chunks>\nhealth check\n</chunks>", mode="quick")
             table.add_row("answer generation", "ok" if response else "warn", (response or "-")[:60])
         except Exception as exc:  # pragma: no cover
+            failed = True
             table.add_row("answer generation", "fail", str(exc))
     console.print(table)
-    return 0
+    return 1 if failed else 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -2060,7 +2233,7 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser.add_argument(
         "--deep",
         action="store_true",
-        help="Run deeper health checks, including embedder/vector sizing and a lightweight answer-generation probe.",
+        help="Run deeper health checks (config/schema drift, vector sizing, /v1/models alias checks, gh/tree-sitter, and answer probe).",
     )
     doctor_parser.set_defaults(func=cmd_doctor)
     return parser

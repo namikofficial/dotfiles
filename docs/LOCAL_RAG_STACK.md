@@ -6,7 +6,7 @@ This repo now includes a repeatable local RAG bootstrap aimed at the current lap
 - **Vector store:** Qdrant (local Docker container)
 - **Dense embeddings:** FastEmbed with **`BAAI/bge-small-en-v1.5`** by default
 - **Keyword retrieval:** SQLite FTS5 over the indexed chunks
-- **Hybrid retrieval:** dense + keyword + metadata fusion
+- **Hybrid retrieval:** dense Qdrant + SQLite FTS5 + metadata/fact fusion
 - **Reranker:** lightweight heuristic reranker enabled by default on this machine
 - **Query intelligence:** richer intent detection, developer abbreviations, symbol-aware rewrites, typo-tolerant lookup, and metadata boosts
 - **Facts layer:** exact structured facts for aliases, keybinds, env vars, tools, config keys, SQL/schema objects, systems-language surfaces, data stores, and local infra
@@ -130,7 +130,7 @@ When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **
 
 1. rewrite each question into a few query variants
 2. pull semantic hits from Qdrant
-3. pull keyword hits from SQLite FTS
+3. pull keyword hits from SQLite FTS5
 4. pull matching facts and file summaries from SQLite
 5. merge chunk candidates with reciprocal rank fusion
 6. apply diversity limits so one file does not crowd out the rest

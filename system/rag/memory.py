@@ -16,6 +16,7 @@ from .state import (
     list_memory_entries,
     list_session_compactions,
     load_operational_state,
+    redact_sensitive_text,
     session_compaction_details,
 )
 from .storage import repo_identity
@@ -322,6 +323,7 @@ def store_context_pack(
     agent_target: str = "generic",
 ) -> None:
     now = time.time()
+    redacted_content = redact_sensitive_text(content)
     conn.execute(
         """
         INSERT INTO context_packs (repo, name, agent_target, source, content, metadata_json, created_at, updated_at)
@@ -331,7 +333,7 @@ def store_context_pack(
             metadata_json = excluded.metadata_json,
             updated_at = excluded.updated_at
         """,
-        (repo, name, agent_target, content, json.dumps(metadata, indent=2, sort_keys=True), now, now),
+        (repo, name, agent_target, redacted_content, json.dumps(metadata, indent=2, sort_keys=True), now, now),
     )
     conn.commit()
 
@@ -349,7 +351,7 @@ def write_context_pack_file(root: Path, name: str, content: str) -> Path:
     directory = root / ".context"
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{name}.toon"
-    path.write_text(content.rstrip() + "\n")
+    path.write_text(redact_sensitive_text(content).rstrip() + "\n")
     return path
 
 

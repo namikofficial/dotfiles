@@ -20,6 +20,30 @@ MEMORY_KIND_LABELS = {
 }
 VALID_MEMORY_KINDS = tuple(MEMORY_KIND_LABELS)
 
+REDACT_TOKEN_PATTERNS = (
+    re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._\-+/=]{8,}"),
+    re.compile(r"\bsk-[A-Za-z0-9-]{8,}\b"),
+    re.compile(r"\b(?:sk|ghp|gho|ghu|github_pat)_[A-Za-z0-9_]{8,}\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+)
+REDACT_HEADER_PATTERNS = (
+    (re.compile(r"(?im)(authorization\s*:\s*)([^\n]+)"), r"\1<redacted>"),
+    (re.compile(r"(?im)(cookie\s*:\s*)([^\n]+)"), r"\1<redacted>"),
+    (re.compile(r"(?im)(set-cookie\s*:\s*)([^\n]+)"), r"\1<redacted>"),
+)
+REDACT_ENV_PATTERN = re.compile(
+    r"(?im)\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_KEY|ACCESS_KEY|PRIVATE_KEY|DATABASE_URL|COOKIE|SESSION|AUTH)[A-Z0-9_]*)\s*=\s*([^\s]+)"
+)
+REDACT_URL_CREDENTIAL_PATTERN = re.compile(
+    r"([a-zA-Z][a-zA-Z0-9+.-]*://[^/\s:@]+):([^/\s@]+)@"
+)
+REDACT_DB_URL_PATTERN = re.compile(
+    r"(?i)\b((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|mssql|amqp)://[^\s]+)"
+)
+REDACT_PRIVATE_KEY_BLOCK_PATTERN = re.compile(
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"
+)
+
 
 def _scope_clause(repo: str | None) -> tuple[str, list[object]]:
     if repo:
@@ -31,6 +55,43 @@ def _scope_clause(repo: str | None) -> tuple[str, list[object]]:
 def _normalize_memory_subject(subject: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", subject.lower()).strip("-")
     return slug or "memory"
+
+
+def redact_sensitive_text(text: str) -> str:
+    if not text:
+        return text
+    redacted = text
+    redacted = REDACT_PRIVATE_KEY_BLOCK_PATTERN.sub("<redacted-private-key>", redacted)
+    for pattern, replacement in REDACT_HEADER_PATTERNS:
+        redacted = pattern.sub(replacement, redacted)
+    redacted = REDACT_ENV_PATTERN.sub(r"\1=<redacted>", redacted)
+    redacted = REDACT_URL_CREDENTIAL_PATTERN.sub(r"\1:<redacted>@", redacted)
+
+    def _redact_db_url(match: re.Match[str]) -> str:
+        value = match.group(1)
+        return REDACT_URL_CREDENTIAL_PATTERN.sub(r"\1:<redacted>@", value)
+
+    redacted = REDACT_DB_URL_PATTERN.sub(_redact_db_url, redacted)
+    for pattern in REDACT_TOKEN_PATTERNS:
+        redacted = pattern.sub("<redacted-token>", redacted)
+    return redacted
+
+
+def _redact_optional(text: str | None) -> str | None:
+    if text is None:
+        return None
+    return redact_sensitive_text(text)
+
+
+def _redact_text_list(values: list[str]) -> list[str]:
+    return [redact_sensitive_text(value) for value in values]
+
+
+def _cursor_lastrowid(cursor: sqlite3.Cursor) -> int:
+    row_id = cursor.lastrowid
+    if row_id is None:
+        raise RuntimeError("Expected sqlite cursor.lastrowid to be set")
+    return int(row_id)
 
 
 
@@ -51,7 +112,7 @@ def add_todo(
         (repo, title.strip(), detail, status, source_session_id, now, now),
     )
     conn.commit()
-    return int(cursor.lastrowid)
+    return _cursor_lastrowid(cursor)
 
 
 
@@ -100,7 +161,7 @@ def add_decision(
         (repo, title.strip(), detail.strip(), rationale, source_session_id, now, now),
     )
     conn.commit()
-    return int(cursor.lastrowid)
+    return _cursor_lastrowid(cursor)
 
 
 
@@ -122,15 +183,18 @@ def add_command(
     source_session_id: str | None = None,
 ) -> int:
     now = time.time()
+    redacted_command = redact_sensitive_text(command).strip()
+    redacted_purpose = _redact_optional(purpose)
+    redacted_notes = _redact_optional(notes)
     cursor = conn.execute(
         """
         INSERT INTO command_memory (repo, command, purpose, notes, source_session_id, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (repo, command.strip(), purpose, notes, source_session_id, now, now),
+        (repo, redacted_command, redacted_purpose, redacted_notes, source_session_id, now, now),
     )
     conn.commit()
-    return int(cursor.lastrowid)
+    return _cursor_lastrowid(cursor)
 
 
 
@@ -154,10 +218,14 @@ def add_error(
     source_session_id: str | None = None,
 ) -> int:
     now = time.time()
-    normalized_error = normalize_error_text(error_text)
+    redacted_error_text = redact_sensitive_text(error_text)
+    redacted_fix_text = _redact_optional(fix_text)
+    redacted_notes = _redact_optional(notes)
+    redacted_command = _redact_optional(command)
+    normalized_error = normalize_error_text(redacted_error_text)
     fingerprint_hash = fingerprint_error(normalized_error)
-    stack_symbols = json.dumps(extract_stack_symbols(error_text))
-    file_paths = json.dumps(extract_file_paths(error_text))
+    stack_symbols = json.dumps(extract_stack_symbols(redacted_error_text))
+    file_paths = json.dumps(extract_file_paths(redacted_error_text))
     cursor = conn.execute(
         """
         INSERT INTO error_memory (
@@ -169,14 +237,14 @@ def add_error(
         """,
         (
             repo,
-            error_text.strip(),
-            fix_text,
-            notes,
+            redacted_error_text.strip(),
+            redacted_fix_text,
+            redacted_notes,
             normalized_error,
             fingerprint_hash,
             stack_symbols,
             file_paths,
-            command,
+            redacted_command,
             exit_code,
             source_session_id,
             now,
@@ -184,7 +252,7 @@ def add_error(
         ),
     )
     conn.commit()
-    return int(cursor.lastrowid)
+    return _cursor_lastrowid(cursor)
 
 
 
@@ -253,6 +321,11 @@ def upsert_git_context(
     changed_files: list[str],
 ) -> None:
     now = time.time()
+    redacted_status = redact_sensitive_text(status_short).strip()
+    redacted_diff = redact_sensitive_text(diff_text).strip()
+    redacted_staged_diff = redact_sensitive_text(staged_diff_text).strip()
+    redacted_recent_log = redact_sensitive_text(recent_log_text).strip()
+    redacted_changed_files = _redact_text_list(changed_files)
     conn.execute(
         """
         INSERT INTO git_context (
@@ -278,11 +351,11 @@ def upsert_git_context(
             indexed_branch,
             indexed_commit,
             1 if dirty else 0,
-            status_short.strip(),
-            diff_text.strip(),
-            staged_diff_text.strip(),
-            recent_log_text.strip(),
-            json.dumps(changed_files),
+            redacted_status,
+            redacted_diff,
+            redacted_staged_diff,
+            redacted_recent_log,
+            json.dumps(redacted_changed_files),
             now,
         ),
     )
@@ -315,6 +388,14 @@ def upsert_github_context(
     source: str = "manual",
 ) -> None:
     now = time.time()
+    redacted_title = redact_sensitive_text(title).strip()
+    redacted_body = redact_sensitive_text(body).strip()
+    redacted_changed_files = _redact_text_list(changed_files or [])
+    redacted_comments = _redact_text_list(comments or [])
+    redacted_review_comments = _redact_text_list(review_comments or [])
+    redacted_ci_logs = redact_sensitive_text(ci_logs_text).strip()
+    redacted_linked_issues = _redact_text_list(linked_issues or [])
+    redacted_source = redact_sensitive_text(source).strip()
     conn.execute(
         """
         INSERT INTO github_context (
@@ -336,14 +417,14 @@ def upsert_github_context(
             repo,
             ref_type,
             ref_number,
-            title.strip(),
-            body.strip(),
-            json.dumps(changed_files or []),
-            json.dumps(comments or []),
-            json.dumps(review_comments or []),
-            ci_logs_text.strip(),
-            json.dumps(linked_issues or []),
-            source,
+            redacted_title,
+            redacted_body,
+            json.dumps(redacted_changed_files),
+            json.dumps(redacted_comments),
+            json.dumps(redacted_review_comments),
+            redacted_ci_logs,
+            json.dumps(redacted_linked_issues),
+            redacted_source,
             now,
         ),
     )
@@ -386,7 +467,9 @@ def add_test_failure(
     source: str = "local",
 ) -> int:
     now = time.time()
-    normalized_error = normalize_error_text(output_text)
+    redacted_command = redact_sensitive_text(command).strip()
+    redacted_output = redact_sensitive_text(output_text).strip()
+    normalized_error = normalize_error_text(redacted_output)
     fingerprint_hash = fingerprint_error(normalized_error)
     cursor = conn.execute(
         """
@@ -398,12 +481,12 @@ def add_test_failure(
         (
             repo,
             runner,
-            command.strip(),
-            output_text.strip(),
+            redacted_command,
+            redacted_output,
             normalized_error,
             fingerprint_hash,
-            json.dumps(extract_stack_symbols(output_text)),
-            json.dumps(extract_file_paths(output_text)),
+            json.dumps(extract_stack_symbols(redacted_output)),
+            json.dumps(extract_file_paths(redacted_output)),
             exit_code,
             source,
             now,
@@ -411,7 +494,7 @@ def add_test_failure(
         ),
     )
     conn.commit()
-    return int(cursor.lastrowid)
+    return _cursor_lastrowid(cursor)
 
 
 
@@ -494,7 +577,7 @@ def remember_memory(
         ),
     )
     conn.commit()
-    return int(cursor.lastrowid)
+    return _cursor_lastrowid(cursor)
 
 
 
@@ -601,6 +684,11 @@ def record_session(
 ) -> str:
     session_id = uuid.uuid4().hex[:12]
     now = time.time()
+    redacted_query = redact_sensitive_text(query).strip()
+    redacted_route_reason = redact_sensitive_text(route_reason).strip()
+    redacted_output = redact_sensitive_text(output_text).strip()
+    redacted_files = _redact_text_list(relevant_files)
+    redacted_output_kind = redact_sensitive_text(output_kind).strip()
     conn.execute(
         """
         INSERT INTO task_sessions (
@@ -611,11 +699,11 @@ def record_session(
             session_id,
             repo,
             mode,
-            query.strip(),
-            route_reason,
-            output_kind,
-            output_text.strip(),
-            json.dumps(relevant_files),
+            redacted_query,
+            redacted_route_reason,
+            redacted_output_kind,
+            redacted_output,
+            json.dumps(redacted_files),
             now,
             now,
         ),
@@ -645,32 +733,34 @@ def session_files(row: sqlite3.Row) -> list[str]:
 
 
 def _extract_session_artifacts(query: str, output_text: str) -> dict[str, list[str]]:
+    safe_query = redact_sensitive_text(query)
+    safe_output = redact_sensitive_text(output_text)
     commands = [
-        match.strip()
-        for match in re.findall(r"`([^`\n]+)`", output_text)
+        redact_sensitive_text(match.strip())
+        for match in re.findall(r"`([^`\n]+)`", safe_output)
         if len(match.strip()) >= 3
     ]
     errors = [
-        line.split("error:", 1)[1].strip()
-        for line in output_text.splitlines()
+        redact_sensitive_text(line.split("error:", 1)[1].strip())
+        for line in safe_output.splitlines()
         if "error:" in line.lower()
     ]
     todos = []
-    for line in output_text.splitlines():
+    for line in safe_output.splitlines():
         stripped = line.strip()
         lowered = stripped.lower()
         if stripped.startswith("- [") or lowered.startswith("todo:") or lowered.startswith("- todo"):
-            todos.append(stripped)
-    if not todos and re.search(r"\b(add|fix|implement|refactor|review|debug)\b", query.lower()):
-        todos.append(query.strip())
+            todos.append(redact_sensitive_text(stripped))
+    if not todos and re.search(r"\b(add|fix|implement|refactor|review|debug)\b", safe_query.lower()):
+        todos.append(safe_query.strip())
     decisions = [
-        line.strip()
-        for line in output_text.splitlines()
+        redact_sensitive_text(line.strip())
+        for line in safe_output.splitlines()
         if line.strip().lower().startswith("decision:") or "## decisions" in line.lower()
     ]
     useful_facts = [
-        line.strip()
-        for line in output_text.splitlines()
+        redact_sensitive_text(line.strip())
+        for line in safe_output.splitlines()
         if line.strip().startswith("- ") and any(token in line.lower() for token in ("repo", "mode", "reason", "file"))
     ]
     return {
@@ -690,12 +780,15 @@ def compact_session(conn: sqlite3.Connection, session_id: str) -> sqlite3.Row | 
     now = time.time()
     files = session_files(row)
     file_summary = ", ".join(files[:4]) if files else "none"
-    output_preview = row["output_text"].strip().replace("\n", " ")[:280]
+    output_preview = redact_sensitive_text(str(row["output_text"])).strip().replace("\n", " ")[:280]
+    route_reason = redact_sensitive_text(str(row["route_reason"]))
+    query_text = redact_sensitive_text(str(row["query"]))
+    mode_text = redact_sensitive_text(str(row["mode"]))
     summary = (
-        f"[{row['mode']}] {row['query']} | files: {file_summary}"
+        f"[{mode_text}] {query_text} | files: {file_summary} | route: {route_reason}"
         + (f" | output: {output_preview}" if output_preview else "")
     )
-    extracted = _extract_session_artifacts(str(row["query"]), str(row["output_text"]))
+    extracted = _extract_session_artifacts(query_text, str(row["output_text"]))
     conn.execute(
         """
         INSERT INTO session_compactions (session_id, repo, mode, summary, extracted_json, created_at, updated_at)
@@ -749,7 +842,7 @@ def add_eval_case(
         (repo, query.strip(), mode, json.dumps(expected_files), notes, now, now),
     )
     conn.commit()
-    return int(cursor.lastrowid)
+    return _cursor_lastrowid(cursor)
 
 
 
@@ -897,7 +990,9 @@ def save_handoff(repo: str | None, goal: str, content: str) -> Path:
     scope = repo or "global"
     directory = RAG_HOME / "projects" / scope / "handoffs"
     directory.mkdir(parents=True, exist_ok=True)
-    filename = f"{time.strftime('%Y%m%d-%H%M%S')}-{slugify(goal)}.md"
+    redacted_goal = redact_sensitive_text(goal)
+    redacted_content = redact_sensitive_text(content)
+    filename = f"{time.strftime('%Y%m%d-%H%M%S')}-{slugify(redacted_goal)}.md"
     path = directory / filename
-    path.write_text(content.rstrip() + "\n")
+    path.write_text(redacted_content.rstrip() + "\n")
     return path
