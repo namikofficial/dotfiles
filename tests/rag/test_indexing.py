@@ -14,7 +14,7 @@ SYSTEM_DIR = Path(__file__).resolve().parents[2] / "system"
 sys.path.insert(0, str(SYSTEM_DIR))
 
 from rag.code_intel import analyze_file, build_repo_package_index
-from rag.indexing import extract_facts, index_repo
+from rag.indexing import extract_facts, index_repo, iter_text_files
 from rag.retrieval import build_retrieval_plan, semantic_line_hits, symbol_hits
 from rag.settings import DEFAULT_CONFIG
 from rag.storage import ensure_db
@@ -57,6 +57,26 @@ class IndexingTest(unittest.TestCase):
         package_index = build_repo_package_index(root, root.name, [file_path])
         return analyze_file(root, file_path, rel_path, content, language, package_index, {rel_path})
 
+    def test_iter_text_files_ignores_dependency_and_virtualenv_dirs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            files = {
+                "app/main.py": "print('app')\n",
+                ".venv/lib/python3.14/site-packages/markdown_it/main.py": "print('dependency')\n",
+                "backend/venv/lib/python3.14/site-packages/pkg/module.py": "print('dependency')\n",
+                "backend/__pycache__/main.cpython-314.pyc": "binary-ish",
+                "node_modules/pkg/index.js": "console.log('dependency')\n",
+                ".gradle/cache.properties": "dependency=true\n",
+            }
+            for rel_path, content in files.items():
+                path = root / rel_path
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(content)
+
+            indexed = {path.relative_to(root).as_posix() for path in iter_text_files(root)}
+
+        self.assertEqual(indexed, {"app/main.py"})
+
     def test_index_repo_builds_symbol_dependency_and_package_indexes(self) -> None:
         conn = self.make_connection()
         config = copy.deepcopy(DEFAULT_CONFIG)
@@ -85,12 +105,26 @@ class IndexingTest(unittest.TestCase):
             )
 
             client = FakeClient()
+            progress_events: list[dict[str, object]] = []
             with patch("rag.indexing.ensure_collection"), patch("rag.indexing.get_embedder", return_value=FakeEmbedder()):
-                changed_files, total_chunks = index_repo(conn, client, config, root, changed_only=False, profile=profile)
+                changed_files, total_chunks = index_repo(
+                    conn,
+                    client,
+                    config,
+                    root,
+                    changed_only=False,
+                    profile=profile,
+                    progress_callback=progress_events.append,
+                )
 
         self.assertGreaterEqual(changed_files, 5)
         self.assertGreater(total_chunks, 0)
         self.assertTrue(client.upserts)
+        self.assertEqual(progress_events[0]["event"], "start")
+        self.assertEqual(progress_events[-1]["event"], "finish")
+        self.assertTrue(any(event["event"] == "indexed" for event in progress_events))
+        self.assertEqual(progress_events[-1]["changed_files"], changed_files)
+        self.assertEqual(progress_events[-1]["total_chunks"], total_chunks)
 
         symbol_rows = conn.execute(
             "SELECT qualified_name, kind, parser FROM symbols WHERE repo = ? AND path = ? ORDER BY start_line",

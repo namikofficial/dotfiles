@@ -10,7 +10,7 @@ from pathlib import Path
 SYSTEM_DIR = Path(__file__).resolve().parents[2] / "system"
 sys.path.insert(0, str(SYSTEM_DIR))
 
-from rag.cli import build_parser, route_mode
+from rag.cli import build_parser, route_mode, suggestion_for_argparse_error, workflow_keys_for_query
 from rag.memory import build_context_pack
 from rag.retrieval import gather_context
 from rag.settings import DEFAULT_CONFIG, get_mode_profile
@@ -64,11 +64,20 @@ class CliStateTest(unittest.TestCase):
             ["context", "test-failure", "add", "pytest -q", "--output", "AssertionError"]
         )
         self.assertEqual(context_failure_args.failure_command, "add")
+        suggest_args = parser.parse_args(["suggest", "debug"])
+        self.assertEqual(suggest_args.command, "suggest")
+        self.assertEqual(suggest_args.query, "debug")
         memory_args = parser.parse_args(
             ["memory", "remember", "known_stack", "backend", "node", "nest", "--global-scope"]
         )
         self.assertEqual(memory_args.memory_command, "remember")
         self.assertTrue(memory_args.global_scope)
+
+    def test_cli_suggestions_for_typos_and_workflows(self) -> None:
+        message = "argument command: invalid choice: 'serach' (choose from 'index', 'search', 'status')"
+        self.assertEqual(suggestion_for_argparse_error(message), "search")
+        self.assertIn("debug", workflow_keys_for_query("debug retrieval misses"))
+        self.assertIn("memory", workflow_keys_for_query("remember project facts"))
 
     def test_gather_context_includes_operational_state(self) -> None:
         config = get_mode_profile(DEFAULT_CONFIG, "deep")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import re
 import shutil
@@ -13,6 +14,16 @@ from pathlib import Path
 
 from qdrant_client import models
 from rich.table import Table
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
 
 from .code_intel import tree_sitter_available
 from .indexing import index_repo
@@ -96,6 +107,98 @@ from .storage import (
     repo_identity,
 )
 from .types import IndexInterrupted
+
+
+class SuggestingArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        suggestion = suggestion_for_argparse_error(message)
+        if suggestion:
+            message = f"{message}\n\nDid you mean: {suggestion}"
+        super().error(message)
+
+
+def suggestion_for_argparse_error(message: str) -> str | None:
+    match = re.search(r"invalid choice: '([^']+)' \(choose from (.+)\)", message)
+    if not match:
+        return None
+    entered = match.group(1)
+    raw_choices = match.group(2)
+    choices = re.findall(r"'([^']+)'", raw_choices)
+    if not choices:
+        choices = [choice.strip(" ,") for choice in raw_choices.split(",") if choice.strip(" ,")]
+    close = difflib.get_close_matches(entered, choices, n=1, cutoff=0.55)
+    if close:
+        return close[0]
+    prefix_matches = [choice for choice in choices if choice.startswith(entered[:2])]
+    if prefix_matches:
+        return prefix_matches[0]
+    return None
+
+
+RAG_WORKFLOWS = {
+    "setup": [
+        ("rag doctor --deep", "verify config, SQLite, Qdrant, embeddings, and answer model"),
+        ("rag index --profile balanced", "index the current repo with facts and file summaries"),
+        ("rag status", "check indexed repos, chunk counts, memory, and reranker settings"),
+    ],
+    "ask": [
+        ('rag quick "what does this file do?"', "fast answer path for small questions"),
+        ('rag deep "review this flow"', "larger context with repo memory and operational state"),
+        ('rag ask --mode auto "why is auth failing?"', "let the router choose quick/deep/agent"),
+    ],
+    "debug": [
+        ('rag search "AuthService.login" --explain', "show matching chunks and retrieval-stage counts"),
+        ('rag inspect "AuthService.login"', "inspect query rewrites, intent, routing, and typo corrections"),
+        ('rag missing "debug checkout failure"', "show what file categories retrieval expects"),
+        ('rag why "checkout failure" src/checkout.ts', "explain why an indexed file did or did not rank"),
+    ],
+    "trace": [
+        ("rag facts list --kind keybind", "browse extracted structured facts"),
+        ("rag trace symbol AuthService", "trace an indexed symbol to nearby evidence"),
+        ("rag graph AuthService", "show lightweight dependency edges from symbols or paths"),
+    ],
+    "state": [
+        ("rag context git --refresh", "store current branch, status, and diff for retrieval"),
+        ("rag context github pr 123", "ingest PR title, files, comments, linked issues, and checks"),
+        ('rag context test-failure add "pytest -q" --output-file /tmp/failure.txt', "store failure output"),
+        ('rag todo add "Refresh retrieval docs" --repo dotfiles', "track repo-scoped follow-up work"),
+    ],
+    "memory": [
+        ("rag summarize", "refresh durable repo memory"),
+        ("rag memory status", "show repo memory freshness and drift"),
+        ("rag memory notes --scope all", "list developer memory notes"),
+        ("rag memory pack dotfiles --target-agent codex --write-file", "write reusable handoff context"),
+    ],
+    "handoff": [
+        ('rag agent "prepare implementation handoff" --target-agent codex --save-handoff', "generate a coding-agent packet"),
+        ('rag handoff human "explain this subsystem"', "format a human-readable handoff"),
+        ("rag session list", "find saved answers and handoffs"),
+        ("rag session show <session-id>", "reopen a saved session"),
+    ],
+}
+
+
+SUGGEST_ALIASES = {
+    "health": "setup",
+    "install": "setup",
+    "index": "setup",
+    "query": "ask",
+    "answer": "ask",
+    "find": "debug",
+    "debugging": "debug",
+    "explain": "debug",
+    "fact": "trace",
+    "facts": "trace",
+    "symbol": "trace",
+    "todo": "state",
+    "github": "state",
+    "git": "state",
+    "context": "state",
+    "remember": "memory",
+    "pack": "memory",
+    "agent": "handoff",
+    "codex": "handoff",
+}
 
 
 def route_mode(query: str) -> tuple[str, str]:
@@ -293,6 +396,88 @@ def compact_file_refs(items: list[str], limit: int = 6) -> list[str]:
     return normalized[:limit]
 
 
+def format_duration(seconds: float) -> str:
+    seconds = max(0, int(seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h{minutes:02d}m{secs:02d}s"
+    if minutes:
+        return f"{minutes}m{secs:02d}s"
+    return f"{secs}s"
+
+
+def shorten_progress_path(path: str, limit: int = 48) -> str:
+    if len(path) <= limit:
+        return path
+    return "..." + path[-(limit - 3):]
+
+
+def make_index_progress() -> Progress:
+    return Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(bar_width=24),
+        MofNCompleteColumn(),
+        TaskProgressColumn(),
+        TextColumn("elapsed"),
+        TimeElapsedColumn(),
+        TextColumn("eta"),
+        TimeRemainingColumn(),
+        TextColumn("changed {task.fields[changed]} skipped {task.fields[skipped]} chunks {task.fields[chunks]}"),
+        TextColumn("{task.fields[rate]}"),
+        TextColumn("[dim]{task.fields[current]}[/dim]"),
+        console=console,
+        refresh_per_second=2,
+    )
+
+
+def make_index_progress_callback(progress: Progress, label: str):
+    task_id: int | None = None
+    started_at = time.monotonic()
+    fields = {"changed": 0, "skipped": 0, "chunks": 0}
+
+    def callback(event: dict[str, object]) -> None:
+        nonlocal task_id, started_at
+        event_name = str(event.get("event", ""))
+        if event_name == "start":
+            started_at = time.monotonic()
+            task_id = progress.add_task(
+                label,
+                total=int(event.get("total_files", 0)),
+                changed=0,
+                skipped=0,
+                chunks=0,
+                rate="0.0 files/s",
+                current="scanning complete",
+            )
+            return
+        if task_id is None:
+            return
+        processed = int(event.get("processed_files", 0))
+        elapsed = max(0.001, time.monotonic() - started_at)
+        rate = f"{processed / elapsed:.1f} files/s"
+        fields["changed"] = int(event.get("changed_files", fields["changed"]))
+        fields["skipped"] = int(event.get("skipped_files", fields["skipped"]))
+        fields["chunks"] = int(event.get("total_chunks", fields["chunks"]))
+        update = {
+            "completed": processed,
+            "changed": fields["changed"],
+            "skipped": fields["skipped"],
+            "chunks": fields["chunks"],
+            "rate": rate,
+        }
+        if "path" in event:
+            update["current"] = shorten_progress_path(str(event["path"]))
+        if event_name == "cleanup":
+            update["current"] = f"cleanup: {int(event.get('removed_files', 0))} removed"
+        if event_name == "finish":
+            update["current"] = "done"
+        progress.update(task_id, **update)
+
+    return callback
+
+
 def sanitize_imported_command(command: str) -> str | None:
     stripped = command.strip()
     if not stripped:
@@ -450,12 +635,26 @@ def cmd_index(args: argparse.Namespace) -> int:
     profile_name, profile = get_index_profile(config, args.profile)
     console.print(f"[cyan]Indexing[/cyan] {root} ...")
     try:
-        changed_files, total_chunks = index_repo(
-            conn, client, config, root, changed_only=args.changed_only, profile=profile
-        )
+        with make_index_progress() as progress:
+            changed_files, total_chunks = index_repo(
+                conn,
+                client,
+                config,
+                root,
+                changed_only=args.changed_only,
+                profile=profile,
+                progress_callback=make_index_progress_callback(progress, f"index {root.name}"),
+            )
     except IndexInterrupted as exc:
+        elapsed = f" after {format_duration(exc.elapsed_seconds)}" if exc.elapsed_seconds else ""
+        progress_text = (
+            f" Processed {exc.processed_files}/{exc.total_files} files."
+            if exc.total_files
+            else ""
+        )
         console.print(
-            f"[yellow]Cancelled.[/yellow] Kept {exc.changed_files} completed files and {exc.total_chunks} chunks. "
+            f"[yellow]Cancelled{elapsed}.[/yellow] Kept {exc.changed_files} completed files "
+            f"and {exc.total_chunks} chunks.{progress_text} "
             "Rerun [bold]rag index --changed-only[/bold] to continue from the current directory."
         )
         return 130
@@ -485,12 +684,28 @@ def cmd_reindex(args: argparse.Namespace) -> int:
         root = Path(row["root"])
         console.print(f"[cyan]Reindexing[/cyan] {root} ...")
         try:
-            changed_files, chunks = index_repo(conn, client, config, root, changed_only=True, profile=profile)
+            with make_index_progress() as progress:
+                changed_files, chunks = index_repo(
+                    conn,
+                    client,
+                    config,
+                    root,
+                    changed_only=True,
+                    profile=profile,
+                    progress_callback=make_index_progress_callback(progress, f"reindex {root.name}"),
+                )
         except IndexInterrupted as exc:
             total_files += exc.changed_files
             total_chunks += exc.total_chunks
+            elapsed = f" after {format_duration(exc.elapsed_seconds)}" if exc.elapsed_seconds else ""
+            progress_text = (
+                f" Processed {exc.processed_files}/{exc.total_files} files in the interrupted repo."
+                if exc.total_files
+                else ""
+            )
             console.print(
-                f"[yellow]Cancelled.[/yellow] Kept {total_files} completed files and {total_chunks} chunks so far."
+                f"[yellow]Cancelled{elapsed}.[/yellow] Kept {total_files} completed files "
+                f"and {total_chunks} chunks so far.{progress_text}"
             )
             return 130
         total_files += changed_files
@@ -863,6 +1078,37 @@ def cmd_missing(args: argparse.Namespace) -> int:
         console.print("\n[bold]Candidate files:[/bold]")
         for item in compact_file_refs(suggestions):
             console.print(f"- {item}")
+    return 0
+
+
+def workflow_keys_for_query(query: str | None) -> list[str]:
+    if not query:
+        return list(RAG_WORKFLOWS)
+    lowered = query.lower()
+    selected: list[str] = []
+    for key in RAG_WORKFLOWS:
+        if key in lowered:
+            selected.append(key)
+    for alias, key in SUGGEST_ALIASES.items():
+        if alias in lowered and key not in selected:
+            selected.append(key)
+    if selected:
+        return selected
+    close = difflib.get_close_matches(lowered, list(RAG_WORKFLOWS), n=2, cutoff=0.45)
+    return close or ["ask", "debug", "memory"]
+
+
+def cmd_suggest(args: argparse.Namespace) -> int:
+    selected = workflow_keys_for_query(args.query)
+    table = Table(title="RAG suggestions")
+    table.add_column("area")
+    table.add_column("command")
+    table.add_column("why")
+    for area in selected:
+        for command_text, reason in RAG_WORKFLOWS[area]:
+            table.add_row(area, command_text, reason)
+    console.print(table)
+    console.print("\n[dim]Tip: install shell completion with ./setup/install-local-rag-stack.sh, then restart zsh.[/dim]")
     return 0
 
 
@@ -1809,7 +2055,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="rag")
+    parser = SuggestingArgumentParser(prog="rag")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     def add_query_parser(
@@ -1966,6 +2212,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_query_parser("inspect", "Inspect query rewrites, intent, and routing details", cmd_inspect, include_mode_flag=True)
     add_query_parser("missing", "Show missing-context detection for a query", cmd_missing, include_mode_flag=True)
+
+    suggest_parser = subparsers.add_parser("suggest", help="Suggest useful RAG workflows and commands")
+    suggest_parser.add_argument("query", nargs="?", help="Optional topic, such as setup, debug, memory, or handoff")
+    suggest_parser.set_defaults(func=cmd_suggest)
 
     why_parser = subparsers.add_parser("why", help="Explain why a file did or did not match a query")
     why_parser.add_argument("query")

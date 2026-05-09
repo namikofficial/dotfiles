@@ -64,7 +64,18 @@ class SupportsQdrantQuery(Protocol):
 
 
 class IndexInterrupted(Exception):
-    def __init__(self, changed_files: int, total_chunks: int):
+    def __init__(
+        self,
+        changed_files: int,
+        total_chunks: int,
+        *,
+        processed_files: int = 0,
+        total_files: int = 0,
+        elapsed_seconds: float = 0.0,
+    ):
         super().__init__("index interrupted")
         self.changed_files = changed_files
         self.total_chunks = total_chunks
+        self.processed_files = processed_files
+        self.total_files = total_files
+        self.elapsed_seconds = elapsed_seconds

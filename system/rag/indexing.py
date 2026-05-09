@@ -3,12 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import re
 import sqlite3
 import time
 import uuid
 from pathlib import Path
-from typing import Iterable, Sequence, cast
+from typing import Callable, Iterable, Sequence, cast
 
 try:
     import tomllib
@@ -34,16 +35,43 @@ from .runtime import CHUNKER_NAME, INDEX_SCHEMA
 from .storage import ensure_collection, get_embedder, git_branch_for, git_head_commit_for, repo_identity
 from .types import Chunk, Fact, IndexInterrupted, SupportsQdrantCollectionAdmin, SupportsQdrantPointOps
 
+IndexProgressCallback = Callable[[dict[str, object]], None]
+
 DEFAULT_IGNORE_PATTERNS = [
     "node_modules/",
+    "bower_components/",
+    ".pnpm-store/",
     "dist/",
     "build/",
+    "out/",
     ".next/",
+    ".nuxt/",
     ".turbo/",
     ".git/",
+    ".hg/",
+    ".svn/",
     "coverage/",
+    "htmlcov/",
     "target/",
     "vendor/",
+    ".venv/",
+    "venv/",
+    "env/",
+    ".env/",
+    ".tox/",
+    ".nox/",
+    "__pycache__/",
+    ".pytest_cache/",
+    ".mypy_cache/",
+    ".ruff_cache/",
+    ".pyre/",
+    ".ipynb_checkpoints/",
+    "site-packages/",
+    "dist-packages/",
+    "*.egg-info/",
+    "*.dist-info/",
+    ".gradle/",
+    ".idea/",
     "*.lock",
     "pnpm-lock.yaml",
     "package-lock.json",
@@ -2341,7 +2369,7 @@ def build_ignore_matcher(root: Path):
         rel = full_path.relative_to(root).as_posix()
         if rel == ".":
             return False
-        if spec.match_file(rel):
+        if spec.match_file(rel) or (full_path.is_dir() and spec.match_file(f"{rel}/")):
             return True
         return any(matcher(str(full_path)) for matcher in gitignore_matchers)
 
@@ -2350,14 +2378,20 @@ def build_ignore_matcher(root: Path):
 
 def iter_text_files(root: Path) -> Iterable[Path]:
     ignored = build_ignore_matcher(root)
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-        if ignored(path):
-            continue
-        if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf"}:
-            continue
-        yield path
+    for dirpath, dirnames, filenames in os.walk(root):
+        current_dir = Path(dirpath)
+        dirnames[:] = [
+            dirname
+            for dirname in dirnames
+            if not ignored(current_dir / dirname)
+        ]
+        for filename in filenames:
+            path = current_dir / filename
+            if ignored(path):
+                continue
+            if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".pdf"}:
+                continue
+            yield path
 
 
 def remove_file_chunks(
@@ -2396,10 +2430,24 @@ def index_repo(
     root: Path,
     changed_only: bool,
     profile: dict,
+    progress_callback: IndexProgressCallback | None = None,
 ) -> tuple[int, int]:
     ensure_collection(cast(SupportsQdrantCollectionAdmin, client), config)
+    started_at = time.monotonic()
     root, repo = repo_identity(root)
+    ignored = build_ignore_matcher(root)
     all_files = list(iter_text_files(root))
+    total_files = len(all_files)
+    if progress_callback:
+        progress_callback(
+            {
+                "event": "start",
+                "repo": repo,
+                "root": str(root),
+                "total_files": total_files,
+                "changed_only": changed_only,
+            }
+        )
     package_index = build_repo_package_index(root, repo, all_files)
     known_rel_paths = {path.relative_to(root).as_posix() for path in all_files}
     existing = {
@@ -2415,14 +2463,55 @@ def index_repo(
             (repo,),
         ).fetchall()
     }
+    newly_ignored_existing_paths = [
+        rel_path for rel_path in existing if ignored(root / rel_path)
+    ]
+    if newly_ignored_existing_paths:
+        if progress_callback:
+            progress_callback(
+                {
+                    "event": "cleanup",
+                    "removed_files": len(newly_ignored_existing_paths),
+                }
+            )
+        for rel_path in newly_ignored_existing_paths:
+            remove_file_chunks(conn, client, config, repo, rel_path)
+            existing.pop(rel_path, None)
+        conn.commit()
     discovered: dict[str, str] = {}
     changed_files = 0
     total_chunks = 0
+    processed_files = 0
+    skipped_files = 0
     try:
         for file_path in all_files:
             rel_path = file_path.relative_to(root).as_posix()
+            if progress_callback:
+                progress_callback(
+                    {
+                        "event": "file",
+                        "path": rel_path,
+                        "processed_files": processed_files,
+                        "changed_files": changed_files,
+                        "skipped_files": skipped_files,
+                        "total_chunks": total_chunks,
+                    }
+                )
             content = read_text_file(file_path)
             if not content or not content.strip():
+                processed_files += 1
+                skipped_files += 1
+                if progress_callback:
+                    progress_callback(
+                        {
+                            "event": "skip",
+                            "path": rel_path,
+                            "processed_files": processed_files,
+                            "changed_files": changed_files,
+                            "skipped_files": skipped_files,
+                            "total_chunks": total_chunks,
+                        }
+                    )
                 continue
             file_hash = hash_file(file_path)
             discovered[rel_path] = file_hash
@@ -2433,11 +2522,37 @@ def index_repo(
                 "embedding_model": config["embedding_model"],
                 "chunker": CHUNKER_NAME,
             }:
+                processed_files += 1
+                skipped_files += 1
+                if progress_callback:
+                    progress_callback(
+                        {
+                            "event": "skip",
+                            "path": rel_path,
+                            "processed_files": processed_files,
+                            "changed_files": changed_files,
+                            "skipped_files": skipped_files,
+                            "total_chunks": total_chunks,
+                        }
+                    )
                 continue
             kind, language = detect_kind(file_path)
             analysis = analyze_file(root, file_path, rel_path, content, language, package_index, known_rel_paths)
             chunks = chunk_text(file_path, content, kind, language, analysis=analysis)
             if not chunks:
+                processed_files += 1
+                skipped_files += 1
+                if progress_callback:
+                    progress_callback(
+                        {
+                            "event": "skip",
+                            "path": rel_path,
+                            "processed_files": processed_files,
+                            "changed_files": changed_files,
+                            "skipped_files": skipped_files,
+                            "total_chunks": total_chunks,
+                        }
+                    )
                 continue
             facts = extract_facts(file_path, content, language, kind, analysis=analysis) if profile["facts"] else []
             semantic_lines = build_semantic_lines(
@@ -2556,11 +2671,32 @@ def index_repo(
                 client.upsert(collection_name=config["qdrant_collection"], points=list(batch), wait=True)
             changed_files += 1
             total_chunks += len(chunks)
+            processed_files += 1
             conn.commit()
+            if progress_callback:
+                progress_callback(
+                    {
+                        "event": "indexed",
+                        "path": rel_path,
+                        "processed_files": processed_files,
+                        "changed_files": changed_files,
+                        "skipped_files": skipped_files,
+                        "total_chunks": total_chunks,
+                        "file_chunks": len(chunks),
+                    }
+                )
     except KeyboardInterrupt as exc:
         conn.rollback()
-        raise IndexInterrupted(changed_files, total_chunks) from exc
+        raise IndexInterrupted(
+            changed_files,
+            total_chunks,
+            processed_files=processed_files,
+            total_files=total_files,
+            elapsed_seconds=time.monotonic() - started_at,
+        ) from exc
     removed_paths = set(existing) - set(discovered)
+    if progress_callback:
+        progress_callback({"event": "cleanup", "removed_files": len(removed_paths)})
     for rel_path in removed_paths:
         remove_file_chunks(conn, client, config, repo, rel_path)
     replace_package_summaries(conn, repo)
@@ -2575,4 +2711,15 @@ def index_repo(
         (repo, str(root), time.time(), git_branch_for(root), git_head_commit_for(root)),
     )
     conn.commit()
+    if progress_callback:
+        progress_callback(
+            {
+                "event": "finish",
+                "processed_files": processed_files,
+                "changed_files": changed_files,
+                "skipped_files": skipped_files,
+                "total_chunks": total_chunks,
+                "elapsed_seconds": time.monotonic() - started_at,
+            }
+        )
     return changed_files, total_chunks

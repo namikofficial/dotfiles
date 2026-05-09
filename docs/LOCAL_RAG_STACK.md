@@ -40,6 +40,8 @@ rag clean --all
 rag index ~/Documents/code/dotfiles --profile balanced
 ```
 
+`rag index` and `rag reindex` show live progress with elapsed time, ETA, processed files, changed/skipped counts, chunk count, current file, and files-per-second. If you cancel a long run, rerun with `rag index --changed-only` to continue from already committed files.
+
 ## Commands
 
 ```bash
@@ -51,6 +53,12 @@ rag status
 rag search "AuthService.login"
 rag search "AuthService.login" --explain
 rag search "scratchpad manager" --no-rerank
+rag suggest
+rag suggest debug
+rag inspect "AuthService.login"
+rag missing "debug checkout failure"
+rag why "checkout failure" src/checkout.ts
+rag graph AuthService
 rag facts list --kind keybind
 rag facts keybind scratchpad
 rag facts tool docker
@@ -90,6 +98,8 @@ rag clean --all
 ```
 
 When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **from inside an indexed git repo**, the CLI auto-scopes to that repo unless you override it with `--repo`.
+
+For command completion, suggestions, and the full interactive command map, see [RAG CLI UX guide](RAG_CLI_UX.md).
 
 ## Machine-tuned defaults
 
@@ -165,3 +175,4 @@ When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **
   - metadata with path / repo / kind / symbol / line ranges
   - answer prompts with file citations
 - It intentionally does **not** try to index lockfiles, build artifacts, binaries, or media by default.
+- It also skips dependency/cache trees such as `node_modules`, Python virtualenvs, `site-packages`, `__pycache__`, `.tox`, `.nox`, `.gradle`, `target`, `vendor`, and coverage output.

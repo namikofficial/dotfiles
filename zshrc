@@ -72,6 +72,9 @@ mkdir -p "$HOME/.cache/zsh"
 LISTMAX=0
 
 # zsh-completions (must be in fpath before compinit)
+if [ -d "$HOME/.local/share/zsh/site-functions" ]; then
+  fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
+fi
 if [ -d "$HOME/.local/share/zsh/plugins/zsh-completions/src" ]; then
   fpath=("$HOME/.local/share/zsh/plugins/zsh-completions/src" $fpath)
 fi

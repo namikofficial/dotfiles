@@ -9,6 +9,7 @@ CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-docker}"
 QDRANT_CONTAINER="${RAG_QDRANT_CONTAINER:-qdrant}"
 CONFIG_FILE="${RAG_HOME}/config.json"
 REQUIREMENTS_FILE="${REPO_DIR}/system/rag-requirements.txt"
+COMPLETION_DIR="$HOME/.local/share/zsh/site-functions"
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -27,7 +28,7 @@ if ! command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p "$RAG_HOME/qdrant_storage" "$HOME/.local/bin"
+mkdir -p "$RAG_HOME/qdrant_storage" "$HOME/.local/bin" "$COMPLETION_DIR"
 
 if [ ! -d "$VENV" ]; then
   python -m venv "$VENV"
@@ -69,11 +70,16 @@ else
 fi
 
 ln -sfn "$REPO_DIR/system/rag.sh" "$HOME/.local/bin/rag"
+ln -sfn "$REPO_DIR/system/completions/_rag" "$COMPLETION_DIR/_rag"
+
+# Force zsh to see a newly linked completion on the next shell start.
+rm -f "$HOME/.cache/zsh/.zcompdump" "$HOME/.zcompdump" 2>/dev/null || true
 
 printf 'Local RAG stack is ready.\n\n'
 printf 'Paths:\n'
 printf '  Config:  %s\n' "$CONFIG_FILE"
 printf '  CLI:     %s\n' "$HOME/.local/bin/rag"
+printf '  Zsh:     %s\n' "$COMPLETION_DIR/_rag"
 printf '  SQLite:  %s\n' "${RAG_HOME}/rag.sqlite3"
 printf '  Qdrant:  http://127.0.0.1:6333\n'
 printf '  Storage: %s\n' "${RAG_HOME}/qdrant_storage"
