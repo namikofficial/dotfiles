@@ -26,7 +26,7 @@ maybe_reload() {
     return 0
   fi
 
-  hyprctl reload >/dev/null 2>&1 || true
+  "$HOME/.config/hypr/scripts/hypr-reload-safe.sh" >/dev/null 2>&1 || true
   if printf '%s\n' "$status_blob" | grep -q 'connected'; then
     hyprctl dispatch dpms on >/dev/null 2>&1 || true
   fi

@@ -233,14 +233,14 @@ AI helper behavior:
 
 ```sh
 exec zsh
-hyprctl reload
+~/.config/hypr/scripts/hypr-reload-safe.sh
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
 ~/.config/hypr/scripts/theme-pass.sh   # same reload flow as Super+Ctrl+Shift+Y
 ~/.config/hypr/scripts/panel-switch.sh show
 ~/.config/hypr/scripts/launcher.sh --warm-cache
 ```
 
-If Wayle, Waybar, or Rofi was already running before bootstrap, restart your Hyprland session once.
+If this machine was started from the old hyprlang config provider, restart your Hyprland session once so `hyprland.lua` becomes active.
 
 ## Post-install verify
 

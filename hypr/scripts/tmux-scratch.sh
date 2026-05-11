@@ -3,7 +3,7 @@
 # Bound to: Super + grave  (the ` key)
 #
 # How it works:
-#   A windowrule in hyprland.conf catches any kitty window with class
+#   A windowrule in hyprland.lua catches any kitty window with class
 #   "noxflow-tmux-scratch" and silently places it in special:scratch_tmux.
 #   We just spawn the window once (it hides itself immediately) then
 #   use togglespecialworkspace to drop it down / send it back up.

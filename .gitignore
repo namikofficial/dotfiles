@@ -6,5 +6,3 @@ __pycache__/
 *.pyc
 settings/state.local.json
 settings/export/
-hypr/hyprland.conf.bak*
-hypr/hyprland.conf.pre-*

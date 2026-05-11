@@ -361,7 +361,7 @@ def detect_kind(path: Path) -> tuple[str, str]:
     special_name = path.name.lower()
     if special_name in SPECIAL_CODE_FILENAMES:
         return "code", SPECIAL_CODE_FILENAMES[special_name]
-    if special_name == "hyprland.conf":
+    if special_name == "hyprland.lua":
         return "config", "hyprland"
     suffix = path.suffix.lower()
     if suffix in SYSTEMD_UNIT_SUFFIXES:

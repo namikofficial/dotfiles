@@ -17,16 +17,6 @@ write_engine() {
 }
 
 read_engine() {
-  if systemctl --user is-active --quiet wayle.service 2>/dev/null; then
-    printf 'wayle\n'
-    return 0
-  fi
-
-  if pgrep -x wayle >/dev/null 2>&1; then
-    printf 'wayle\n'
-    return 0
-  fi
-
   if [ -f "$engine_file" ]; then
     saved="$(cat "$engine_file" 2>/dev/null || true)"
     case "$saved" in
@@ -41,8 +31,7 @@ read_engine() {
 }
 
 is_visible() {
-  systemctl --user is-active --quiet wayle.service 2>/dev/null || \
-    pgrep -x wayle >/dev/null 2>&1
+  systemctl --user is-active --quiet wayle.service 2>/dev/null
 }
 
 start_wayle() {
@@ -51,18 +40,19 @@ start_wayle() {
     return 1
   fi
 
-  if command -v systemctl >/dev/null 2>&1; then
-    systemctl --user start wayle.service >/dev/null 2>&1 || true
-    sleep 0.5
+  if ! command -v systemctl >/dev/null 2>&1; then
+    notify "Wayle failed" "systemctl --user is required"
+    return 1
   fi
 
-  if ! systemctl --user is-active --quiet wayle.service 2>/dev/null && ! pgrep -x wayle >/dev/null 2>&1; then
-    wayle shell >/dev/null 2>&1 &
-    sleep 0.5
-  fi
+  # Service-only ownership: clean stale service state, then start only via user unit.
+  systemctl --user stop wayle.service >/dev/null 2>&1 || true
+  systemctl --user reset-failed wayle.service >/dev/null 2>&1 || true
+  systemctl --user start wayle.service >/dev/null 2>&1 || true
+  sleep 0.5
 
-  if ! systemctl --user is-active --quiet wayle.service 2>/dev/null && ! pgrep -x wayle >/dev/null 2>&1; then
-    notify "Wayle failed" "Unable to start shell"
+  if ! systemctl --user is-active --quiet wayle.service 2>/dev/null; then
+    notify "Wayle failed" "Unable to start service-owned shell"
     return 1
   fi
 
@@ -72,7 +62,6 @@ start_wayle() {
 
 hide_panel() {
   systemctl --user stop wayle.service >/dev/null 2>&1 || true
-  pkill -x wayle >/dev/null 2>&1 || true
   notify "Panel view" "Hidden"
 }
 

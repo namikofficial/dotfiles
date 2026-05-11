@@ -182,12 +182,15 @@ link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
 link_path "$REPO_DIR/nvim" "$HOME/.config/nvim"
 link_path "$REPO_DIR/uwsm/default-id" "$HOME/.config/uwsm/default-id"
+link_path "$REPO_DIR/uwsm/env" "$HOME/.config/uwsm/env"
 link_path "$REPO_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
 link_path "$REPO_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
 link_path "$REPO_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
 
 mkdir -p "$HOME/.config/hypr" "$HOME/.config/kitty"
-link_path "$REPO_DIR/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"
+link_path "$REPO_DIR/hypr/hyprland.lua" "$HOME/.config/hypr/hyprland.lua"
+link_path "$REPO_DIR/hypr/lib" "$HOME/.config/hypr/lib"
+link_path "$REPO_DIR/hypr/monitor-layout.json" "$HOME/.config/hypr/monitor-layout.json"
 link_path "$REPO_DIR/hypr/hypridle.conf" "$HOME/.config/hypr/hypridle.conf"
 link_path "$REPO_DIR/hypr/hyprlock.conf" "$HOME/.config/hypr/hyprlock.conf"
 link_path "$REPO_DIR/hypr/hyprpaper.conf" "$HOME/.config/hypr/hyprpaper.conf"
@@ -262,5 +265,5 @@ cat <<DONE
 
 Bootstrap complete.
 - Reload shell: exec zsh
-- Reload Hyprland: hyprctl reload
+- Restart Hyprland/login session to activate hyprland.lua after migration
 DONE

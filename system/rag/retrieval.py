@@ -1430,7 +1430,7 @@ def rerank_chunks(
                 final_score += 0.08
             if symbol.startswith("bind:") or symbol == "entries":
                 final_score += 0.12
-            if any(token in path_lower for token in ("hyprland.conf", "hyprland.yaml", "keybind", "cheatsheet")):
+            if any(token in path_lower for token in ("hyprland.lua", "hyprland.yaml", "keybind", "cheatsheet")):
                 final_score += 0.12
         elif plan.intent == "tool":
             if symbol.startswith("tool:"):

@@ -52,14 +52,14 @@ class RetrievalTest(unittest.TestCase):
         conn.execute(
             """
             INSERT INTO facts (fact_id, repo, path, kind, key, value, line, confidence, source, file_hash, updated_at)
-            VALUES ('f1', 'dotfiles', 'hypr/hyprland.conf', 'keybind', 'SUPER+TAB', 'exec overview', 42, 1.0, 'extractor', 'abc', 1.0)
+            VALUES ('f1', 'dotfiles', 'hypr/hyprland.lua', 'keybind', 'SUPER+TAB', 'exec overview', 42, 1.0, 'extractor', 'abc', 1.0)
             """
         )
         conn.commit()
         plan = build_retrieval_plan("super tab", "dotfiles")
         rows = fact_hits(conn, plan, copy.deepcopy(DEFAULT_CONFIG))
         self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["path"], "hypr/hyprland.conf")
+        self.assertEqual(rows[0]["path"], "hypr/hyprland.lua")
 
     def test_build_retrieval_plan_expands_with_memory_and_taxonomy(self) -> None:
         conn = make_connection()
@@ -87,7 +87,7 @@ class RetrievalTest(unittest.TestCase):
                 "c1",
                 "dotfiles",
                 "/tmp/dotfiles",
-                "hypr/hyprland.conf",
+                "hypr/hyprland.lua",
                 "hyprland",
                 "config",
                 "bind:SUPER+TAB:exec",
@@ -99,7 +99,7 @@ class RetrievalTest(unittest.TestCase):
                 0,
                 40,
                 44,
-                "bind = SUPER, TAB, exec, scratchpad-overview",
+                'hl.bind("SUPER + TAB", hl.dsp.exec_cmd("scratchpad-overview"))',
             ),
         )
         conn.execute(
@@ -132,7 +132,7 @@ class RetrievalTest(unittest.TestCase):
         conn.execute(
             """
             INSERT INTO facts (fact_id, repo, path, kind, key, value, line, confidence, source, file_hash, updated_at)
-            VALUES ('f1', 'dotfiles', 'hypr/hyprland.conf', 'keybind', 'SUPER+TAB', 'exec scratchpad-overview', 42, 1.0, 'extractor', 'hash1', 1.0)
+            VALUES ('f1', 'dotfiles', 'hypr/hyprland.lua', 'keybind', 'SUPER+TAB', 'exec scratchpad-overview', 42, 1.0, 'extractor', 'hash1', 1.0)
             """
         )
         conn.commit()

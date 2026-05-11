@@ -96,7 +96,7 @@ From current `zshrc`:
 
 ### A) Direct keyboard shortcuts
 
-From `hypr/hyprland.conf`:
+From `hypr/hyprland.lua`:
 
 - `Super + Y` -> `workspace-overview.sh` (primary)
 - `Super + Shift + Space` -> `workspace-overview.sh`
@@ -708,7 +708,7 @@ Graceful fallback when `rofi` or `jq` are unavailable.
 - `docs/KEYBINDS.md`
 - `README.md`
 - `zshrc`
-- `hypr/hyprland.conf`
+- `hypr/hyprland.lua`
 
 ---
 

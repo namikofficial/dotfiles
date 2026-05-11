@@ -75,9 +75,10 @@ fi
 kitty_remote_all load-config "$HOME/.config/kitty/kitty.conf"
 
 if command -v hyprctl >/dev/null 2>&1; then
-  hyprctl reload >/dev/null 2>&1 || true
+  "$HOME/.config/hypr/scripts/hypr-reload-safe.sh" >/dev/null 2>&1 \
+    || notify "Hyprland restart needed" "This session was started from legacy hyprlang; Lua config loads on next login."
 fi
 
-notify "Reload complete" "Theme + Kitty + Hyprland + panel refreshed"
+notify "Reload complete" "Theme + Kitty + panel refreshed"
 
 finish_slow_refresh >/dev/null 2>&1 &

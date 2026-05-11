@@ -50,7 +50,11 @@ check_copy_or_link() {
   fi
 }
 
-check_link "$HOME/.config/hypr/hyprland.conf" "$ROOT_DIR/hypr/hyprland.conf"
+check_link "$HOME/.config/hypr/hyprland.lua" "$ROOT_DIR/hypr/hyprland.lua"
+check_link "$HOME/.config/hypr/lib" "$ROOT_DIR/hypr/lib"
+check_link "$HOME/.config/hypr/monitor-layout.json" "$ROOT_DIR/hypr/monitor-layout.json"
+check_link "$HOME/.config/uwsm/env" "$ROOT_DIR/uwsm/env"
+check_link "$HOME/.config/uwsm/env-hyprland" "$ROOT_DIR/uwsm/env-hyprland"
 check_link "$HOME/.config/rofi" "$ROOT_DIR/hypr/rofi"
 check_copy_or_link "$HOME/.config/kdeglobals" "$ROOT_DIR/kde/kdeglobals"
 check_link "$HOME/.config/dolphinrc" "$ROOT_DIR/kde/dolphinrc"
@@ -87,4 +91,19 @@ if [[ -f "$ROOT_DIR/settings/state.local.json" ]]; then
   echo "INFO  local settings override present: settings/state.local.json"
 else
   echo "INFO  local settings override missing: settings/state.local.json (optional)"
+fi
+
+if command -v hyprctl >/dev/null 2>&1; then
+  provider=""
+  if [[ -x "$ROOT_DIR/hypr/scripts/hypr-reload-safe.sh" ]]; then
+    provider="$("$ROOT_DIR/hypr/scripts/hypr-reload-safe.sh" --probe 2>/dev/null || true)"
+  fi
+  if [[ -z "$provider" || "$provider" == "unknown" ]]; then
+    provider="$(hyprctl systeminfo 2>/dev/null | awk -F': ' '/^configProvider:/ { print $2; exit }' || true)"
+  fi
+  if [[ "$provider" == "lua" ]]; then
+    echo "OK    live Hyprland config provider is lua"
+  elif [[ -n "$provider" ]]; then
+    echo "WARN  live Hyprland config provider is $provider; restart Hyprland to activate hyprland.lua"
+  fi
 fi

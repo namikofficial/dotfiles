@@ -64,6 +64,23 @@ loaded_hyprexpo_path() {
   awk '/\/.*hyprexpo\.so$/ { print $NF; exit }' "/proc/$hypr_pid/maps" 2>/dev/null
 }
 
+setting_bool() {
+  key="$1"
+  fallback="${2:-true}"
+
+  if [ -x "$HOME/.config/hypr/scripts/settingsctl" ]; then
+    value="$("$HOME/.config/hypr/scripts/settingsctl" get "$key" 2>/dev/null || true)"
+    case "$value" in
+      true|false)
+        printf '%s\n' "$value"
+        return 0
+        ;;
+    esac
+  fi
+
+  printf '%s\n' "$fallback"
+}
+
 # Warm launcher cache first so Super+Space opens immediately.
 if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
   "$HOME/.config/hypr/scripts/launcher.sh" --warm-cache >/dev/null 2>&1 &
@@ -128,11 +145,10 @@ if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
 fi
 
 # Start tray applets by default so Wi-Fi/Bluetooth have menu-style controls.
-# Set HYPR_ENABLE_*_APPLET=0 to keep the panel-only workflow.
-if [ "${HYPR_ENABLE_NM_APPLET:-1}" = "1" ]; then
+if [ "$(setting_bool startup.nm_applet_autostart true)" = "true" ]; then
   run_once nm-applet nm-applet
 fi
-if [ "${HYPR_ENABLE_BLUEMAN_APPLET:-1}" = "1" ]; then
+if [ "$(setting_bool startup.blueman_applet_autostart true)" = "true" ]; then
   run_once blueman-applet blueman-applet
 fi
 run_cmd_if_not '(^|/)udiskie( .*)?$' udiskie --smart-tray --menu nested --no-appindicator

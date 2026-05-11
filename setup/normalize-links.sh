@@ -27,7 +27,10 @@ force_copy() {
   echo "copy $dst <- $src"
 }
 
-force_link "$ROOT_DIR/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"
+force_link "$ROOT_DIR/hypr/hyprland.lua" "$HOME/.config/hypr/hyprland.lua"
+force_link "$ROOT_DIR/hypr/lib" "$HOME/.config/hypr/lib"
+force_link "$ROOT_DIR/hypr/monitor-layout.json" "$HOME/.config/hypr/monitor-layout.json"
+force_link "$ROOT_DIR/uwsm/env" "$HOME/.config/uwsm/env"
 force_link "$ROOT_DIR/wayle/config.toml" "$HOME/.config/wayle/config.toml"
 force_link "$ROOT_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
 force_link "$ROOT_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"

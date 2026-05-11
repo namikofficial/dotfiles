@@ -4,30 +4,30 @@ entries:
   - key: Super+Return
     description: Open terminal
     copy: kitty
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+Space
     description: App launcher (fast)
     copy: ~/.config/hypr/scripts/launcher.sh --fast
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+Shift+Space
     description: Workspace overview search
     copy: ~/.config/hypr/scripts/workspace-overview.sh
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+Ctrl+Space
     description: Quick actions palette
     copy: ~/.config/hypr/scripts/quick-actions.sh
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
   - key: Super+Tab
     description: Workspace overview toggle
     copy: ~/.config/hypr/scripts/workspace-overview-toggle.sh
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
   - key: Super+Shift+Q
     description: Close active window
     copy: hyprctl dispatch killactive
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Ctrl+Shift+T
     description: Kitty new tab in current cwd

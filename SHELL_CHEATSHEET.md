@@ -198,7 +198,7 @@
 
 ## Session Repair
 - Reload shell config: `exec zsh`
-- Reload Hyprland config: `hyprctl reload`
+- Reload Hyprland config when the live provider is Lua: `~/.config/hypr/scripts/hypr-reload-safe.sh`
 - Restart portal services: `systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk`
 - Restore preferred panel: `~/.config/hypr/scripts/panel-switch.sh show`
 - Toggle NetworkManager tray applet: `~/.config/hypr/scripts/nm-applet-toggle.sh`
