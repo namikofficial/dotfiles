@@ -42,6 +42,10 @@ vpn-status() {
   "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/vpn-status" "$@"
 }
 
+smbshare() {
+  "${SCRIPTS_BIN:-${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/private/scripts/bin}/smb-share" "$@"
+}
+
 batroot() {
   if command -v bat >/dev/null 2>&1; then
     sudo bat --paging=never --style=plain "$@"

@@ -29,24 +29,17 @@ Git diff:
 ${diff_text}"
 
 review_output=""
-for endpoint in "http://localhost:11434/api/generate" "http://127.0.0.1:8000/v1/completions"; do
-  if review_output="$(curl -s --max-time 10 "$endpoint" \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d "{\"prompt\":\"$prompt\",\"stream\":false,\"num_predict\":500}" 2>/dev/null)"; then
-    [ -n "$review_output" ] && break
-  fi
-done
+review_output="$(curl -fsS --max-time 20 "http://127.0.0.1:8080/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -n --arg prompt "$prompt" '{model:"local",messages:[{role:"system",content:"You are a terse security-focused code reviewer. Only report meaningful issues."},{role:"user",content:$prompt}],temperature:0.2,stream:false,max_tokens:700}')" 2>/dev/null || true)"
 
 if [ -z "$review_output" ]; then
-  notify "❌ Local AI not running" "Start: llama-server (see LOCAL_AI_SETUP.md)"
+  notify "❌ Local AI not running" "Start: llama-swap-manager start"
   exit 1
 fi
 
 # Extract message from response
-review_text="$(printf '%s' "$review_output" | \
-  grep -o '"response":"[^"]*' | head -1 | cut -d'"' -f4 || \
-  printf '%s' "$review_output" | head -20)"
+review_text="$(jq -r '.choices[0].message.content // empty' <<<"$review_output" 2>/dev/null || true)"
 
 [ -n "$review_text" ] || { notify "❌ AI failed"; exit 1; }
 
@@ -88,4 +81,3 @@ kitty --class noxflow-tool-large --title "Code Review" -- \
     printf '\n\n=== Press Enter to close ===\n'
     read -r _
   " >/dev/null 2>&1 &
-

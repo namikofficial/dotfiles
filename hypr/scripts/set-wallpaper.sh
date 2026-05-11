@@ -119,14 +119,20 @@ apply_with_hyprpaper() {
 
 ensure_theme_sync() {
   wall="$1"
+  skip_wayle_palette="${2:-0}"
   "$HOME/.config/hypr/scripts/sync-lock-wallpaper.sh" "$wall" || true
-  "$HOME/.config/hypr/scripts/theme-sync.sh" "$wall" || true
+  if [ "$skip_wayle_palette" = "1" ]; then
+    NOXFLOW_SKIP_WAYLE_PALETTE=1 "$HOME/.config/hypr/scripts/theme-sync.sh" "$wall" || true
+  else
+    "$HOME/.config/hypr/scripts/theme-sync.sh" "$wall" || true
+  fi
 }
 
 write_wall_cache() {
   wall="$1"
+  skip_wayle_palette="${2:-0}"
   printf '%s' "$wall" > "$HOME/.cache/current-wallpaper"
-  ensure_theme_sync "$wall"
+  ensure_theme_sync "$wall" "$skip_wayle_palette"
   emit_event info "Wallpaper applied" "$wall"
 }
 
@@ -231,7 +237,9 @@ if [ "${1:-}" = "--init" ]; then
   fi
 
   apply_wallpaper "$wall" init || exit 0
-  write_wall_cache "$wall"
+  # Keep login stable: initialize wallpaper/theme state without forcing an
+  # immediate Wayle palette rewrite while the panel is still starting.
+  write_wall_cache "$wall" 1
   exit 0
 fi
 

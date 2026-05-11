@@ -183,6 +183,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + Shift + 9`: open logs workspace stack
 
 Launcher performance note:
+
 - cache is warmed at session startup (`launcher.sh --warm-cache`)
 - row lists are pre-rendered to `~/.local/state/noxflow/launcher-rows-*.txt`
 - stale cache refresh runs in background
@@ -222,8 +223,11 @@ Normalize existing copied files to symlinks:
 Notification panel now includes sticky "System Hub" controls (GPU/media/network/panel status, copy summary, widget toggles, and quick controls) via SwayNC.
 
 AI helper behavior:
+
 - Uses `codex exec` in a dedicated Kitty window when available.
 - Falls back to opening ChatGPT in browser if Codex CLI is unavailable.
+- `ask` / `clipboard` / `shell` / `debug` prompts now inject compact local context (Arch + Hyprland + zsh, current project state, common aliases, and installed tools) instead of a generic one-paragraph preamble.
+- `shell` and `debug` flows bias toward safer command blocks, validation steps, and machine-specific tooling such as `rg`, `fd`, `bat`, `eza`, `gh`, `dc`, and `k`.
 
 ## Apply changes
 
@@ -290,6 +294,7 @@ Enable weekly timer:
 ```
 
 Log output:
+
 - `logs/health-*.log`
 - `logs/health-latest.log`
 
@@ -308,6 +313,7 @@ Set default editor MIME handlers:
 ```
 
 Notes path defaults:
+
 - Folder: `~/Documents/notes`
 - Scratch file: `~/Documents/notes/inbox.md`
 - `open-notes.sh` prefers Obsidian when it is installed, then falls back to official VS Code.

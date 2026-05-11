@@ -25,11 +25,8 @@ start_server() {
   if command -v llama-swap-manager >/dev/null 2>&1; then
     printf 'Starting local llama-swap endpoint...\n'
     llama-swap-manager start || true
-  elif command -v llm-manager >/dev/null 2>&1; then
-    printf 'Starting local llama.cpp server...\n'
-    llm-manager start llama || true
   else
-    printf 'llama-swap-manager and llm-manager are unavailable. Start local server manually, then reopen this pane.\n'
+    printf 'llama-swap-manager is unavailable. Start the llama-swap endpoint manually, then reopen this pane.\n'
   fi
 }
 

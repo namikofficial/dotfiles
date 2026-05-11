@@ -3,6 +3,7 @@ set -eu
 
 mode="${1:-menu}"
 rofi_theme="${HOME}/.config/rofi/actions.rasi"
+context_builder="${HOME}/.config/hypr/scripts/ai-helper-context.sh"
 
 notify() {
   command -v notify-send >/dev/null 2>&1 || return 0
@@ -78,24 +79,31 @@ rofi_input() {
 
 clipboard_text() {
   if command -v wl-paste >/dev/null 2>&1; then
-    wl-paste -n --type text 2>/dev/null | head -c 3500
+    wl-paste -n --type text 2>/dev/null | head -c 5000
+  elif command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard -o 2>/dev/null | head -c 5000
   fi
 }
 
-project_context() {
-  _cache="${HOME}/.cache/kage/project-current.json"
-  if command -v jq >/dev/null 2>&1 && [ -s "$_cache" ]; then
-    _pname=$(jq -r '.name     // ""' "$_cache" 2>/dev/null)
-    _pbranch=$(jq -r '.branch   // ""' "$_cache" 2>/dev/null)
-    _plang=$(jq -r '.framework // ""' "$_cache" 2>/dev/null)
-    _ppath=$(jq -r '.path     // ""' "$_cache" 2>/dev/null)
-    _pmod=$(jq -r '.modified  // 0'  "$_cache" 2>/dev/null)
-    _pstaged=$(jq -r '.staged   // 0'  "$_cache" 2>/dev/null)
-    if [ -n "$_pname" ]; then
-      printf 'Active project context:\n  name: %s\n  branch: %s\n  lang/framework: %s\n  path: %s\n  modified: %s | staged: %s\n\n' \
-        "$_pname" "$_pbranch" "$_plang" "$_ppath" "$_pmod" "$_pstaged"
-    fi
+base_prompt() {
+  _mode="$1"
+  if [ -x "$context_builder" ]; then
+    "$context_builder" prompt "$_mode" 2>/dev/null || true
   fi
+}
+
+compose_prompt() {
+  _mode="$1"
+  _label="$2"
+  _body="$3"
+  _base="$(base_prompt "$_mode")"
+
+  if [ -n "$_base" ]; then
+    printf '%s\n\n%s:\n%s' "$_base" "$_label" "$_body"
+    return 0
+  fi
+
+  printf '%s:\n%s' "$_label" "$_body"
 }
 
 raw_mode() {
@@ -110,9 +118,8 @@ ask_mode() {
   require_cmd rofi
   question="$(rofi_input 'Ask AI')"
   [ -n "$question" ] || exit 0
-
-  _ctx="$(project_context)"
-  run_ai "AI Ask" "${_ctx}You are a direct, practical assistant. Answer clearly and concisely. Prefer the shortest response that is still complete. Call out assumptions instead of hiding them.\n\nQuestion:\n${question}"
+ 
+  run_ai "AI Ask" "$(compose_prompt ask "Question" "$question")"
 }
 
 clip_mode() {
@@ -122,7 +129,7 @@ clip_mode() {
     exit 1
   }
 
-  run_ai "AI Clipboard Summary" "Summarize the clipboard text for quick reuse. Return:\n1. one-sentence summary\n2. key points\n3. action items\n4. ambiguities or risks\n\nClipboard:\n${text}"
+  run_ai "AI Clipboard Summary" "$(compose_prompt clip "Clipboard" "$text")"
 }
 
 shell_mode() {
@@ -130,8 +137,7 @@ shell_mode() {
   task="$(rofi_input 'Describe shell task')"
   [ -n "$task" ] || exit 0
 
-  _ctx="$(project_context)"
-  run_ai "AI Shell Command" "${_ctx}You are a senior Arch Linux and Hyprland operator. Generate the minimum safe commands needed to solve the task. Prefer commands that are easy to verify and roll back. Include any required packages, validation steps, and caveats for destructive actions.\n\nTask:\n${task}"
+  run_ai "AI Shell Command" "$(compose_prompt shell "Task" "$task")"
 }
 
 debug_mode() {
@@ -142,8 +148,7 @@ debug_mode() {
   fi
   [ -n "$text" ] || exit 0
 
-  _ctx="$(project_context)"
-  run_ai "AI Debug" "${_ctx}You are a pragmatic debugger. Diagnose the issue from the pasted text. Return:\n1. likely root causes ordered by probability\n2. checks to run next\n3. a minimal fix plan\n4. what evidence would confirm or rule out the guess\n\nInput:\n${text}"
+  run_ai "AI Debug" "$(compose_prompt debug "Input" "$text")"
 }
 
 menu_mode() {

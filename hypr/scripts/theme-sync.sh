@@ -5,11 +5,14 @@ wall="${1:-}"
 cache_dir="$HOME/.cache/hypr"
 mkdir -p "$cache_dir"
 hooks_dir="$HOME/.config/hypr/scripts/theme-hooks.d"
+lock_dir="${XDG_RUNTIME_DIR:-/tmp}/noxflow-theme-sync.lock"
+skip_wayle_palette="${NOXFLOW_SKIP_WAYLE_PALETTE:-0}"
 
 palette_json="$cache_dir/theme-palette.json"
 rofi_colors="$cache_dir/theme-colors-rofi.rasi"
 kitty_colors="$cache_dir/theme-colors-kitty.conf"
 hyprlock_colors="$cache_dir/theme-colors-hyprlock.conf"
+wayle_palette_stamp="$cache_dir/wayle-palette.current"
 gtk3_css="$HOME/.config/gtk-3.0/gtk.css"
 gtk4_css="$HOME/.config/gtk-4.0/gtk.css"
 qt5_colors_dir="$HOME/.config/qt5ct/colors"
@@ -33,6 +36,15 @@ kitty_remote_all() {
     kitty @ --to "unix:$sock" "$@" >/dev/null 2>&1 || true
   done
 }
+
+cleanup_lock() {
+  rmdir "$lock_dir" >/dev/null 2>&1 || true
+}
+
+if ! mkdir "$lock_dir" >/dev/null 2>&1; then
+  exit 0
+fi
+trap cleanup_lock EXIT HUP INT TERM
 
 if [ -z "$wall" ] || [ ! -f "$wall" ]; then
   if [ -f "$HOME/.cache/current-wallpaper" ]; then
@@ -506,6 +518,17 @@ printf '%s\n' "$accent" > "$cache_dir/current-accent"
 
 apply_wayle_palette() {
   command -v wayle >/dev/null 2>&1 || return 0
+  case "$skip_wayle_palette" in
+    1|true|yes|on)
+      return 0
+      ;;
+  esac
+
+  palette_sig="$(printf '%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
+    "$bg" "$surface" "$bg_soft" "$text" "$muted" "$accent" "$danger" "$warn" "$accent2")"
+  if [ -f "$wayle_palette_stamp" ] && [ "$(cat "$wayle_palette_stamp" 2>/dev/null || true)" = "$palette_sig" ]; then
+    return 0
+  fi
 
   wayle config set styling.palette.bg "\"$bg\"" >/dev/null 2>&1 || return 0
   wayle config set styling.palette.surface "\"$surface\"" >/dev/null 2>&1 || true
@@ -517,6 +540,7 @@ apply_wayle_palette() {
   wayle config set styling.palette.yellow "\"$warn\"" >/dev/null 2>&1 || true
   wayle config set styling.palette.green "\"$accent2\"" >/dev/null 2>&1 || true
   wayle config set styling.palette.blue "\"$accent\"" >/dev/null 2>&1 || true
+  printf '%s\n' "$palette_sig" > "$wayle_palette_stamp"
 
   if systemctl --user is-active --quiet wayle.service 2>/dev/null || pgrep -x wayle >/dev/null 2>&1; then
     wayle panel restart >/dev/null 2>&1 || true
@@ -536,10 +560,6 @@ fi
 
 if command -v pywalfox >/dev/null 2>&1; then
   timeout 15 pywalfox update >/dev/null 2>&1 || true
-fi
-
-if command -v wayle >/dev/null 2>&1; then
-  wayle panel restart >/dev/null 2>&1 || true
 fi
 
 kitty_remote_all set-colors -a "$kitty_colors"

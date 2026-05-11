@@ -7,7 +7,7 @@ set -euo pipefail
 
 # Get focused window or default to PWD
 get_focused_dir() {
-  local active_pid focused_dir
+  local focused_dir
   
   # Try to get from Kitty if in Kitty window
   if [ -n "${KITTY_WINDOW_ID:-}" ]; then
@@ -55,11 +55,27 @@ get_focused_file() {
     if [[ "$file" =~ ^(.*)/([^/]+)$ ]]; then
       file="${BASH_REMATCH[2]}"
     fi
+
+    if [ -n "$file" ] && [ ! -e "$focused_dir/$file" ] && [ ! -e "$file" ] \
+      && [[ "$file" != *.* ]] && [[ "$file" != */* ]]; then
+      file=""
+    fi
   fi
   
-  # Fallback: look for recently modified files
+  # Fallback: prefer modified git files when available.
   if [ -z "$file" ]; then
-    file=$(find "$focused_dir" -type f -newer /tmp 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+    if git -C "$focused_dir" rev-parse --git-dir >/dev/null 2>&1; then
+      file=$(git -C "$focused_dir" diff --name-only 2>/dev/null | head -1 || echo "")
+      [ -z "$file" ] && file=$(git -C "$focused_dir" ls-files -m -o --exclude-standard 2>/dev/null | head -1 || echo "")
+    fi
+  fi
+
+  # Final fallback: most recently modified file in the current tree.
+  if [ -z "$file" ]; then
+    file=$(find "$focused_dir" -path "$focused_dir/.git" -prune -o -type f -printf '%T@ %P\n' 2>/dev/null \
+      | sort -nr \
+      | head -1 \
+      | cut -d' ' -f2- || echo "")
   fi
   
   echo "$file"
@@ -67,12 +83,7 @@ get_focused_file() {
 
 get_project_summary() {
   local dir="$1"
-  local summary
-  
-  # Count source files
-  local src_count=0
-  [ -d "$dir/src" ] && src_count=$(find "$dir/src" -type f 2>/dev/null | wc -l || echo 0)
-  
+
   # Check for common config files to determine project type
   local project_type="unknown"
   if [ -f "$dir/package.json" ]; then project_type="node"

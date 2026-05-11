@@ -22,24 +22,17 @@ type(scope): subject
 Git diff:
 ${diff_text}"
 
-# Try local LLM endpoint (ollama, llama-server, etc)
-response=""
-for endpoint in "http://localhost:11434/api/generate" "http://127.0.0.1:8000/v1/completions"; do
-  if response="$(curl -s --max-time 5 "$endpoint" \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d "{\"prompt\":\"$prompt\",\"stream\":false}" 2>/dev/null)"; then
-    [ -n "$response" ] && break
-  fi
-done
+response="$(curl -fsS --max-time 10 "http://127.0.0.1:8080/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -d "$(jq -n --arg prompt "$prompt" '{model:"local",messages:[{role:"system",content:"You write concise conventional commit messages."},{role:"user",content:$prompt}],temperature:0.2,stream:false,max_tokens:120}')" 2>/dev/null || true)"
 
 if [ -z "$response" ]; then
-  notify "❌ Local AI not running" "Start: llama-server (see LOCAL_AI_SETUP.md)"
+  notify "❌ Local AI not running" "Start: llama-swap-manager start"
   exit 1
 fi
 
-# Extract message (handle various API response formats)
-msg="$(printf '%s' "$response" | grep -o '"response":"[^"]*' | head -1 | cut -d'"' -f4 || echo "$response" | head -3)"
+# Extract message
+msg="$(jq -r '.choices[0].message.content // empty' <<<"$response" 2>/dev/null || true)"
 [ -n "$msg" ] || { notify "❌ AI failed" "Could not generate message"; exit 1; }
 
 notify "✓ Message generated" "Opening rofi for confirmation..."
@@ -59,6 +52,5 @@ if [ $? -eq 0 ]; then
 else
   notify "⊘ Cancelled" "Commit message discarded"
 fi
-
 
 

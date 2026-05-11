@@ -79,6 +79,9 @@ fi
 if [[ -f /boot/loader/entries/arch-linux-igpu-safe.conf ]]; then
   echo "INFO  safe boot profile exists: /boot/loader/entries/arch-linux-igpu-safe.conf"
 fi
+if [[ -f /boot/loader/entries/arch-linux-zen.conf ]]; then
+  echo "INFO  zen boot profile exists: /boot/loader/entries/arch-linux-zen.conf"
+fi
 
 if [[ -f "$ROOT_DIR/settings/state.local.json" ]]; then
   echo "INFO  local settings override present: settings/state.local.json"

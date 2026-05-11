@@ -2,5 +2,11 @@
   "css.validate": false,
   "scss.validate": false,
   "less.validate": false,
-  "css.lint.unknownAtRules": "ignore"
+  "css.lint.unknownAtRules": "ignore",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/system"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/system"
+  ]
 }

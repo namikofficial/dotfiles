@@ -9,6 +9,7 @@ CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-docker}"
 QDRANT_CONTAINER="${RAG_QDRANT_CONTAINER:-qdrant}"
 CONFIG_FILE="${RAG_HOME}/config.json"
 REQUIREMENTS_FILE="${REPO_DIR}/system/rag-requirements.txt"
+COMPLETION_DIR="$HOME/.local/share/zsh/site-functions"
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -27,7 +28,7 @@ if ! command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p "$RAG_HOME/qdrant_storage" "$HOME/.local/bin"
+mkdir -p "$RAG_HOME/qdrant_storage" "$HOME/.local/bin" "$COMPLETION_DIR"
 
 if [ ! -d "$VENV" ]; then
   python -m venv "$VENV"
@@ -37,79 +38,14 @@ fi
 "$VENV/bin/pip" install -r "$REQUIREMENTS_FILE" >/dev/null
 
 "$VENV/bin/python" - <<PY
-import json
+import sys
 from pathlib import Path
 
-config_path = Path(${CONFIG_FILE@Q})
-defaults = {
-    "qdrant_url": "http://127.0.0.1:6333",
-    "qdrant_collection": "local-rag-chunks",
-    "answer_url": "http://127.0.0.1:8080/v1/chat/completions",
-    "answer_model": "local",
-    "embedding_model": "BAAI/bge-small-en-v1.5",
-    "retrieval_context_tokens": 12000,
-    "answer_max_tokens": 2500,
-    "key_aliases": {
-        "ctrl": "CTRL",
-        "control": "CTRL",
-    },
-    "reranker": {
-        "enabled": True,
-        "mode": "heuristic",
-        "top_k_input": 30,
-        "top_k_output": 12,
-        "content_weight": 0.03,
-        "path_weight": 0.02,
-        "symbol_weight": 0.02,
-    },
-    "retrieval": {
-        "max_chunks_per_file": 3,
-        "max_fact_files": 8,
-        "max_summary_files": 8,
-    },
-    "context_budget": {
-        "total_tokens": 12000,
-        "memory_tokens": 1800,
-        "facts_tokens": 1800,
-        "file_summary_tokens": 2200,
-        "chunk_tokens": 6000,
-        "reserved_answer_tokens": 2200,
-    },
-    "indexing": {
-        "profile": "balanced",
-    },
-    "index_profiles": {
-        "fast": {
-            "facts": True,
-            "file_summaries": False,
-            "repo_memory": False,
-        },
-        "balanced": {
-            "facts": True,
-            "file_summaries": True,
-            "repo_memory": False,
-        },
-        "deep": {
-            "facts": True,
-            "file_summaries": True,
-            "repo_memory": True,
-        },
-    },
-}
+sys.path.insert(0, ${REPO_DIR@Q} + "/system")
 
-def merge(base, override):
-    merged = dict(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(merged.get(key), dict):
-            merged[key] = merge(merged[key], value)
-        else:
-            merged[key] = value
-    return merged
+from rag.settings import write_merged_config
 
-current = {}
-if config_path.exists():
-    current = json.loads(config_path.read_text())
-config_path.write_text(json.dumps(merge(defaults, current), indent=2) + "\\n")
+write_merged_config(Path(${CONFIG_FILE@Q}))
 PY
 
 if ! "$CONTAINER_RUNTIME" info >/dev/null 2>&1; then
@@ -126,6 +62,7 @@ elif "$CONTAINER_RUNTIME" ps -a --format '{{.Names}}' | grep -Fxq "$QDRANT_CONTA
   "$CONTAINER_RUNTIME" start "$QDRANT_CONTAINER" >/dev/null
 else
   "$CONTAINER_RUNTIME" run -d \
+    --restart unless-stopped \
     --name "$QDRANT_CONTAINER" \
     -p 6333:6333 \
     -v "${RAG_HOME}/qdrant_storage:/qdrant/storage" \
@@ -133,11 +70,16 @@ else
 fi
 
 ln -sfn "$REPO_DIR/system/rag.sh" "$HOME/.local/bin/rag"
+ln -sfn "$REPO_DIR/system/completions/_rag" "$COMPLETION_DIR/_rag"
+
+# Force zsh to see a newly linked completion on the next shell start.
+rm -f "$HOME/.cache/zsh/.zcompdump" "$HOME/.zcompdump" 2>/dev/null || true
 
 printf 'Local RAG stack is ready.\n\n'
 printf 'Paths:\n'
 printf '  Config:  %s\n' "$CONFIG_FILE"
 printf '  CLI:     %s\n' "$HOME/.local/bin/rag"
+printf '  Zsh:     %s\n' "$COMPLETION_DIR/_rag"
 printf '  SQLite:  %s\n' "${RAG_HOME}/rag.sqlite3"
 printf '  Qdrant:  http://127.0.0.1:6333\n'
 printf '  Storage: %s\n' "${RAG_HOME}/qdrant_storage"
