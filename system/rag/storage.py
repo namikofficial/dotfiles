@@ -56,6 +56,32 @@ def ensure_column(conn: sqlite3.Connection, table: str, column: str, column_type
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
 
 
+def apply_migrations(conn: sqlite3.Connection) -> None:
+    migrations_dir = Path(__file__).resolve().parent / "migrations"
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS _schema_migrations (
+            id TEXT PRIMARY KEY,
+            applied_at REAL NOT NULL
+        )
+        """
+    )
+    if not migrations_dir.is_dir():
+        conn.commit()
+        return
+    applied = {row[0] for row in conn.execute("SELECT id FROM _schema_migrations").fetchall()}
+    for path in sorted(migrations_dir.glob("*.sql")):
+        migration_id = path.name
+        if migration_id in applied:
+            continue
+        conn.executescript(path.read_text())
+        conn.execute(
+            "INSERT OR IGNORE INTO _schema_migrations (id, applied_at) VALUES (?, ?)",
+            (migration_id, time.time()),
+        )
+    conn.commit()
+
+
 
 def seed_tool_taxonomy(conn: sqlite3.Connection) -> None:
     now = time.time()
@@ -69,6 +95,20 @@ def seed_tool_taxonomy(conn: sqlite3.Connection) -> None:
                 """,
                 (domain, tool, json.dumps(aliases), description, now, now),
             )
+
+
+def seed_profiles(conn: sqlite3.Connection) -> None:
+    from .profiles import BUILTIN_PROFILES
+
+    now = time.time()
+    for profile_id, profile in BUILTIN_PROFILES.items():
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO profiles (id, yaml_source, is_user_override, created_at)
+            VALUES (?, ?, 0, ?)
+            """,
+            (profile_id, json.dumps(profile, sort_keys=True), now),
+        )
 
 
 
@@ -443,6 +483,7 @@ def ensure_db(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_eval_cases_repo_updated ON eval_cases(repo, updated_at);
         """
     )
+    apply_migrations(conn)
     ensure_column(conn, "indexed_repos", "last_indexed_branch", "TEXT")
     ensure_column(conn, "indexed_repos", "last_indexed_commit", "TEXT")
     ensure_column(conn, "chunks", "index_schema", "TEXT")
@@ -475,6 +516,7 @@ def ensure_db(conn: sqlite3.Connection) -> None:
         "UPDATE error_memory SET fingerprint_hash = '' WHERE fingerprint_hash IS NULL"
     )
     seed_tool_taxonomy(conn)
+    seed_profiles(conn)
     conn.commit()
 
 

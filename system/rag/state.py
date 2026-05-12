@@ -7,6 +7,7 @@ import sqlite3
 import time
 import uuid
 from pathlib import Path
+from typing import Any
 
 from .runtime import RAG_HOME
 
@@ -92,6 +93,63 @@ def _cursor_lastrowid(cursor: sqlite3.Cursor) -> int:
     if row_id is None:
         raise RuntimeError("Expected sqlite cursor.lastrowid to be set")
     return int(row_id)
+
+
+def record_execution_run(
+    conn: sqlite3.Connection,
+    *,
+    run_id: str,
+    session_id: str,
+    repo: str | None,
+    target: str,
+    profile_id: str,
+    intent: str,
+    mode: str,
+    risk_level: str,
+    query: str,
+    prompt_hash: str,
+    agent_plan: dict[str, Any],
+    status: str,
+    stdout: str | None = None,
+    stderr: str | None = None,
+    exit_code: int | None = None,
+    duration_ms: int | None = None,
+    files_modified: list[str] | None = None,
+    started_at: float | None = None,
+    finished_at: float | None = None,
+) -> None:
+    now = time.time()
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO execution_runs (
+            id, session_id, repo, target, profile_id, intent, mode, risk_level, query,
+            prompt_hash, agent_plan_json, status, stdout, stderr, exit_code, duration_ms,
+            files_modified, started_at, finished_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            run_id,
+            session_id,
+            repo,
+            target,
+            profile_id,
+            intent,
+            mode,
+            risk_level,
+            query,
+            prompt_hash,
+            json.dumps(agent_plan, sort_keys=True),
+            status,
+            _redact_optional(stdout),
+            _redact_optional(stderr),
+            exit_code,
+            duration_ms,
+            json.dumps(files_modified or []),
+            started_at or now,
+            finished_at,
+        ),
+    )
+    conn.commit()
 
 
 

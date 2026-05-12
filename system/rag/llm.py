@@ -28,6 +28,7 @@ def complete_llm(config: dict, system_prompt: str, user_prompt: str, max_tokens:
 
 
 def ask_llm(config: dict, question: str, context: str, mode: str = "quick") -> str:
+    max_tokens = int(config.get("answer", {}).get("max_tokens", config["answer_max_tokens"]))
     if mode == "deep":
         system_prompt = (
             "You are a repo-aware local coding assistant. Use the supplied context first, stay concrete, "
@@ -39,14 +40,14 @@ def ask_llm(config: dict, question: str, context: str, mode: str = "quick") -> s
             f"Task:\n{question}\n\nContext:\n{context}\n\n"
             "Return a grounded engineering analysis with the required sections and concise bullets."
         )
-        return complete_llm(config, system_prompt, user_prompt)
+        return complete_llm(config, system_prompt, user_prompt, max_tokens=max_tokens)
     system_prompt = (
         "You are a repo-aware local coding assistant. Use the supplied context first, stay concrete, "
         "prefer code and runtime config over prose docs when they disagree, and cite file paths with "
         "line ranges in your answer when possible."
     )
     user_prompt = f"Question:\n{question}\n\nContext:\n{context}\n\nReturn a concise answer and cite files."
-    return complete_llm(config, system_prompt, user_prompt)
+    return complete_llm(config, system_prompt, user_prompt, max_tokens=max_tokens)
 
 
 def models_url(answer_url: str) -> str:

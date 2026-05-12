@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import hashlib
 import json
+import os
 import re
 import shutil
 import sqlite3
 import subprocess
+import sys
 import time
+import uuid
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +32,9 @@ from rich.progress import (
 from .code_intel import tree_sitter_available
 from .indexing import index_repo
 from .llm import ask_llm, models_url
+from .contracts import AgentPlan, Target
+from .executors import executor_matrix, get_executor
+from .learning import list_memory_candidates, review_memory_candidate
 from .memory import (
     build_context_pack,
     generate_repo_memory,
@@ -55,6 +62,9 @@ from .retrieval import (
     retrieve,
 )
 from .runtime import CHUNKER_NAME, CONFIG_PATH, DB_PATH, INDEX_SCHEMA, console
+from .model_registry import model_role_matrix
+from .prompt_compiler import compile_prompt
+from .router import build_agent_plan, target_from_flag
 from .settings import (
     get_index_profile,
     get_mode_profile,
@@ -88,6 +98,7 @@ from .state import (
     list_todos,
     load_operational_state,
     record_session,
+    record_execution_run,
     remember_memory,
     save_handoff,
     session_compaction_details,
@@ -579,12 +590,23 @@ def render_query_inspection(result, mode: str, route_reason: str) -> str:
 
 
 def run_query_mode(args: argparse.Namespace) -> int:
+    timings: list[tuple[str, float]] = []
+    stage_started = time.perf_counter()
+
+    def mark(stage: str) -> None:
+        nonlocal stage_started
+        now = time.perf_counter()
+        timings.append((stage, (now - stage_started) * 1000))
+        stage_started = now
+
     config = load_config()
     mode, route_reason = resolved_mode(args, config)
     effective_config = get_mode_profile(config, mode)
+    mark("config")
     conn = connect_db()
     client = get_qdrant(effective_config)
     repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    mark("connect")
     result = retrieve(
         conn,
         client,
@@ -594,12 +616,14 @@ def run_query_mode(args: argparse.Namespace) -> int:
         reranker_enabled(effective_config, getattr(args, "rerank", None)),
         mode=mode,
     )
+    mark("retrieve")
     if not result.rows:
         console.print("[yellow]No indexed context matched that query.[/yellow]")
         return 1
     state_text: str | None = None
     if effective_config["answer"]["use_operational_state"]:
         state_text = format_operational_state(load_operational_state(conn, repo))
+        mark("operational_state")
     context, files = gather_context(
         result.rows,
         effective_config,
@@ -610,6 +634,7 @@ def run_query_mode(args: argparse.Namespace) -> int:
         operational_state=state_text,
         operational_state_tokens=int(effective_config["answer"]["operational_state_tokens"]),
     )
+    mark("context_pack")
     if getattr(args, "show_context", False):
         print_retrieval_explain(result.debug, result.rows)
         console.print(f"\n[bold]Route:[/bold] {mode} ({route_reason})")
@@ -637,6 +662,7 @@ def run_query_mode(args: argparse.Namespace) -> int:
         console.print(f"\n[dim]Session {session_id} saved.[/dim]")
         return 0
     answer = ask_llm(effective_config, args.query, context, mode=mode)
+    mark("llm")
     console.print(f"[bold]{mode.title()} answer:[/bold]")
     console.print(answer or "[red]No answer returned.[/red]")
     console.print("\n[bold]Relevant files:[/bold]")
@@ -645,8 +671,204 @@ def run_query_mode(args: argparse.Namespace) -> int:
     session_id = record_session(conn, repo, mode, args.query, route_reason, "answer", answer, files)
     if mode in {"deep", "agent"}:
         compact_session(conn, session_id)
+        mark("compact")
     console.print(f"\n[dim]Session {session_id} saved.[/dim]")
+    if os.environ.get("RAG_TIMINGS"):
+        console.print("\n[bold]Timings:[/bold]")
+        for stage, elapsed_ms in timings:
+            console.print(f"- {stage}: {elapsed_ms:.1f}ms")
     return 0
+
+
+def _context_for_agent_plan(plan: AgentPlan, *, rerank: bool | None = None) -> tuple[sqlite3.Connection, dict, str]:
+    config = load_config()
+    effective_config = get_mode_profile(config, plan.mode)
+    effective_config["retrieval_pipeline"]["semantic_limit"] = plan.retrieval_semantic_limit
+    effective_config["retrieval_pipeline"]["keyword_limit"] = plan.retrieval_keyword_limit
+    conn = connect_db()
+    client = get_qdrant(effective_config)
+    result = retrieve(
+        conn,
+        client,
+        effective_config,
+        plan.task,
+        plan.repo if plan.repo != "unscoped" else None,
+        reranker_enabled(effective_config, rerank),
+        mode=plan.mode,
+    )
+    state_text: str | None = None
+    if plan.context.include_git or plan.context.include_test_failures or plan.context.include_recent_errors:
+        state_text = format_operational_state(load_operational_state(conn, plan.repo))
+    context, _files = gather_context(
+        result.rows,
+        effective_config,
+        facts=result.facts,
+        summaries=result.summaries,
+        context_sources=result.context_sources if plan.context.include_git or plan.context.include_github else [],
+        memory=result.memory["summary"] if plan.context.include_memory and result.memory else None,
+        operational_state=state_text,
+        operational_state_tokens=int(effective_config["answer"]["operational_state_tokens"]),
+    )
+    return conn, effective_config, context
+
+
+def render_agent_plan_json(plan: AgentPlan) -> str:
+    return json.dumps(plan.to_dict(), indent=2, sort_keys=True)
+
+
+def cmd_v7_plan(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    plan = build_agent_plan(
+        args.query,
+        conn=conn,
+        repo=getattr(args, "repo", None),
+        explicit_target=target_from_flag(getattr(args, "target", None)),
+    )
+    console.print(render_agent_plan_json(plan))
+    return 0
+
+
+def cmd_v7_context(args: argparse.Namespace) -> int:
+    ensure_local_runtime(argparse.Namespace(needs_qdrant=True, needs_llm=False))
+    conn = connect_db()
+    plan = build_agent_plan(
+        args.query,
+        conn=conn,
+        repo=getattr(args, "repo", None),
+        explicit_target=target_from_flag(getattr(args, "target", None)),
+    )
+    conn.close()
+    context_conn, _config, context = _context_for_agent_plan(plan, rerank=getattr(args, "rerank", None))
+    prompt = compile_prompt(plan, context)
+    console.print("[bold]Context summary[/bold]")
+    console.print(prompt.context_summary)
+    console.print("\n[bold]AgentPlan[/bold]")
+    console.print(render_agent_plan_json(plan))
+    console.print("\n[bold]Compiled context[/bold]")
+    console.print(context or "No context packed.")
+    context_conn.close()
+    return 0
+
+
+def cmd_v7_execute(args: argparse.Namespace) -> int:
+    ensure_local_runtime(argparse.Namespace(needs_qdrant=True, needs_llm=False))
+    conn = connect_db()
+    plan = build_agent_plan(
+        args.query,
+        conn=conn,
+        repo=getattr(args, "repo", None),
+        explicit_target=target_from_flag(args.target),
+    )
+    conn.close()
+    context_conn, _config, context = _context_for_agent_plan(plan, rerank=getattr(args, "rerank", None))
+    prompt = compile_prompt(plan, context)
+    executor = get_executor(plan.target)
+    ok, reason = executor.available()
+    if not ok:
+        console.print(f"[red]{plan.target} unavailable:[/red] {reason}")
+        return 1
+    run_id = str(uuid.uuid4())
+    prompt_hash = hashlib.sha256(prompt.text().encode("utf-8")).hexdigest()
+    if getattr(args, "dry_run", False) or plan.target in {"copy", "local-answer"}:
+        output = executor.dry_run(prompt, plan) if getattr(args, "dry_run", False) else prompt.text()
+        console.print(output)
+        record_execution_run(
+            context_conn,
+            run_id=run_id,
+            session_id=plan.session_id,
+            repo=plan.repo,
+            target=plan.target,
+            profile_id=plan.profile,
+            intent=plan.intent,
+            mode=plan.mode,
+            risk_level=plan.risk_level,
+            query=plan.task,
+            prompt_hash=prompt_hash,
+            agent_plan=plan.to_dict(),
+            status="dry_run" if getattr(args, "dry_run", False) else "printed",
+            stdout=output,
+            files_modified=[],
+        )
+        context_conn.close()
+        return 0
+    started = time.time()
+    record_execution_run(
+        context_conn,
+        run_id=run_id,
+        session_id=plan.session_id,
+        repo=plan.repo,
+        target=plan.target,
+        profile_id=plan.profile,
+        intent=plan.intent,
+        mode=plan.mode,
+        risk_level=plan.risk_level,
+        query=plan.task,
+        prompt_hash=prompt_hash,
+        agent_plan=plan.to_dict(),
+        status="running",
+        started_at=started,
+    )
+    result = executor.run(prompt, plan)
+    record_execution_run(
+        context_conn,
+        run_id=run_id,
+        session_id=plan.session_id,
+        repo=plan.repo,
+        target=plan.target,
+        profile_id=plan.profile,
+        intent=plan.intent,
+        mode=plan.mode,
+        risk_level=plan.risk_level,
+        query=plan.task,
+        prompt_hash=prompt_hash,
+        agent_plan=plan.to_dict(),
+        status="success" if result.success else "failed",
+        stdout=result.stdout,
+        stderr=result.stderr,
+        exit_code=result.exit_code,
+        duration_ms=result.duration_ms,
+        files_modified=result.files_modified,
+        started_at=started,
+        finished_at=time.time(),
+    )
+    console.print(result.stdout)
+    if result.stderr:
+        console.print(result.stderr)
+    context_conn.close()
+    return result.exit_code
+
+
+def cmd_learn(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    if getattr(args, "candidate_id", None) and getattr(args, "review_status", None):
+        if not review_memory_candidate(conn, args.candidate_id, args.review_status, content=getattr(args, "content", None)):
+            console.print(f"[red]No memory candidate found:[/red] {args.candidate_id}")
+            return 1
+    rows = list_memory_candidates(conn, status=args.status, limit=args.limit)
+    table = Table(title="Memory candidates")
+    table.add_column("id")
+    table.add_column("status")
+    table.add_column("kind")
+    table.add_column("confidence")
+    table.add_column("content")
+    for row in rows:
+        table.add_row(row["id"], row["status"], row["kind"], f"{row['confidence']:.2f}", row["content"][:90])
+    console.print(table)
+    return 0
+
+
+def cmd_mcp(_args: argparse.Namespace) -> int:
+    from .server import run_mcp_stdio
+
+    return run_mcp_stdio()
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    if not args.http:
+        raise SystemExit("Use `rag serve --http` to start the HTTP integration server.")
+    from .server import run_http
+
+    return run_http(args.host, args.port)
 
 
 def cmd_index(args: argparse.Namespace) -> int:
@@ -1906,6 +2128,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             "session_compactions",
             "context_packs",
             "eval_cases",
+            "profiles",
+            "profile_usage",
+            "execution_runs",
+            "memory_candidates",
+            "_schema_migrations",
         }
         table_names = {
             row["name"]
@@ -1935,6 +2162,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         github_context_count = int(conn.execute("SELECT COUNT(*) AS count FROM github_context").fetchone()["count"])
         test_failure_count = conn.execute("SELECT COUNT(*) AS count FROM test_failure_memory").fetchone()["count"]
         eval_case_count = conn.execute("SELECT COUNT(*) AS count FROM eval_cases").fetchone()["count"]
+        execution_count = conn.execute("SELECT COUNT(*) AS count FROM execution_runs").fetchone()["count"]
+        candidate_count = conn.execute("SELECT COUNT(*) AS count FROM memory_candidates WHERE status = 'pending'").fetchone()["count"]
+        migration_count = conn.execute("SELECT COUNT(*) AS count FROM _schema_migrations").fetchone()["count"]
 
         table.add_row("sqlite data", "ok", f"{repo_count} repos, {chunk_count} chunks")
         table.add_row(
@@ -1945,7 +2175,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 f"{memory_note_count} memory notes, {context_pack_count} context packs, "
                 f"{git_context_count} git snapshots, {github_context_count} GitHub refs, {test_failure_count} test failures, "
                 f"{todo_count} todos, {decision_count} decisions, {session_count} sessions, "
-                f"{compaction_count} compactions, {eval_case_count} eval cases"
+                f"{compaction_count} compactions, {eval_case_count} eval cases, "
+                f"{execution_count} execution runs, {candidate_count} pending candidates, {migration_count} migrations"
             ),
         )
         schema_drift = conn.execute(
@@ -2053,6 +2284,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         "ok" if config["reranker"]["enabled"] else "off",
         f"{config['reranker']['mode']} (top {config['reranker']['top_k_output']})",
     )
+    for executor_id, ok, reason in executor_matrix():
+        table.add_row(f"executor:{executor_id}", "ok" if ok else "warn", reason)
+    for role, ok, reason in model_role_matrix():
+        table.add_row(f"model:{role}", "ok" if ok else "warn", reason)
     profile_name, _profile = get_index_profile(config, None)
     table.add_row("index profile", "ok", profile_name)
     table.add_row(
@@ -2517,13 +2752,128 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run deeper health checks (config/schema drift, vector sizing, /v1/models alias checks, gh/tree-sitter, and answer probe).",
     )
-    doctor_parser.set_defaults(func=cmd_doctor, needs_qdrant=True)
+    doctor_parser.set_defaults(func=cmd_doctor, needs_qdrant=False)
+
+    learn_parser = subparsers.add_parser("learn", help="Review pending memory candidates")
+    learn_parser.add_argument("--status", choices=["pending", "accepted", "rejected", "edited", "all"], default="pending")
+    learn_parser.add_argument("--limit", type=int, default=20)
+    learn_parser.add_argument("--candidate-id")
+    learn_parser.add_argument("--review-status", choices=["accepted", "rejected", "edited"])
+    learn_parser.add_argument("--content", help="Replacement content when marking a candidate edited")
+    learn_parser.set_defaults(func=cmd_learn)
+
+    mcp_parser = subparsers.add_parser("mcp", help="Run the local RAG MCP-style stdio tool server")
+    mcp_parser.set_defaults(func=cmd_mcp)
+
+    serve_parser = subparsers.add_parser("serve", help="Run local RAG integration servers")
+    serve_parser.add_argument("--http", action="store_true", help="Run the HTTP JSON endpoint server")
+    serve_parser.add_argument("--host", default="127.0.0.1")
+    serve_parser.add_argument("--port", type=int, default=7433)
+    serve_parser.set_defaults(func=cmd_serve)
     return parser
 
 
-def main() -> int:
+LEGACY_COMMANDS = {
+    "agent",
+    "ask",
+    "clean",
+    "command",
+    "context",
+    "decision",
+    "deep",
+    "doctor",
+    "error",
+    "facts",
+    "graph",
+    "handoff",
+    "index",
+    "inspect",
+    "learn",
+    "memory",
+    "missing",
+    "mcp",
+    "quick",
+    "reindex",
+    "search",
+    "serve",
+    "session",
+    "status",
+    "suggest",
+    "summarize",
+    "summarize-files",
+    "todo",
+    "trace",
+    "why",
+}
+
+
+def _parse_public_invocation(flag: str, rest: list[str]) -> argparse.Namespace:
+    dry_run = False
+    repo: str | None = None
+    remaining: list[str] = []
+    index = 0
+    while index < len(rest):
+        item = rest[index]
+        if item == "--dry-run":
+            dry_run = True
+        elif item == "--repo" and index + 1 < len(rest):
+            repo = rest[index + 1]
+            index += 1
+        else:
+            remaining.append(item)
+        index += 1
+    query = " ".join(remaining).strip()
+    if not query:
+        raise SystemExit(f"{flag} requires a task string")
+    target = flag.removeprefix("--")
+    if target == "plan":
+        return argparse.Namespace(query=query, repo=repo, target=None, func=cmd_v7_plan, needs_qdrant=False, needs_llm=False)
+    if target == "context":
+        return argparse.Namespace(query=query, repo=repo, target=None, rerank=None, func=cmd_v7_context, needs_qdrant=True, needs_llm=False)
+    return argparse.Namespace(query=query, repo=repo, target=target, rerank=None, dry_run=dry_run, func=cmd_v7_execute, needs_qdrant=True, needs_llm=False)
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if not argv:
+        from .tui import run_tui
+
+        return run_tui()
+    if argv[0] == "debug":
+        if len(argv) == 1:
+            raise SystemExit("Use `rag debug <legacy-command> ...`.")
+        argv = argv[1:]
+    if argv[0] == "--doctor":
+        argv = ["doctor", *argv[1:]]
+    elif argv[0] == "--learn":
+        argv = ["learn", *argv[1:]]
+    elif argv[0] in {"--plan", "--context", "--codex", "--opencode", "--aider"}:
+        args = _parse_public_invocation(argv[0], argv[1:])
+        try:
+            ensure_local_runtime(args)
+            return args.func(args)
+        except KeyboardInterrupt:
+            console.print("[yellow]Cancelled.[/yellow]")
+            return 130
+    elif argv[0] not in LEGACY_COMMANDS and not argv[0].startswith("-"):
+        args = argparse.Namespace(
+            query=" ".join(argv),
+            repo=None,
+            target=None,
+            rerank=None,
+            dry_run=True,
+            func=cmd_v7_execute,
+            needs_qdrant=True,
+            needs_llm=False,
+        )
+        try:
+            ensure_local_runtime(args)
+            return args.func(args)
+        except KeyboardInterrupt:
+            console.print("[yellow]Cancelled.[/yellow]")
+            return 130
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         ensure_local_runtime(args)
         return args.func(args)
