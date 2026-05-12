@@ -109,6 +109,28 @@ from .storage import (
 from .types import IndexInterrupted
 
 
+SERVICE_HELPER = Path(__file__).resolve().parents[1] / "local-ai-runtime.sh"
+
+
+def ensure_local_runtime(args: argparse.Namespace) -> None:
+    for action, required in (
+        ("ensure-qdrant", getattr(args, "needs_qdrant", False)),
+        ("ensure-llm", getattr(args, "needs_llm", False)),
+    ):
+        if not required:
+            continue
+        if not SERVICE_HELPER.is_file():
+            raise SystemExit(f"Missing runtime helper: {SERVICE_HELPER}")
+        try:
+            subprocess.run([str(SERVICE_HELPER), action], check=True)
+        except subprocess.CalledProcessError as exc:
+            label = "Qdrant" if action == "ensure-qdrant" else "local LLM"
+            raise SystemExit(
+                f"Unable to start {label.lower()} automatically. "
+                f"Run `{SERVICE_HELPER.name} start` and retry."
+            ) from exc
+
+
 class SuggestingArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         suggestion = suggestion_for_argparse_error(message)
@@ -721,15 +743,20 @@ def cmd_reindex(args: argparse.Namespace) -> int:
 def cmd_status(_args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
-    client = get_qdrant(config)
     collection_name = config["qdrant_collection"]
     points = 0
-    if client.collection_exists(collection_name):
-        points = int(client.get_collection(collection_name).points_count or 0)
+    qdrant_status = "stopped"
+    try:
+        client = get_qdrant(config)
+        if client.collection_exists(collection_name):
+            points = int(client.get_collection(collection_name).points_count or 0)
+        qdrant_status = "running"
+    except Exception:
+        client = None
     console.print("[bold]RAG status[/bold]")
     console.print(f"Config: {CONFIG_PATH}")
     console.print(f"SQLite: {DB_PATH}")
-    console.print(f"Qdrant: {config['qdrant_url']}")
+    console.print(f"Qdrant: {config['qdrant_url']} ({qdrant_status})")
     console.print(f"Collection: {collection_name}")
     console.print()
     console.print(f"Repos indexed: {conn.execute('SELECT COUNT(*) FROM indexed_repos').fetchone()[0]}")
@@ -2056,6 +2083,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = SuggestingArgumentParser(prog="rag")
+    parser.set_defaults(needs_qdrant=False, needs_llm=False)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     def add_query_parser(
@@ -2120,7 +2148,11 @@ def build_parser() -> argparse.ArgumentParser:
             )
         else:
             query_parser.set_defaults(output_format=default_output_format, save_handoff=False, target_agent="generic")
-        query_parser.set_defaults(func=handler)
+        query_parser.set_defaults(
+            func=handler,
+            needs_qdrant=True,
+            needs_llm=name in {"ask", "quick", "deep", "agent"},
+        )
         return query_parser
 
     index_parser = subparsers.add_parser("index", help="Index a repo or folder")
@@ -2140,7 +2172,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["fast", "balanced", "deep"],
         help="Indexing profile to use (defaults to config indexing.profile).",
     )
-    index_parser.set_defaults(func=cmd_index)
+    index_parser.set_defaults(func=cmd_index, needs_qdrant=True)
 
     add_query_parser("ask", "Ask a question against the local index", cmd_ask, include_mode_flag=True)
     add_query_parser("quick", "Force the fast retrieval+answer path", cmd_quick)
@@ -2184,7 +2216,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Persist the generated handoff under ~/ai-rag/projects/<repo>/handoffs/.",
     )
-    handoff_parser.set_defaults(func=cmd_handoff, output_format="handoff")
+    handoff_parser.set_defaults(func=cmd_handoff, output_format="handoff", needs_qdrant=True, needs_llm=True)
 
     search_parser = subparsers.add_parser("search", help="Search indexed chunks")
     search_parser.add_argument("query")
@@ -2208,7 +2240,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Skip the reranker for this query.",
     )
-    search_parser.set_defaults(func=cmd_search)
+    search_parser.set_defaults(func=cmd_search, needs_qdrant=True)
 
     add_query_parser("inspect", "Inspect query rewrites, intent, and routing details", cmd_inspect, include_mode_flag=True)
     add_query_parser("missing", "Show missing-context detection for a query", cmd_missing, include_mode_flag=True)
@@ -2295,7 +2327,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["fast", "balanced", "deep"],
         help="Indexing profile to use (defaults to config indexing.profile).",
     )
-    reindex_parser.set_defaults(func=cmd_reindex)
+    reindex_parser.set_defaults(func=cmd_reindex, needs_qdrant=True)
 
     summarize_files_parser = subparsers.add_parser(
         "summarize-files",
@@ -2477,7 +2509,7 @@ def build_parser() -> argparse.ArgumentParser:
     clean_scope = clean_parser.add_mutually_exclusive_group(required=True)
     clean_scope.add_argument("--repo", help="Clear one indexed repo by name")
     clean_scope.add_argument("--all", action="store_true", help="Clear the whole local RAG index")
-    clean_parser.set_defaults(func=cmd_clean)
+    clean_parser.set_defaults(func=cmd_clean, needs_qdrant=True)
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local RAG health")
     doctor_parser.add_argument(
@@ -2485,7 +2517,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run deeper health checks (config/schema drift, vector sizing, /v1/models alias checks, gh/tree-sitter, and answer probe).",
     )
-    doctor_parser.set_defaults(func=cmd_doctor)
+    doctor_parser.set_defaults(func=cmd_doctor, needs_qdrant=True)
     return parser
 
 
@@ -2493,6 +2525,7 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     try:
+        ensure_local_runtime(args)
         return args.func(args)
     except KeyboardInterrupt:
         console.print("[yellow]Cancelled.[/yellow]")

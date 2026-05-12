@@ -4,12 +4,41 @@
 set -euo pipefail
 
 notify() { notify-send -a "kage-ai" "$1" "${2:-}" 2>/dev/null || true; }
+SOURCE_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
+HEALTH_ENDPOINT="${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}"
+
+local_ai_runtime() {
+  if command -v local-ai-runtime >/dev/null 2>&1; then
+    command -v local-ai-runtime
+    return 0
+  fi
+  if [ -x "$SCRIPT_DIR/../../system/local-ai-runtime.sh" ]; then
+    printf '%s\n' "$SCRIPT_DIR/../../system/local-ai-runtime.sh"
+    return 0
+  fi
+  return 1
+}
+
+ensure_local_ai() {
+  local runtime
+  runtime="$(local_ai_runtime)" || return 1
+  "$runtime" ensure-llm
+}
 
 # Get last commit diff
 diff_text="$(git diff HEAD~1..HEAD 2>/dev/null || git diff HEAD 2>/dev/null || echo "")"
 [ -n "$diff_text" ] || { notify "❌ No commits" "Need at least 2 commits"; exit 1; }
 
 notify "⏳ Analyzing code..." "Checking for security & logic issues..."
+
+if ! curl -fsS --max-time 1 "$HEALTH_ENDPOINT" >/dev/null 2>&1; then
+  notify "⏳ Starting local AI" "Loading llama-swap and the local model..."
+  if ! ensure_local_ai; then
+    notify "❌ Local AI not running" "Start: local-ai-runtime start"
+    exit 1
+  fi
+fi
 
 # ── Call LOCAL AI (zero tokens) ────────────────────────────────────────────────
 
@@ -29,12 +58,12 @@ Git diff:
 ${diff_text}"
 
 review_output=""
-review_output="$(curl -fsS --max-time 20 "http://127.0.0.1:8080/v1/chat/completions" \
+review_output="$(curl -fsS --max-time 90 "http://127.0.0.1:8080/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d "$(jq -n --arg prompt "$prompt" '{model:"local",messages:[{role:"system",content:"You are a terse security-focused code reviewer. Only report meaningful issues."},{role:"user",content:$prompt}],temperature:0.2,stream:false,max_tokens:700}')" 2>/dev/null || true)"
 
 if [ -z "$review_output" ]; then
-  notify "❌ Local AI not running" "Start: llama-swap-manager start"
+  notify "❌ Local AI request failed" "Retry or start with: local-ai-runtime start"
   exit 1
 fi
 

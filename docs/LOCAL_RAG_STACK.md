@@ -28,8 +28,9 @@ That script is idempotent. You can rerun it to:
 
 - recreate or repair the venv under `~/ai-rag/.venv`
 - install/update Python dependencies
-- start the local `qdrant` Docker container
+- create or repair the local `qdrant` Docker container for on-demand startup
 - refresh the `rag` CLI symlink in `~/.local/bin/rag`
+- refresh the `local-ai-runtime` helper in `~/.local/bin/local-ai-runtime`
 
 ## Reindex after schema changes
 
@@ -45,6 +46,8 @@ rag index ~/Documents/code/dotfiles --profile balanced
 ## Commands
 
 ```bash
+local-ai-runtime status
+local-ai-runtime start
 rag doctor
 cd ~/Documents/code/noxflow && rag index
 rag index --profile fast
@@ -95,9 +98,12 @@ rag ask "How does the AI scratchpad choose its model?" --rerank
 rag reindex
 rag clean --repo noxflow
 rag clean --all
+local-ai-runtime stop
 ```
 
 When you run `rag ask`, `rag quick`, `rag deep`, `rag agent`, or `rag search` **from inside an indexed git repo**, the CLI auto-scopes to that repo unless you override it with `--repo`.
+
+`rag index`, `rag reindex`, `rag search`, and the answer/handoff commands now auto-start the local Qdrant and llama-swap services when they target the default loopback endpoints. That lets the Docker/vector store and model server stay off during normal non-LLM work.
 
 For command completion, suggestions, and the full interactive command map, see [RAG CLI UX guide](RAG_CLI_UX.md).
 

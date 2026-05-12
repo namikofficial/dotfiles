@@ -28,11 +28,11 @@ Required file:
 ~/llama-models/google_gemma-3-4b-it-Q4_K_M.gguf
 ```
 
-## Start the local endpoint
+## Start the local endpoint when needed
 
 ```bash
-llama-swap-manager start
-llama-swap-manager status
+local-ai-runtime start
+local-ai-runtime status
 llama-swap-manager test
 ```
 
@@ -53,6 +53,7 @@ Hyprland keybinds:
 ## Files
 
 - `system/llama-swap-manager.sh` — local router manager
+- `system/local-ai-runtime.sh` — start/stop/status helper for llama-swap + Qdrant
 - `system/model-downloader.sh` — manual model instructions
 - `system/model-download-setup.sh` — guided HuggingFace download helper
 - `system/wayle-llm-module.sh` — Wayle LLM widget
@@ -71,7 +72,7 @@ llama-server --list-devices
 ### AI features say local AI is offline
 
 ```bash
-llama-swap-manager start
+local-ai-runtime start
 llama-swap-manager test
 ```
 
@@ -83,5 +84,7 @@ curl -s http://127.0.0.1:8080/v1/models | jq .
 
 ## Notes
 
+- The local AI scripts can auto-start llama-swap on first use instead of assuming it is already running.
+- Use `local-ai-runtime stop` when you want to unload the local runtime again.
 - Old `llm-manager` / port-8000 guidance is retired.
 - If you want another model, add it to `system/llama-swap/config.template.yaml` first instead of using an undocumented side path.

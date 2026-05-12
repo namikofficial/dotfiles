@@ -73,6 +73,20 @@ class CliStateTest(unittest.TestCase):
         self.assertEqual(memory_args.memory_command, "remember")
         self.assertTrue(memory_args.global_scope)
 
+    def test_parser_marks_runtime_dependencies_for_lazy_start(self) -> None:
+        parser = build_parser()
+        ask_args = parser.parse_args(["ask", "explain config"])
+        self.assertTrue(ask_args.needs_qdrant)
+        self.assertTrue(ask_args.needs_llm)
+
+        search_args = parser.parse_args(["search", "AuthService.login"])
+        self.assertTrue(search_args.needs_qdrant)
+        self.assertFalse(search_args.needs_llm)
+
+        status_args = parser.parse_args(["status"])
+        self.assertFalse(status_args.needs_qdrant)
+        self.assertFalse(status_args.needs_llm)
+
     def test_cli_suggestions_for_typos_and_workflows(self) -> None:
         message = "argument command: invalid choice: 'serach' (choose from 'index', 'search', 'status')"
         self.assertEqual(suggestion_for_argparse_error(message), "search")

@@ -30,11 +30,11 @@ Expected file:
 ~/llama-models/google_gemma-3-4b-it-Q4_K_M.gguf
 ```
 
-### 3. Start the router
+### 3. Start the local runtime when you need it
 
 ```bash
-llama-swap-manager start
-llama-swap-manager status
+local-ai-runtime start
+local-ai-runtime status
 llama-swap-manager test
 ```
 
@@ -55,12 +55,15 @@ Hyprland keys:
 ## Quick checks
 
 ```bash
+local-ai-runtime status
 curl -s http://127.0.0.1:8080/v1/models | jq .
 tail -f ~/.cache/kage/llm-logs/llama-swap.log
 ```
 
 ## Notes
 
+- `rag` and the local AI scripts now auto-start Qdrant / llama-swap when they need them.
+- Use `local-ai-runtime stop` when you want the machine to cool back down.
 - `llm-manager` is retired.
 - Port `8000` is no longer the documented local AI path.
 - If you want more than `gemma-3-4b`, wire it into `system/llama-swap/config.template.yaml` first.
