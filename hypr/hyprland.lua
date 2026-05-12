@@ -149,6 +149,9 @@ exec(mainMod .. " + B", browser .. " --ozone-platform-hint=auto")
 exec(mainMod .. " + G", home .. "/.config/hypr/scripts/layout-switcher.sh cycle")
 exec(mainMod .. " + ALT + G", home .. "/.config/hypr/scripts/layout-switcher.sh toggle")
 exec(mainMod .. " + P", home .. "/.config/hypr/scripts/monitor-control.sh menu")
+exec(mainMod .. " + H", home .. "/.local/bin/hypr-phone menu")
+exec(mainMod .. " + SHIFT + H", home .. "/.local/bin/hypr-phone mirror --profile default")
+bind(mainMod .. " + ALT + H", hl.dsp.exec_cmd("hyprctl dispatch togglespecialworkspace phone"))
 exec(mainMod .. " + Escape", home .. "/.config/hypr/scripts/power-menu.sh")
 exec(mainMod .. " + CTRL + L", home .. "/.config/hypr/scripts/lock.sh")
 exec(mainMod .. " + CTRL + ALT + L", home .. "/.config/hypr/scripts/screensaver-awake.sh")
@@ -340,6 +343,15 @@ rule({
   name = "telemetry-workspace",
   match = { class = "^(noxflow%-telemetry)$" },
   workspace = "10",
+})
+
+rule({
+  name = "hypr-phone-special",
+  match = { title = "^(hypr-phone:.*)$" },
+  workspace = "special:phone silent",
+  float = true,
+  size = "420 900",
+  center = true,
 })
 
 rule({
