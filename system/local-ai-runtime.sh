@@ -240,6 +240,11 @@ ensure_qdrant() {
 }
 
 ensure_llm() {
+  local health_url
+  health_url="$(llm_health_url)"
+  if is_loopback_url "$health_url" && curl -fsS --max-time 1 "$health_url" >/dev/null 2>&1; then
+    return 0
+  fi
   with_lock llama-swap ensure_llm_locked
 }
 
