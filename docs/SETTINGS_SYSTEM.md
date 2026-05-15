@@ -33,7 +33,7 @@ This repository now includes a schema-driven settings layer.
 ## Keybinds
 
 - `Super + ,` -> open settings hub
-- `Super + Shift + ,` -> re-apply last section
+- Settings re-apply is available from `settings-hub.sh last`; `Super + Shift + ,` is currently used for minimized-window restore.
 - `Super + Ctrl + ,` -> quick toggle notification sounds
 - `Super + Alt + ,` -> open Rofi settings editor
 

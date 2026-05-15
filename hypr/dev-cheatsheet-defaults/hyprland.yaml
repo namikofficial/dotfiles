@@ -7,17 +7,17 @@ entries:
     source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+Space
-    description: Open launcher
-    copy: ~/.config/hypr/scripts/launcher.sh
+    description: Open desktop command palette
+    copy: ~/.config/hypr/scripts/desktop-palette.sh
     source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+Shift+Space
-    description: Open workspace overview
-    copy: ~/.config/hypr/scripts/workspace-overview.sh
+    description: Open fast app launcher
+    copy: ~/.config/hypr/scripts/launcher.sh --fast
     source: ~/.config/hypr/hyprland.lua
   - key: Super+Ctrl+Space
-    description: Open quick actions
-    copy: ~/.config/hypr/scripts/quick-actions.sh
+    description: Open workspace overview
+    copy: ~/.config/hypr/scripts/workspace-overview.sh
     source: ~/.config/hypr/hyprland.lua
   - key: Super+,
     description: Open settings hub

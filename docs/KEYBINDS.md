@@ -27,12 +27,11 @@ flowchart LR
 | `Super + F1` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + A` or `Super + /` | Desktop command palette | `desktop-palette.sh` |
 | `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
-| `Super + Y` | Workspace hub (primary path) | `workspace-overview-toggle.sh` |
+| `Super + Y` | Workspace hub (primary path) | `workspace-overview.sh` |
 | `Super + W` | Workspace overview (direct Rofi path) | `workspace-overview.sh` |
-| `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `workspace-overview-toggle.sh` |
+| `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `super-tab-overview.sh` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
-| `Super + \`` | Toggle spatial scratch scene | `scratchpad-manager.sh toggle scene` |
 | `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
 | `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
 | `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
@@ -48,7 +47,7 @@ flowchart LR
 | `Super + Alt + E` | Open notes folder | `open-notes.sh` |
 | `Super + D` | Desktop command palette | `desktop-palette.sh` |
 | `Super + ,` | Open Settings Hub | `settings-hub.sh` |
-| `Super + Shift + ,` | Re-apply last selected settings section | `settings-hub.sh last` |
+| `Super + Shift + ,` | Restore last minimized window | `minimize-window.sh restore` |
 | `Super + Ctrl + ,` | Quick settings toggle (notification sounds) | `settings-hub.sh quick` |
 | `Super + Alt + ,` | Open Rofi settings editor | `settings/editor.sh` |
 | `Super + Ctrl + Alt + ,` | Apply per-app routing to focused app | `app-routing-apply-focused.sh` |
@@ -63,9 +62,9 @@ flowchart LR
 | Keybind | Action |
 |---|---|
 | `Super + F` | Toggle floating |
-| `Super + M` | Maximize / unmaximize (fullscreen mode 1) |
-| `Super + Shift + F` | Fullscreen (mode 1) |
-| `Super + Ctrl + F` | Fullscreen (mode 0) |
+| `Super + M` | Maximize / unmaximize |
+| `Super + Shift + F` | Maximize / unmaximize |
+| `Super + Ctrl + F` | Fullscreen / unfullscreen |
 | `Super + G` | Toggle `dwindle` / `master` |
 | `Super + Alt + G` | Cycle dynamic layout (`dwindle -> master -> allfloat -> allpseudo`) |
 | `Super + Shift + G` | Toggle floating-grid |

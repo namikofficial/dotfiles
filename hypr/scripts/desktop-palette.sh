@@ -59,7 +59,7 @@ root="$(git_root "$cwd")"
 
 case "$action" in
   Apps)
-    exec "$HOME/.config/hypr/scripts/launcher.sh" --mode all
+    exec "$HOME/.config/hypr/scripts/launcher.sh" --fast
     ;;
   "Frequent Apps")
     exec "$HOME/.config/hypr/scripts/launcher.sh"

@@ -34,6 +34,15 @@ is_visible() {
   systemctl --user is-active --quiet wayle.service 2>/dev/null
 }
 
+stop_stale_wayle_shells() {
+  if systemctl --user is-active --quiet wayle.service 2>/dev/null; then
+    return 0
+  fi
+
+  pkill -x wayle >/dev/null 2>&1 || true
+  sleep 0.2
+}
+
 start_wayle() {
   if ! command -v wayle >/dev/null 2>&1; then
     notify "Wayle unavailable" "Install wayle-bin"
@@ -48,6 +57,7 @@ start_wayle() {
   # Service-only ownership: clean stale service state, then start only via user unit.
   systemctl --user stop wayle.service >/dev/null 2>&1 || true
   systemctl --user reset-failed wayle.service >/dev/null 2>&1 || true
+  stop_stale_wayle_shells
   systemctl --user start wayle.service >/dev/null 2>&1 || true
   sleep 0.5
 
@@ -62,6 +72,7 @@ start_wayle() {
 
 hide_panel() {
   systemctl --user stop wayle.service >/dev/null 2>&1 || true
+  stop_stale_wayle_shells
   notify "Panel view" "Hidden"
 }
 

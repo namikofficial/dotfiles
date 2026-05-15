@@ -50,9 +50,9 @@ actions=(
   "Toggle Floating Grid"
   "Switch Panel to Wayle"
   "Toggle Panel Engine"
-  "Toggle Panel Engine"
+  "Hide Panel"
   "Toggle Panel Visibility"
-  "Restart Current Panel"
+  "Show/Restore Panel"
   "Copy Notification Summary"
   "Show Keybind Cheat Sheet"
   "Apply Theme Pass"
@@ -181,7 +181,7 @@ case "$choice_index" in
   18) ~/.config/hypr/scripts/layout-switcher.sh allfloat ;;
   19) ~/.config/hypr/scripts/panel-switch.sh wayle ;;
   20) ~/.config/hypr/scripts/panel-switch.sh toggle ;;
-  21) ~/.config/hypr/scripts/panel-switch.sh toggle ;;
+  21) ~/.config/hypr/scripts/panel-switch.sh hide ;;
   22) ~/.config/hypr/scripts/panel-switch.sh toggle-view ;;
   23) ~/.config/hypr/scripts/panel-switch.sh show ;;
   24) ~/.config/hypr/scripts/notification-summary.sh copy ;;

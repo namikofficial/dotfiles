@@ -101,8 +101,8 @@ label-max-length = 28
 [modules.media]
 format = "{{ title }}"
 label-max-length = 24
-left-click = "playerctl play-pause"
-right-click = "playerctl next"
+left-click = "/home/namik/.config/hypr/scripts/media-control.sh play-pause"
+right-click = "/home/namik/.config/hypr/scripts/media-control.sh next"
 
 [modules.clock]
 format = "%a %d %b %H:%M"

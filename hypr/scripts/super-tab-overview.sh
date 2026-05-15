@@ -12,5 +12,9 @@ if hyprctl plugin list 2>/dev/null | grep -qi 'hyprexpo'; then
   fi
 fi
 
-notify "Overview unavailable" "Enable hyprexpo plugin for Super+Tab overview."
+if [ -x "$HOME/.config/hypr/scripts/workspace-overview.sh" ]; then
+  exec "$HOME/.config/hypr/scripts/workspace-overview.sh"
+fi
+
+notify "Overview unavailable" "No hyprexpo plugin or workspace overview fallback is available."
 exit 1

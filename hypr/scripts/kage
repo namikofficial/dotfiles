@@ -109,11 +109,11 @@ cmd_health() {
   local sub="${1:-check}"
   case "${sub}" in
     check)
-      local hyprctl_ok=0 rofi_ok=0 jq_ok=0 socat_ok=0 python3_ok=0
+      local hyprctl_ok=0 rofi_ok=0 jq_ok=0 socket_tool_ok=0 python3_ok=0
       command -v hyprctl >/dev/null 2>&1 && hyprctl_ok=1
       command -v rofi    >/dev/null 2>&1 && rofi_ok=1
       command -v jq      >/dev/null 2>&1 && jq_ok=1
-      command -v socat   >/dev/null 2>&1 && socat_ok=1
+      { command -v socat >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; } && socket_tool_ok=1
       command -v python3 >/dev/null 2>&1 && python3_ok=1
       local watcher_running=false
       if [ -f "${PROJECT_WATCH_PIDFILE}" ]; then
@@ -122,7 +122,7 @@ cmd_health() {
         [ -n "$wpid" ] && kill -0 "$wpid" 2>/dev/null && watcher_running=true || true
       fi
       cat <<EOF_HEALTH
-{"session":"${HYPRLAND_SESSION}","hyprctl":${hyprctl_ok},"rofi":${rofi_ok},"jq":${jq_ok},"socat":${socat_ok},"python3":${python3_ok},"hyprexpo_so_exists":$([ -f "${HYPREXPO_SO}" ] && echo true || echo false),"hyprexpo_failed_this_session":$(plugin_failed_this_session && echo true || echo false),"project_watcher_running":${watcher_running}}
+{"session":"${HYPRLAND_SESSION}","hyprctl":${hyprctl_ok},"rofi":${rofi_ok},"jq":${jq_ok},"socket_tool":${socket_tool_ok},"python3":${python3_ok},"hyprexpo_so_exists":$([ -f "${HYPREXPO_SO}" ] && echo true || echo false),"hyprexpo_failed_this_session":$(plugin_failed_this_session && echo true || echo false),"project_watcher_running":${watcher_running}}
 EOF_HEALTH
       ;;
     reset-hyprexpo)
@@ -334,8 +334,10 @@ project_get_git_info() {
   status_out="$(git -C "$dir" status --porcelain 2>/dev/null || true)"
   modified=0; staged=0
   if [ -n "$status_out" ]; then
-    modified=$(printf '%s\n' "$status_out" | grep -c '^ [MDARCU?!]' 2>/dev/null || echo 0)
-    staged=$(printf '%s\n'   "$status_out" | grep -c '^[MADRC] '    2>/dev/null || echo 0)
+    modified=$(printf '%s\n' "$status_out" | grep -c '^ [MDARCU?!]' 2>/dev/null || true)
+    staged=$(printf '%s\n'   "$status_out" | grep -c '^[MADRC] '    2>/dev/null || true)
+    modified="${modified:-0}"
+    staged="${staged:-0}"
   fi
   stashes=$(git -C "$dir" stash list 2>/dev/null | wc -l | tr -d ' ' || echo 0)
   local dirty=false
@@ -409,25 +411,30 @@ project_probe() {
 
   local tmp
   tmp="$(mktemp "${KAGE_CACHE_DIR}/project.XXXXXX")" || return 1
-  jq -n \
-    --arg     name       "$name"      \
-    --arg     path       "$git_root"  \
-    --arg     branch     "$branch"    \
-    --argjson dirty      "$dirty"     \
-    --argjson modified   "$modified"  \
-    --argjson staged     "$staged"    \
-    --argjson stashes    "$stashes"   \
-    --arg     lang       "$lang"      \
-    --arg     framework  "$framework" \
-    --argjson is_git     "$is_git"    \
-    --argjson services   "$services"  \
-    --argjson actions    "$actions"   \
-    --arg     updated_at "$(now_iso)" \
-    '{name:$name,path:$path,branch:$branch,dirty:$dirty,
-      modified:$modified,staged:$staged,stashes:$stashes,
-      lang:$lang,framework:$framework,is_git:$is_git,
-      services:$services,actions:$actions,updated_at:$updated_at}' \
-    > "$tmp" && mv "$tmp" "${PROJECT_CACHE}" || { rm -f "$tmp"; return 1; }
+  if jq -n \
+      --arg     name       "$name"      \
+      --arg     path       "$git_root"  \
+      --arg     branch     "$branch"    \
+      --argjson dirty      "$dirty"     \
+      --argjson modified   "$modified"  \
+      --argjson staged     "$staged"    \
+      --argjson stashes    "$stashes"   \
+      --arg     lang       "$lang"      \
+      --arg     framework  "$framework" \
+      --argjson is_git     "$is_git"    \
+      --argjson services   "$services"  \
+      --argjson actions    "$actions"   \
+      --arg     updated_at "$(now_iso)" \
+      '{name:$name,path:$path,branch:$branch,dirty:$dirty,
+        modified:$modified,staged:$staged,stashes:$stashes,
+        lang:$lang,framework:$framework,is_git:$is_git,
+        services:$services,actions:$actions,updated_at:$updated_at}' \
+      > "$tmp"; then
+    mv "$tmp" "${PROJECT_CACHE}"
+  else
+    rm -f "$tmp"
+    return 1
+  fi
 
   printf '%s' "$git_root"
 }
@@ -436,9 +443,15 @@ project_probe() {
 
 project_watch_daemon() {
   ensure_dirs
-  local socket2="/tmp/hypr/${HYPRLAND_SESSION}/.socket2.sock"
+  local socket2="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr/${HYPRLAND_SESSION}/.socket2.sock"
+  if [ ! -S "$socket2" ]; then
+    socket2="/tmp/hypr/${HYPRLAND_SESSION}/.socket2.sock"
+  fi
   [ -S "$socket2" ] || { printf 'error: hyprland socket not found: %s\n' "$socket2" >&2; exit 1; }
-  command -v socat >/dev/null 2>&1 || { echo "error: socat required (pacman -S socat)" >&2; exit 1; }
+  if ! command -v socat >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+    echo "error: socat or python3 required" >&2
+    exit 1
+  fi
 
   printf '%s\n' "$$" > "${PROJECT_WATCH_PIDFILE}"
   trap 'rm -f "${PROJECT_WATCH_PIDFILE}"' EXIT INT TERM HUP
@@ -448,14 +461,25 @@ project_watch_daemon() {
 
   local last_active=""
   while true; do
+    if command -v socat >/dev/null 2>&1; then
+      event_stream=(socat -u "UNIX-CONNECT:${socket2}" -)
+    else
+      event_stream=(python3 -c 'import socket, sys
+s = socket.socket(socket.AF_UNIX)
+s.connect(sys.argv[1])
+with s.makefile("r", encoding="utf-8", errors="replace") as events:
+    for line in events:
+        print(line.rstrip("\n"), flush=True)' "${socket2}")
+    fi
+
     while IFS= read -r event; do
-      [[ "${event}" == activewindow* ]] || continue
+      [[ "${event}" == activewindowv2* ]] || continue
       local active="${event#*>>}"
       [ "$active" != "$last_active" ] || continue
       last_active="$active"
       project_probe >/dev/null 2>&1 || true
-    done < <(socat -u "UNIX-CONNECT:${socket2}" - 2>/dev/null)
-    # socat exited — Hyprland may have restarted; wait and retry
+    done < <("${event_stream[@]}" 2>/dev/null) || true
+    # The socket reader exited; Hyprland may have restarted. Wait and retry.
     sleep 3
     [ -S "$socket2" ] || break
   done
@@ -653,14 +677,18 @@ cmd_project() {
       done
       [ "$wayle" = "1" ] && { project_wayle_output; return 0; }
       if [ -s "${PROJECT_CACHE}" ]; then
-        [ "$json" = "1" ] \
-          && cat "${PROJECT_CACHE}" \
-          || jq -r '"[\(.name)] \(.branch) \(if .dirty then "✦\(.modified) ◆\(.staged)" else "(clean)" end) [\(.framework)]"' \
-               "${PROJECT_CACHE}" 2>/dev/null
+        if [ "$json" = "1" ]; then
+          cat "${PROJECT_CACHE}"
+        else
+          jq -r '"[\(.name)] \(.branch) \(if .dirty then "✦\(.modified) ◆\(.staged)" else "(clean)" end) [\(.framework)]"' \
+            "${PROJECT_CACHE}" 2>/dev/null
+        fi
       else
-        [ "$json" = "1" ] \
-          && echo '{"name":"","path":"","branch":"","dirty":false,"modified":0,"staged":0,"lang":"unknown","services":{},"actions":[]}' \
-          || echo "No project cached. Run: kage project refresh"
+        if [ "$json" = "1" ]; then
+          echo '{"name":"","path":"","branch":"","dirty":false,"modified":0,"staged":0,"lang":"unknown","services":{},"actions":[]}'
+        else
+          echo "No project cached. Run: kage project refresh"
+        fi
       fi ;;
     refresh)
       project_probe >/dev/null \

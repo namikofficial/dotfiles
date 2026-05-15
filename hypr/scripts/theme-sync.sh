@@ -267,9 +267,9 @@ hex_to_rgb_csv() {
   tail="${hex#??}"
   gg="${tail%??}"
   bb="${hex#????}"
-  r=$((16#${rr}))
-  g=$((16#${gg}))
-  b=$((16#${bb}))
+  r="$(printf '%d' "0x${rr}")"
+  g="$(printf '%d' "0x${gg}")"
+  b="$(printf '%d' "0x${bb}")"
   printf '%s, %s, %s' "$r" "$g" "$b"
 }
 
@@ -575,7 +575,8 @@ kitty_remote_all set-colors -a "$kitty_colors"
 
 # VSCode dynamic palette sync (JSONC-tolerant).
 for vscode_settings in \
-  "$HOME/.config/Code/User/settings.json"
+  "$HOME/.config/Code/User/settings.json" \
+  "$HOME/.config/Code - Insiders/User/settings.json"
 do
   [ -f "$vscode_settings" ] || continue
   python3 - "$vscode_settings" "$bg" "$text" "$accent" "$muted" <<'PY'

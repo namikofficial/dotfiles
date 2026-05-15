@@ -7,18 +7,18 @@ entries:
     source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+Space
-    description: App launcher (fast)
-    copy: ~/.config/hypr/scripts/launcher.sh --fast
+    description: Desktop command palette
+    copy: ~/.config/hypr/scripts/desktop-palette.sh
     source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+Shift+Space
-    description: Workspace overview search
-    copy: ~/.config/hypr/scripts/workspace-overview.sh
+    description: Fast app launcher
+    copy: ~/.config/hypr/scripts/launcher.sh --fast
     source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+Ctrl+Space
-    description: Quick actions palette
-    copy: ~/.config/hypr/scripts/quick-actions.sh
+    description: Workspace overview search
+    copy: ~/.config/hypr/scripts/workspace-overview.sh
     source: ~/.config/hypr/hyprland.lua
   - key: Super+Tab
     description: Workspace overview toggle

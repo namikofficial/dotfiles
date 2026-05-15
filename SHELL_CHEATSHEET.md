@@ -86,11 +86,12 @@
 
 ## Hyprland Quick Keys
 - `Super + Return`: terminal (`kitty`)
-- `Super + Space`: app launcher (press again to close)
+- `Super + Space`: desktop command palette
+- `Super + Shift + Space`: fast app launcher
 - In launcher: Tab A = top 5 frequent, Tab B = all apps, `Ctrl + Tab` switches tabs
 - `Super + .`: fullscreen dev cheatsheet overlay
 - `Super + F1`: keybind helper overlay
-- `Super + A` or `Super + /`: quick actions (press again to close)
+- `Super + A` or `Super + /`: desktop command palette (press again to close)
 - `Super + Ctrl + /`: keybind helper overlay
 - In launcher/actions: `Ctrl + 1..0` quick-select, `Enter` run/open
 - `Super + W`: workspace overview picker (Rofi)
@@ -106,16 +107,15 @@
 - `Super + Ctrl + 9`: open logs workspace terminal (workspace 9)
 - `Super + Ctrl + 0`: open/focus telemetry dashboard on workspace `0` key slot (`Hyprland workspace 10`)
 - `Super + Ctrl + Shift + 0`: reset the telemetry tmux session and reopen it
-- `Super + D`: quick actions
+- `Super + D`: desktop command palette
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
 - `Super + N`: toggle notification panel
-- `Super + Shift + Space`: window/workspace search
-- `Super + Ctrl + Space`: command palette
+- `Super + Ctrl + Space`: window/workspace search
 - `Super + Alt + N`: toggle DND
 - `Super + Ctrl + N`: copy notification/status summary
-- `Super + Shift + N`: toggle scratchpad notes
-- `Super + \``: toggle scratchpad terminal
+- `Super + Shift + N`: open notes folder
+- `Super + S`: spatial scratchpad dashboard
 - `Super + Alt + E`: open notes folder in editor
 - `Super + I`: pick a color (`hyprpicker -a`)
 - `Super + Shift + I`: toggle night light

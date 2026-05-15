@@ -115,16 +115,16 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 
 ## Keybind highlights (Hyprland)
 
-- `Super + Y`: primary workspace hub (`workspace-overview-toggle.sh`)
+- `Super + Y`: primary workspace hub (`workspace-overview.sh`)
 - `Super + W`: workspace/window overview switcher (direct Rofi list)
 - `Super + Tab`: overview toggle (`hyprexpo` if loaded, otherwise fallback Rofi overview)
 - `Super + Shift + Tab`: direct Rofi overview
-- `Super + Space`: ultra-fast app launcher (type-to-search, minimal chrome)
-- `Super + Shift + Space`: window/workspace search
-- `Super + Ctrl + Space`: command palette (quick actions)
+- `Super + Space`: desktop command palette
+- `Super + Shift + Space`: ultra-fast app launcher
+- `Super + Ctrl + Space`: workspace/window search
 - `Super + F1`: open keybind helper overlay (`hypr-binds.sh`)
 - `Super + Ctrl + /`: open keybind helper overlay
-- `Super + A` / `Super + /`: quick actions (press again to close)
+- `Super + A` / `Super + /`: desktop command palette (press again to close)
 - `Ctrl + 1..0` in launcher/actions: quick-select top 10 rows
 - `Enter` in launcher/actions: open/run selected row
 - opener key again (`Super+Space` / `Super+A`): close launcher/actions
@@ -136,7 +136,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)
 - `Super + ,`: open Settings Hub
-- `Super + Shift + ,`: re-apply last selected settings section
+- `Super + Shift + ,`: restore last minimized window
 - `Super + Ctrl + ,`: quick settings toggle (notification sounds)
 - `Super + Alt + ,`: open the Rofi settings editor
 - `Super + Ctrl + Alt + ,`: apply per-app routing to focused app

@@ -280,10 +280,10 @@ exec("XF86AudioMicMute", home .. "/.config/hypr/scripts/volume-control.sh mic-mu
 exec("XF86MonBrightnessUp", home .. "/.config/hypr/scripts/brightness-control.sh up", { locked = true, repeating = true })
 exec("XF86MonBrightnessDown", home .. "/.config/hypr/scripts/brightness-control.sh down", { locked = true, repeating = true })
 
-bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { locked = true })
-bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
-bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
-bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true })
+exec("XF86AudioNext", home .. "/.config/hypr/scripts/media-control.sh next", { locked = true })
+exec("XF86AudioPause", home .. "/.config/hypr/scripts/media-control.sh play-pause", { locked = true })
+exec("XF86AudioPlay", home .. "/.config/hypr/scripts/media-control.sh play-pause", { locked = true })
+exec("XF86AudioPrev", home .. "/.config/hypr/scripts/media-control.sh previous", { locked = true })
 
 -- Window rules
 rule({
