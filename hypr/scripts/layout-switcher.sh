@@ -25,7 +25,11 @@ active_layout() {
 
 set_layout() {
   layout="$1"
-  hyprctl keyword general:layout "$layout" >/dev/null 2>&1
+  ws_id="$(hyprctl -j activeworkspace 2>/dev/null | jq -r '.id // empty' 2>/dev/null || true)"
+  if [ -n "$ws_id" ]; then
+    hyprctl keyword "workspace" "$ws_id,layout:$layout" >/dev/null 2>&1 || return 1
+  fi
+  hyprctl keyword general:layout "$layout" >/dev/null 2>&1 || true
 }
 
 set_workspace_opt() {

@@ -54,7 +54,7 @@ center = [
   { name = "center-clock", modules = ["clock"] },
 ]
 right = [
-  { name = "controls", modules = ["custom-brightness", "volume", "custom-logs"] },
+  { name = "controls", modules = ["custom-brightness", "volume", "custom-syncthing", "custom-logs"] },
   { name = "status", modules = ["battery", "bluetooth", "network"] },
   { name = "llm", modules = ["custom-llm"] },
   { name = "project", modules = ["custom-project"] },
@@ -205,6 +205,23 @@ button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"
 left-click = "/home/namik/.config/hypr/scripts/scratchpad-manager.sh launch logs"
+
+[[modules.custom]]
+id = "syncthing"
+command = '''/home/namik/.config/hypr/scripts/syncthing-status.sh'''
+mode = "poll"
+interval-ms = 5000
+format = "SYNC {{ text }}"
+icon-show = true
+icon-name = "folder-sync-symbolic"
+label-show = true
+label-max-length = 8
+button-bg-color = "transparent"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "/home/namik/.config/hypr/scripts/syncthing-control.sh open-ui"
+right-click = "/home/namik/.config/hypr/scripts/syncthing-control.sh menu"
+on-action = '''/home/namik/.config/hypr/scripts/syncthing-status.sh'''
 
 [[modules.custom]]
 id = "quick"
