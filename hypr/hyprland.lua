@@ -152,10 +152,11 @@ exec(mainMod .. " + P", home .. "/.config/hypr/scripts/monitor-control.sh menu")
 exec(mainMod .. " + H", home .. "/.local/bin/hypr-phone menu")
 exec(mainMod .. " + SHIFT + H", home .. "/.local/bin/hypr-phone mirror --profile default")
 exec(mainMod .. " + CTRL + H", home .. "/.config/hypr/scripts/syncthing-control.sh open-ui")
-bind(mainMod .. " + ALT + H", hl.dsp.exec_cmd("hyprctl dispatch togglespecialworkspace phone"))
+bind(mainMod .. " + ALT + H", hl.dsp.workspace.toggle_special("phone"))
 exec(mainMod .. " + Escape", home .. "/.config/hypr/scripts/power-menu.sh")
 exec(mainMod .. " + CTRL + L", home .. "/.config/hypr/scripts/lock.sh")
 exec(mainMod .. " + CTRL + ALT + L", home .. "/.config/hypr/scripts/screensaver-awake.sh")
+exec(mainMod .. " + grave", home .. "/.config/hypr/scripts/scratchpad-manager.sh toggle scene")
 exec(mainMod .. " + backslash", home .. "/.config/hypr/scripts/sidepanel.sh toggle")
 exec(mainMod .. " + SHIFT + backslash", home .. "/.config/hypr/scripts/sidepanel.sh send")
 exec(mainMod .. " + CTRL + backslash", home .. "/.config/hypr/scripts/sidepanel.sh stash")
@@ -505,6 +506,17 @@ rule({
   move = "4% 4%",
   rounding = 18,
   animation = "popin",
+})
+
+rule({
+  name = "sidepanel-default",
+  match = { class = "^(noxflow%-sidepanel)$" },
+  workspace = "special:sidepanel silent",
+  float = true,
+  size = "34% 92%",
+  move = "65% 4%",
+  rounding = 18,
+  animation = "slide",
 })
 
 rule({

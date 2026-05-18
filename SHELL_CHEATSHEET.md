@@ -102,6 +102,7 @@
 - `Super + G`: cycle layout state (`dwindle/master/monocle`)
 - `Super + Alt + G`: toggle `dwindle` / `master` layout
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle workspace windows
+- ``Super + ` ``: toggle full spatial scratch scene
 - `Super + \\`: toggle side panel special workspace
 - `Super + Shift + \\`: move current window into side panel + open it
 - `Super + Ctrl + 9`: open logs workspace terminal (workspace 9)

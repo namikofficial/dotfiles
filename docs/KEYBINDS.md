@@ -32,6 +32,7 @@ flowchart LR
 | `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `super-tab-overview.sh` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
+| ``Super + ` `` | Toggle full spatial scratch scene | `scratchpad-manager.sh toggle scene` |
 | `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
 | `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
 | `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |

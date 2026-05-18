@@ -39,7 +39,7 @@ spatial_visible() {
 }
 
 toggle_workspace() {
-  hyprctl dispatch togglespecialworkspace scratch_spatial >/dev/null 2>&1 || true
+  toggle_special_workspace scratch_spatial >/dev/null 2>&1 || true
 }
 
 show_workspace() {
@@ -80,12 +80,44 @@ hypr_eval() {
   hyprctl eval "$1" >/dev/null
 }
 
+toggle_special_workspace() {
+  local workspace="$1"
+  local workspace_lua
+  workspace_lua="$(lua_string "$workspace")"
+  hypr_eval "hl.dispatch(hl.dsp.workspace.toggle_special(${workspace_lua}))"
+}
+
+move_window_to_workspace() {
+  local workspace="$1" address="$2"
+  [ -n "$address" ] || return 0
+  local workspace_lua address_lua
+  workspace_lua="$(lua_string "$workspace")"
+  address_lua="$(lua_string "address:$address")"
+  hypr_eval "hl.dispatch(hl.dsp.window.move({ workspace = ${workspace_lua}, follow = false, window = ${address_lua} }))"
+}
+
+focus_window() {
+  local target="$1"
+  [ -n "$target" ] || return 0
+  local target_lua
+  target_lua="$(lua_string "$target")"
+  hypr_eval "hl.dispatch(hl.dsp.focus({ window = ${target_lua} }))"
+}
+
+close_window() {
+  local address="$1"
+  [ -n "$address" ] || return 0
+  local address_lua
+  address_lua="$(lua_string "address:$address")"
+  hypr_eval "hl.dispatch(hl.dsp.window.close({ window = ${address_lua} }))"
+}
+
 set_window_geometry() {
   local address="$1" x="$2" y="$3" w="$4" h="$5"
   [ -n "$address" ] || return 0
   local address_lua
   address_lua="$(lua_string "address:$address")"
-  hypr_eval "hl.dispatch(hl.dsp.window.float({ state = \"set\", window = ${address_lua} }))" || return 1
+  hypr_eval "hl.dispatch(hl.dsp.window.float({ state = true, window = ${address_lua} }))" || return 1
   hypr_eval "hl.dispatch(hl.dsp.window.resize({ x = ${w}, y = ${h}, window = ${address_lua} }))" || return 1
   hypr_eval "hl.dispatch(hl.dsp.window.move({ x = ${x}, y = ${y}, window = ${address_lua} }))" || return 1
 }
@@ -95,7 +127,7 @@ unset_window_floating() {
   [ -n "$address" ] || return 0
   local address_lua
   address_lua="$(lua_string "address:$address")"
-  hypr_eval "hl.dispatch(hl.dsp.window.float({ state = \"unset\", window = ${address_lua} }))"
+  hypr_eval "hl.dispatch(hl.dsp.window.float({ state = false, window = ${address_lua} }))"
 }
 
 active_window_matches_class() {
@@ -289,7 +321,7 @@ spawn_notes() {
 
 spawn_obsidian() {
   if hyprctl clients 2>/dev/null | grep -qi "class: .*obsidian"; then
-    hyprctl dispatch focuswindow "class:^(obsidian|Obsidian)$" >/dev/null 2>&1 || true
+    focus_window "class:^(obsidian|Obsidian)$" >/dev/null 2>&1 || true
     return 0
   fi
   if command -v obsidian >/dev/null 2>&1; then
@@ -432,7 +464,7 @@ context_cwd() {
 forget_client() {
   local address="$1"
   [ -n "$address" ] || return 0
-  hyprctl dispatch closewindow "address:$address" >/dev/null 2>&1 || true
+  close_window "$address" >/dev/null 2>&1 || true
   for _ in {1..20}; do
     hyprctl -j clients 2>/dev/null | jq -e --arg address "$address" '
       any(.[]; (.address // "") == $address)
@@ -476,10 +508,10 @@ launch_overlay_pad() {
   fi
   address="$(wait_for_client "$class_name" || true)"
   [ -n "$address" ] || return 0
-  hyprctl dispatch movetoworkspacesilent "special:$(workspace_for),address:$address" >/dev/null 2>&1 || true
+  move_window_to_workspace "special:$(workspace_for)" "$address" >/dev/null 2>&1 || true
   arrange_overlay
   show_workspace
-  hyprctl dispatch focuswindow "address:$address" >/dev/null 2>&1 || true
+  focus_window "address:$address" >/dev/null 2>&1 || true
   update_state "$pad" active
 }
 
@@ -490,7 +522,7 @@ arrange_overlay() {
     [ -n "$class_name" ] || continue
     address="$(client_address "$class_name" || true)"
     [ -n "$address" ] || continue
-    hyprctl dispatch movetoworkspacesilent "special:$(workspace_for),address:$address" >/dev/null 2>&1 || true
+    move_window_to_workspace "special:$(workspace_for)" "$address" >/dev/null 2>&1 || true
     apply_geometry "$address" "$pad" overlay_geometry
   done
 }
@@ -582,11 +614,11 @@ scene_enter() {
   ai="$(wait_for_client "$ai_class" || true)"
   logs="$(wait_for_client "$logs_class" || true)"
 
-  [ -n "$ai" ] && hyprctl dispatch movetoworkspacesilent "$workspace,address:$ai" >/dev/null 2>&1 || true
-  [ -n "$logs" ] && hyprctl dispatch movetoworkspacesilent "$workspace,address:$logs" >/dev/null 2>&1 || true
+  [ -n "$ai" ] && move_window_to_workspace "$workspace" "$ai" >/dev/null 2>&1 || true
+  [ -n "$logs" ] && move_window_to_workspace "$workspace" "$logs" >/dev/null 2>&1 || true
   sleep 0.05
 
-  [ -n "$main" ] && hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
+  [ -n "$main" ] && focus_window "address:$main" >/dev/null 2>&1 || true
   while read -r name x y w h; do
     case "$name" in
       main) apply_exact_geometry "$main" "$x" "$y" "$w" "$h" ;;
@@ -595,14 +627,14 @@ scene_enter() {
     esac
   done < <(scene_layout_px)
 
-  [ -n "$main" ] && hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
+  [ -n "$main" ] && focus_window "address:$main" >/dev/null 2>&1 || true
   update_state scene active
   update_state ai active
   update_state logs active
 }
 
 scene_exit() {
-  local main x y w h floating
+  local main x y w h floating restore_main_tiled=0
   main="$(scene_main_address || true)"
   if [ -n "$main" ] && [ -s "$scene_state" ]; then
     read -r x y w h floating < <(python3 - "$scene_state" <<'PY'
@@ -617,20 +649,29 @@ print(at[0] if len(at) > 0 else 0, at[1] if len(at) > 1 else 0,
       "true" if main.get("floating") else "false")
 PY
     )
-    hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
-    set_window_geometry "$main" "$x" "$y" "$w" "$h" || true
-    [ "$floating" = "false" ] && unset_window_floating "$main" >/dev/null 2>&1 || true
-    hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
+    focus_window "address:$main" >/dev/null 2>&1 || true
+    restore_main_tiled=1
+    focus_window "address:$main" >/dev/null 2>&1 || true
   fi
 
   local ai logs
   ai="$(client_address "$(pad_class ai)" || true)"
   logs="$(client_address "$(pad_class logs)" || true)"
-  [ -n "$ai" ] && hyprctl dispatch movetoworkspacesilent "special:scratch_spatial,address:$ai" >/dev/null 2>&1 || true
-  [ -n "$logs" ] && hyprctl dispatch movetoworkspacesilent "special:scratch_spatial,address:$logs" >/dev/null 2>&1 || true
+  [ -n "$ai" ] && move_window_to_workspace "special:scratch_spatial" "$ai" >/dev/null 2>&1 || true
+  [ -n "$logs" ] && move_window_to_workspace "special:scratch_spatial" "$logs" >/dev/null 2>&1 || true
   arrange_overlay
+  if [ "$restore_main_tiled" = "1" ] && [ -n "$main" ]; then
+    sleep 0.05
+    unset_window_floating "$main" >/dev/null 2>&1 || true
+    focus_window "address:$main" >/dev/null 2>&1 || true
+  fi
   rm -f "$scene_state"
   update_state scene idle
+  if [ "$restore_main_tiled" = "1" ] && [ -n "$main" ]; then
+    sleep 0.20
+    unset_window_floating "$main" >/dev/null 2>&1 || true
+    focus_window "address:$main" >/dev/null 2>&1 || true
+  fi
 }
 
 scene_toggle() {

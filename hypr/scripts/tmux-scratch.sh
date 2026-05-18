@@ -12,6 +12,24 @@ set -eu
 special_ws="scratch_tmux"
 class_name="noxflow-tmux-scratch"
 
+lua_string() {
+  jq -Rn --arg value "$1" '$value'
+}
+
+hypr_eval() {
+  hyprctl eval "$1" >/dev/null
+}
+
+toggle_special_workspace() {
+  ws_lua="$(lua_string "$1")"
+  hypr_eval "hl.dispatch(hl.dsp.workspace.toggle_special(${ws_lua}))"
+}
+
+move_active_to_workspace() {
+  ws_lua="$(lua_string "$1")"
+  hypr_eval "hl.dispatch(hl.dsp.window.move({ workspace = ${ws_lua}, follow = false }))"
+}
+
 window_exists() {
   hyprctl clients 2>/dev/null | grep -q "class: ${class_name}"
 }
@@ -30,14 +48,14 @@ case "${1:-toggle}" in
         -e tmux -L scratch new-session -A -s scratch >/dev/null 2>&1 &
       sleep 0.20
     fi
-    hyprctl dispatch togglespecialworkspace "$special_ws" >/dev/null 2>&1 || true
+    toggle_special_workspace "$special_ws" >/dev/null 2>&1 || true
     ;;
   send)
-    hyprctl dispatch movetoworkspacesilent "special:${special_ws}" >/dev/null 2>&1 || true
-    hyprctl dispatch togglespecialworkspace "$special_ws" >/dev/null 2>&1 || true
+    move_active_to_workspace "special:${special_ws}" >/dev/null 2>&1 || true
+    toggle_special_workspace "$special_ws" >/dev/null 2>&1 || true
     ;;
   stash)
-    hyprctl dispatch movetoworkspacesilent "special:${special_ws}" >/dev/null 2>&1 || true
+    move_active_to_workspace "special:${special_ws}" >/dev/null 2>&1 || true
     ;;
   *)
     echo "usage: $0 [toggle|send|stash]" >&2
