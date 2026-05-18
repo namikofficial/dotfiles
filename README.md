@@ -144,14 +144,14 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + .`: fullscreen dev cheatsheet overlay (searchable + tabbed)
 - `Super + F`: toggle floating on active window
 - `Super + M`: maximize/unmaximize active window
-- `Super + G`: toggle tiling layout (`dwindle` <-> `master`)
-- `Super + Alt + G`: cycle dynamic layouts (`dwindle -> master -> allfloat -> allpseudo`)
-- `Super + Shift + G`: toggle floating-grid workspace mode
+- `Super + G`: cycle layout state (`dwindle -> master -> monocle`)
+- `Super + Alt + G`: toggle tiling layout (`dwindle` <-> `master`)
+- `Super + Shift + G`: toggle floating for the focused window
 - `Super + \`: toggle side panel special workspace
 - `Super + Shift + \`: move active window to side panel and open it
-- `Super + H/J/K/L`: focus left/down/up/right
+- `Super + arrows`: focus left/right/up/down
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle windows in current workspace
-- `Super + Shift + H/J/K/L`: move window left/down/up/right
+- `Super + Shift + arrows`: move the tiled window left/right/up/down
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
 - `Super + N`: toggle notification panel
@@ -176,8 +176,8 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Fn + 2/3/4/5` (`XF86Launch2..5`): AI helper actions (`ask`, `clipboard`, `shell`, `debug`)
 - `Super + Alt + 2`: freeform AI prompt with no preset base prompt
 - `Super + Alt + 3/4/5`: fallback AI helper actions (`clipboard`, `shell`, `debug`)
-- `Super + Ctrl + H/J/K/L` (or arrows): move floating window
-- `Super + Ctrl + Shift + H/J/K/L` (or arrows): resize floating window
+- `Super + Ctrl + arrows`: move floating window by pixels
+- `Super + Ctrl + Shift + arrows`: resize floating window
 - `Super + [ / ]`: previous/next workspace
 - `Super + Ctrl + 9`: open logs workspace helper
 - `Super + Ctrl + Shift + 9`: open logs workspace stack

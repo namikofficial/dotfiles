@@ -160,9 +160,9 @@ on-action = '''/home/namik/.config/hypr/scripts/status-updates.sh'''
 
 [[modules.custom]]
 id = "layout"
-command = '''hyprctl -j activeworkspace 2>/dev/null | jq -r '.tiledLayout // "dwindle"' | awk '{printf("{\"text\":\"%s\"}\n", $0)}' '''
+command = "/home/namik/.config/hypr/scripts/layout-switcher.sh status"
 mode = "poll"
-interval-ms = 1200
+interval-ms = 600
 format = "{{ text }}"
 icon-name = "ld-layout-grid-symbolic"
 label-show = true
@@ -172,7 +172,7 @@ icon-bg-color = "auto"
 label-color = "fg-default"
 left-click = "/home/namik/.config/hypr/scripts/layout-switcher.sh cycle"
 right-click = "/home/namik/.config/hypr/scripts/layout-switcher.sh toggle"
-on-action = '''hyprctl -j activeworkspace 2>/dev/null | jq -r '.tiledLayout // "dwindle"' | awk '{printf("{\"text\":\"%s\"}\n", $0)}' '''
+on-action = "/home/namik/.config/hypr/scripts/layout-switcher.sh status"
 
 [[modules.custom]]
 id = "brightness"

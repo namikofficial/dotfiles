@@ -99,8 +99,8 @@
 - `Super + Shift + Tab`: direct Rofi overview
 - `Super + F`: toggle floating for active window
 - `Super + M`: maximize / unmaximize active window
-- `Super + G`: toggle `dwindle` / `master` layout
-- `Super + Alt + G`: cycle dynamic layouts (`dwindle/master/allfloat/allpseudo`)
+- `Super + G`: cycle layout state (`dwindle/master/monocle`)
+- `Super + Alt + G`: toggle `dwindle` / `master` layout
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle workspace windows
 - `Super + \\`: toggle side panel special workspace
 - `Super + Shift + \\`: move current window into side panel + open it

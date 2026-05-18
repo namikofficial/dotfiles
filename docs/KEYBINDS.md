@@ -65,11 +65,12 @@ flowchart LR
 | `Super + M` | Maximize / unmaximize |
 | `Super + Shift + F` | Maximize / unmaximize |
 | `Super + Ctrl + F` | Fullscreen / unfullscreen |
-| `Super + G` | Toggle `dwindle` / `master` |
-| `Super + Alt + G` | Cycle dynamic layout (`dwindle -> master -> allfloat -> allpseudo`) |
-| `Super + Shift + G` | Toggle floating-grid |
+| `Super + G` | Cycle layout state (`dwindle -> master -> monocle`) |
+| `Super + Alt + G` | Toggle `dwindle` / `master` |
+| `Super + Shift + G` | Toggle focused window floating |
 | `Super + Ctrl + G` | Force `master` |
 | `Super + Ctrl + Shift + G` | Force `dwindle` |
+| `Super + Ctrl + Alt + Shift + G` | Monocle-style focused/maximized mode |
 | `Super + T` | Toggle window group (tab-like stack) |
 | `Super + Ctrl + T` | Move active window out of group |
 | `Super + Alt + ;` / `Super + Alt + .` | Prev/next tab in group |
@@ -78,11 +79,11 @@ flowchart LR
 
 | Keybind | Action |
 |---|---|
-| `Super + H/J/K/L` or arrows | Move focus |
+| `Super + arrows` | Move focus |
 | `Alt + Tab` / `Alt + Shift + Tab` | Cycle windows in current workspace |
-| `Super + Shift + H/J/K/L` or arrows | Move window |
-| `Super + Ctrl + H/J/K/L` or arrows | Move floating window |
-| `Super + Ctrl + Shift + H/J/K/L` or arrows | Resize floating window |
+| `Super + Shift + arrows` | Move tiled window in that direction |
+| `Super + Ctrl + arrows` | Move floating window by pixels |
+| `Super + Ctrl + Shift + arrows` | Resize floating window |
 
 ## Workspace
 
