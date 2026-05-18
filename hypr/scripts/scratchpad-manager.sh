@@ -72,6 +72,32 @@ active_window_json() {
   hyprctl -j activewindow 2>/dev/null || printf '{}\n'
 }
 
+lua_string() {
+  jq -Rn --arg value "$1" '$value'
+}
+
+hypr_eval() {
+  hyprctl eval "$1" >/dev/null
+}
+
+set_window_geometry() {
+  local address="$1" x="$2" y="$3" w="$4" h="$5"
+  [ -n "$address" ] || return 0
+  local address_lua
+  address_lua="$(lua_string "address:$address")"
+  hypr_eval "hl.dispatch(hl.dsp.window.float({ state = \"set\", window = ${address_lua} }))" || return 1
+  hypr_eval "hl.dispatch(hl.dsp.window.resize({ x = ${w}, y = ${h}, window = ${address_lua} }))" || return 1
+  hypr_eval "hl.dispatch(hl.dsp.window.move({ x = ${x}, y = ${y}, window = ${address_lua} }))" || return 1
+}
+
+unset_window_floating() {
+  local address="$1"
+  [ -n "$address" ] || return 0
+  local address_lua
+  address_lua="$(lua_string "address:$address")"
+  hypr_eval "hl.dispatch(hl.dsp.window.float({ state = \"unset\", window = ${address_lua} }))"
+}
+
 active_window_matches_class() {
   local class_name="$1"
   active_window_json | jq -e --arg class_name "$class_name" '
@@ -146,13 +172,13 @@ apply_geometry() {
   local address="$1" pad="$2" kind="$3"
   [ -n "$address" ] || return 0
   read -r x y w h < <(geometry_px "$pad" "$kind")
-  hyprctl --batch "dispatch setfloating address:$address; dispatch resizewindowpixel exact $w $h,address:$address; dispatch movewindowpixel exact $x $y,address:$address" >/dev/null 2>&1 || true
+  set_window_geometry "$address" "$x" "$y" "$w" "$h" || true
 }
 
 apply_exact_geometry() {
   local address="$1" x="$2" y="$3" w="$4" h="$5"
   [ -n "$address" ] || return 0
-  hyprctl --batch "dispatch setfloating address:$address; dispatch resizewindowpixel exact $w $h,address:$address; dispatch movewindowpixel exact $x $y,address:$address" >/dev/null 2>&1 || true
+  set_window_geometry "$address" "$x" "$y" "$w" "$h" || true
 }
 
 scene_layout_px() {
@@ -590,10 +616,10 @@ print(at[0] if len(at) > 0 else 0, at[1] if len(at) > 1 else 0,
       size[0] if len(size) > 0 else 1000, size[1] if len(size) > 1 else 700,
       "true" if main.get("floating") else "false")
 PY
-)
+    )
     hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
-    hyprctl --batch "dispatch movewindowpixel exact $x $y,address:$main; dispatch resizewindowpixel exact $w $h,address:$main" >/dev/null 2>&1 || true
-    [ "$floating" = "false" ] && hyprctl dispatch settiled "address:$main" >/dev/null 2>&1 || true
+    set_window_geometry "$main" "$x" "$y" "$w" "$h" || true
+    [ "$floating" = "false" ] && unset_window_floating "$main" >/dev/null 2>&1 || true
     hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
   fi
 

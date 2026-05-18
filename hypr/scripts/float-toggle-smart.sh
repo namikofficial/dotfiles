@@ -21,12 +21,33 @@ is_floating_before() {
   }
 }
 
+hypr_eval() {
+  hyprctl eval "$1" >/dev/null
+}
+
+default_float_size() {
+  if command -v jq >/dev/null 2>&1; then
+    hyprctl -j monitors 2>/dev/null | jq -r '
+      (map(select(.focused == true))[0] // .[0] // {}) as $m
+      | ($m.reserved // [0, 0, 0, 0]) as $r
+      | (($m.width // 1400) - ($r[0] // 0) - ($r[2] // 0)) as $w
+      | (($m.height // 900) - ($r[1] // 0) - ($r[3] // 0)) as $h
+      | [([$w * 0.72 | floor, 720] | max), ([$h * 0.78 | floor, 520] | max)]
+      | "\(.[0]) \(.[1])"
+    ' 2>/dev/null && return 0
+  fi
+  printf '1000 700\n'
+}
+
 before="$(is_floating_before)"
-hyprctl dispatch togglefloating >/dev/null 2>&1 || exit 0
+hypr_eval 'hl.dispatch(hl.dsp.window.float({ state = "toggle" }))' || exit 0
 
 if [ "$before" = "false" ]; then
-  hyprctl dispatch resizeactive exact 72% 78% >/dev/null 2>&1 || true
-  hyprctl dispatch centerwindow >/dev/null 2>&1 || true
+  read -r default_w default_h <<EOF_SIZE
+$(default_float_size)
+EOF_SIZE
+  hypr_eval "hl.dispatch(hl.dsp.window.resize({ x = ${default_w}, y = ${default_h} }))" || true
+  hypr_eval 'hl.dispatch(hl.dsp.window.center())' || true
 
   # If jq is available, offset each newly floated window so multiple floating
   # apps are visible instead of perfectly stacked.
@@ -52,7 +73,7 @@ if [ "$before" = "false" ]; then
       dy=$((slot * 30 + wave * 20))
 
       if [ "$dx" -ne 0 ] || [ "$dy" -ne 0 ]; then
-        hyprctl dispatch moveactive "$dx" "$dy" >/dev/null 2>&1 || true
+        hypr_eval "hl.dispatch(hl.dsp.window.move({ relative = true, x = ${dx}, y = ${dy} }))" || true
       fi
     fi
   fi
