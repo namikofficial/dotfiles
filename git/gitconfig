@@ -22,6 +22,7 @@
 [core]
 	untrackedCache = true
 	preloadIndex = true
+	hooksPath = /home/namik/.config/git/hooks
 [credential "https://github.com"]
 	helper = 
 	helper = !/usr/bin/gh auth git-credential
