@@ -175,6 +175,7 @@ link_runtime_path() {
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
 link_path "$REPO_DIR/sddm/dmrc" "$HOME/.dmrc"
 link_path "$REPO_DIR/git/gitconfig" "$HOME/.gitconfig"
+link_path "$REPO_DIR/git/hooks/commit-msg" "$HOME/.config/git/hooks/commit-msg"
 link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_path "$REPO_DIR/tmux/tmux-help" "$HOME/.local/bin/tmux-help"
 link_path "$REPO_DIR/tmux/tmux-sessions" "$HOME/.local/bin/tmux-sessions"

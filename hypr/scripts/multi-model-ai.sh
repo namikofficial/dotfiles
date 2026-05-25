@@ -3,8 +3,14 @@
 
 set -euo pipefail
 
-LLM_BASE_URL="${LLM_BASE_URL:-http://127.0.0.1:8080/v1}"
-HEALTH_ENDPOINT="${LLM_HEALTH_ENDPOINT:-${LLM_BASE_URL}/models}"
+AI_COMMON="${HOME}/.config/hypr/scripts/ai-runtime-common.sh"
+if [ -r "$AI_COMMON" ]; then
+  # shellcheck disable=SC1090
+  . "$AI_COMMON"
+fi
+
+LLM_BASE_URL="${LLM_BASE_URL:-${AI_LLM_BASE_URL:-http://127.0.0.1:8080/v1}}"
+HEALTH_ENDPOINT="${LLM_HEALTH_ENDPOINT:-${AI_HEALTH_ENDPOINT:-${LLM_BASE_URL}/models}}"
 OPENCODE_TEMPLATE="${HOME}/Documents/code/dotfiles/configs/opencode/opencode.local-llamacpp.json"
 OPENCODE_RUNTIME_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 OPENCODE_RUNTIME_CONFIG="${OPENCODE_RUNTIME_DIR}/opencode.json"
@@ -37,58 +43,26 @@ choose_context_dir() {
   printf '%s\n' "$HOME"
 }
 
-remote_models() {
-  curl -fsS --max-time 2 "$HEALTH_ENDPOINT" | jq -r '.data[].id // empty' 2>/dev/null || true
-}
-
 select_model() {
-  local requested="${NOXFLOW_AI_MODEL:-${LLM_CHAT_MODEL:-}}"
-  local available preferred model
-  mapfile -t available < <(remote_models)
-
-  if [ "${#available[@]}" -eq 0 ]; then
-    return 1
+  if command -v ai_select_model >/dev/null 2>&1; then
+    ai_select_model "${NOXFLOW_AI_MODEL:-${LLM_CHAT_MODEL:-}}"
+    return
   fi
-
-  if [ -n "$requested" ]; then
-    for model in "${available[@]}"; do
-      if [ "$model" = "$requested" ]; then
-        printf '%s\n' "$model"
-        return 0
-      fi
-    done
-  fi
-
-  for preferred in gemma-3-4b local gemma-2-2b llama-3-8b; do
-    for model in "${available[@]}"; do
-      if [ "$model" = "$preferred" ]; then
-        printf '%s\n' "$model"
-        return 0
-      fi
-    done
-  done
-
-  printf '%s\n' "${available[0]}"
+  return 1
 }
 
 ensure_server() {
+  local auto_start="${NOXFLOW_AI_AUTO_START:-1}"
+  if command -v ai_ensure_server >/dev/null 2>&1; then
+    ai_ensure_server "$auto_start"
+    return
+  fi
+
   if curl -fsS --max-time 1 "$HEALTH_ENDPOINT" >/dev/null 2>&1; then
     return 0
   fi
 
-  printf '%sLocal LLM server is not responding at %s%s\n' "$C_YELLOW" "$HEALTH_ENDPOINT" "$C_RESET"
-  printf '%sStart llama-swap-manager now? [Y/n]%s ' "$C_DIM" "$C_RESET"
-  read -r answer
-
-  case "${answer:-Y}" in
-    y|Y|yes|YES)
-      if command -v llama-swap-manager >/dev/null 2>&1; then
-        printf '%sStarting local endpoint...%s\n' "$C_YELLOW" "$C_RESET"
-        llama-swap-manager start || true
-        sleep 2
-      fi
-      ;;
-  esac
+  [ "$auto_start" = "1" ] && command -v llama-swap-manager >/dev/null 2>&1 && llama-swap-manager start >/dev/null 2>&1 || true
 
   curl -fsS --max-time 2 "$HEALTH_ENDPOINT" >/dev/null 2>&1
 }
@@ -193,7 +167,11 @@ export LLM_CHAT_MODEL="$model"
 export OPENCODE_MODEL="${OPENCODE_MODEL:-llamacpp/$model}"
 export NOXFLOW_AI_CONTEXT="$context_dir"
 
-available_models="$(remote_models | paste -sd ',' - | sed 's/,/, /g')"
+if command -v ai_remote_models >/dev/null 2>&1; then
+  available_models="$(ai_remote_models | paste -sd ',' - | sed 's/,/, /g')"
+else
+  available_models=""
+fi
 printf '%sWorkspace:%s %s\n' "$C_DIM" "$C_RESET" "$context_dir"
 printf '%sModel:%s %s\n' "$C_DIM" "$C_RESET" "$model"
 printf '%sAvailable:%s %s\n\n' "$C_DIM" "$C_RESET" "${available_models:-none}"

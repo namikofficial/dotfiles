@@ -22,6 +22,11 @@ runtime_dir() {
 }
 
 state_dir="$(runtime_dir)"
+lock_file="$state_dir/scratchpad-manager.lock"
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"$lock_file"
+  flock -n 9 || exit 0
+fi
 
 dashboard_script="$HOME/.config/hypr/scripts/scratchpad-dashboard.py"
 registry_file="$HOME/.config/hypr/scripts/scratchpad-registry.toml"
@@ -31,6 +36,7 @@ scene_state="$state_dir/scratchpad-scene-state.json"
 log_context_file="$state_dir/scratchpad-log-context"
 ai_context_file="$state_dir/scratchpad-ai-context"
 dashboard_log="$state_dir/scratchpad-dashboard.log"
+registry_cache=""
 
 spatial_visible() {
   hyprctl -j monitors 2>/dev/null | jq -e '
@@ -48,17 +54,35 @@ show_workspace() {
 
 window_exists() {
   local class_name="$1"
-  hyprctl clients 2>/dev/null | grep -q "class: ${class_name}"
+  [ -n "$(client_address "$class_name" || true)" ]
+}
+
+load_registry_cache() {
+  [ -n "$registry_cache" ] && return 0
+  registry_cache="$(python3 - "$registry_file" <<'PY'
+import json, sys, tomllib
+from pathlib import Path
+data = tomllib.loads(Path(sys.argv[1]).read_text())
+print(json.dumps(data))
+PY
+)"
+}
+
+registry_jq() {
+  local query="${*: -1}"
+  local args=("${@:1:$(($#-1))}")
+  load_registry_cache
+  jq -r "${args[@]}" "$query" <<<"$registry_cache" 2>/dev/null || true
 }
 
 pad_class() {
   local pad="$1"
-  python3 - "$registry_file" "$pad" <<'PY'
-import sys, tomllib
-from pathlib import Path
-registry = tomllib.loads(Path(sys.argv[1]).read_text())
-print(registry["scratchpads"].get(sys.argv[2], {}).get("class", ""))
-PY
+  registry_jq --arg pad "$pad" '.scratchpads[$pad].class // ""'
+}
+
+pad_restore_policy() {
+  local pad="$1"
+  registry_jq --arg pad "$pad" '.scratchpads[$pad].restore_policy // "keep_overlay"'
 }
 
 client_address() {
@@ -158,11 +182,11 @@ active_workspace_id() {
 
 geometry_px() {
   local pad="$1" kind="$2"
-  python3 - "$registry_file" "$pad" "$kind" "$(focused_monitor_json)" <<'PY'
-import json, sys, tomllib
-from pathlib import Path
+  load_registry_cache
+  python3 - "$registry_cache" "$pad" "$kind" "$(focused_monitor_json)" <<'PY'
+import json, sys
 
-registry = tomllib.loads(Path(sys.argv[1]).read_text())
+registry = json.loads(sys.argv[1])
 pad_name = sys.argv[2]
 if pad_name == "main":
     pad = {"scene_geometry": registry.get("scene", {}).get("main", {}).get("geometry", {})}
@@ -654,11 +678,25 @@ PY
     focus_window "address:$main" >/dev/null 2>&1 || true
   fi
 
-  local ai logs
+  local ai logs ai_policy logs_policy
   ai="$(client_address "$(pad_class ai)" || true)"
   logs="$(client_address "$(pad_class logs)" || true)"
-  [ -n "$ai" ] && move_window_to_workspace "special:scratch_spatial" "$ai" >/dev/null 2>&1 || true
-  [ -n "$logs" ] && move_window_to_workspace "special:scratch_spatial" "$logs" >/dev/null 2>&1 || true
+  ai_policy="$(pad_restore_policy ai)"
+  logs_policy="$(pad_restore_policy logs)"
+  if [ -n "$ai" ]; then
+    if [ "$ai_policy" = "close" ]; then
+      forget_client "$ai"
+    else
+      move_window_to_workspace "special:scratch_spatial" "$ai" >/dev/null 2>&1 || true
+    fi
+  fi
+  if [ -n "$logs" ]; then
+    if [ "$logs_policy" = "close" ]; then
+      forget_client "$logs"
+    else
+      move_window_to_workspace "special:scratch_spatial" "$logs" >/dev/null 2>&1 || true
+    fi
+  fi
   arrange_overlay
   if [ "$restore_main_tiled" = "1" ] && [ -n "$main" ]; then
     sleep 0.05

@@ -105,6 +105,22 @@ if [ -x "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" ]; then
   "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" --warm-cache >/dev/null 2>&1 &
 fi
 
+# Warm scratch/AI dependencies so Super+` paths do not stall on first use.
+(
+  sleep 2
+  for cmd in jq python3 hyprctl kitty; do
+    command -v "$cmd" >/dev/null 2>&1 || true
+  done
+  if [ -x "$HOME/.config/hypr/scripts/scratchpad-manager.sh" ]; then
+    "$HOME/.config/hypr/scripts/scratchpad-manager.sh" menu >/dev/null 2>&1 || true
+  fi
+  if command -v curl >/dev/null 2>&1 && command -v llama-swap-manager >/dev/null 2>&1; then
+    if ! curl -fsS --max-time 1 "${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}" >/dev/null 2>&1; then
+      llama-swap-manager start >/dev/null 2>&1 || true
+    fi
+  fi
+) &
+
 # Keep the clipboard browser daemon warm so clipboard UI opens on the hot path.
 if [ -x "$HOME/.config/hypr/scripts/cliphist-daemon.sh" ]; then
   (
