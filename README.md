@@ -12,6 +12,7 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
 - `docs/NETWORK_STACK_POLICY.md` locked Wi-Fi stack policy (NetworkManager + wpa_supplicant)
+- `docs/LOCAL_DEVELOPER_WORKFLOW.md` day-to-day developer readiness, project, AI, and recovery workflow
 - `hypr/` for Hyprland, Wayle-first shell scripts, Rofi, wlogout, lockscreen, and helper scripts
 - `wayle/` for the preferred future shell config
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
@@ -39,7 +40,7 @@ That command:
 - links Atuin config into `~/.config/atuin/config.toml`
 - links UWSM compositor env (`~/.config/uwsm/env-hyprland`)
 - links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
-- links Hyprland, Wayle, Waybar, Rofi, SwayNC, wlogout, and Kitty configs into `~/.config`
+- links Hyprland, Wayle, Rofi, wlogout, and Kitty configs into `~/.config`
 - links static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
 - links portal routing so screen sharing uses XDPH and file picking uses GTK
 - links Chrome flags to `~/.config/chrome-flags.conf`
@@ -68,7 +69,7 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 
 ## Package manifests
 
-- `setup/pacman-packages.txt`: official repository packages (`tlp`, `syncthing`, and the rest of the workstation stack)
+- `setup/pacman-packages.txt`: official repository packages (`power-profiles-daemon`, `syncthing`, and the rest of the workstation stack)
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
@@ -96,11 +97,27 @@ Install packages only:
 ./setup/install-packages.sh --with-aur
 ```
 
-Remove legacy shell experiments after the Wayle/SwayNC cleanup:
+Remove legacy shell experiments after the Wayle-first shell cleanup:
 
 ```sh
 ./setup/remove-legacy-shell-packages.sh
 ```
+
+## Local Developer Health
+
+Use the fast readiness check before focused work:
+
+```sh
+dev-health
+dev-health --full
+dotfiles-stale-check
+project-profile status
+```
+
+- `dev-health` checks repo state, required tools, settings links, desktop services, local AI/RAG status, project profile state, and disk pressure.
+- `dev-health --full` also runs the deeper weekly health log.
+- `dotfiles-stale-check` blocks stale retired-stack references from creeping back into docs/scripts.
+- `project-profile` lists and launches common workspaces from one source of truth.
 
 If package install fails with `db.lck`, clear stale lock and retry:
 
@@ -220,7 +237,7 @@ Normalize existing copied files to symlinks:
 - Tmux prefix is `Ctrl + Space`; pane navigation is `Prefix + h/j/k/l`
 - Neovim config is in `nvim/` and bootstraps plugins with `lazy.nvim`
 
-Notification panel now includes sticky "System Hub" controls (GPU/media/network/panel status, copy summary, widget toggles, and quick controls) via SwayNC.
+Notification panel now routes through the Wayle-first shell path with sticky System Hub controls for GPU/media/network/panel status, copy summary, widget toggles, and quick controls.
 
 AI helper behavior:
 
@@ -261,10 +278,9 @@ You can run the bundled checker too:
 ./setup/verify-nvidia.sh
 ```
 
-If you want live GPU metrics in Waybar (instead of low-noise runtime status), run:
+If you want the Wayle shell to refresh low-noise runtime status after GPU/theme changes, run:
 
 ```sh
-export WAYBAR_GPU_DEEP_POLL=1
 ~/.config/hypr/scripts/panel-switch.sh show
 ```
 
@@ -369,7 +385,7 @@ Or use repo automation:
 - On current Arch repos (since the March 3, 2026 NVIDIA 570+ packaging change), `nvidia-dkms` is not provided and `nvidia-open-dkms` is the official kernel-module package.
 - On this setup, forcing `nvidia_drm` modeset can trigger login/shutdown hangs on some hybrid laptops.
 - The included safe profile keeps boot stable by blacklisting `nvidia_drm` during compositor startup.
-- Waybar now exposes a real system tray, and `nm-applet` plus `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls.
+- Wayle plus tray applets now own panel status, and `nm-applet` plus `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls.
   Set `HYPR_ENABLE_NM_APPLET=0` or `HYPR_ENABLE_BLUEMAN_APPLET=0` if you want the panel-only workflow instead.
 
 If login freezes and `nvidia-persistenced` times out, run:

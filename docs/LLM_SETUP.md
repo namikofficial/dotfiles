@@ -50,6 +50,13 @@ Hyprland keybinds:
 - `Super+Shift+C` — generate commit message
 - `Super+Shift+R` — review last commit
 
+## Routing policy
+
+- Use local helper scripts for shell explanations, commit messages, short reviews, and clipboard summaries.
+- Use `rag quick` / `rag deep` when repo-grounded context matters.
+- Use OpenCode from the AI scratchpad when you want an interactive local-agent loop.
+- Use cloud tools only when explicitly chosen for a task that exceeds local model quality or context.
+
 ## Files
 
 - `system/llama-swap-manager.sh` — local router manager

@@ -46,7 +46,10 @@ while (($#)); do
     --scripts-dir)
       shift
       SCRIPTS_DIR="${1:-}"
-      [ -n "$SCRIPTS_DIR" ] || { echo "--scripts-dir requires a path" >&2; exit 1; }
+      [ -n "$SCRIPTS_DIR" ] || {
+        echo "--scripts-dir requires a path" >&2
+        exit 1
+      }
       ;;
     --install-packages) RUN_PACKAGES=1 ;;
     --with-aur) WITH_AUR=1 ;;
@@ -57,7 +60,7 @@ while (($#)); do
     --install-hypr-plugins) INSTALL_HYPR_PLUGINS=1 ;;
     --dry-run) DRY_RUN=1 ;;
     --no-backup) NO_BACKUP=1 ;;
-    -h|--help)
+    -h | --help)
       usage
       exit 0
       ;;
@@ -77,8 +80,8 @@ backup_if_needed() {
     return 0
   fi
 
-  if (( NO_BACKUP )); then
-    if (( DRY_RUN )); then
+  if ((NO_BACKUP)); then
+    if ((DRY_RUN)); then
       echo "[dry-run] rm -rf '$target'"
     else
       rm -rf "$target"
@@ -87,7 +90,7 @@ backup_if_needed() {
   fi
 
   local backup="${target}.bak.${STAMP}"
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] mv '$target' '$backup'"
   else
     mv "$target" "$backup"
@@ -118,7 +121,7 @@ link_path() {
 
   backup_if_needed "$target"
 
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] ln -s '$source' '$target'"
   else
     ln -s "$source" "$target"
@@ -139,7 +142,7 @@ copy_path() {
 
   backup_if_needed "$target"
 
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] cp -a '$source' '$target'"
   else
     cp -a "$source" "$target"
@@ -164,7 +167,7 @@ link_runtime_path() {
 
   backup_if_needed "$target"
 
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] ln -s '$source' '$target'"
   else
     ln -s "$source" "$target"
@@ -179,6 +182,9 @@ link_path "$REPO_DIR/git/hooks/commit-msg" "$HOME/.config/git/hooks/commit-msg"
 link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_path "$REPO_DIR/tmux/tmux-help" "$HOME/.local/bin/tmux-help"
 link_path "$REPO_DIR/tmux/tmux-sessions" "$HOME/.local/bin/tmux-sessions"
+link_path "$REPO_DIR/setup/dev-health.sh" "$HOME/.local/bin/dev-health"
+link_path "$REPO_DIR/setup/check-stale-references.sh" "$HOME/.local/bin/dotfiles-stale-check"
+link_path "$REPO_DIR/setup/project-profile.sh" "$HOME/.local/bin/project-profile"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
 link_path "$REPO_DIR/nvim" "$HOME/.config/nvim"
@@ -213,7 +219,7 @@ link_path "$REPO_DIR/theme/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf"
 link_path "$REPO_DIR/theme/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf"
 copy_path "$REPO_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
 
-if (( DRY_RUN )); then
+if ((DRY_RUN)); then
   echo "[dry-run] mkdir -p '$HOME/.local/bin'"
 else
   mkdir -p "$HOME/.local/bin"
@@ -222,7 +228,7 @@ fi
 if [ -d "$SCRIPTS_DIR/bin" ]; then
   while IFS= read -r -d '' file; do
     target="$HOME/.local/bin/$(basename "$file")"
-    if (( DRY_RUN )); then
+    if ((DRY_RUN)); then
       echo "[dry-run] ln -sf '$file' '$target'"
     else
       ln -sf "$file" "$target"
@@ -234,28 +240,28 @@ else
   echo "warning: if you have access, run: git submodule update --init private/scripts" >&2
 fi
 
-if (( RUN_PACKAGES )); then
+if ((RUN_PACKAGES)); then
   cmd=("$SCRIPT_DIR/install-packages.sh")
-  (( WITH_AUR )) && cmd+=(--with-aur)
+  ((WITH_AUR)) && cmd+=(--with-aur)
   [ -n "$WITH_NVIDIA" ] && cmd+=("$WITH_NVIDIA")
-  (( DRY_RUN )) && cmd+=(--dry-run)
+  ((DRY_RUN)) && cmd+=(--dry-run)
   "${cmd[@]}"
 fi
 
-if (( INSTALL_ZSH_PLUGINS )); then
+if ((INSTALL_ZSH_PLUGINS)); then
   cmd=("$SCRIPT_DIR/install-zsh-plugins.sh")
-  (( DRY_RUN )) && cmd+=(--dry-run)
+  ((DRY_RUN)) && cmd+=(--dry-run)
   "${cmd[@]}"
 fi
 
-if (( INSTALL_TMUX_PLUGINS )); then
+if ((INSTALL_TMUX_PLUGINS)); then
   cmd=("$SCRIPT_DIR/install-tmux-plugins.sh")
-  (( DRY_RUN )) && cmd+=(--dry-run)
+  ((DRY_RUN)) && cmd+=(--dry-run)
   "${cmd[@]}"
 fi
 
-if (( INSTALL_HYPR_PLUGINS )); then
-  if (( DRY_RUN )); then
+if ((INSTALL_HYPR_PLUGINS)); then
+  if ((DRY_RUN)); then
     echo "[dry-run] $SCRIPT_DIR/install-hypr-plugins.sh"
   else
     "$SCRIPT_DIR/install-hypr-plugins.sh"

@@ -79,7 +79,9 @@ actions=(
   "Open Wayle Notification Panel"
   "Open Settings Hub"
   "Monitor Control"
-  "Run Weekly Health Check"
+  "Run Dev Health"
+  "Recover Desktop"
+  "Project Profiles"
 )
 
 hint_for_index() {
@@ -211,6 +213,8 @@ case "$choice_index" in
   47) ~/.config/hypr/scripts/notif-center-toggle.sh ;;
   48) ~/.config/hypr/scripts/settings-hub.sh ;;
   49) ~/.config/hypr/scripts/monitor-control.sh menu ;;
-  50) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;
+  50) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/dev-health.sh; read -r -p 'Press enter to close'" ;;
+  51) ~/.config/hypr/scripts/desktop-recovery.sh menu ;;
+  52) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/project-profile.sh status; read -r -p 'Press enter to close'" ;;
   *) exit 0 ;;
 esac

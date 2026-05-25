@@ -48,6 +48,8 @@
 - JSON helpers: `je`, `jj`, `jc`, `jk`, `jl`, `jp`, `jf`, `jv`, `jh`
 - Devlink helpers: `dl`, `dld`, `dlp`, `dlh`, `dlm`
 - Alc commands: `ff`, `frg`, `fkill`, `tnotes`, `doctor`, `pkillport`
+- Local readiness: `dev-health`, `dev-health --full`, `dotfiles-stale-check`
+- Project profiles: `project-profile status`, `project-profile launch noxcrm`, `pp tmux dotfiles`
 
 ## Power / Graphics
 - Current power profile: `powerprofilesctl get`
@@ -55,7 +57,7 @@
 - Set performance mode: `powerprofilesctl set performance`
 - Set power-saver mode: `powerprofilesctl set power-saver`
 - Battery summary: `batt`
-- Wayle status/media data is built into the shell; no separate Waybar GPU polling flow.
+- Wayle status/media data is built into the shell; no separate legacy panel GPU polling flow.
 
 ## Git
 - Status short: `gss`
@@ -218,6 +220,9 @@
 - Apply improved SDDM theme/background: `sudo ~/Documents/code/dotfiles/setup/configure-sddm.sh`
 
 ## Weekly Health Check
+
+- Fast developer readiness: `dev-health`
+- Deep health log: `dev-health --full`
 - Run now: `~/Documents/code/dotfiles/setup/weekly-health-check.sh`
 - Enable weekly timer: `~/Documents/code/dotfiles/setup/configure-weekly-healthcheck.sh`
 - Latest log: `cat ~/Documents/code/dotfiles/logs/health-latest.log`

@@ -108,7 +108,7 @@ Current default hooks:
   - `QT_QPA_PLATFORMTHEME=qt6ct`
   - `QT_STYLE_OVERRIDE=kvantum`
 - Discord/Vesktop dynamic theming is not applied automatically yet (needs client theme plugin layer).
-- PrismLauncher uses `ApplicationTheme=system` in `~/.local/share/PrismLauncher/prismlauncher.cfg`; it will follow system/Qt theme, not Waybar CSS.
+- PrismLauncher uses `ApplicationTheme=system` in `~/.local/share/PrismLauncher/prismlauncher.cfg`; it follows the system/Qt theme rather than panel CSS.
 - If you want absolutely no visual transition artifacts, set:
 `WALLPAPER_TRANSITION_TYPE=none`
 

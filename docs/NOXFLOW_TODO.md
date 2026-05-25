@@ -1,6 +1,6 @@
 # Noxflow Setup TODO
 
-Last updated: 2026-04-29
+Last updated: 2026-05-25
 
 ## Done
 
@@ -39,10 +39,15 @@ Last updated: 2026-04-29
 - [x] Enable system tray controls via applets; `nm-applet` and `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls
 - [x] Change Tmux prefix from `Ctrl + A` to `Ctrl + Space`
 - [x] Add `open-syncthing.sh` helper and Syncthing entry in quick-actions menu
+- [x] Add fast local developer readiness check (`setup/dev-health.sh`, `dev-health`)
+- [x] Add stale retired-stack guardrail (`setup/check-stale-references.sh`, `dotfiles-stale-check`)
+- [x] Add project profile launcher/status command (`setup/project-profile.sh`, `project-profile`, `pp`)
+- [x] Add desktop recovery menu (`hypr/scripts/desktop-recovery.sh`)
+- [x] Document local developer workflow, AI routing, scratchpad roles, and recovery path (`docs/LOCAL_DEVELOPER_WORKFLOW.md`)
 
 ## Next
 
-- [ ] Replace the old app-first launcher mental model with a real desktop command palette and named scratchpads
+- [x] Replace the old app-first launcher mental model with command-palette recovery/dev-health/project-profile actions and named scratchpad role docs
 - [ ] Run package installer to ensure new dependencies are present (`ttf-inter`, `smartmontools`, `nvme-cli`, `code`, `helix`)
 - [ ] Reboot and verify SDDM noxflow theme readability on real login screen
 - [ ] Capture fresh screenshots after blur/glass/animation tune and verify latest top-bar spacing pass
