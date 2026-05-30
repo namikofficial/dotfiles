@@ -277,8 +277,7 @@ for agent in \
   /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 \
   /usr/libexec/polkit-gnome-authentication-agent-1 \
   lxqt-policykit-agent \
-  mate-polkit \
-  polkit-kde-authentication-agent-1; do
+  mate-polkit; do
   if pgrep -f 'polkit.*agent|hyprpolkitagent' >/dev/null 2>&1; then
     break
   fi

@@ -4,7 +4,7 @@
 
 - Source config for Hyprland Lua, Wayle, Rofi, lock/idle scripts, and monitor layout policy.
 - `settings/defaults.json`, `settings/schema.json`, and profile files.
-- KDE defaults (`kde/`) and MIME defaults (`mime/mimeapps.list`).
+- MIME defaults (`mime/mimeapps.list`).
 - System profile templates under `system/`.
 
 ## Tracked Local Overrides

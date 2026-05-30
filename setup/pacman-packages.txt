@@ -113,9 +113,6 @@ xdg-desktop-portal-gtk
 qt5-wayland
 qt6-wayland
 nwg-look
-qt5ct
-qt6ct
-kvantum
 libcanberra
 gnome-keyring
 seahorse

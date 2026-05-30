@@ -17,10 +17,10 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `wayle/` for the preferred future shell config
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
-- `theme/` for GTK, Qt5/Qt6, and Kvantum visual consistency
+- `theme/` for GTK visual consistency
 - `setup/` automation scripts for links and package installation
 - `settings/` schema-driven settings state (`settingsctl` + Settings Hub)
-- `kde/` + `mime/` managed KDE defaults and MIME handlers
+- `mime/` managed MIME handlers
 
 ## Quick start
 
@@ -41,11 +41,9 @@ That command:
 - links UWSM compositor env (`~/.config/uwsm/env` and `~/.config/uwsm/env-hyprland`)
 - links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
 - links the modular Hyprland entrypoint (`hyprland.lua` + `hypr/conf/*.lua`), Wayle, Rofi, wlogout, and Kitty configs into `~/.config`
-- links static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
+- links GTK theme configs into `~/.config`
 - links portal routing so screen sharing uses XDPH and file picking uses GTK
 - links Chrome flags to `~/.config/chrome-flags.conf`
-- copies runtime-managed KDE/theme defaults (`kdeglobals`, `Kvantum`) into `~/.config` so wallpaper sync can update them without dirtying the repo
-- links KDE app defaults (`dolphinrc`, `kiorc`, `gwenviewrc`)
 - copies MIME defaults (`~/.config/mimeapps.list`) so local handler changes stay machine-specific
 - links your private scripts commands into `~/.local/bin` when `private/scripts` (or another `--scripts-dir`) is available
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
@@ -65,19 +63,11 @@ Base installs leave the existing NVIDIA stack untouched. NVIDIA users can opt in
 ./setup/bootstrap.sh --install-packages --with-aur --with-nvidia
 ```
 
-If you want a full Plasma session installed alongside the Hyprland-first base stack:
-
-```sh
-./setup/bootstrap.sh --install-packages --with-aur --with-plasma
-```
-
 You can run package install via `sudo` too; the script now delegates AUR operations to your normal user automatically.
 
 ## Package manifests
 
 - `setup/pacman-packages.txt`: official repository packages for the base workstation stack
-- `setup/kde-companion-packages.txt`: KDE apps kept in the default Hyprland-first install
-- `setup/plasma-session-packages.txt`: optional Plasma session packages, installed only with `--with-plasma`
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
@@ -197,7 +187,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
 - `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
 - In-workspace-hub hotkeys: `Ctrl + Alt + R` rename, `Ctrl + Alt + Backspace` clear label, `Ctrl + Alt + F` favorite, `Ctrl + Alt + S` shortcuts, `Ctrl + Alt + M/O/P` window move/send actions
-- `Super + Ctrl + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
+- `Super + Ctrl + Shift + Y`: apply theme pass (GTK + app refresh)
 - `Super + Ctrl + Y`: switch panel to Wayle when installed
 - `Super + Shift + Y`: toggle panel visibility only (show/hide current panel)
 - `Super + Ctrl + Alt + Y`: toggle the current panel shell
@@ -349,20 +339,6 @@ Notes path defaults:
 - Folder: `~/Documents/notes`
 - Scratch file: `~/Documents/notes/inbox.md`
 - `open-notes.sh` prefers Obsidian when it is installed, then falls back to official VS Code.
-
-## KDE companion apps on Hyprland
-
-For a Hyprland-first setup with native KDE file management, image viewing, and a GUI settings app:
-
-```sh
-sudo pacman -S --needed gwenview systemsettings ark
-```
-
-If you want a full Plasma session installed alongside Hyprland later, keep it separate from the base dotfiles install:
-
-```sh
-sudo pacman -S --needed plasma-desktop plasma-workspace
-```
 
 ## Timeshift daily auto snapshots (keep latest 5)
 

@@ -17,10 +17,6 @@ finish_slow_refresh() {
     update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
   fi
 
-  if command -v kbuildsycoca6 >/dev/null 2>&1; then
-    rm -f "$HOME"/.cache/ksycoca6_* "$HOME"/.cache/ksycoca* >/dev/null 2>&1 || true
-    kbuildsycoca6 --noincremental >/dev/null 2>&1 || true
-  fi
 }
 
 notify "Reloading..." "Applying theme and refreshing running apps"
@@ -32,10 +28,6 @@ if command -v gsettings >/dev/null 2>&1; then
   gsettings set org.gnome.desktop.interface cursor-theme "Bibata-Modern-Ice" >/dev/null 2>&1 || true
   gsettings set org.gnome.desktop.interface font-name "Noto Sans 11" >/dev/null 2>&1 || true
   gsettings set org.gnome.desktop.interface monospace-font-name "JetBrainsMono Nerd Font 11" >/dev/null 2>&1 || true
-fi
-
-if command -v kvantummanager >/dev/null 2>&1; then
-  kvantummanager --set NoxflowDynamic >/dev/null 2>&1 || true
 fi
 
 kitty_runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
@@ -62,8 +54,6 @@ if [ -n "$current_wall" ] && [ -f "$current_wall" ]; then
   fi
 fi
 
-
-
 if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
 fi
@@ -75,8 +65,8 @@ fi
 kitty_remote_all load-config "$HOME/.config/kitty/kitty.conf"
 
 if command -v hyprctl >/dev/null 2>&1; then
-  "$HOME/.config/hypr/scripts/hypr-reload-safe.sh" >/dev/null 2>&1 \
-    || notify "Hyprland restart needed" "This session was started from legacy hyprlang; Lua config loads on next login."
+  "$HOME/.config/hypr/scripts/hypr-reload-safe.sh" >/dev/null 2>&1 ||
+    notify "Hyprland restart needed" "This session was started from legacy hyprlang; Lua config loads on next login."
 fi
 
 notify "Reload complete" "Theme + Kitty + panel refreshed"

@@ -3,14 +3,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PACMAN_LIST="$SCRIPT_DIR/pacman-packages.txt"
-KDE_COMPANION_LIST="$SCRIPT_DIR/kde-companion-packages.txt"
-PLASMA_SESSION_LIST="$SCRIPT_DIR/plasma-session-packages.txt"
 AUR_LIST="$SCRIPT_DIR/aur-packages.txt"
 NVIDIA_LIST="$SCRIPT_DIR/nvidia-packages.txt"
 WITH_AUR=0
 DRY_RUN=0
 WITH_NVIDIA=0
-WITH_PLASMA=0
 NONCONFIRM=0
 AS_USER="${SUDO_USER:-$USER}"
 
@@ -20,11 +17,10 @@ for arg in "$@"; do
     --dry-run) DRY_RUN=1 ;;
     --with-nvidia) WITH_NVIDIA=1 ;;
     --no-nvidia) WITH_NVIDIA=0 ;;
-    --with-plasma) WITH_PLASMA=1 ;;
     --noconfirm) NONCONFIRM=1 ;;
     *)
       echo "Unknown option: $arg" >&2
-      echo "Usage: $0 [--with-aur] [--with-plasma] [--with-nvidia|--no-nvidia] [--noconfirm] [--dry-run]" >&2
+      echo "Usage: $0 [--with-aur] [--with-nvidia|--no-nvidia] [--noconfirm] [--dry-run]" >&2
       exit 1
       ;;
   esac
@@ -133,11 +129,6 @@ if ((${#BASE_PACKAGES[@]} == 0)); then
   exit 1
 fi
 
-mapfile -t KDE_COMPANION_PACKAGES < <(read_list "$KDE_COMPANION_LIST")
-if ((${#KDE_COMPANION_PACKAGES[@]} == 0)); then
-  echo "warning: no KDE companion packages defined in $KDE_COMPANION_LIST" >&2
-fi
-
 if ((WITH_NVIDIA == 0)) && command -v lspci >/dev/null 2>&1 && lspci | grep -qi 'NVIDIA'; then
   echo "info: NVIDIA hardware detected; leaving the current driver stack untouched (use --with-nvidia to opt in)." >&2
 fi
@@ -150,16 +141,12 @@ if ((NONCONFIRM)); then
 fi
 
 EXTRA_PACKAGES=()
-if ((WITH_PLASMA)); then
-  mapfile -t PLASMA_PACKAGES < <(read_list "$PLASMA_SESSION_LIST")
-  EXTRA_PACKAGES+=("${PLASMA_PACKAGES[@]}")
-fi
 if ((WITH_NVIDIA)); then
   mapfile -t NVIDIA_PACKAGES < <(read_list "$NVIDIA_LIST")
   EXTRA_PACKAGES+=("${NVIDIA_PACKAGES[@]}")
 fi
 
-mapfile -t PACMAN_PACKAGES < <(filter_pacman_packages "${BASE_PACKAGES[@]}" "${KDE_COMPANION_PACKAGES[@]}" "${EXTRA_PACKAGES[@]}")
+mapfile -t PACMAN_PACKAGES < <(filter_pacman_packages "${BASE_PACKAGES[@]}" "${EXTRA_PACKAGES[@]}")
 
 if ((${#PACMAN_PACKAGES[@]} > 0)); then
   check_pacman_lock

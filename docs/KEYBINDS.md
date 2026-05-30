@@ -19,7 +19,7 @@ flowchart LR
 | Keybind | Action | Script/Target |
 |---|---|---|
 | `Super + Return` | Open terminal | `kitty` |
-| `Super + E` | Open file manager | `dolphin` |
+| `Super + E` | Open file manager | `kitty --class yazi -e yazi` |
 | `Super + Space` | Desktop command palette | `desktop-palette.sh` |
 | `Super + Shift + Space` | Fast app launcher | `launcher.sh --fast` |
 | `Super + Ctrl + Space` | Window/workspace search | `workspace-overview.sh` |

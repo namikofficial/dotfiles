@@ -56,12 +56,7 @@ check_link "$HOME/.config/hypr/monitor-layout.json" "$ROOT_DIR/hypr/monitor-layo
 check_link "$HOME/.config/uwsm/env" "$ROOT_DIR/uwsm/env"
 check_link "$HOME/.config/uwsm/env-hyprland" "$ROOT_DIR/uwsm/env-hyprland"
 check_link "$HOME/.config/rofi" "$ROOT_DIR/hypr/rofi"
-check_copy_or_link "$HOME/.config/kdeglobals" "$ROOT_DIR/kde/kdeglobals"
-check_link "$HOME/.config/dolphinrc" "$ROOT_DIR/kde/dolphinrc"
-check_link "$HOME/.config/kiorc" "$ROOT_DIR/kde/kiorc"
-check_link "$HOME/.config/gwenviewrc" "$ROOT_DIR/kde/gwenviewrc"
 check_copy_or_link "$HOME/.config/mimeapps.list" "$ROOT_DIR/mime/mimeapps.list"
-check_copy_or_link "$HOME/.config/Kvantum" "$ROOT_DIR/theme/Kvantum"
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "WARN  jq is not installed"

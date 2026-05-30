@@ -18,7 +18,6 @@ SCRIPTS_DIR="${SCRIPTS_DIR:-$DEFAULT_SCRIPTS_DIR}"
 RUN_PACKAGES=0
 WITH_AUR=0
 WITH_NVIDIA=""
-WITH_PLASMA=0
 DRY_RUN=0
 NO_BACKUP=0
 INSTALL_ZSH_PLUGINS=1
@@ -32,7 +31,6 @@ Usage: $0 [options]
   --scripts-dir PATH   Path to scripts repo (default: auto-detect private/scripts, then legacy locations)
   --install-packages   Run setup/install-packages.sh after linking
   --with-aur           Include AUR packages (requires yay)
-  --with-plasma        Include the optional Plasma session package set
   --with-nvidia        Opt in to repo-managed NVIDIA package installation
   --no-nvidia          Skip repo-managed NVIDIA package installation
   --no-zsh-plugins     Skip optional zsh plugin sync
@@ -55,7 +53,6 @@ while (($#)); do
       ;;
     --install-packages) RUN_PACKAGES=1 ;;
     --with-aur) WITH_AUR=1 ;;
-    --with-plasma) WITH_PLASMA=1 ;;
     --with-nvidia) WITH_NVIDIA="--with-nvidia" ;;
     --no-nvidia) WITH_NVIDIA="--no-nvidia" ;;
     --no-zsh-plugins) INSTALL_ZSH_PLUGINS=0 ;;
@@ -214,15 +211,8 @@ link_runtime_path "$HOME/.cache/hypr/theme-colors-rofi.rasi" "$HOME/.config/rofi
 link_path "$REPO_DIR/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
 link_path "$REPO_DIR/chrome/chrome-flags.conf" "$HOME/.config/chrome-flags.conf"
 copy_path "$REPO_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
-copy_path "$REPO_DIR/kde/kdeglobals" "$HOME/.config/kdeglobals"
-link_path "$REPO_DIR/kde/dolphinrc" "$HOME/.config/dolphinrc"
-link_path "$REPO_DIR/kde/kiorc" "$HOME/.config/kiorc"
-link_path "$REPO_DIR/kde/gwenviewrc" "$HOME/.config/gwenviewrc"
 link_path "$REPO_DIR/theme/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
 link_path "$REPO_DIR/theme/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
-link_path "$REPO_DIR/theme/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf"
-link_path "$REPO_DIR/theme/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf"
-copy_path "$REPO_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
 
 if ((!DRY_RUN)) && command -v luac >/dev/null 2>&1; then
   "$REPO_DIR/hypr/scripts/hypr-validate.sh" "$REPO_DIR/hypr/hyprland.lua"
@@ -252,7 +242,6 @@ fi
 if ((RUN_PACKAGES)); then
   cmd=("$SCRIPT_DIR/install-packages.sh")
   ((WITH_AUR)) && cmd+=(--with-aur)
-  ((WITH_PLASMA)) && cmd+=(--with-plasma)
   [ -n "$WITH_NVIDIA" ] && cmd+=("$WITH_NVIDIA")
   ((DRY_RUN)) && cmd+=(--dry-run)
   "${cmd[@]}"

@@ -104,9 +104,6 @@ Current default hooks:
   - `wal` (pywal)
   - `matugen`
   - `pywalfox update` (Firefox)
-- Qt apps are forced to the Qt theming stack via Hyprland env:
-  - `QT_QPA_PLATFORMTHEME=qt6ct`
-  - `QT_STYLE_OVERRIDE=kvantum`
 - Discord/Vesktop dynamic theming is not applied automatically yet (needs client theme plugin layer).
 - PrismLauncher uses `ApplicationTheme=system` in `~/.local/share/PrismLauncher/prismlauncher.cfg`; it follows the system/Qt theme rather than panel CSS.
 - If you want absolutely no visual transition artifacts, set:

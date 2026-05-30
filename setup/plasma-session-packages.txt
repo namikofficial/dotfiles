@@ -1,7 +1,0 @@
-# Optional Plasma session stack for side-by-side desktop sessions.
-plasma-desktop
-plasma-workspace
-plasma-nm
-plasma-pa
-bluedevil
-kscreen
