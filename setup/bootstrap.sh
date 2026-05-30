@@ -18,6 +18,7 @@ SCRIPTS_DIR="${SCRIPTS_DIR:-$DEFAULT_SCRIPTS_DIR}"
 RUN_PACKAGES=0
 WITH_AUR=0
 WITH_NVIDIA=""
+WITH_PLASMA=0
 DRY_RUN=0
 NO_BACKUP=0
 INSTALL_ZSH_PLUGINS=1
@@ -31,6 +32,7 @@ Usage: $0 [options]
   --scripts-dir PATH   Path to scripts repo (default: auto-detect private/scripts, then legacy locations)
   --install-packages   Run setup/install-packages.sh after linking
   --with-aur           Include AUR packages (requires yay)
+  --with-plasma        Include the optional Plasma session package set
   --with-nvidia        Opt in to repo-managed NVIDIA package installation
   --no-nvidia          Skip repo-managed NVIDIA package installation
   --no-zsh-plugins     Skip optional zsh plugin sync
@@ -53,6 +55,7 @@ while (($#)); do
       ;;
     --install-packages) RUN_PACKAGES=1 ;;
     --with-aur) WITH_AUR=1 ;;
+    --with-plasma) WITH_PLASMA=1 ;;
     --with-nvidia) WITH_NVIDIA="--with-nvidia" ;;
     --no-nvidia) WITH_NVIDIA="--no-nvidia" ;;
     --no-zsh-plugins) INSTALL_ZSH_PLUGINS=0 ;;
@@ -196,6 +199,7 @@ link_path "$REPO_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xd
 
 mkdir -p "$HOME/.config/hypr" "$HOME/.config/kitty"
 link_path "$REPO_DIR/hypr/hyprland.lua" "$HOME/.config/hypr/hyprland.lua"
+link_path "$REPO_DIR/hypr/conf" "$HOME/.config/hypr/conf"
 link_path "$REPO_DIR/hypr/lib" "$HOME/.config/hypr/lib"
 link_path "$REPO_DIR/hypr/monitor-layout.json" "$HOME/.config/hypr/monitor-layout.json"
 link_path "$REPO_DIR/hypr/hypridle.conf" "$HOME/.config/hypr/hypridle.conf"
@@ -218,6 +222,10 @@ link_path "$REPO_DIR/theme/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings
 link_path "$REPO_DIR/theme/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf"
 link_path "$REPO_DIR/theme/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf"
 copy_path "$REPO_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
+
+if ((!DRY_RUN)) && command -v luac >/dev/null 2>&1; then
+  "$REPO_DIR/hypr/scripts/hypr-validate.sh" "$REPO_DIR/hypr/hyprland.lua"
+fi
 
 if ((DRY_RUN)); then
   echo "[dry-run] mkdir -p '$HOME/.local/bin'"
@@ -243,6 +251,7 @@ fi
 if ((RUN_PACKAGES)); then
   cmd=("$SCRIPT_DIR/install-packages.sh")
   ((WITH_AUR)) && cmd+=(--with-aur)
+  ((WITH_PLASMA)) && cmd+=(--with-plasma)
   [ -n "$WITH_NVIDIA" ] && cmd+=("$WITH_NVIDIA")
   ((DRY_RUN)) && cmd+=(--dry-run)
   "${cmd[@]}"

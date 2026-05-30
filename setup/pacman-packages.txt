@@ -77,25 +77,6 @@ wget
 unzip
 zip
 
-# KDE / Plasma companion apps (minimal Plasma alongside Hyprland)
-dolphin
-gwenview
-ark
-kcalc
-spectacle
-okular
-kdeconnect
-systemsettings
-kde-cli-tools
-plasma-desktop
-plasma-workspace
-plasma-nm
-plasma-pa
-bluedevil
-kscreen
-dolphin-plugins
-ffmpegthumbs
-
 # Hyprland / Wayland stack
 hyprland
 hyprlock

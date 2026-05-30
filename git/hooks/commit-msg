@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+set -eu
+
+msg_file="$1"
+
+# Remove Copilot-added trailers while preserving the rest of the message.
+sed -i '/^Co-authored-by: GitHub Copilot/d' "$msg_file"

@@ -38,9 +38,9 @@ That command:
 - links tmux config (`~/.tmux.conf`)
 - links Neovim config (`~/.config/nvim`)
 - links Atuin config into `~/.config/atuin/config.toml`
-- links UWSM compositor env (`~/.config/uwsm/env-hyprland`)
+- links UWSM compositor env (`~/.config/uwsm/env` and `~/.config/uwsm/env-hyprland`)
 - links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
-- links Hyprland, Wayle, Rofi, wlogout, and Kitty configs into `~/.config`
+- links the modular Hyprland entrypoint (`hyprland.lua` + `hypr/conf/*.lua`), Wayle, Rofi, wlogout, and Kitty configs into `~/.config`
 - links static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
 - links portal routing so screen sharing uses XDPH and file picking uses GTK
 - links Chrome flags to `~/.config/chrome-flags.conf`
@@ -65,11 +65,19 @@ Base installs leave the existing NVIDIA stack untouched. NVIDIA users can opt in
 ./setup/bootstrap.sh --install-packages --with-aur --with-nvidia
 ```
 
+If you want a full Plasma session installed alongside the Hyprland-first base stack:
+
+```sh
+./setup/bootstrap.sh --install-packages --with-aur --with-plasma
+```
+
 You can run package install via `sudo` too; the script now delegates AUR operations to your normal user automatically.
 
 ## Package manifests
 
-- `setup/pacman-packages.txt`: official repository packages (`power-profiles-daemon`, `syncthing`, and the rest of the workstation stack)
+- `setup/pacman-packages.txt`: official repository packages for the base workstation stack
+- `setup/kde-companion-packages.txt`: KDE apps kept in the default Hyprland-first install
+- `setup/plasma-session-packages.txt`: optional Plasma session packages, installed only with `--with-plasma`
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
@@ -95,6 +103,12 @@ Install packages only:
 
 ```sh
 ./setup/install-packages.sh --with-aur
+```
+
+Run shell checks locally:
+
+```sh
+./setup/check-dotfiles.sh --all
 ```
 
 Remove legacy shell experiments after the Wayle-first shell cleanup:
@@ -258,6 +272,8 @@ systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desk
 ```
 
 If this machine was started from the old hyprlang config provider, restart your Hyprland session once so `hyprland.lua` becomes active.
+
+When the Lua provider is active, `hypr-reload-safe.sh` validates `hyprland.lua` plus `hypr/conf/*.lua` before it calls `hyprctl reload`.
 
 ## Post-install verify
 

@@ -30,11 +30,11 @@ echo "repo: $REPO_DIR"
 echo "log:  $LOG_FILE"
 echo
 
-echo "[1/14] Boot entry status"
+echo "[1/15] Boot entry status"
 bootctl status 2>/dev/null | rg 'Current Entry|Default Entry' || true
 echo
 
-echo "[2/14] NVIDIA package + module"
+echo "[2/15] NVIDIA package + module"
 pacman -Q nvidia-open-dkms nvidia-utils nvidia-settings nvidia-prime 2>/dev/null || true
 license="$(modinfo -F license nvidia 2>/dev/null || true)"
 if [[ -n "$license" ]]; then
@@ -51,7 +51,7 @@ else
 fi
 echo
 
-echo "[3/14] Runtime checks"
+echo "[3/15] Runtime checks"
 if nvidia-smi -L >/dev/null 2>&1; then
   nvidia-smi -L
   ok "nvidia-smi can talk to the driver"
@@ -77,7 +77,7 @@ fi
 rm -f /tmp/noxflow-vulkaninfo.$$ /tmp/noxflow-vulkaninfo-err.$$ /tmp/noxflow-vainfo.$$ /tmp/noxflow-vainfo-err.$$
 echo
 
-echo "[4/14] Hyprland plugin state"
+echo "[4/15] Hyprland plugin state"
 if hyprctl plugin list 2>/dev/null | rg -q 'hyprexpo'; then
   hyprctl plugin list 2>/dev/null
   ok "hyprexpo loaded"
@@ -86,7 +86,7 @@ else
 fi
 echo
 
-echo "[5/14] Hyprland runtime version"
+echo "[5/15] Hyprland runtime version"
 if command -v hyprctl >/dev/null 2>&1; then
   hyprctl version || warn "hyprctl version failed"
 else
@@ -94,7 +94,19 @@ else
 fi
 echo
 
-echo "[6/14] Hyprland ecosystem packages"
+echo "[6/15] Hyprland config validation"
+if [ -x "$HOME/.config/hypr/scripts/hypr-validate.sh" ]; then
+  if "$HOME/.config/hypr/scripts/hypr-validate.sh" >/dev/null; then
+    ok "Hyprland config validates"
+  else
+    warn "Hyprland config validation failed"
+  fi
+else
+  warn "Hyprland validator missing"
+fi
+echo
+
+echo "[7/15] Hyprland ecosystem packages"
 pacman -Q \
   hyprland \
   hyprutils \
@@ -118,7 +130,7 @@ check_user_service() {
   fi
 }
 
-echo "[7/14] Portal and media services"
+echo "[8/15] Portal and media services"
 check_user_service xdg-desktop-portal.service
 check_user_service xdg-desktop-portal-hyprland.service
 check_user_service xdg-desktop-portal-gtk.service
@@ -127,7 +139,7 @@ check_user_service pipewire-pulse.service
 check_user_service wireplumber.service
 echo
 
-echo "[8/14] Portal routing preferences"
+echo "[9/15] Portal routing preferences"
 for f in \
   "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf" \
   /usr/share/xdg-desktop-portal/hyprland-portals.conf \
@@ -140,7 +152,7 @@ for f in \
 done
 echo
 
-echo "[9/14] Browser default"
+echo "[10/15] Browser default"
 browser="$(xdg-settings get default-web-browser 2>/dev/null || true)"
 echo "default browser: ${browser:-unknown}"
 if [[ "$browser" == "google-chrome.desktop" || "$browser" == "google-chrome-stable.desktop" ]]; then
@@ -150,7 +162,7 @@ else
 fi
 echo
 
-echo "[10/14] Zsh keybindings"
+echo "[11/15] Zsh keybindings"
 zsh_bind_r="$(zsh -ic "bindkey -M emacs '^R'" 2>/dev/null || true)"
 zsh_bind_c="$(zsh -ic "bindkey -M emacs '^[c'" 2>/dev/null || true)"
 echo "emacs ^R: $zsh_bind_r"
@@ -167,7 +179,7 @@ else
 fi
 echo
 
-echo "[11/14] Boot hang scan (current boot)"
+echo "[12/15] Boot hang scan (current boot)"
 hang_hits="$(journalctl -b -k --no-pager | rg -i 'blocked for more|task .*blocked|nv_drm_dev_load|nvidia-persiste|watchdog did not stop' || true)"
 if [[ -n "$hang_hits" ]]; then
   warn "Detected potential hang signatures in current boot"
@@ -177,7 +189,7 @@ else
 fi
 echo
 
-echo "[12/14] Cold-boot login blocker scan"
+echo "[13/15] Cold-boot login blocker scan"
 wait_online_log="$(journalctl -b -u systemd-networkd-wait-online.service --no-pager 2>/dev/null || true)"
 if [[ -z "$wait_online_log" ]]; then
   ok "networkd-wait-online not active this boot"
@@ -189,7 +201,7 @@ else
 fi
 echo
 
-echo "[13/14] Failed system units"
+echo "[14/15] Failed system units"
 if systemctl --failed --no-pager | rg -q '0 loaded units listed'; then
   ok "no failed system units"
 else
@@ -198,7 +210,7 @@ else
 fi
 echo
 
-echo "[14/14] Failed user units"
+echo "[15/15] Failed user units"
 if systemctl --user --failed --no-pager | rg -q '0 loaded units listed'; then
   ok "no failed user units"
 else
@@ -210,7 +222,7 @@ echo
 ln -sfn "$(basename "$LOG_FILE")" "$LATEST_LINK"
 
 echo "Summary: ok=$status_ok warn=$status_warn"
-if (( status_warn > 0 )); then
+if ((status_warn > 0)); then
   echo "RESULT: WARN"
 else
   echo "RESULT: PASS"

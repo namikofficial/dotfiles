@@ -1,12 +1,15 @@
 local M = {}
 
 function M.include(path)
+  local probe = io.open(path, "r")
+  if not probe then
+    return
+  end
+  probe:close()
+
   local chunk, err = loadfile(path)
   if not chunk then
-    if not tostring(err):match("No such file") then
-      error(err)
-    end
-    return
+    error(err)
   end
 
   local ok, run_err = pcall(chunk)
