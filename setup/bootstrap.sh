@@ -194,6 +194,7 @@ link_path "$REPO_DIR/nvim" "$HOME/.config/nvim"
 link_path "$REPO_DIR/uwsm/default-id" "$HOME/.config/uwsm/default-id"
 link_path "$REPO_DIR/uwsm/env" "$HOME/.config/uwsm/env"
 link_path "$REPO_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
+link_path "$REPO_DIR/settings/features.env" "$HOME/.config/dotfiles/features.env"
 link_path "$REPO_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
 link_path "$REPO_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
 

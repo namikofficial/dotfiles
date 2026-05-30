@@ -9,6 +9,12 @@ for p in /usr/lib/hyprpolkitagent /usr/libexec /usr/lib/polkit-gnome; do
 done
 export PATH
 
+# Load feature flags (overrides env defaults set inline below).
+_features_env="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/features.env"
+# shellcheck source=/dev/null
+[ -f "$_features_env" ] && . "$_features_env"
+unset _features_env
+
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
 LOG_DIR="$STATE_DIR/logs"
 mkdir -p "$LOG_DIR"

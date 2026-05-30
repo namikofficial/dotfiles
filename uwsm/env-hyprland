@@ -1,5 +1,11 @@
 #!/usr/bin/env sh
 
+# Load feature flags so HYPR_AQ_GPU_MODE can be set from one place.
+_features_env="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/features.env"
+# shellcheck source=/dev/null
+[ -f "$_features_env" ] && . "$_features_env"
+unset _features_env
+
 # Resolve Hyprland DRM devices dynamically each login.
 # Default: hybrid so Hyprland can see both Intel and NVIDIA on laptops that
 # support dynamic routing/offload.
