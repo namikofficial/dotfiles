@@ -284,8 +284,12 @@ alias zshprofile="$SCRIPTS_BIN/zsh-startup-profile"
 alias zshbench="$SCRIPTS_BIN/zsh-startup-profile --runs 20"
 alias dev-health="$DOTFILES_HOME/setup/dev-health.sh"
 alias dotfiles-stale-check="$DOTFILES_HOME/setup/check-stale-references.sh"
-alias project-profile="$DOTFILES_HOME/setup/project-profile.sh"
-alias pp="$DOTFILES_HOME/setup/project-profile.sh"
+project-profile() {
+  "$DOTFILES_HOME/setup/project-profile.sh" "$@"
+}
+ppr() {
+  "$DOTFILES_HOME/setup/project-profile.sh" "$@"
+}
 zshbenchcmp() {
   command -v hyperfine >/dev/null 2>&1 || {
     echo "hyperfine not found" >&2

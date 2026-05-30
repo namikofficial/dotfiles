@@ -41,7 +41,7 @@ Last updated: 2026-05-25
 - [x] Add `open-syncthing.sh` helper and Syncthing entry in quick-actions menu
 - [x] Add fast local developer readiness check (`setup/dev-health.sh`, `dev-health`)
 - [x] Add stale retired-stack guardrail (`setup/check-stale-references.sh`, `dotfiles-stale-check`)
-- [x] Add project profile launcher/status command (`setup/project-profile.sh`, `project-profile`, `pp`)
+- [x] Add project profile launcher/status command (`setup/project-profile.sh`, `project-profile`, `ppr`)
 - [x] Add desktop recovery menu (`hypr/scripts/desktop-recovery.sh`)
 - [x] Document local developer workflow, AI routing, scratchpad roles, and recovery path (`docs/LOCAL_DEVELOPER_WORKFLOW.md`)
 

@@ -49,7 +49,7 @@
 - Devlink helpers: `dl`, `dld`, `dlp`, `dlh`, `dlm`
 - Alc commands: `ff`, `frg`, `fkill`, `tnotes`, `doctor`, `pkillport`
 - Local readiness: `dev-health`, `dev-health --full`, `dotfiles-stale-check`
-- Project profiles: `project-profile status`, `project-profile launch noxcrm`, `pp tmux dotfiles`
+- Project profiles: `project-profile status`, `project-profile launch noxcrm`, `ppr tmux dotfiles`
 
 ## Power / Graphics
 - Current power profile: `powerprofilesctl get`

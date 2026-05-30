@@ -67,8 +67,8 @@ project-profile check dotfiles
 Short alias:
 
 ```sh
-pp status
-pp launch dotfiles
+ppr status
+ppr launch dotfiles
 ```
 
 The profile command is intentionally conservative. `launch` opens the editor and a project-rooted tmux shell; it does not start backend/mobile stacks automatically.
