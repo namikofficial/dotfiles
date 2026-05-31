@@ -1,6 +1,6 @@
 # Handoff
 
-Task: Implement task orchestration for OpenCode
-Graph: task-7978bb370e37
-Current subtask: T1
-Current status: ready
+Task: End-to-end scenario for done reflect learn eval
+Graph: task-6a3e1bee6cbe
+Current subtask: -
+Current status: idle

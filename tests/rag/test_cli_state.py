@@ -83,6 +83,8 @@ class CliStateTest(unittest.TestCase):
         task_start_args = parser.parse_args(["task", "start", "fix login bug", "--max-subtasks", "4"])
         self.assertEqual(task_start_args.task_command, "start")
         self.assertEqual(task_start_args.max_subtasks, 4)
+        self.assertFalse(task_start_args.needs_qdrant)
+        self.assertFalse(task_start_args.needs_llm)
         task_doctor_args = parser.parse_args(["task", "doctor"])
         self.assertEqual(task_doctor_args.task_command, "doctor")
 

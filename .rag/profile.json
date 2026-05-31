@@ -1,0 +1,48 @@
+{
+  "boost_paths": [
+    "system/rag/workflow_policy.py"
+  ],
+  "check_commands": [
+    "python -m unittest tests.rag.test_workflow_policy"
+  ],
+  "entrypoint_patterns": [],
+  "generated_patterns": [
+    "dist/**",
+    "build/**",
+    ".next/**",
+    "coverage/**",
+    "**/*.generated.*"
+  ],
+  "ignore_dirs": [
+    "node_modules",
+    ".git",
+    ".venv",
+    ".rag",
+    ".agent",
+    "__pycache__"
+  ],
+  "important_dirs": [
+    "tests",
+    "system",
+    "setup",
+    "configs"
+  ],
+  "learned_file_patterns": [
+    "*.py"
+  ],
+  "learned_task_patterns": [
+    "end-to-end",
+    "scenario",
+    "reflect",
+    "learn"
+  ],
+  "package_manager": "unknown",
+  "repo_type": "generic",
+  "test_patterns": [
+    "tests/**",
+    "**/test_*.py",
+    "**/*_test.py",
+    "**/*.spec.*",
+    "**/*.test.*"
+  ]
+}

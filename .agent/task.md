@@ -1,10 +1,10 @@
 # Current Task
 
 ## Task
-Implement task orchestration for OpenCode
+End-to-end scenario for done reflect learn eval
 
 ## Progress
-- [ ] T1 Implement the smallest safe change for: Implement task orchestration for OpenCode (ready) <- current
+- [x] T1 Implement the smallest safe change for: End-to-end scenario for done reflect learn eval (done)
 
 ## Constraints
 - Keep changes minimal.
@@ -13,7 +13,7 @@ Implement task orchestration for OpenCode
 - Run checks before final response.
 
 ## Current Subtask
-T1
+-
 
 ## Notes
-- none
+Completed T1: Implement the smallest safe change for: End-to-end scenario for done reflect learn eval

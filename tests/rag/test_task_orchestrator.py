@@ -339,6 +339,19 @@ class TaskOrchestratorTest(unittest.TestCase):
             self.assertFalse((agent / "subtasks" / "T1.md").exists())
             self.assertTrue((agent / "memory.md").exists())
 
+    def test_plan_task_cleans_stale_subtask_markdown_files(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.db_conn", side_effect=lambda: _db_ctx(conn)
+            ):
+                plan_task(self.TASK, max_subtasks=5)
+                self.assertTrue((root / ".agent" / "subtasks" / "T5.md").exists())
+                plan_task("tiny rename in README", max_subtasks=1)
+                self.assertFalse((root / ".agent" / "subtasks" / "T5.md").exists())
+
     def test_learning_scopes_to_run_id(self) -> None:
         conn = make_connection()
         with tempfile.TemporaryDirectory() as tmp:

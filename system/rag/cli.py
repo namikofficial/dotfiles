@@ -170,6 +170,7 @@ from .storage import (
     repo_identity,
 )
 from .types import IndexInterrupted
+from .workflow_policy import probe_runtime, workflow_policy_for_task
 
 
 SERVICE_HELPER = Path(__file__).resolve().parents[1] / "local-ai-runtime.sh"
@@ -1372,18 +1373,41 @@ def cmd_task(args: argparse.Namespace) -> int:
         if args.task_command == "start":
             if getattr(args, "reset_first", False):
                 reset_task(root)
-            graph = plan_task(args.description, repo=repo, max_subtasks=getattr(args, "max_subtasks", 8))
+            policy = workflow_policy_for_task(args.description, runtime=probe_runtime())
+            graph = plan_task(
+                args.description,
+                repo=repo,
+                max_subtasks=min(getattr(args, "max_subtasks", 8), policy.max_subtasks),
+            )
             subtask = next_subtask(graph)
             if subtask is None:
-                _json_print({"planned": graph.to_dict(), "next_subtask": None, "context": None})
+                _json_print(
+                    {
+                        "planned": graph.to_dict(),
+                        "next_subtask": None,
+                        "context": None,
+                        "policy": policy.to_dict(),
+                    }
+                )
                 return 1
-            context_format = "full" if getattr(args, "full", False) else "compact"
-            context = subtask_context(graph, subtask.id, output_format=context_format)
+            context = None
+            warnings: list[str] = []
+            if policy.collect_context_now:
+                context_format = "full" if getattr(args, "full", False) else policy.context_format
+                try:
+                    context = subtask_context(graph, subtask.id, output_format=context_format)
+                except Exception as exc:  # noqa: BLE001
+                    warnings.append(f"context_generation_failed: {exc}")
+            else:
+                warnings.append("runtime_not_ready_for_context; planned graph and next subtask only")
             _json_print(
                 {
                     "planned": graph.to_dict(),
                     "next_subtask": subtask.to_dict(),
                     "context": context,
+                    "policy": policy.to_dict(),
+                    "warnings": warnings,
+                    "next_action": "rag task context" if context is None else "edit",
                 }
             )
             return 0
@@ -3936,7 +3960,7 @@ def build_parser() -> argparse.ArgumentParser:
     task_start_parser.add_argument("--max-subtasks", type=int, default=8)
     task_start_parser.add_argument("--reset-first", action="store_true", help="Reset existing task files before starting")
     task_start_parser.add_argument("--full", action="store_true", help="Return full subtask context instead of compact")
-    task_start_parser.set_defaults(func=cmd_task, needs_qdrant=True, needs_llm=True)
+    task_start_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
 
     task_next_parser = task_subparsers.add_parser("next", help="Return the next ready subtask")
     task_next_parser.add_argument("--repo", help="Repo name override")

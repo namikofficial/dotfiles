@@ -326,6 +326,10 @@ def _write_runtime_files(graph: TaskGraph, root: Path | None = None) -> None:
     agent_root(root).mkdir(parents=True, exist_ok=True)
     subtask_dir(root).mkdir(parents=True, exist_ok=True)
     task_graph_path(root).write_text(json.dumps(graph.to_dict(), indent=2, sort_keys=True) + "\n")
+    expected_names = {f"{subtask.id}.md" for subtask in graph.subtasks}
+    for existing in subtask_dir(root).glob("*.md"):
+        if existing.name not in expected_names:
+            existing.unlink()
     task_markdown_path(root).write_text(_task_graph_markdown(graph))
     for subtask in graph.subtasks:
         (subtask_dir(root) / f"{subtask.id}.md").write_text(_subtask_markdown(graph, subtask))
