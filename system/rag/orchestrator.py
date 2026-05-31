@@ -474,7 +474,7 @@ def mark_subtask_done(
         attempt=subtask.attempts,
     )
     task_graph.summary = f"Completed {subtask_id}: {subtask.title}"
-    graph_path = task_graph_path()
+    _refresh_blocking(task_graph)
     _write_runtime_files(task_graph)
     if task_graph.run_id:
         update_task_subtask_status(conn, task_graph.run_id, subtask_id, SubtaskStatus.done.value, current_subtask_id=subtask_id)
@@ -539,6 +539,7 @@ def mark_subtask_failed(
     )
     if task_graph.run_id:
         update_task_subtask_status(conn, task_graph.run_id, subtask_id, SubtaskStatus.failed.value, current_subtask_id=subtask_id)
+    _refresh_blocking(task_graph)
     _append_outcome_jsonl(
         repo_root(),
         {
