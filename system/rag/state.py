@@ -1458,6 +1458,20 @@ def list_task_outcomes(conn: sqlite3.Connection, repo: str | None, limit: int = 
     ).fetchall()
 
 
+def list_task_outcomes_for_run(conn: sqlite3.Connection, run_id: str, limit: int = 50) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM task_outcomes WHERE run_id = ? ORDER BY created_at DESC LIMIT ?",
+        (run_id, limit),
+    ).fetchall()
+
+
+def list_task_outcomes_for_task(conn: sqlite3.Connection, task_id: str, limit: int = 50) -> list[sqlite3.Row]:
+    return conn.execute(
+        "SELECT * FROM task_outcomes WHERE task_id = ? ORDER BY created_at DESC LIMIT ?",
+        (task_id, limit),
+    ).fetchall()
+
+
 def record_task_lesson(
     conn: sqlite3.Connection,
     *,

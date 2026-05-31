@@ -40,7 +40,26 @@ def _cap(values: list[str], limit: int) -> list[str]:
 
 def _looks_generated(path: str) -> bool:
     lowered = path.lower()
-    return any(marker in lowered for marker in ("/.agent/", "/.rag/", "generated", "dist/", "build/", "coverage/"))
+    return any(
+        marker in lowered
+        for marker in (
+            ".agent/",
+            ".rag/",
+            "/.agent/",
+            "/.rag/",
+            "dist/",
+            "/dist/",
+            "build/",
+            "/build/",
+            "coverage/",
+            "/coverage/",
+            "node_modules/",
+            ".next/",
+            ".turbo/",
+            "__pycache__",
+            "generated",
+        )
+    )
 
 
 def learn_profile_from_run(run_payload: dict[str, Any], root: Path | None = None) -> tuple[Path, dict[str, Any]]:

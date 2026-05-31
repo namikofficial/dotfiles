@@ -4,6 +4,7 @@ import json
 import re
 import time
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,15 @@ from .state import (
 )
 from .storage import connect_db, get_qdrant, infer_repo_filter
 from .task_graph import Subtask, SubtaskOutcome, SubtaskStatus, SubtaskType, TaskGraph
+
+
+@contextmanager
+def db_conn():
+    conn = connect_db()
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 TASK_RESEARCH_TEMPLATE = "Understand current architecture and locate relevant files for: {task}"
@@ -347,8 +357,9 @@ def _append_outcome_jsonl(root: Path, payload: dict[str, Any]) -> None:
 
 
 def plan_task(task: str, repo: str | None = None, max_subtasks: int = 8) -> TaskGraph:
-    conn = connect_db()
-    resolved_repo = infer_repo_filter(conn, repo)
+    with db_conn() as conn:
+        resolved_repo = infer_repo_filter(conn, repo)
+        run_id = str(uuid.uuid4())
     root = repo_root()
     profile = profile_show(root)
     bounded_max_subtasks = max(1, min(int(max_subtasks), 8))
@@ -368,19 +379,19 @@ def plan_task(task: str, repo: str | None = None, max_subtasks: int = 8) -> Task
         graph.subtasks[0].status = SubtaskStatus.ready
         graph.subtasks[0].updated_at = now
     _write_runtime_files(graph, root)
-    run_id = str(uuid.uuid4())
     graph.run_id = run_id
-    record_task_run(
-        conn,
-        run_id=run_id,
-        repo=resolved_repo,
-        task=graph.task,
-        graph=graph.to_dict(),
-        mode=graph.mode,
-        max_subtasks=graph.max_subtasks,
-        status="active",
-        current_subtask_id=graph.current_subtask_id,
-    )
+    with db_conn() as conn:
+        record_task_run(
+            conn,
+            run_id=run_id,
+            repo=resolved_repo,
+            task=graph.task,
+            graph=graph.to_dict(),
+            mode=graph.mode,
+            max_subtasks=graph.max_subtasks,
+            status="active",
+            current_subtask_id=graph.current_subtask_id,
+        )
     _write_runtime_files(graph, root)
     write_task_run_export(root, {"run_id": run_id, "task_id": graph.task_id, "task": graph.task, "repo": resolved_repo, "graph": graph.to_dict(), "action": "plan"})
     return graph
@@ -415,8 +426,8 @@ def next_subtask(task_graph: TaskGraph | None = None) -> Subtask | None:
             graph.updated_at = time.time()
             _write_runtime_files(graph)
             if graph.run_id:
-                conn = connect_db()
-                update_task_run_status(conn, graph.run_id, "active", current_subtask_id=subtask.id)
+                with db_conn() as conn:
+                    update_task_run_status(conn, graph.run_id, "active", current_subtask_id=subtask.id)
             return subtask
     for subtask in graph.subtasks:
         if subtask.status == SubtaskStatus.failed and subtask.attempts < 3:
@@ -427,8 +438,8 @@ def next_subtask(task_graph: TaskGraph | None = None) -> Subtask | None:
                 graph.updated_at = time.time()
                 _write_runtime_files(graph)
                 if graph.run_id:
-                    conn = connect_db()
-                    update_task_run_status(conn, graph.run_id, "active", current_subtask_id=subtask.id)
+                    with db_conn() as conn:
+                        update_task_run_status(conn, graph.run_id, "active", current_subtask_id=subtask.id)
                 return subtask
     return None
 
@@ -444,8 +455,8 @@ def mark_subtask_running(task_graph: TaskGraph, subtask_id: str) -> TaskGraph:
     task_graph.updated_at = time.time()
     _write_runtime_files(task_graph)
     if task_graph.run_id:
-        conn = connect_db()
-        update_task_subtask_status(conn, task_graph.run_id, subtask_id, SubtaskStatus.running.value, current_subtask_id=subtask_id)
+        with db_conn() as conn:
+            update_task_subtask_status(conn, task_graph.run_id, subtask_id, SubtaskStatus.running.value, current_subtask_id=subtask_id)
     return task_graph
 
 
@@ -460,6 +471,8 @@ def mark_subtask_done(
     notes: str | None = None,
     run_id: str | None = None,
 ) -> TaskGraph:
+    if not passed:
+        raise ValueError("passed=false should use rag_subtask_failed")
     subtask = task_graph.get_subtask(subtask_id)
     if subtask is None:
         raise ValueError(f"Unknown subtask: {subtask_id}")
@@ -467,26 +480,26 @@ def mark_subtask_done(
     subtask.updated_at = time.time()
     task_graph.current_subtask_id = subtask_id
     task_graph.updated_at = time.time()
-    conn = connect_db()
-    record_task_outcome(
-        conn,
-        repo=task_graph.repo,
-        task_id=task_graph.task_id,
-        task=task_graph.task,
-        subtask_id=subtask_id,
-        subtask_title=subtask.title,
-        subtask_type=subtask.type.value,
-        status=SubtaskStatus.done.value,
-        retrieved_files=retrieved_files or [],
-        edited_files=edited_files or [],
-        missed_files=[path for path in (edited_files or []) if path not in set(retrieved_files or [])],
-        useless_files=[],
-        checks_run=checks_run or [],
-        passed=passed,
-        notes=notes,
-        run_id=run_id or task_graph.run_id,
-        attempt=subtask.attempts,
-    )
+    with db_conn() as conn:
+        record_task_outcome(
+            conn,
+            repo=task_graph.repo,
+            task_id=task_graph.task_id,
+            task=task_graph.task,
+            subtask_id=subtask_id,
+            subtask_title=subtask.title,
+            subtask_type=subtask.type.value,
+            status=SubtaskStatus.done.value,
+            retrieved_files=retrieved_files or [],
+            edited_files=edited_files or [],
+            missed_files=[path for path in (edited_files or []) if path not in set(retrieved_files or [])],
+            useless_files=[],
+            checks_run=checks_run or [],
+            passed=passed,
+            notes=notes,
+            run_id=run_id or task_graph.run_id,
+            attempt=subtask.attempts,
+        )
     task_graph.summary = f"Completed {subtask_id}: {subtask.title}"
     _refresh_blocking(task_graph)
     next_ready = None
@@ -497,12 +510,12 @@ def mark_subtask_done(
     task_graph.current_subtask_id = next_ready
     _write_runtime_files(task_graph)
     if task_graph.run_id:
-        conn = connect_db()
-        update_task_subtask_status(conn, task_graph.run_id, subtask_id, SubtaskStatus.done.value, current_subtask_id=next_ready)
-        if all(item.status == SubtaskStatus.done for item in task_graph.subtasks):
-            update_task_run_status(conn, task_graph.run_id, "complete", current_subtask_id=next_ready, finished_at=time.time())
-        else:
-            update_task_run_status(conn, task_graph.run_id, "active", current_subtask_id=next_ready)
+        with db_conn() as conn:
+            update_task_subtask_status(conn, task_graph.run_id, subtask_id, SubtaskStatus.done.value, current_subtask_id=next_ready)
+            if all(item.status == SubtaskStatus.done for item in task_graph.subtasks):
+                update_task_run_status(conn, task_graph.run_id, "complete", current_subtask_id=next_ready, finished_at=time.time())
+            else:
+                update_task_run_status(conn, task_graph.run_id, "active", current_subtask_id=next_ready)
     _append_outcome_jsonl(
         repo_root(),
         {
@@ -538,36 +551,37 @@ def mark_subtask_failed(
     subtask.updated_at = time.time()
     task_graph.current_subtask_id = subtask_id
     task_graph.updated_at = time.time()
-    conn = connect_db()
-    record_task_outcome(
-        conn,
-        repo=task_graph.repo,
-        task_id=task_graph.task_id,
-        task=task_graph.task,
-        subtask_id=subtask_id,
-        subtask_title=subtask.title,
-        subtask_type=subtask.type.value,
-        status=SubtaskStatus.failed.value,
-        retrieved_files=retrieved_files or [],
-        edited_files=edited_files or [],
-        missed_files=[path for path in (edited_files or []) if path not in set(retrieved_files or [])],
-        useless_files=[],
-        checks_run=checks_run or [],
-        passed=False,
-        notes=notes,
-        run_id=run_id or task_graph.run_id,
-        attempt=subtask.attempts,
-    )
+    with db_conn() as conn:
+        record_task_outcome(
+            conn,
+            repo=task_graph.repo,
+            task_id=task_graph.task_id,
+            task=task_graph.task,
+            subtask_id=subtask_id,
+            subtask_title=subtask.title,
+            subtask_type=subtask.type.value,
+            status=SubtaskStatus.failed.value,
+            retrieved_files=retrieved_files or [],
+            edited_files=edited_files or [],
+            missed_files=[path for path in (edited_files or []) if path not in set(retrieved_files or [])],
+            useless_files=[],
+            checks_run=checks_run or [],
+            passed=False,
+            notes=notes,
+            run_id=run_id or task_graph.run_id,
+            attempt=subtask.attempts,
+        )
     _refresh_blocking(task_graph)
     next_ready = None
     for candidate in task_graph.subtasks:
         if candidate.status == SubtaskStatus.ready and _deps_satisfied(task_graph, candidate):
             next_ready = candidate.id
             break
-    task_graph.current_subtask_id = next_ready
+    retryable = subtask.attempts < 3 and _deps_satisfied(task_graph, subtask)
+    task_graph.current_subtask_id = subtask_id if retryable else next_ready
     if task_graph.run_id:
-        conn = connect_db()
-        update_task_subtask_status(conn, task_graph.run_id, subtask_id, SubtaskStatus.failed.value, current_subtask_id=next_ready)
+        with db_conn() as conn:
+            update_task_subtask_status(conn, task_graph.run_id, subtask_id, SubtaskStatus.failed.value, current_subtask_id=task_graph.current_subtask_id)
     _append_outcome_jsonl(
         repo_root(),
         {
@@ -631,51 +645,51 @@ def task_graph_status(task_graph: TaskGraph | None = None) -> dict[str, Any]:
 
 
 def _build_retrieval_context(task_text: str, repo: str | None, *, mode: str = "agent") -> dict[str, Any]:
-    conn = connect_db()
-    resolved_repo = infer_repo_filter(conn, repo)
-    config = load_config()
-    effective_config = get_mode_profile(config, mode)
-    effective_config = json.loads(json.dumps(effective_config))
-    # Reuse the runtime ranking hints already embedded in runtime_config by agent_support.
-    from .agent_support import runtime_config  # local import to avoid a cycle
+    with db_conn() as conn:
+        resolved_repo = infer_repo_filter(conn, repo)
+        config = load_config()
+        effective_config = get_mode_profile(config, mode)
+        effective_config = json.loads(json.dumps(effective_config))
+        # Reuse the runtime ranking hints already embedded in runtime_config by agent_support.
+        from .agent_support import runtime_config  # local import to avoid a cycle
 
-    effective_config = runtime_config(effective_config, conn, resolved_repo, task_text)
-    result = retrieve(
-        conn,
-        get_qdrant(effective_config),
-        effective_config,
-        task_text,
-        resolved_repo,
-        reranker_enabled(effective_config, None),
-        mode=mode,
-    )
-    context, files = gather_context(
-        result.rows,
-        effective_config,
-        facts=result.facts,
-        summaries=result.summaries,
-        context_sources=result.context_sources,
-        memory=result.memory["summary"] if result.memory else None,
-    )
-    return {
-        "repo": resolved_repo,
-        "config": effective_config,
-        "result": result,
-        "context": context,
-        "files": files,
-        "edit_scope": build_edit_scope(conn, resolved_repo, result.rows, result.summaries, task_text, effective_config.get("repo_profile")),
-        "missing_context": missing_context_payload(result, files),
-        "commands": command_plan_for_subtask(repo_root(), Subtask(
-            id="preview",
-            title=task_text,
-            description=task_text,
-            type=SubtaskType.research,
-            status=SubtaskStatus.ready,
-        ), files, effective_config.get("repo_profile")),
-    }
+        effective_config = runtime_config(effective_config, conn, resolved_repo, task_text)
+        result = retrieve(
+            conn,
+            get_qdrant(effective_config),
+            effective_config,
+            task_text,
+            resolved_repo,
+            reranker_enabled(effective_config, None),
+            mode=mode,
+        )
+        context, files = gather_context(
+            result.rows,
+            effective_config,
+            facts=result.facts,
+            summaries=result.summaries,
+            context_sources=result.context_sources,
+            memory=result.memory["summary"] if result.memory else None,
+        )
+        return {
+            "repo": resolved_repo,
+            "config": effective_config,
+            "result": result,
+            "context": context,
+            "files": files,
+            "edit_scope": build_edit_scope(conn, resolved_repo, result.rows, result.summaries, task_text, effective_config.get("repo_profile")),
+            "missing_context": missing_context_payload(result, files),
+            "commands": command_plan_for_subtask(repo_root(), Subtask(
+                id="preview",
+                title=task_text,
+                description=task_text,
+                type=SubtaskType.research,
+                status=SubtaskStatus.ready,
+            ), files, effective_config.get("repo_profile")),
+        }
 
 
-def subtask_context(task_graph: TaskGraph | None, subtask_id: str) -> dict[str, Any]:
+def subtask_context(task_graph: TaskGraph | None, subtask_id: str, *, output_format: str = "full") -> dict[str, Any]:
     graph = task_graph or load_task_graph()
     if graph is None:
         raise ValueError("No task graph available")
@@ -690,18 +704,18 @@ def subtask_context(task_graph: TaskGraph | None, subtask_id: str) -> dict[str, 
     selected_files = payload["files"]
     commands = command_plan_for_subtask(root, subtask, selected_files, payload["config"].get("repo_profile"))
     run_id = f"{graph.task_id}-{subtask.id}-{uuid.uuid4().hex[:8]}"
-    conn = connect_db()
-    record_task_run(
-        conn,
-        run_id=run_id,
-        repo=graph.repo,
-        task=redact_sensitive_text(graph.task),
-        graph=graph.to_dict(),
-        mode="agent",
-        max_subtasks=graph.max_subtasks,
-        status="context",
-        current_subtask_id=subtask.id,
-    )
+    with db_conn() as conn:
+        record_task_run(
+            conn,
+            run_id=run_id,
+            repo=graph.repo,
+            task=redact_sensitive_text(graph.task),
+            graph=graph.to_dict(),
+            mode="agent",
+            max_subtasks=graph.max_subtasks,
+            status="context",
+            current_subtask_id=subtask.id,
+        )
     write_task_run_export(
         root,
         {
@@ -720,7 +734,7 @@ def subtask_context(task_graph: TaskGraph | None, subtask_id: str) -> dict[str, 
         },
     )
     _write_runtime_files(graph)
-    return {
+    response = {
         "task": graph.task,
         "task_id": graph.task_id,
         "subtask": subtask.to_dict(),
@@ -736,17 +750,19 @@ def subtask_context(task_graph: TaskGraph | None, subtask_id: str) -> dict[str, 
         "must_inspect_first": payload["files"][:6],
         "current_subtask_id": subtask.id,
         "ready_to_edit": bool(payload["edit_scope"].get("likely_edit")),
-        "context": payload["context"],
         "run_id": run_id,
     }
+    if output_format == "full":
+        response["context"] = payload["context"]
+    return response
 
 
 def reflect_run(task_graph: TaskGraph | None = None) -> dict[str, Any]:
     graph = task_graph or load_task_graph()
     if graph is None:
         return {"active": False, "summary": "No task graph."}
-    conn = connect_db()
-    outcomes = list_task_outcomes(conn, graph.repo, limit=20)
+    with db_conn() as conn:
+        outcomes = list_task_outcomes(conn, graph.repo, limit=20)
     failed = [row for row in outcomes if row["passed"] == 0]
     missed = _unique([path for row in outcomes for path in json.loads(row["missed_files_json"] or "[]")])
     useful = _unique([path for row in outcomes for path in json.loads(row["edited_files_json"] or "[]")])
@@ -765,36 +781,44 @@ def reflect_run(task_graph: TaskGraph | None = None) -> dict[str, Any]:
 
 def learn_from_task_outcome(run_id: str | None = None, root: Path | None = None) -> dict[str, Any]:
     root = root or repo_root()
-    conn = connect_db()
-    row = get_task_run(conn, run_id) if run_id else None
-    if row is None:
-        row = latest_task_run(conn, infer_repo_filter(conn, None))
-    if row is None:
-        raise ValueError("No task run available to learn from")
-    payload = task_run_payload(row)
+    with db_conn() as conn:
+        row = get_task_run(conn, run_id) if run_id else None
+        if row is None:
+            row = latest_task_run(conn, infer_repo_filter(conn, None))
+        if row is None:
+            raise ValueError("No task run available to learn from")
+        payload = task_run_payload(row)
     path, profile = learn_profile_from_run(payload, root)
-    outcomes = list_task_outcomes(conn, payload.get("repo"), limit=20)
-    task_lessons: list[dict[str, Any]] = []
-    for outcome in outcomes:
-        lesson = {
-            "task_id": payload.get("task_id"),
-            "subtask_id": outcome["subtask_id"],
-            "lesson_kind": "file-pattern",
-            "retrieved_files": json.loads(outcome["retrieved_files_json"] or "[]"),
-            "edited_files": json.loads(outcome["edited_files_json"] or "[]"),
-            "missed_files": json.loads(outcome["missed_files_json"] or "[]"),
-            "checks_run": json.loads(outcome["checks_run_json"] or "[]"),
-            "passed": bool(outcome["passed"]),
-        }
-        record_task_lesson(
-            conn,
-            repo=payload.get("repo"),
-            run_id=payload.get("run_id"),
-            task_id=payload.get("task_id") or payload.get("run_id"),
-            lesson_kind="file-pattern",
-            lesson=lesson,
-        )
-        task_lessons.append(lesson)
+    with db_conn() as conn:
+        if payload.get("run_id"):
+            from .state import list_task_outcomes_for_run
+            outcomes = list_task_outcomes_for_run(conn, payload["run_id"], limit=20)
+        elif payload.get("task_id"):
+            from .state import list_task_outcomes_for_task
+            outcomes = list_task_outcomes_for_task(conn, payload["task_id"], limit=20)
+        else:
+            outcomes = list_task_outcomes(conn, payload.get("repo"), limit=20)
+        task_lessons: list[dict[str, Any]] = []
+        for outcome in outcomes:
+            lesson = {
+                "task_id": payload.get("task_id"),
+                "subtask_id": outcome["subtask_id"],
+                "lesson_kind": "file-pattern",
+                "retrieved_files": json.loads(outcome["retrieved_files_json"] or "[]"),
+                "edited_files": json.loads(outcome["edited_files_json"] or "[]"),
+                "missed_files": json.loads(outcome["missed_files_json"] or "[]"),
+                "checks_run": json.loads(outcome["checks_run_json"] or "[]"),
+                "passed": bool(outcome["passed"]),
+            }
+            record_task_lesson(
+                conn,
+                repo=payload.get("repo"),
+                run_id=payload.get("run_id"),
+                task_id=payload.get("task_id") or payload.get("run_id"),
+                lesson_kind="file-pattern",
+                lesson=lesson,
+            )
+            task_lessons.append(lesson)
 
     memory_path = root / ".agent" / "memory.md"
     memory_path.parent.mkdir(parents=True, exist_ok=True)
@@ -814,4 +838,93 @@ def learn_from_task_outcome(run_id: str | None = None, root: Path | None = None)
         "task_id": payload.get("task_id"),
         "task_lessons": task_lessons,
         "memory_path": str(memory_path),
+    }
+
+
+def task_step(task: str | None = None) -> dict[str, Any]:
+    graph = load_task_graph()
+    if graph is None:
+        return {
+            "state": "needs_plan",
+            "next_tool": "rag_plan_task",
+            "task_id": None,
+            "current_subtask_id": None,
+            "message": "No active task graph. Plan the task first.",
+            "subtask": None,
+            "task": task,
+        }
+    _refresh_blocking(graph)
+    if all(item.status == SubtaskStatus.done for item in graph.subtasks):
+        return {
+            "state": "complete",
+            "next_tool": "rag_learn_from_outcome",
+            "task_id": graph.task_id,
+            "current_subtask_id": graph.current_subtask_id,
+            "message": "Task graph complete. Learn from outcome.",
+            "subtask": None,
+        }
+    active = graph.active_subtask()
+    if active and active.status == SubtaskStatus.running:
+        return {
+            "state": "ready_for_work",
+            "next_tool": "rag_subtask_done",
+            "task_id": graph.task_id,
+            "current_subtask_id": active.id,
+            "message": "Subtask is running. Complete it or mark it failed.",
+            "subtask": active.to_dict(),
+        }
+    ready = next((s for s in graph.subtasks if s.status == SubtaskStatus.ready and _deps_satisfied(graph, s)), None)
+    if ready:
+        return {
+            "state": "needs_context",
+            "next_tool": "rag_subtask_context",
+            "task_id": graph.task_id,
+            "current_subtask_id": ready.id,
+            "message": "Subtask is ready. Fetch context before editing.",
+            "subtask": ready.to_dict(),
+        }
+    retryable = next((s for s in graph.subtasks if s.status == SubtaskStatus.failed and s.attempts < 3 and _deps_satisfied(graph, s)), None)
+    if retryable:
+        return {
+            "state": "needs_next_subtask",
+            "next_tool": "rag_next_subtask",
+            "task_id": graph.task_id,
+            "current_subtask_id": retryable.id,
+            "message": "Retryable failed subtask is available.",
+            "subtask": retryable.to_dict(),
+        }
+    return {
+        "state": "blocked",
+        "next_tool": "rag_task_status",
+        "task_id": graph.task_id,
+        "current_subtask_id": graph.current_subtask_id,
+        "message": "No runnable subtasks. Inspect task status.",
+        "subtask": None,
+    }
+
+
+def reset_task(root: Path | None = None) -> dict[str, Any]:
+    root = root or repo_root()
+    agent = agent_root(root)
+    archive = agent / "archive" / time.strftime("%Y%m%d-%H%M%S")
+    to_archive = [
+        task_graph_path(root),
+        task_markdown_path(root),
+        task_context_path(root),
+        task_handoff_path(root),
+    ]
+    archived: list[str] = []
+    for path in to_archive:
+        if path.exists():
+            archive.mkdir(parents=True, exist_ok=True)
+            target = archive / path.name
+            target.write_text(path.read_text())
+            path.unlink()
+            archived.append(str(path.relative_to(root)))
+    return {
+        "ok": True,
+        "archived": archived,
+        "archive_dir": str(archive.relative_to(root)) if archived else None,
+        "preserved": [".agent/memory.md"],
+        "message": "Task files reset. .agent/memory.md was preserved.",
     }

@@ -67,6 +67,7 @@ from .orchestrator import (
     mark_subtask_running,
     next_subtask,
     plan_task,
+    reset_task,
     subtask_context,
     task_context_path,
     task_graph_path,
@@ -1360,6 +1361,12 @@ def cmd_task(args: argparse.Namespace) -> int:
         _json_print(graph.to_dict())
         return 0
 
+    if args.task_command == "reset":
+        payload = reset_task(root)
+        console.print(f"[green]Reset[/green] task files in {root / '.agent'}")
+        _json_print(payload)
+        return 0
+
     graph = load_task_graph(root)
     if graph is None:
         raise SystemExit("No task graph found. Run `rag task plan \"<description>\"` first.")
@@ -1393,15 +1400,25 @@ def cmd_task(args: argparse.Namespace) -> int:
         checks = list(getattr(args, "check", []) or [])
         notes = getattr(args, "notes", None) or getattr(args, "summary", None)
         if args.task_command == "done":
-            graph = mark_subtask_done(
-                graph,
-                subtask_id,
-                retrieved_files=retrieved,
-                edited_files=edited,
-                checks_run=checks,
-                passed=not getattr(args, "failed", False),
-                notes=notes,
-            )
+            if getattr(args, "failed", False):
+                graph = mark_subtask_failed(
+                    graph,
+                    subtask_id,
+                    retrieved_files=retrieved,
+                    edited_files=edited,
+                    checks_run=checks,
+                    notes=notes,
+                )
+            else:
+                graph = mark_subtask_done(
+                    graph,
+                    subtask_id,
+                    retrieved_files=retrieved,
+                    edited_files=edited,
+                    checks_run=checks,
+                    passed=True,
+                    notes=notes,
+                )
         else:
             graph = mark_subtask_failed(
                 graph,
@@ -3875,6 +3892,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     task_list_parser = task_subparsers.add_parser("list", help="List task files in .agent/")
     task_list_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_reset_parser = task_subparsers.add_parser("reset", help="Archive and clear active task workflow files")
+    task_reset_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
 
     serve_parser = subparsers.add_parser("serve", help="Run local RAG integration servers")
     serve_parser.add_argument("--http", action="store_true", help="Run the HTTP JSON endpoint server")

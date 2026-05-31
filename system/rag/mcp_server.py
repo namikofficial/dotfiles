@@ -19,6 +19,7 @@ import dataclasses
 import json
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -114,8 +115,10 @@ from .orchestrator import (
     load_task_graph,
     mark_subtask_done,
     mark_subtask_failed,
+    mark_subtask_running,
     next_subtask,
     plan_task,
+    task_step,
     reflect_run,
     subtask_context,
     task_graph_status,
@@ -128,6 +131,15 @@ from .storage import connect_db, get_qdrant, infer_repo_filter
 
 
 _server = Server("rag-mcp")
+
+
+@contextmanager
+def db_conn():
+    conn = connect_db()
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def _repo_root() -> Path:
@@ -315,6 +327,7 @@ async def _list_tools() -> list[types.Tool]:
                 "type": "object",
                 "properties": {
                     "subtask_id": {"type": "string"},
+                    "format": {"type": "string", "enum": ["compact", "full"], "default": "compact"},
                 },
                 "required": ["subtask_id"],
             },
@@ -365,6 +378,19 @@ async def _list_tools() -> list[types.Tool]:
             name="rag_task_status",
             description="Return the current task graph status and next runnable subtask.",
             inputSchema={"type": "object", "properties": {}},
+        ),
+        types.Tool(
+            name="rag_task_step",
+            description="Return the next orchestration action OpenCode should take: plan, get context, record outcome, learn, or finish.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {
+                        "type": "string",
+                        "description": "Optional task description used when there is no active task graph.",
+                    }
+                },
+            },
         ),
         types.Tool(
             name="rag_reflect_run",
@@ -530,11 +556,18 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             _run_rag("context", "git", "--refresh", timeout=15)
             payload = await asyncio.to_thread(describe_task, task, target_agent=target)
             graph = await asyncio.to_thread(load_task_graph)
+            stale_task_graph = False
             if graph is not None:
-                current = graph.active_subtask()
+                graph_words = {word for word in graph.task.lower().split() if word}
+                task_words = {word for word in task.lower().split() if word}
+                overlap_ratio = len(graph_words & task_words) / max(1, len(task_words))
+                graph_active = any(item.status.value in {"ready", "running"} for item in graph.subtasks)
+                stale_task_graph = overlap_ratio < 0.25 and not graph_active
+                current = graph.active_subtask() if not stale_task_graph else None
                 payload["current_subtask"] = current.to_dict() if current else None
                 payload["next_mcp_tool"] = "rag_subtask_context" if current else "rag_plan_task"
-                payload["task_graph"] = graph.to_dict()
+                payload["task_graph"] = graph.to_dict() if not stale_task_graph else None
+            payload["stale_task_graph"] = stale_task_graph
             if fmt == "json":
                 return _json_text(
                     {
@@ -553,6 +586,7 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
                         ],
                         "current_subtask": payload.get("current_subtask"),
                         "next_mcp_tool": payload.get("next_mcp_tool"),
+                        "stale_task_graph": payload.get("stale_task_graph", False),
                         "run": payload["run"],
                     }
                 )
@@ -574,7 +608,8 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
 
         if name == "rag_subtask_context":
             graph = await asyncio.to_thread(load_task_graph)
-            payload = await asyncio.to_thread(subtask_context, graph, arguments["subtask_id"])
+            output_format = "full" if arguments.get("format") == "full" else "compact"
+            payload = await asyncio.to_thread(subtask_context, graph, arguments["subtask_id"], output_format=output_format)
             return _json_text(payload)
 
         if name == "rag_subtask_running":
@@ -588,16 +623,19 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             graph = await asyncio.to_thread(load_task_graph)
             if graph is None:
                 return _text("No task graph found")
-            updated = await asyncio.to_thread(
-                mark_subtask_done,
-                graph,
-                arguments["subtask_id"],
-                retrieved_files=list(arguments.get("retrieved_files", [])),
-                edited_files=list(arguments.get("edited_files", [])),
-                checks_run=list(arguments.get("checks_run", [])),
-                passed=bool(arguments.get("passed", True)),
-                notes=arguments.get("notes"),
-            )
+            try:
+                updated = await asyncio.to_thread(
+                    mark_subtask_done,
+                    graph,
+                    arguments["subtask_id"],
+                    retrieved_files=list(arguments.get("retrieved_files", [])),
+                    edited_files=list(arguments.get("edited_files", [])),
+                    checks_run=list(arguments.get("checks_run", [])),
+                    passed=bool(arguments.get("passed", True)),
+                    notes=arguments.get("notes"),
+                )
+            except ValueError as exc:
+                return _json_text({"ok": False, "error": str(exc), "next_mcp_tool": "rag_subtask_failed"})
             return _json_text(updated.to_dict())
 
         if name == "rag_subtask_failed":
@@ -613,10 +651,16 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
                 checks_run=list(arguments.get("checks_run", [])),
                 notes=arguments.get("notes"),
             )
-            return _json_text(updated.to_dict())
+            subtask = updated.get_subtask(arguments["subtask_id"])
+            retryable = bool(subtask and subtask.attempts < 3)
+            return _json_text({**updated.to_dict(), "retryable": retryable, "next_mcp_tool": "rag_next_subtask"})
 
         if name == "rag_task_status":
             payload = await asyncio.to_thread(task_graph_status)
+            return _json_text(payload)
+
+        if name == "rag_task_step":
+            payload = await asyncio.to_thread(task_step, arguments.get("task"))
             return _json_text(payload)
 
         if name == "rag_reflect_run":
@@ -639,37 +683,37 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             return _json_text(missing)
 
         if name == "rag_find_tests":
-            conn = connect_db()
-            repo = infer_repo_filter(conn, None)
-            tests = await asyncio.to_thread(related_tests, conn, repo, arguments["path"])
+            with db_conn() as conn:
+                repo = infer_repo_filter(conn, None)
+                tests = await asyncio.to_thread(related_tests, conn, repo, arguments["path"])
             return _json_text({"tests": tests})
 
         if name == "rag_explain_file":
-            conn = connect_db()
-            repo = infer_repo_filter(conn, None)
-            payload = await asyncio.to_thread(
-                file_card,
-                conn,
-                repo,
-                arguments["path"],
-                arguments.get("why_selected"),
-            )
+            with db_conn() as conn:
+                repo = infer_repo_filter(conn, None)
+                payload = await asyncio.to_thread(
+                    file_card,
+                    conn,
+                    repo,
+                    arguments["path"],
+                    arguments.get("why_selected"),
+                )
             return _json_text(payload)
 
         if name == "rag_record_outcome":
-            conn = connect_db()
-            repo = infer_repo_filter(conn, None)
-            outcome_id = await asyncio.to_thread(
-                record_outcome,
-                repo=repo,
-                task=arguments["task"],
-                retrieved_files=list(arguments.get("retrieved_files", [])),
-                edited_files=list(arguments.get("edited_files", [])),
-                checks_run=list(arguments.get("checks_run", [])),
-                passed=bool(arguments.get("passed", False)),
-                notes=arguments.get("notes"),
-                run_id=arguments.get("run_id"),
-            )
+            with db_conn() as conn:
+                repo = infer_repo_filter(conn, None)
+                outcome_id = await asyncio.to_thread(
+                    record_outcome,
+                    repo=repo,
+                    task=arguments["task"],
+                    retrieved_files=list(arguments.get("retrieved_files", [])),
+                    edited_files=list(arguments.get("edited_files", [])),
+                    checks_run=list(arguments.get("checks_run", [])),
+                    passed=bool(arguments.get("passed", False)),
+                    notes=arguments.get("notes"),
+                    run_id=arguments.get("run_id"),
+                )
             return _json_text({"stored": True, "outcome_id": outcome_id})
 
         if name == "rag_suggest_commands":
@@ -682,8 +726,8 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             return _json_text({"commands": commands})
 
         if name == "rag_perf_report":
-            conn = connect_db()
-            row = get_retrieval_run(conn, arguments["run_id"]) if arguments.get("run_id") else latest_retrieval_run(conn, infer_repo_filter(conn, None))
+            with db_conn() as conn:
+                row = get_retrieval_run(conn, arguments["run_id"]) if arguments.get("run_id") else latest_retrieval_run(conn, infer_repo_filter(conn, None))
             if row is None:
                 return _json_text({"slow_stages": [], "candidate_counts": {}, "packed_tokens": 0, "recommendations": []})
             payload = retrieval_run_payload(row)
@@ -713,9 +757,9 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             return _text(r.stdout or "Git context refreshed")
 
         if name == "rag_memory_status":
-            conn = connect_db()
-            repo = infer_repo_filter(conn, None)
-            rows = repo_memory_status_rows(conn, repo)
+            with db_conn() as conn:
+                repo = infer_repo_filter(conn, None)
+                rows = repo_memory_status_rows(conn, repo)
             if not rows:
                 return _text("No memory status")
             lines = [
