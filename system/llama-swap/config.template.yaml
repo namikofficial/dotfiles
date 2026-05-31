@@ -5,6 +5,22 @@ healthCheckTimeout: 120
 logRequests: true
 
 models:
+  qwen-coder-7b:
+    cmd: >
+      __LLAMA_SERVER__
+      --host 127.0.0.1
+      --port ${PORT}
+      --model __MODEL_ROOT__/qwen2.5-coder-7b-instruct-q4_k_m.gguf
+      --ctx-size 32768
+      --n-gpu-layers 99
+      --threads 8
+      --parallel 1
+      --jinja
+    aliases:
+      - local
+      - qwen-coder
+      - qwen-coder-7b
+
   gemma-3-4b:
     cmd: >
       __LLAMA_SERVER__
@@ -17,7 +33,6 @@ models:
       --parallel 1
       --jinja
     aliases:
-      - local
       - gemma
       - gemma4
       - gemma-3-4b

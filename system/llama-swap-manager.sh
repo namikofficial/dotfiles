@@ -86,6 +86,7 @@ prune_unavailable_models() {
     fi
   done <<EOF
 gemma-3-4b|$MODEL_ROOT/google_gemma-3-4b-it-Q4_K_M.gguf
+qwen-coder-7b|$MODEL_ROOT/qwen2.5-coder-7b-instruct-q4_k_m.gguf
 EOF
 }
 

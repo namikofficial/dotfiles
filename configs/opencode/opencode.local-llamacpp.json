@@ -8,16 +8,20 @@
         "baseURL": "http://127.0.0.1:8080/v1",
         "apiKey": "local"
       },
-      "models": {
-        "local": {
-          "name": "local",
-          "tools": true
-        },
-        "gemma-3-4b": {
-          "name": "gemma-3-4b",
-          "tools": true
-        }
-      }
+"models": {
+         "local": {
+           "name": "local",
+           "tools": true
+         },
+         "gemma-3-4b": {
+           "name": "gemma-3-4b",
+           "tools": true
+         },
+         "qwen-coder-7b": {
+           "name": "qwen-coder-7b",
+           "tools": true
+         }
+       }
     }
   },
   "mcp": {
@@ -50,6 +54,12 @@
       "url": "https://mcp.context7.com/mcp",
       "enabled": true,
       "timeout": 10000
+    },
+    "rag": {
+      "type": "local",
+      "command": ["rag-mcp"],
+      "enabled": true,
+      "timeout": 8000
     }
   },
   "skills": {
@@ -58,6 +68,6 @@
       "/home/namik/.codex/skills"
     ]
   },
-  "model": "llamacpp/gemma-3-4b",
+  "model": "llamacpp/qwen-coder-7b",
   "small_model": "llamacpp/gemma-3-4b"
 }
