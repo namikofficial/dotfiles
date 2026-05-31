@@ -863,6 +863,113 @@ def cmd_mcp(_args: argparse.Namespace) -> int:
     return run_mcp_stdio()
 
 
+def cmd_task(args: argparse.Namespace) -> int:
+    """Manage .agent/ task workflow files."""
+    repo_root = Path.cwd()
+    # Walk up to find .git root
+    candidate = repo_root
+    while candidate != candidate.parent:
+        if (candidate / ".git").exists():
+            repo_root = candidate
+            break
+        candidate = candidate.parent
+    agent_dir = repo_root / ".agent"
+
+    if args.task_command == "init":
+        agent_dir.mkdir(exist_ok=True)
+        task_file = agent_dir / "task.md"
+        task_content = f"""# Current Task
+
+## User Request
+
+{args.description}
+
+## Goal
+
+<!-- What must be true when done -->
+
+## Constraints
+
+- Keep changes minimal.
+- Prefer existing project patterns.
+- Do not rewrite unrelated code.
+- Run checks before final response.
+
+## Relevant Context
+
+<!-- RAG populates this via rag task context -->
+
+## Plan
+
+- [ ] Understand task
+- [ ] Retrieve relevant code context
+- [ ] Inspect files
+- [ ] Edit files
+- [ ] Run checks
+- [ ] Fix failures
+- [ ] Update memory
+
+## Work Log
+
+<!-- Agent appends progress -->
+
+## Final Summary
+
+<!-- Agent fills at end -->
+
+*Task initialized: {datetime.now().isoformat()}*
+"""
+        task_file.write_text(task_content)
+        for fname in ("memory.md", "decisions.md", "checks.md", "handoff.md"):
+            p = agent_dir / fname
+            if not p.exists():
+                p.touch()
+        console.print(f"[green]Task initialized[/green] in {agent_dir}")
+        console.print("[dim]Run 'rag task context' to populate context, or open OpenCode.[/dim]")
+        return 0
+
+    if args.task_command == "context":
+        task_file = agent_dir / "task.md"
+        if not task_file.exists():
+            raise SystemExit("No task found. Run 'rag task init \"<description>\"' first.")
+        description = ""
+        for line in task_file.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and not line.startswith("<!--") and not line.startswith("*"):
+                description = line
+                break
+        console.print("[cyan]Refreshing git context...[/cyan]")
+        subprocess.run(
+            [sys.executable, "-m", "rag.cli", "context", "git", "--refresh"],
+            cwd=repo_root,
+        )
+        target = getattr(args, "target_agent", "opencode")
+        console.print(f"[cyan]Building agent handoff for:[/cyan] {description}")
+        result = subprocess.run(
+            [sys.executable, "-m", "rag.cli", "agent", description,
+             "--target-agent", target, "--save-handoff"],
+            cwd=repo_root,
+        )
+        return result.returncode
+
+    if args.task_command == "done":
+        task_file = agent_dir / "task.md"
+        if not task_file.exists():
+            raise SystemExit("No task found.")
+        summary = getattr(args, "summary", None) or "Task completed."
+        content = task_file.read_text()
+        ts = datetime.now().isoformat()
+        content = content.replace(
+            "<!-- Agent fills at end -->",
+            f"{summary}\n\n*Completed: {ts}*",
+        )
+        task_file.write_text(content)
+        console.print(f"[green]Task marked done.[/green] Summary written to {task_file}")
+        return 0
+
+    raise SystemExit(f"Unknown task command: {args.task_command}")
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     if not args.http:
         raise SystemExit("Use `rag serve --http` to start the HTTP integration server.")
@@ -2765,6 +2872,21 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_parser = subparsers.add_parser("mcp", help="Run the local RAG MCP-style stdio tool server")
     mcp_parser.set_defaults(func=cmd_mcp)
 
+    task_parser = subparsers.add_parser("task", help="Manage .agent/ task workflow files")
+    task_subparsers = task_parser.add_subparsers(dest="task_command", required=True)
+
+    task_init_parser = task_subparsers.add_parser("init", help="Initialize a new task in .agent/")
+    task_init_parser.add_argument("description", help="Task description")
+    task_init_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_context_parser = task_subparsers.add_parser("context", help="Refresh context and build agent handoff")
+    task_context_parser.add_argument("--target-agent", default="opencode", choices=["opencode", "codex", "copilot", "generic"])
+    task_context_parser.set_defaults(func=cmd_task, needs_qdrant=True, needs_llm=True)
+
+    task_done_parser = task_subparsers.add_parser("done", help="Mark current task complete")
+    task_done_parser.add_argument("--summary", help="Completion summary")
+    task_done_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
     serve_parser = subparsers.add_parser("serve", help="Run local RAG integration servers")
     serve_parser.add_argument("--http", action="store_true", help="Run the HTTP JSON endpoint server")
     serve_parser.add_argument("--host", default="127.0.0.1")
@@ -2801,6 +2923,7 @@ LEGACY_COMMANDS = {
     "suggest",
     "summarize",
     "summarize-files",
+    "task",
     "todo",
     "trace",
     "why",

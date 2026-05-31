@@ -69,8 +69,15 @@ else
 fi
 
 ln -sfn "$REPO_DIR/system/rag.sh" "$HOME/.local/bin/rag"
+ln -sfn "$REPO_DIR/system/rag-mcp" "$HOME/.local/bin/rag-mcp"
 ln -sfn "$REPO_DIR/system/local-ai-runtime.sh" "$LOCAL_AI_RUNTIME_LINK"
 ln -sfn "$REPO_DIR/system/completions/_rag" "$COMPLETION_DIR/_rag"
+
+RAG_CONFIG_DIR="$HOME/.config/rag"
+mkdir -p "$RAG_CONFIG_DIR"
+if [ ! -f "$RAG_CONFIG_DIR/models.json" ]; then
+  cp "$REPO_DIR/configs/rag/models.json" "$RAG_CONFIG_DIR/models.json"
+fi
 
 # Force zsh to see a newly linked completion on the next shell start.
 rm -f "$HOME/.cache/zsh/.zcompdump" "$HOME/.zcompdump" 2>/dev/null || true
@@ -79,6 +86,7 @@ printf 'Local RAG stack is ready.\n\n'
 printf 'Paths:\n'
 printf '  Config:  %s\n' "$CONFIG_FILE"
 printf '  CLI:     %s\n' "$HOME/.local/bin/rag"
+printf '  MCP:     %s\n' "$HOME/.local/bin/rag-mcp"
 printf '  Runtime: %s\n' "$LOCAL_AI_RUNTIME_LINK"
 printf '  Zsh:     %s\n' "$COMPLETION_DIR/_rag"
 printf '  SQLite:  %s\n' "${RAG_HOME}/rag.sqlite3"

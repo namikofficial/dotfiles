@@ -9,7 +9,7 @@ DEFAULT_CONFIG = {
     "qdrant_url": "http://127.0.0.1:6333",
     "qdrant_collection": "local-rag-chunks",
     "answer_url": "http://127.0.0.1:8080/v1/chat/completions",
-    "answer_model": "gemma-3-4b",
+    "answer_model": "qwen-coder-7b",
     "embedding_model": "BAAI/bge-small-en-v1.5",
     "retrieval_context_tokens": 12000,
     "answer_max_tokens": 2500,
