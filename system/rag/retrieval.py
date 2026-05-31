@@ -1451,7 +1451,26 @@ def rerank_chunks(
             final_score += 0.1
         scored.append((final_score, row))
     scored.sort(key=lambda item: item[0], reverse=True)
-    return [row for _score, row in scored[: reranker_config["top_k_output"]]]
+    top = [row for _score, row in scored[: reranker_config["top_k_output"]]]
+
+    # Optional neural re-ranking pass when mode = "neural" or "auto"
+    reranker_mode = reranker_config.get("mode", "heuristic")
+    if reranker_mode in ("neural", "auto"):
+        try:
+            from .rerank import rerank_neural, _try_load_neural
+            if reranker_mode == "auto" and not _try_load_neural():
+                return top
+            query_text = " ".join(analysis.terms or [])
+            if query_text:
+                from collections import namedtuple
+                _R = namedtuple("_R", ["text", "file_path", "score"])
+                proxy = [_R(text=r["content"] or "", file_path=r["path"] or "", score=0.5) for r in top]
+                reranked_proxy = rerank_neural(query_text, proxy)
+                path_order = {p.file_path: i for i, p in enumerate(reranked_proxy)}
+                top = sorted(top, key=lambda r: path_order.get(r["path"] or "", len(top)))
+        except Exception:
+            pass
+    return top
 
 
 def reranker_enabled(config: dict, override: bool | None) -> bool:

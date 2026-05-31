@@ -881,6 +881,43 @@ def session_compaction_details(row: sqlite3.Row) -> dict[str, list[str]]:
     return json.loads(row["extracted_json"] or "{}")
 
 
+def extract_memory_from_compaction(
+    compaction_row: sqlite3.Row,
+) -> list[dict[str, str]]:
+    """Return structured memory candidate dicts from a session compaction row.
+
+    Each dict has: kind, subject, value, scope ('repo'|'global'), confidence.
+    Heuristic only — no LLM calls. For LLM extraction, use the --llm flag on
+    `rag memory extract`.
+    """
+    details = session_compaction_details(compaction_row)
+    candidates: list[dict[str, str]] = []
+    for cmd in details.get("commands", []):
+        candidates.append({
+            "kind": "tool_preferences",
+            "subject": "command",
+            "value": cmd,
+            "scope": "repo",
+            "confidence": "medium",
+        })
+    for decision in details.get("decisions", []):
+        candidates.append({
+            "kind": "repo_conventions",
+            "subject": "decision",
+            "value": decision,
+            "scope": "repo",
+            "confidence": "high",
+        })
+    for fact in details.get("useful_facts", []):
+        candidates.append({
+            "kind": "project_facts",
+            "subject": "fact",
+            "value": fact,
+            "scope": "repo",
+            "confidence": "medium",
+        })
+    return candidates
+
 
 def add_eval_case(
     conn: sqlite3.Connection,

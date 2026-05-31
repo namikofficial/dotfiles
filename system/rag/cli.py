@@ -83,6 +83,7 @@ from .state import (
     compact_session,
     detect_memory_conflicts,
     eval_case_expected_files,
+    extract_memory_from_compaction,
     format_operational_state,
     get_eval_case,
     get_session,
@@ -960,6 +961,14 @@ def cmd_mcp(_args: argparse.Namespace) -> int:
     return run_mcp_stdio()
 
 
+def _resolve_task_file(agent_dir: Path) -> Path:
+    """Return the most recent task file in agent_dir, falling back to task.md."""
+    timestamped = sorted(agent_dir.glob("task-*.md"), key=lambda p: p.name, reverse=True)
+    if timestamped:
+        return timestamped[0]
+    return agent_dir / "task.md"
+
+
 def cmd_task(args: argparse.Namespace) -> int:
     """Manage .agent/ task workflow files."""
     repo_root = Path.cwd()
@@ -1026,7 +1035,7 @@ def cmd_task(args: argparse.Namespace) -> int:
         return 0
 
     if args.task_command == "context":
-        task_file = agent_dir / "task.md"
+        task_file = _resolve_task_file(agent_dir)
         if not task_file.exists():
             raise SystemExit("No task found. Run 'rag task init \"<description>\"' first.")
         description = ""
@@ -1050,7 +1059,7 @@ def cmd_task(args: argparse.Namespace) -> int:
         return result.returncode
 
     if args.task_command == "done":
-        task_file = agent_dir / "task.md"
+        task_file = _resolve_task_file(agent_dir)
         if not task_file.exists():
             raise SystemExit("No task found.")
         summary = getattr(args, "summary", None) or "Task completed."
@@ -1062,6 +1071,33 @@ def cmd_task(args: argparse.Namespace) -> int:
         )
         task_file.write_text(content)
         console.print(f"[green]Task marked done.[/green] Summary written to {task_file}")
+        return 0
+
+    if args.task_command == "list":
+        task_files = sorted(agent_dir.glob("task*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if (agent_dir / "task.md").exists():
+            t = agent_dir / "task.md"
+            if t not in task_files:
+                task_files.insert(0, t)
+        if not task_files:
+            console.print("[yellow]No task files found in .agent/[/yellow]")
+            return 0
+        table = Table(title=f"Tasks in {agent_dir}")
+        table.add_column("file")
+        table.add_column("modified")
+        table.add_column("preview")
+        for tf in task_files[:20]:
+            import datetime as _dt
+
+            mtime = _dt.datetime.fromtimestamp(tf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            first_line = ""
+            for ln in tf.read_text().splitlines():
+                ln = ln.strip()
+                if ln and not ln.startswith("#") and not ln.startswith("<!--") and not ln.startswith("*"):
+                    first_line = ln[:80]
+                    break
+            table.add_row(tf.name, mtime, first_line)
+        console.print(table)
         return 0
 
     raise SystemExit(f"Unknown task command: {args.task_command}")
@@ -1260,6 +1296,7 @@ def cmd_route(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_clean(args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
     client = get_qdrant(config)
@@ -1476,6 +1513,150 @@ def cmd_context(args: argparse.Namespace) -> int:
         )
         console.print(f"[green]Stored[/green] test failure {failure_id}")
         return 0
+
+    if args.context_command == "system":
+        repo_root_path = Path.cwd()
+        candidate = repo_root_path
+        while candidate != candidate.parent:
+            if (candidate / ".git").exists():
+                repo_root_path = candidate
+                break
+            candidate = candidate.parent
+
+        sections: list[str] = []
+
+        makefile = repo_root_path / "Makefile"
+        if makefile.exists():
+            targets = re.findall(r'^([a-zA-Z][a-zA-Z0-9_-]+)\s*:', makefile.read_text(), re.MULTILINE)
+            if targets:
+                sections.append("## Makefile targets\n" + "\n".join(f"- {t}" for t in targets[:30]))
+
+        pkg = repo_root_path / "package.json"
+        if pkg.exists():
+            try:
+                data = json.loads(pkg.read_text())
+                scripts = data.get("scripts", {})
+                if scripts:
+                    sections.append("## npm scripts\n" + "\n".join(f"- {k}: {v}" for k, v in list(scripts.items())[:20]))
+            except Exception:
+                pass
+
+        pyproject = repo_root_path / "pyproject.toml"
+        if pyproject.exists():
+            text = pyproject.read_text()
+            scripts_match = re.search(r'\[tool\.poetry\.scripts\](.*?)(?=\[|\Z)', text, re.DOTALL)
+            if not scripts_match:
+                scripts_match = re.search(r'\[project\.scripts\](.*?)(?=\[|\Z)', text, re.DOTALL)
+            if scripts_match:
+                sections.append("## pyproject scripts\n" + scripts_match.group(0).strip()[:400])
+
+        workflows_dir = repo_root_path / ".github" / "workflows"
+        if workflows_dir.is_dir():
+            job_lines = []
+            for wf in sorted(workflows_dir.glob("*.yml"))[:5]:
+                job_names = re.findall(r'^\s{2}([a-zA-Z][a-zA-Z0-9_-]+)\s*:', wf.read_text(), re.MULTILINE)
+                if job_names:
+                    job_lines.append(f"{wf.name}: {', '.join(job_names[:6])}")
+            if job_lines:
+                sections.append("## GitHub Actions jobs\n" + "\n".join(f"- {l}" for l in job_lines))
+
+        setup_dir = repo_root_path / "setup"
+        if setup_dir.is_dir():
+            scripts = [p.name for p in sorted(setup_dir.glob("*.sh"))[:20]]
+            if scripts:
+                sections.append("## setup scripts\n" + "\n".join(f"- {s}" for s in scripts))
+
+        if not sections:
+            console.print("[yellow]No recognizable project tool files found.[/yellow]")
+            return 0
+
+        repo_label = repo or repo_root_path.name
+        content = f"# System context for {repo_label}\n\n" + "\n\n".join(sections)
+        console.print(content)
+
+        if getattr(args, "store", False):
+            memory_id = remember_memory(conn, repo_label, "project_facts", "system-context", content)
+            console.print(f"[green]Stored[/green] system context as memory {memory_id}")
+
+        return 0
+
+    if args.context_command == "tmux":
+        lines = getattr(args, "lines", 50)
+        try:
+            result = subprocess.run(
+                ["tmux", "capture-pane", "-p", "-S", f"-{lines}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                raise SystemExit("tmux not running or no active pane.")
+            output = result.stdout.strip()
+        except FileNotFoundError:
+            raise SystemExit("tmux is not installed or not in PATH.")
+
+        console.print(f"[bold]tmux pane capture[/bold] (last {lines} lines):")
+        console.print(output)
+
+        if getattr(args, "store", False):
+            if any(word in output.lower() for word in ("error", "failed", "exception", "traceback")):
+                failure_id = add_test_failure(
+                    conn,
+                    repo or Path.cwd().resolve().name,
+                    "tmux-capture",
+                    output,
+                    runner="tmux",
+                    exit_code=None,
+                    source="local",
+                )
+                console.print(f"[green]Stored[/green] as test failure {failure_id}")
+            else:
+                console.print("[dim]No error patterns detected; not storing as failure.[/dim]")
+        return 0
+
+    if args.context_command == "devhealth":
+        started_at = time.time()
+        try:
+            result = subprocess.run(
+                ["dev-health"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            output = result.stdout + result.stderr
+        except FileNotFoundError:
+            raise SystemExit("dev-health not found. Make sure ~/.local/bin is in PATH.")
+
+        console.print(output)
+
+        if getattr(args, "store", False):
+            finished_at = time.time()
+            record_execution_run(
+                conn,
+                run_id=f"devhealth-{uuid.uuid4().hex[:12]}",
+                session_id=f"context-{uuid.uuid4().hex[:12]}",
+                repo=repo or Path.cwd().resolve().name,
+                target="dev-health",
+                profile_id="context",
+                intent="devhealth",
+                mode="context",
+                risk_level="low",
+                query="dev-health",
+                prompt_hash=hashlib.sha256(output.encode("utf-8", errors="ignore")).hexdigest(),
+                agent_plan={"source": "context.devhealth", "command": "dev-health"},
+                status="completed" if result.returncode == 0 else "failed",
+                stdout=result.stdout or None,
+                stderr=result.stderr or None,
+                exit_code=result.returncode,
+                duration_ms=int((finished_at - started_at) * 1000),
+                files_modified=[],
+                started_at=started_at,
+                finished_at=finished_at,
+            )
+            console.print("[green]Stored[/green] dev-health output as execution run")
+
+        return 0
+
     raise SystemExit(f"Unknown context command: {args.context_command}")
 
 
@@ -1953,6 +2134,156 @@ def cmd_memory(args: argparse.Namespace) -> int:
             table.add_row(row["domain"], row["tool"], row["aliases"], row["description"] or "-")
         console.print(table)
         return 0
+
+    if args.memory_command == "extract":
+        rows = list_session_compactions(conn, repo, limit=getattr(args, "limit", 20))
+        if not rows:
+            console.print("[yellow]No session compactions found.[/yellow]")
+            return 0
+
+        total_added = 0
+        for row in rows:
+            candidates = extract_memory_from_compaction(row)
+            for c in candidates:
+                if len(c["value"]) > 8:
+                    try:
+                        remember_memory(
+                            conn,
+                            repo if c["scope"] == "repo" else None,
+                            c["kind"],
+                            c["subject"],
+                            c["value"],
+                            global_scope=(c["scope"] == "global"),
+                            source_session_id=row["session_id"],
+                        )
+                        total_added += 1
+                    except Exception:
+                        pass
+
+        if getattr(args, "llm", False):
+            system_prompt = (
+                "You are extracting developer memory from a session log. "
+                'Return ONLY a JSON array of objects: [{"kind": "convention|architecture|tool|pattern|warning", '
+                '"subject": "<short label>", "value": "<fact>", "scope": "repo|global"}]. '
+                "Extract at most 5 items. Omit trivial or duplicate items. Return [] if nothing useful."
+            )
+            for row in rows[:5]:
+                details = session_compaction_details(row)
+                context = f"Query: {row['summary']}\nDecisions: {details.get('decisions', [])}\nFacts: {details.get('useful_facts', [])}"
+                try:
+                    raw = complete_llm(config, system_prompt, context, max_tokens=400)
+                    match = re.search(r'\[.*\]', raw, re.DOTALL)
+                    if match:
+                        items = json.loads(match.group())
+                        for item in items[:5]:
+                            if isinstance(item, dict) and item.get("value"):
+                                remember_memory(
+                                    conn,
+                                    repo if item.get("scope") == "repo" else None,
+                                    item.get("kind", "convention"),
+                                    item.get("subject", "fact"),
+                                    str(item["value"]),
+                                    global_scope=(item.get("scope") == "global"),
+                                    source_session_id=row["session_id"],
+                                )
+                                total_added += 1
+                except Exception:
+                    pass
+
+        console.print(f"[green]Extracted[/green] {total_added} memory candidates from {len(rows)} sessions")
+        return 0
+
+    if args.memory_command == "consolidate":
+        cutoff = time.time() - (90 * 86400)
+        memory_columns = {row["name"] for row in conn.execute("PRAGMA table_info(developer_memory)").fetchall()}
+        if "confidence_score" in memory_columns:
+            result = conn.execute(
+                """UPDATE developer_memory SET status = 'stale'
+                   WHERE status = 'active' AND updated_at < ? AND confidence_score < 0.4""",
+                (cutoff,),
+            )
+        else:
+            now = time.time()
+            result = conn.execute(
+                """UPDATE developer_memory SET status = 'stale', updated_at = ?
+                   WHERE status = 'active' AND updated_at < ?
+                     AND source_session_id IS NOT NULL
+                     AND COALESCE(last_used_at, updated_at) < ?""",
+                (now, cutoff, cutoff),
+            )
+        expired = result.rowcount
+
+        rows_dup = conn.execute(
+            """SELECT kind, normalized_subject, repo, COUNT(*) as cnt
+               FROM developer_memory WHERE status = 'active'
+               GROUP BY kind, normalized_subject, repo HAVING cnt > 1"""
+        ).fetchall()
+        merged = 0
+        for dup in rows_dup:
+            entries = conn.execute(
+                """SELECT memory_id FROM developer_memory
+                   WHERE kind = ? AND normalized_subject = ?
+                     AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
+                     AND status = 'active'
+                   ORDER BY updated_at DESC""",
+                (dup["kind"], dup["normalized_subject"], dup["repo"], dup["repo"]),
+            ).fetchall()
+            for entry in entries[1:]:
+                conn.execute(
+                    "UPDATE developer_memory SET status = 'stale' WHERE memory_id = ?",
+                    (entry["memory_id"],),
+                )
+                merged += 1
+        conn.commit()
+        console.print(f"[green]Consolidated[/green] memory: expired {expired} old entries, merged {merged} duplicates")
+        return 0
+
+    if args.memory_command == "prune":
+        limit_days = getattr(args, "days", 180)
+        cutoff = time.time() - (limit_days * 86400)
+        result = conn.execute(
+            "DELETE FROM developer_memory WHERE status = 'stale' AND updated_at < ?",
+            (cutoff,),
+        )
+        conn.commit()
+        console.print(f"[green]Pruned[/green] {result.rowcount} stale memory entries older than {limit_days} days")
+        return 0
+
+    if args.memory_command == "promote":
+        threshold = getattr(args, "threshold", 3)
+        rows_candidates = conn.execute(
+            """SELECT kind, normalized_subject, value, repo, COUNT(DISTINCT source_session_id) as seen_count
+               FROM developer_memory
+               WHERE status = 'active' AND source_session_id IS NOT NULL
+               GROUP BY kind, normalized_subject, repo
+               HAVING seen_count >= ?""",
+            (threshold,),
+        ).fetchall()
+        promoted = 0
+        memory_columns = {row["name"] for row in conn.execute("PRAGMA table_info(developer_memory)").fetchall()}
+        for row in rows_candidates:
+            if "confidence_score" in memory_columns:
+                conn.execute(
+                    """UPDATE developer_memory SET confidence_score = 0.9, status = 'active'
+                       WHERE kind = ? AND normalized_subject = ?
+                         AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
+                         AND status = 'active'""",
+                    (row["kind"], row["normalized_subject"], row["repo"], row["repo"]),
+                )
+            else:
+                now = time.time()
+                conn.execute(
+                    """UPDATE developer_memory SET status = 'active', updated_at = ?, last_used_at = ?
+                       WHERE kind = ? AND normalized_subject = ?
+                         AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
+                         AND status = 'active'""",
+                    (now, now, row["kind"], row["normalized_subject"], row["repo"], row["repo"]),
+                )
+            promoted += 1
+        conn.commit()
+        console.print(f"[green]Promoted[/green] {promoted} memory groups (seen in ≥{threshold} sessions)")
+        return 0
+
     raise SystemExit(f"Unknown memory command: {args.memory_command}")
 
 
@@ -2777,6 +3108,22 @@ def build_parser() -> argparse.ArgumentParser:
     output_group.add_argument("--output-file", help="Path to a failure output file")
     context_failure_add.set_defaults(func=cmd_context)
 
+    context_system_parser = context_subparsers.add_parser("system", help="Gather project tool context (Makefile, npm scripts, etc.)")
+    context_system_parser.add_argument("--repo", help="Target repo")
+    context_system_parser.add_argument("--store", action="store_true", help="Store result in RAG DB")
+    context_system_parser.set_defaults(func=cmd_context)
+
+    context_tmux_parser = context_subparsers.add_parser("tmux", help="Capture active tmux pane output")
+    context_tmux_parser.add_argument("--lines", type=int, default=50, help="Number of lines to capture")
+    context_tmux_parser.add_argument("--repo", help="Target repo")
+    context_tmux_parser.add_argument("--store", action="store_true", help="Store as test failure if errors detected")
+    context_tmux_parser.set_defaults(func=cmd_context)
+
+    context_devhealth_parser = context_subparsers.add_parser("devhealth", help="Run dev-health and store result")
+    context_devhealth_parser.add_argument("--repo", help="Target repo")
+    context_devhealth_parser.add_argument("--store", action="store_true", help="Store result in RAG DB")
+    context_devhealth_parser.set_defaults(func=cmd_context)
+
     reindex_parser = subparsers.add_parser("reindex", help="Reindex changed files in previously indexed repos")
     reindex_parser.add_argument(
         "--profile",
@@ -2829,6 +3176,11 @@ def build_parser() -> argparse.ArgumentParser:
         "tool_preferences",
         "hardware_profile",
         "repo_conventions",
+        "convention",
+        "architecture",
+        "tool",
+        "pattern",
+        "warning",
     ])
     memory_remember_parser.add_argument("subject")
     memory_remember_parser.add_argument("value", nargs="+")
@@ -2872,6 +3224,26 @@ def build_parser() -> argparse.ArgumentParser:
     memory_taxonomy_parser.add_argument("--format", choices=["table", "yaml"], default="table")
     memory_taxonomy_parser.add_argument("--limit", type=int, default=30)
     memory_taxonomy_parser.set_defaults(func=cmd_memory)
+
+    memory_extract_parser = memory_subparsers.add_parser("extract", help="Extract memory from recent session compactions")
+    memory_extract_parser.add_argument("--repo", help="Target repo")
+    memory_extract_parser.add_argument("--limit", type=int, default=20, help="Max sessions to analyse")
+    memory_extract_parser.add_argument("--llm", action="store_true", help="Also run LLM-based extraction (slower)")
+    memory_extract_parser.set_defaults(func=cmd_memory)
+
+    memory_consolidate_parser = memory_subparsers.add_parser("consolidate", help="Merge duplicates and expire stale memory")
+    memory_consolidate_parser.add_argument("--repo", help="Target repo")
+    memory_consolidate_parser.set_defaults(func=cmd_memory)
+
+    memory_prune_parser = memory_subparsers.add_parser("prune", help="Delete old stale memory entries")
+    memory_prune_parser.add_argument("--repo", help="Target repo")
+    memory_prune_parser.add_argument("--days", type=int, default=180, help="Delete stale entries older than N days")
+    memory_prune_parser.set_defaults(func=cmd_memory)
+
+    memory_promote_parser = memory_subparsers.add_parser("promote", help="Promote facts seen across 3+ sessions")
+    memory_promote_parser.add_argument("--repo", help="Target repo")
+    memory_promote_parser.add_argument("--threshold", type=int, default=3, help="Min sessions to trigger promotion")
+    memory_promote_parser.set_defaults(func=cmd_memory)
 
     todo_parser = subparsers.add_parser("todo", help="Manage structured RAG todos")
     todo_subparsers = todo_parser.add_subparsers(dest="todo_command", required=True)
@@ -3008,6 +3380,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     task_init_parser = task_subparsers.add_parser("init", help="Initialize a new task in .agent/")
     task_init_parser.add_argument("description", help="Task description")
+    task_init_parser.add_argument("--timestamped", action="store_true", help="Create a timestamped task file (task-YYYYMMDD-HHMMSS.md)")
     task_init_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
 
     task_context_parser = task_subparsers.add_parser("context", help="Refresh context and build agent handoff")
@@ -3017,6 +3390,9 @@ def build_parser() -> argparse.ArgumentParser:
     task_done_parser = task_subparsers.add_parser("done", help="Mark current task complete")
     task_done_parser.add_argument("--summary", help="Completion summary")
     task_done_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_list_parser = task_subparsers.add_parser("list", help="List task files in .agent/")
+    task_list_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
 
     serve_parser = subparsers.add_parser("serve", help="Run local RAG integration servers")
     serve_parser.add_argument("--http", action="store_true", help="Run the HTTP JSON endpoint server")
