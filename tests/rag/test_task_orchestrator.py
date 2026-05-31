@@ -306,6 +306,17 @@ class TaskOrchestratorTest(unittest.TestCase):
                         mark_subtask_done(graph, subtask.id, retrieved_files=[], edited_files=[], checks_run=[], passed=True)
                 complete = task_step()
                 self.assertEqual(complete["state"], "complete")
+            conn2 = make_connection()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch("rag.orchestrator.db_conn", side_effect=lambda: _db_ctx(conn2)):
+                graph = plan_task("retry exhaustion", max_subtasks=1)
+                subtask_id = graph.subtasks[0].id
+                mark_subtask_running(graph, subtask_id)
+                failed = graph.get_subtask(subtask_id)
+                failed.attempts = 3
+                mark_subtask_failed(graph, subtask_id, notes="done retrying")
+                step = task_step()
+                self.assertEqual(step["state"], "failed")
+                self.assertEqual(step["next_tool"], "rag_reflect_run")
 
     def test_reset_task_archives_files_and_preserves_memory(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -318,10 +329,14 @@ class TaskOrchestratorTest(unittest.TestCase):
             (agent / "context.md").write_text("context\n")
             (agent / "handoff.md").write_text("handoff\n")
             (agent / "memory.md").write_text("keep\n")
+            subtasks = agent / "subtasks"
+            subtasks.mkdir()
+            (subtasks / "T1.md").write_text("subtask\n")
             result = reset_task(root)
             self.assertTrue(result["ok"])
             self.assertFalse((agent / "task-graph.json").exists())
             self.assertFalse((agent / "task.md").exists())
+            self.assertFalse((agent / "subtasks" / "T1.md").exists())
             self.assertTrue((agent / "memory.md").exists())
 
     def test_learning_scopes_to_run_id(self) -> None:

@@ -18,6 +18,8 @@ from .state import (
     get_task_run,
     latest_task_run,
     list_task_outcomes,
+    list_task_outcomes_for_run,
+    list_task_outcomes_for_task,
     record_task_outcome,
     record_task_lesson,
     record_task_run,
@@ -762,7 +764,10 @@ def reflect_run(task_graph: TaskGraph | None = None) -> dict[str, Any]:
     if graph is None:
         return {"active": False, "summary": "No task graph."}
     with db_conn() as conn:
-        outcomes = list_task_outcomes(conn, graph.repo, limit=20)
+        if graph.run_id:
+            outcomes = list_task_outcomes_for_run(conn, graph.run_id, limit=50)
+        else:
+            outcomes = list_task_outcomes_for_task(conn, graph.task_id, limit=50)
     failed = [row for row in outcomes if row["passed"] == 0]
     missed = _unique([path for row in outcomes for path in json.loads(row["missed_files_json"] or "[]")])
     useful = _unique([path for row in outcomes for path in json.loads(row["edited_files_json"] or "[]")])
@@ -788,16 +793,23 @@ def learn_from_task_outcome(run_id: str | None = None, root: Path | None = None)
         if row is None:
             raise ValueError("No task run available to learn from")
         payload = task_run_payload(row)
-    path, profile = learn_profile_from_run(payload, root)
     with db_conn() as conn:
         if payload.get("run_id"):
-            from .state import list_task_outcomes_for_run
             outcomes = list_task_outcomes_for_run(conn, payload["run_id"], limit=20)
         elif payload.get("task_id"):
-            from .state import list_task_outcomes_for_task
             outcomes = list_task_outcomes_for_task(conn, payload["task_id"], limit=20)
         else:
             outcomes = list_task_outcomes(conn, payload.get("repo"), limit=20)
+        aggregate_outcome = {
+            "edited_files": _unique([path for row in outcomes for path in json.loads(row["edited_files_json"] or "[]")]),
+            "retrieved_files": _unique([path for row in outcomes for path in json.loads(row["retrieved_files_json"] or "[]")]),
+            "missed_files": _unique([path for row in outcomes for path in json.loads(row["missed_files_json"] or "[]")]),
+            "checks_run": _unique([path for row in outcomes for path in json.loads(row["checks_run_json"] or "[]")]),
+            "passed": all(bool(row["passed"]) for row in outcomes) if outcomes else False,
+        }
+        learning_payload = {**payload, "outcome": aggregate_outcome}
+    path, profile = learn_profile_from_run(learning_payload, root)
+    with db_conn() as conn:
         task_lessons: list[dict[str, Any]] = []
         for outcome in outcomes:
             lesson = {
@@ -893,6 +905,19 @@ def task_step(task: str | None = None) -> dict[str, Any]:
             "message": "Retryable failed subtask is available.",
             "subtask": retryable.to_dict(),
         }
+    has_terminal_failures = any(
+        s.status == SubtaskStatus.failed and (s.attempts >= 3 or not _deps_satisfied(graph, s))
+        for s in graph.subtasks
+    )
+    if has_terminal_failures:
+        return {
+            "state": "failed",
+            "next_tool": "rag_reflect_run",
+            "task_id": graph.task_id,
+            "current_subtask_id": graph.current_subtask_id,
+            "message": "Task has failed subtasks with no retries left.",
+            "subtask": None,
+        }
     return {
         "state": "blocked",
         "next_tool": "rag_task_status",
@@ -921,6 +946,19 @@ def reset_task(root: Path | None = None) -> dict[str, Any]:
             target.write_text(path.read_text())
             path.unlink()
             archived.append(str(path.relative_to(root)))
+    subtasks_path = subtask_dir(root)
+    if subtasks_path.exists():
+        archive_subtasks = archive / "subtasks"
+        archive_subtasks.mkdir(parents=True, exist_ok=True)
+        for md in subtasks_path.glob("*.md"):
+            target = archive_subtasks / md.name
+            target.write_text(md.read_text())
+            md.unlink()
+            archived.append(str(md.relative_to(root)))
+        try:
+            subtasks_path.rmdir()
+        except OSError:
+            pass
     return {
         "ok": True,
         "archived": archived,

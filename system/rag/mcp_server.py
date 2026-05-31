@@ -142,6 +142,34 @@ def db_conn():
         conn.close()
 
 
+def _related_tests_payload(path: str) -> dict[str, Any]:
+    with db_conn() as conn:
+        repo = infer_repo_filter(conn, None)
+        return {"tests": related_tests(conn, repo, path)}
+
+
+def _file_card_payload(path: str, why_selected: str | None) -> dict[str, Any]:
+    with db_conn() as conn:
+        repo = infer_repo_filter(conn, None)
+        return file_card(conn, repo, path, why_selected)
+
+
+def _record_outcome_payload(arguments: dict[str, Any]) -> dict[str, Any]:
+    with db_conn() as conn:
+        repo = infer_repo_filter(conn, None)
+        outcome_id = record_outcome(
+            repo=repo,
+            task=arguments["task"],
+            retrieved_files=list(arguments.get("retrieved_files", [])),
+            edited_files=list(arguments.get("edited_files", [])),
+            checks_run=list(arguments.get("checks_run", [])),
+            passed=bool(arguments.get("passed", False)),
+            notes=arguments.get("notes"),
+            run_id=arguments.get("run_id"),
+        )
+        return {"stored": True, "outcome_id": outcome_id}
+
+
 def _repo_root() -> Path:
     current = Path.cwd()
     while current != current.parent:
@@ -683,38 +711,16 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             return _json_text(missing)
 
         if name == "rag_find_tests":
-            with db_conn() as conn:
-                repo = infer_repo_filter(conn, None)
-                tests = await asyncio.to_thread(related_tests, conn, repo, arguments["path"])
-            return _json_text({"tests": tests})
+            payload = await asyncio.to_thread(_related_tests_payload, arguments["path"])
+            return _json_text(payload)
 
         if name == "rag_explain_file":
-            with db_conn() as conn:
-                repo = infer_repo_filter(conn, None)
-                payload = await asyncio.to_thread(
-                    file_card,
-                    conn,
-                    repo,
-                    arguments["path"],
-                    arguments.get("why_selected"),
-                )
+            payload = await asyncio.to_thread(_file_card_payload, arguments["path"], arguments.get("why_selected"))
             return _json_text(payload)
 
         if name == "rag_record_outcome":
-            with db_conn() as conn:
-                repo = infer_repo_filter(conn, None)
-                outcome_id = await asyncio.to_thread(
-                    record_outcome,
-                    repo=repo,
-                    task=arguments["task"],
-                    retrieved_files=list(arguments.get("retrieved_files", [])),
-                    edited_files=list(arguments.get("edited_files", [])),
-                    checks_run=list(arguments.get("checks_run", [])),
-                    passed=bool(arguments.get("passed", False)),
-                    notes=arguments.get("notes"),
-                    run_id=arguments.get("run_id"),
-                )
-            return _json_text({"stored": True, "outcome_id": outcome_id})
+            payload = await asyncio.to_thread(_record_outcome_payload, arguments)
+            return _json_text(payload)
 
         if name == "rag_suggest_commands":
             commands = await asyncio.to_thread(

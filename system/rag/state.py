@@ -1263,6 +1263,8 @@ def record_task_run(
     current_subtask_id: str | None = None,
 ) -> None:
     now = time.time()
+    redacted_graph_json = redact_sensitive_text(json.dumps(graph, sort_keys=True))
+    graph_payload = json.dumps(json.loads(redacted_graph_json), sort_keys=True)
     conn.execute(
         """
         INSERT OR REPLACE INTO task_runs (
@@ -1277,7 +1279,7 @@ def record_task_run(
             _task_fingerprint(task),
             mode,
             max_subtasks,
-            redact_sensitive_text(json.dumps(graph, sort_keys=True)),
+            graph_payload,
             status,
             current_subtask_id,
             now,
