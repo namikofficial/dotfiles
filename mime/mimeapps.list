@@ -26,8 +26,8 @@ text/x-rustsrc=code.desktop
 application/x-yaml=code.desktop
 
 [Added Associations]
-image/png=google-chrome.desktop;firefox.desktop;
-image/jpeg=google-chrome.desktop;firefox.desktop;
+image/png=google-chrome.desktop
+image/jpeg=google-chrome.desktop
 image/webp=google-chrome.desktop;firefox.desktop;
 image/gif=google-chrome.desktop;firefox.desktop;
 image/svg+xml=google-chrome.desktop;firefox.desktop;
