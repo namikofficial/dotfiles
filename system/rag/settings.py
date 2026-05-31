@@ -8,6 +8,15 @@ from .runtime import CONFIG_PATH
 DEFAULT_CONFIG = {
     "qdrant_url": "http://127.0.0.1:6333",
     "qdrant_collection": "local-rag-chunks",
+    "qdrant_vectors": {
+        "dense_name": "dense",
+        "sparse_name": "sparse",
+    },
+    "qdrant_sparse": {
+        "enabled": True,
+        "model": "Qdrant/bm25",
+        "max_terms": 128,
+    },
     "answer_url": "http://127.0.0.1:8080/v1/chat/completions",
     "answer_model": "qwen-coder-7b",
     "embedding_model": "BAAI/bge-small-en-v1.5",
@@ -27,6 +36,7 @@ DEFAULT_CONFIG = {
         "max_fact_files": 8,
         "max_summary_files": 8,
         "max_context_sources": 6,
+        "profile": "auto",
     },
     "retrieval_pipeline": {
         "rewrite_limit": 3,

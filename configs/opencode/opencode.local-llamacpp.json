@@ -13,12 +13,24 @@
            "name": "local",
            "tools": true
          },
-         "gemma-3-4b": {
-           "name": "gemma-3-4b",
+         "qwen3-8b": {
+           "name": "qwen3-8b",
            "tools": true
          },
          "qwen-coder-7b": {
            "name": "qwen-coder-7b",
+           "tools": true
+         },
+         "gemma-3-4b": {
+           "name": "gemma-3-4b",
+           "tools": true
+         },
+         "deepseek-r1-7b": {
+           "name": "deepseek-r1-7b",
+           "tools": false
+         },
+         "phi-4-mini": {
+           "name": "phi-4-mini",
            "tools": true
          }
        }
