@@ -58,7 +58,22 @@ from .memory import (
     store_context_pack,
     write_context_pack_file,
 )
-from .profiles import init_repo_profile, load_repo_profile, save_repo_profile, validate_repo_profile
+from .orchestrator import (
+    compact_completed_subtasks,
+    learn_from_task_outcome,
+    load_task_graph,
+    mark_subtask_done,
+    mark_subtask_failed,
+    mark_subtask_running,
+    next_subtask,
+    plan_task,
+    subtask_context,
+    task_context_path,
+    task_graph_path,
+    task_graph_status,
+)
+from .profiles import load_repo_profile, save_repo_profile
+from .profile import profile_init, profile_show, profile_validate
 from .retrieval import (
     approx_tokens,
     analysis_for_plan,
@@ -104,8 +119,10 @@ from .state import (
     get_eval_run,
     get_eval_case,
     get_retrieval_run,
+    get_task_run,
     get_session,
     latest_retrieval_run,
+    latest_task_run,
     list_eval_runs,
     list_git_contexts,
     list_github_contexts,
@@ -116,6 +133,8 @@ from .state import (
     list_memory_entries,
     list_retrieval_cache,
     list_retrieval_runs,
+    list_task_outcomes,
+    list_task_runs,
     list_session_compactions,
     list_sessions,
     list_test_failures,
@@ -123,6 +142,7 @@ from .state import (
     load_operational_state,
     record_eval_run,
     record_retrieval_run,
+    task_run_payload,
     record_session,
     record_execution_run,
     remember_memory,
@@ -132,6 +152,7 @@ from .state import (
     retrieval_run_payload,
     upsert_github_context,
     update_todo_status,
+    update_task_run_status,
     warm_retrieval_cache,
     clear_retrieval_cache,
 )
@@ -1005,46 +1026,89 @@ def cmd_run(args: argparse.Namespace) -> int:
     conn = connect_db()
     repo = infer_repo_filter(conn, getattr(args, "repo", None))
     if args.run_command == "list":
-        rows = list_retrieval_runs(conn, repo, limit=args.limit)
-        table = Table(title="Retrieval runs")
+        task_rows = [
+            ("task", row)
+            for row in list_task_runs(conn, repo, limit=args.limit)
+        ]
+        retrieval_rows = [
+            ("retrieval", row)
+            for row in list_retrieval_runs(conn, repo, limit=args.limit)
+        ]
+        rows = sorted(
+            task_rows + retrieval_rows,
+            key=lambda item: item[1]["created_at"],
+            reverse=True,
+        )[: args.limit]
+        table = Table(title="Runs")
         table.add_column("run_id")
+        table.add_column("kind")
         table.add_column("mode")
-        table.add_column("query")
+        table.add_column("query/task")
         table.add_column("tokens", justify="right")
-        for row in rows:
-            payload = retrieval_run_payload(row)
+        for kind, row in rows:
+            payload = task_run_payload(row) if kind == "task" else retrieval_run_payload(row)
+            label = payload.get("query", payload.get("task", ""))
             table.add_row(
                 payload["run_id"][:8],
+                kind,
                 str(payload["mode"]),
-                str(payload["query"])[:80],
-                str(payload["packed_context_token_estimate"]),
+                str(label)[:80],
+                str(payload.get("packed_context_token_estimate", payload.get("max_subtasks", 0))),
             )
         console.print(table)
         return 0
-    row = latest_retrieval_run(conn, repo) if args.run_command == "latest" else get_retrieval_run(conn, args.run_id)
-    if row is None:
-        console.print("[yellow]No retrieval run found.[/yellow]")
-        return 1
-    if args.run_command == "explain":
-        console.print(explain_retrieval_run(row))
+    if args.run_command == "latest":
+        task_row = latest_task_run(conn, repo)
+        retrieval_row = latest_retrieval_run(conn, repo)
+        if task_row is None and retrieval_row is None:
+            row = None
+            kind = None
+        elif task_row is None:
+            row = retrieval_row
+            kind = "retrieval"
+        elif retrieval_row is None:
+            row = task_row
+            kind = "task"
+        else:
+            if task_row["created_at"] >= retrieval_row["created_at"]:
+                row = task_row
+                kind = "task"
+            else:
+                row = retrieval_row
+                kind = "retrieval"
     else:
-        _json_print(retrieval_run_payload(row))
+        row = get_task_run(conn, args.run_id) or get_retrieval_run(conn, args.run_id)
+        kind = "task" if row is not None and "graph_json" in row.keys() else "retrieval" if row is not None else None
+    if row is None:
+        console.print("[yellow]No run found.[/yellow]")
+        return 1
+    if kind == "task":
+        payload = task_run_payload(row)
+        if args.run_command == "explain":
+            console.print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            _json_print(payload)
+    else:
+        if args.run_command == "explain":
+            console.print(explain_retrieval_run(row))
+        else:
+            _json_print(retrieval_run_payload(row))
     return 0
 
 
 def cmd_profile(args: argparse.Namespace) -> int:
     root = repo_root()
     if args.profile_command == "init":
-        path, profile = init_repo_profile(root)
+        path, profile = profile_init(root)
         console.print(f"[green]Wrote[/green] {path}")
         _json_print(profile)
         return 0
-    profile = load_repo_profile(root)
+    profile = profile_show(root)
     if args.profile_command == "show":
         _json_print(profile)
         return 0
     if args.profile_command == "validate":
-        problems = validate_repo_profile(profile)
+        problems = profile_validate(root)
         if problems:
             for problem in problems:
                 console.print(f"- {problem}")
@@ -1053,11 +1117,11 @@ def cmd_profile(args: argparse.Namespace) -> int:
         return 0
     if args.profile_command == "learn-from-run":
         conn = connect_db()
-        row = latest_retrieval_run(conn, None) if args.run_id == "latest" else get_retrieval_run(conn, args.run_id)
+        row = latest_task_run(conn, None) if args.run_id == "latest" else get_task_run(conn, args.run_id)
         if row is None:
-            console.print("[yellow]No retrieval run found.[/yellow]")
+            console.print("[yellow]No task run found.[/yellow]")
             return 1
-        path, learned = _learn_profile_from_run(retrieval_run_payload(row))
+        path, learned = learn_from_task_outcome(args.run_id if args.run_id != "latest" else None, root)
         console.print(f"[green]Updated[/green] {path}")
         _json_print(learned)
         return 0
@@ -1286,119 +1350,90 @@ def _resolve_task_file(agent_dir: Path) -> Path:
 
 
 def cmd_task(args: argparse.Namespace) -> int:
-    """Manage .agent/ task workflow files."""
-    repo_root = Path.cwd()
-    # Walk up to find .git root
-    candidate = repo_root
-    while candidate != candidate.parent:
-        if (candidate / ".git").exists():
-            repo_root = candidate
-            break
-        candidate = candidate.parent
-    agent_dir = repo_root / ".agent"
+    root = repo_root()
+    conn = connect_db()
+    repo = infer_repo_filter(conn, getattr(args, "repo", None))
 
-    if args.task_command == "init":
-        agent_dir.mkdir(exist_ok=True)
-        task_file = agent_dir / "task.md"
-        task_content = f"""# Current Task
+    if args.task_command in {"init", "plan"}:
+        graph = plan_task(args.description, repo=repo, max_subtasks=getattr(args, "max_subtasks", 8))
+        console.print(f"[green]Planned[/green] {len(graph.subtasks)} subtasks in {task_graph_path(root)}")
+        _json_print(graph.to_dict())
+        return 0
 
-## User Request
+    graph = load_task_graph(root)
+    if graph is None:
+        raise SystemExit("No task graph found. Run `rag task plan \"<description>\"` first.")
 
-{args.description}
-
-## Goal
-
-<!-- What must be true when done -->
-
-## Constraints
-
-- Keep changes minimal.
-- Prefer existing project patterns.
-- Do not rewrite unrelated code.
-- Run checks before final response.
-
-## Relevant Context
-
-<!-- RAG populates this via rag task context -->
-
-## Plan
-
-- [ ] Understand task
-- [ ] Retrieve relevant code context
-- [ ] Inspect files
-- [ ] Edit files
-- [ ] Run checks
-- [ ] Fix failures
-- [ ] Update memory
-
-## Work Log
-
-<!-- Agent appends progress -->
-
-## Final Summary
-
-<!-- Agent fills at end -->
-
-*Task initialized: {datetime.now().isoformat()}*
-"""
-        task_file.write_text(task_content)
-        for fname in ("memory.md", "decisions.md", "checks.md", "handoff.md"):
-            p = agent_dir / fname
-            if not p.exists():
-                p.touch()
-        console.print(f"[green]Task initialized[/green] in {agent_dir}")
-        console.print("[dim]Run 'rag task context' to populate context, or open OpenCode.[/dim]")
+    if args.task_command == "next":
+        subtask = next_subtask(graph)
+        if subtask is None:
+            console.print("[yellow]No ready subtasks.[/yellow]")
+            return 1
+        console.print(f"[bold]{subtask.id}[/bold] {subtask.title}")
+        _json_print(subtask.to_dict())
         return 0
 
     if args.task_command == "context":
-        task_file = _resolve_task_file(agent_dir)
-        if not task_file.exists():
-            raise SystemExit("No task found. Run 'rag task init \"<description>\"' first.")
-        description = ""
-        for line in task_file.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and not line.startswith("<!--") and not line.startswith("*"):
-                description = line
-                break
-        console.print("[cyan]Refreshing git context...[/cyan]")
-        subprocess.run(
-            [sys.executable, "-m", "rag.cli", "context", "git", "--refresh"],
-            cwd=repo_root,
-        )
-        target = getattr(args, "target_agent", "opencode")
-        console.print(f"[cyan]Building agent handoff for:[/cyan] {description}")
-        result = subprocess.run(
-            [sys.executable, "-m", "rag.cli", "agent", description,
-             "--target-agent", target, "--save-handoff"],
-            cwd=repo_root,
-        )
-        return result.returncode
+        next_ready = next_subtask(graph)
+        subtask_id = getattr(args, "subtask_id", None) or graph.current_subtask_id or (next_ready.id if next_ready else None)
+        if subtask_id is None:
+            console.print("[yellow]No runnable subtask found.[/yellow]")
+            return 1
+        payload = subtask_context(graph, subtask_id)
+        _json_print(payload)
+        return 0
 
-    if args.task_command == "done":
-        task_file = _resolve_task_file(agent_dir)
-        if not task_file.exists():
-            raise SystemExit("No task found.")
-        summary = getattr(args, "summary", None) or "Task completed."
-        content = task_file.read_text()
-        ts = datetime.now().isoformat()
-        content = content.replace(
-            "<!-- Agent fills at end -->",
-            f"{summary}\n\n*Completed: {ts}*",
-        )
-        task_file.write_text(content)
-        console.print(f"[green]Task marked done.[/green] Summary written to {task_file}")
+    if args.task_command in {"done", "fail"}:
+        subtask_id = getattr(args, "subtask_id", None) or graph.current_subtask_id
+        if subtask_id is None:
+            console.print("[yellow]No current subtask.[/yellow]")
+            return 1
+        retrieved = list(getattr(args, "retrieved_file", []) or [])
+        edited = list(getattr(args, "edited_file", []) or [])
+        checks = list(getattr(args, "check", []) or [])
+        notes = getattr(args, "notes", None) or getattr(args, "summary", None)
+        if args.task_command == "done":
+            graph = mark_subtask_done(
+                graph,
+                subtask_id,
+                retrieved_files=retrieved,
+                edited_files=edited,
+                checks_run=checks,
+                passed=not getattr(args, "failed", False),
+                notes=notes,
+            )
+        else:
+            graph = mark_subtask_failed(
+                graph,
+                subtask_id,
+                retrieved_files=retrieved,
+                edited_files=edited,
+                checks_run=checks,
+                notes=notes,
+            )
+        console.print(f"[green]Updated[/green] {subtask_id} -> {args.task_command}")
+        _json_print(graph.to_dict())
+        return 0
+
+    if args.task_command == "status":
+        _json_print(task_graph_status(graph))
+        return 0
+
+    if args.task_command == "compact":
+        compacted = compact_completed_subtasks(graph)
+        if compacted is None:
+            console.print("[yellow]No task graph found.[/yellow]")
+            return 1
+        console.print(f"[green]Compacted[/green] completed subtasks into {task_context_path(root)}")
+        _json_print(compacted.to_dict())
         return 0
 
     if args.task_command == "list":
-        task_files = sorted(agent_dir.glob("task*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
-        if (agent_dir / "task.md").exists():
-            t = agent_dir / "task.md"
-            if t not in task_files:
-                task_files.insert(0, t)
+        task_files = sorted((root / ".agent").glob("task*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
         if not task_files:
             console.print("[yellow]No task files found in .agent/[/yellow]")
             return 0
-        table = Table(title=f"Tasks in {agent_dir}")
+        table = Table(title=f"Tasks in {root / '.agent'}")
         table.add_column("file")
         table.add_column("modified")
         table.add_column("preview")
@@ -1637,6 +1672,9 @@ def cmd_clean(args: argparse.Namespace) -> int:
         conn.execute("DELETE FROM test_failure_memory")
         conn.execute("DELETE FROM task_sessions")
         conn.execute("DELETE FROM session_compactions")
+        conn.execute("DELETE FROM task_runs")
+        conn.execute("DELETE FROM task_outcomes")
+        conn.execute("DELETE FROM task_lessons")
         conn.commit()
         ensure_collection(client, config)
         console.print("[green]Cleared[/green] all local RAG state")
@@ -1669,6 +1707,9 @@ def cmd_clean(args: argparse.Namespace) -> int:
     conn.execute("DELETE FROM test_failure_memory WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM task_sessions WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM session_compactions WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM task_runs WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM task_outcomes WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM task_lessons WHERE repo = ?", (repo,))
     conn.commit()
     console.print(f"[green]Cleared[/green] repo state for {repo}")
     return 0
@@ -3016,6 +3057,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             "session_compactions",
             "context_packs",
             "eval_cases",
+            "task_runs",
+            "task_outcomes",
+            "task_lessons",
             "profiles",
             "profile_usage",
             "execution_runs",
@@ -3053,6 +3097,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         execution_count = conn.execute("SELECT COUNT(*) AS count FROM execution_runs").fetchone()["count"]
         candidate_count = conn.execute("SELECT COUNT(*) AS count FROM memory_candidates WHERE status = 'pending'").fetchone()["count"]
         migration_count = conn.execute("SELECT COUNT(*) AS count FROM _schema_migrations").fetchone()["count"]
+        task_run_count = conn.execute("SELECT COUNT(*) AS count FROM task_runs").fetchone()["count"]
+        task_outcome_count = conn.execute("SELECT COUNT(*) AS count FROM task_outcomes").fetchone()["count"]
+        task_lesson_count = conn.execute("SELECT COUNT(*) AS count FROM task_lessons").fetchone()["count"]
 
         table.add_row("sqlite data", "ok", f"{repo_count} repos, {chunk_count} chunks")
         table.add_row(
@@ -3064,6 +3111,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 f"{git_context_count} git snapshots, {github_context_count} GitHub refs, {test_failure_count} test failures, "
                 f"{todo_count} todos, {decision_count} decisions, {session_count} sessions, "
                 f"{compaction_count} compactions, {eval_case_count} eval cases, "
+                f"{task_run_count} task runs, {task_outcome_count} task outcomes, {task_lesson_count} task lessons, "
                 f"{execution_count} execution runs, {candidate_count} pending candidates, {migration_count} migrations"
             ),
         )
@@ -3776,18 +3824,54 @@ def build_parser() -> argparse.ArgumentParser:
     task_parser = subparsers.add_parser("task", help="Manage .agent/ task workflow files")
     task_subparsers = task_parser.add_subparsers(dest="task_command", required=True)
 
+    task_plan_parser = task_subparsers.add_parser("plan", help="Plan a task into subtasks and write .agent/task-graph.json")
+    task_plan_parser.add_argument("description", help="Task description")
+    task_plan_parser.add_argument("--repo", help="Repo name override")
+    task_plan_parser.add_argument("--max-subtasks", type=int, default=8)
+    task_plan_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_next_parser = task_subparsers.add_parser("next", help="Return the next ready subtask")
+    task_next_parser.add_argument("--repo", help="Repo name override")
+    task_next_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_context_parser = task_subparsers.add_parser("context", help="Build focused context for one subtask")
+    task_context_parser.add_argument("subtask_id", nargs="?")
+    task_context_parser.add_argument("--repo", help="Repo name override")
+    task_context_parser.add_argument("--target-agent", default="opencode", choices=["opencode", "codex", "copilot", "generic"])
+    task_context_parser.set_defaults(func=cmd_task, needs_qdrant=True, needs_llm=True)
+
+    task_done_parser = task_subparsers.add_parser("done", help="Mark one subtask done")
+    task_done_parser.add_argument("subtask_id", nargs="?")
+    task_done_parser.add_argument("--repo", help="Repo name override")
+    task_done_parser.add_argument("--retrieved-file", action="append", default=[])
+    task_done_parser.add_argument("--edited-file", action="append", default=[])
+    task_done_parser.add_argument("--check", action="append", default=[])
+    task_done_parser.add_argument("--notes")
+    task_done_parser.add_argument("--summary")
+    task_done_parser.add_argument("--failed", action="store_true", help="Mark the subtask as unsuccessful while still recording it as done.")
+    task_done_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_fail_parser = task_subparsers.add_parser("fail", help="Record a failed subtask attempt")
+    task_fail_parser.add_argument("subtask_id", nargs="?")
+    task_fail_parser.add_argument("--repo", help="Repo name override")
+    task_fail_parser.add_argument("--retrieved-file", action="append", default=[])
+    task_fail_parser.add_argument("--edited-file", action="append", default=[])
+    task_fail_parser.add_argument("--check", action="append", default=[])
+    task_fail_parser.add_argument("--notes")
+    task_fail_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_status_parser = task_subparsers.add_parser("status", help="Show task graph progress")
+    task_status_parser.add_argument("--repo", help="Repo name override")
+    task_status_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_compact_parser = task_subparsers.add_parser("compact", help="Compact completed subtasks")
+    task_compact_parser.add_argument("--repo", help="Repo name override")
+    task_compact_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
     task_init_parser = task_subparsers.add_parser("init", help="Initialize a new task in .agent/")
     task_init_parser.add_argument("description", help="Task description")
     task_init_parser.add_argument("--timestamped", action="store_true", help="Create a timestamped task file (task-YYYYMMDD-HHMMSS.md)")
     task_init_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
-
-    task_context_parser = task_subparsers.add_parser("context", help="Refresh context and build agent handoff")
-    task_context_parser.add_argument("--target-agent", default="opencode", choices=["opencode", "codex", "copilot", "generic"])
-    task_context_parser.set_defaults(func=cmd_task, needs_qdrant=True, needs_llm=True)
-
-    task_done_parser = task_subparsers.add_parser("done", help="Mark current task complete")
-    task_done_parser.add_argument("--summary", help="Completion summary")
-    task_done_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
 
     task_list_parser = task_subparsers.add_parser("list", help="List task files in .agent/")
     task_list_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)

@@ -108,6 +108,18 @@ from .agent_support import (
     runtime_config,
     suggest_commands,
 )
+from .orchestrator import (
+    compact_completed_subtasks,
+    learn_from_task_outcome,
+    load_task_graph,
+    mark_subtask_done,
+    mark_subtask_failed,
+    next_subtask,
+    plan_task,
+    reflect_run,
+    subtask_context,
+    task_graph_status,
+)
 from .memory import repo_memory_status_rows
 from .retrieval import gather_context, reranker_enabled, retrieve
 from .settings import get_mode_profile, load_config
@@ -279,6 +291,86 @@ async def _list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="rag_plan_task",
+            description="Split a broad task into a dependency-aware task graph and write .agent/task-graph.json.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string"},
+                    "repo": {"type": "string"},
+                    "max_subtasks": {"type": "integer", "default": 8},
+                },
+                "required": ["task"],
+            },
+        ),
+        types.Tool(
+            name="rag_next_subtask",
+            description="Return the next ready subtask from the current task graph.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        types.Tool(
+            name="rag_subtask_context",
+            description="Build focused retrieval context for one subtask and return its edit scope.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "subtask_id": {"type": "string"},
+                },
+                "required": ["subtask_id"],
+            },
+        ),
+        types.Tool(
+            name="rag_subtask_done",
+            description="Record a completed subtask outcome, checks, and edited files.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "subtask_id": {"type": "string"},
+                    "retrieved_files": {"type": "array", "items": {"type": "string"}},
+                    "edited_files": {"type": "array", "items": {"type": "string"}},
+                    "checks_run": {"type": "array", "items": {"type": "string"}},
+                    "passed": {"type": "boolean", "default": True},
+                    "notes": {"type": "string"},
+                },
+                "required": ["subtask_id"],
+            },
+        ),
+        types.Tool(
+            name="rag_subtask_failed",
+            description="Record a failed subtask attempt and keep retry context narrow.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "subtask_id": {"type": "string"},
+                    "retrieved_files": {"type": "array", "items": {"type": "string"}},
+                    "edited_files": {"type": "array", "items": {"type": "string"}},
+                    "checks_run": {"type": "array", "items": {"type": "string"}},
+                    "notes": {"type": "string"},
+                },
+                "required": ["subtask_id"],
+            },
+        ),
+        types.Tool(
+            name="rag_task_status",
+            description="Return the current task graph status and next runnable subtask.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        types.Tool(
+            name="rag_reflect_run",
+            description="Summarize retrieval and task outcomes after a run.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        types.Tool(
+            name="rag_learn_from_outcome",
+            description="Promote stable lessons from the latest task run into .rag/profile.json and memory.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "run_id": {"type": "string"},
+                },
+            },
+        ),
+        types.Tool(
             name="rag_edit_scope",
             description="Use before editing to see likely edit files, nearby tests, read-only evidence, and paths to avoid.",
             inputSchema={
@@ -426,6 +518,12 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             fmt = arguments.get("format", "markdown")
             _run_rag("context", "git", "--refresh", timeout=15)
             payload = await asyncio.to_thread(describe_task, task, target_agent=target)
+            graph = await asyncio.to_thread(load_task_graph)
+            if graph is not None:
+                current = graph.active_subtask()
+                payload["current_subtask"] = current.to_dict() if current else None
+                payload["next_mcp_tool"] = "rag_subtask_context" if current else "rag_plan_task"
+                payload["task_graph"] = graph.to_dict()
             if fmt == "json":
                 return _json_text(
                     {
@@ -442,10 +540,74 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
                             "Stay inside edit_scope unless direct inspection disproves it.",
                             "Do not claim checks passed unless command output confirms it.",
                         ],
+                        "current_subtask": payload.get("current_subtask"),
+                        "next_mcp_tool": payload.get("next_mcp_tool"),
                         "run": payload["run"],
                     }
                 )
             return _text(render_agent_context_markdown(payload))
+
+        if name == "rag_plan_task":
+            graph = await asyncio.to_thread(
+                plan_task,
+                arguments["task"],
+                arguments.get("repo"),
+                int(arguments.get("max_subtasks", 8)),
+            )
+            return _json_text(graph.to_dict())
+
+        if name == "rag_next_subtask":
+            graph = await asyncio.to_thread(load_task_graph)
+            subtask = await asyncio.to_thread(next_subtask, graph)
+            return _json_text(subtask.to_dict() if subtask else {"subtask": None})
+
+        if name == "rag_subtask_context":
+            graph = await asyncio.to_thread(load_task_graph)
+            payload = await asyncio.to_thread(subtask_context, graph, arguments["subtask_id"])
+            return _json_text(payload)
+
+        if name == "rag_subtask_done":
+            graph = await asyncio.to_thread(load_task_graph)
+            if graph is None:
+                return _text("No task graph found")
+            updated = await asyncio.to_thread(
+                mark_subtask_done,
+                graph,
+                arguments["subtask_id"],
+                retrieved_files=list(arguments.get("retrieved_files", [])),
+                edited_files=list(arguments.get("edited_files", [])),
+                checks_run=list(arguments.get("checks_run", [])),
+                passed=bool(arguments.get("passed", True)),
+                notes=arguments.get("notes"),
+            )
+            return _json_text(updated.to_dict())
+
+        if name == "rag_subtask_failed":
+            graph = await asyncio.to_thread(load_task_graph)
+            if graph is None:
+                return _text("No task graph found")
+            updated = await asyncio.to_thread(
+                mark_subtask_failed,
+                graph,
+                arguments["subtask_id"],
+                retrieved_files=list(arguments.get("retrieved_files", [])),
+                edited_files=list(arguments.get("edited_files", [])),
+                checks_run=list(arguments.get("checks_run", [])),
+                notes=arguments.get("notes"),
+            )
+            return _json_text(updated.to_dict())
+
+        if name == "rag_task_status":
+            payload = await asyncio.to_thread(task_graph_status)
+            return _json_text(payload)
+
+        if name == "rag_reflect_run":
+            payload = await asyncio.to_thread(reflect_run)
+            return _json_text(payload)
+
+        if name == "rag_learn_from_outcome":
+            payload = await asyncio.to_thread(learn_from_task_outcome, arguments.get("run_id"))
+            return _json_text(payload)
 
         if name == "rag_edit_scope":
             payload = await asyncio.to_thread(describe_task, arguments["task"], target_agent="opencode")
@@ -563,7 +725,7 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
 
 async def _run() -> None:
     if not MCP_AVAILABLE:
-        raise RuntimeError("python package 'mcp' is required to run rag-mcp")
+        raise SystemExit("python package 'mcp' is required to run rag-mcp")
     async with mcp_stdio.stdio_server() as (read_stream, write_stream):
         await _server.run(
             read_stream,

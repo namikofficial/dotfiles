@@ -423,6 +423,7 @@ def describe_task(task: str, *, repo: str | None = None, target_agent: str = "op
 def render_agent_context_markdown(payload: dict[str, Any]) -> str:
     edit_scope = payload["edit_scope"]
     missing = payload["missing_context"]
+    current_subtask = payload.get("current_subtask")
     edit_lines = [f"- edit: {item['path']} ({item['reason']})" for item in edit_scope["likely_edit"]]
     test_lines = [f"- tests: {item['path']} ({item['reason']})" for item in edit_scope["likely_tests"]]
     read_only_lines = [f"- read-only: {item['path']} ({item['reason']})" for item in edit_scope["read_only"]]
@@ -431,6 +432,7 @@ def render_agent_context_markdown(payload: dict[str, Any]) -> str:
     evidence_lines = [f"- {item}" for item in payload["evidence"][:8]]
     missing_lines = [f"- {humanize_missing_label(item)}" for item in missing["missing"]]
     command_lines = [f"- `{item}`" for item in payload["suggested_commands"]]
+    next_tool = payload.get("next_mcp_tool") or ("rag_subtask_context" if payload["ready_to_edit"] else "rag_missing_context")
     sections = [
         "# Agent context",
         "",
@@ -439,6 +441,9 @@ def render_agent_context_markdown(payload: dict[str, Any]) -> str:
         "",
         "## Verdict",
         f"ready_to_edit: {'yes' if payload['ready_to_edit'] else 'no'}",
+        "",
+        "## Current Subtask",
+        current_subtask["id"] if isinstance(current_subtask, dict) and current_subtask.get("id") else (current_subtask or "-"),
         "",
         "## Edit Scope",
         *(edit_lines or ["- none"]),
@@ -468,6 +473,9 @@ def render_agent_context_markdown(payload: dict[str, Any]) -> str:
         "- Stay inside the suggested edit scope unless direct file inspection disproves it.",
         "- Re-open the cited files before editing and treat docs/tests as evidence, not assumptions.",
         "- Do not claim checks passed unless command output confirms it.",
+        "",
+        "## Next MCP Tool To Call",
+        next_tool,
         "",
         f"run_id: {payload['run']['run_id']}",
     ]

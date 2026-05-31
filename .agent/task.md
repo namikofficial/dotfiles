@@ -1,38 +1,19 @@
 # Current Task
 
-## User Request
+## Task
+Implement task orchestration for OpenCode
 
-<!-- Raw task from user -->
-
-## Goal
-
-<!-- What must be true when done -->
+## Progress
+- [ ] T1 Implement the smallest safe change for: Implement task orchestration for OpenCode (ready) <- current
 
 ## Constraints
-
 - Keep changes minimal.
 - Prefer existing project patterns.
 - Do not rewrite unrelated code.
 - Run checks before final response.
 
-## Relevant Context
+## Current Subtask
+T1
 
-<!-- RAG MCP writes summaries here -->
-
-## Plan
-
-- [ ] Understand task
-- [ ] Retrieve relevant code context
-- [ ] Inspect files
-- [ ] Edit files
-- [ ] Run checks
-- [ ] Fix failures
-- [ ] Update memory
-
-## Work Log
-
-<!-- Agent appends progress -->
-
-## Final Summary
-
-<!-- Agent fills at end -->
+## Notes
+- none

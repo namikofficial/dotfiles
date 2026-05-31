@@ -1,0 +1,30 @@
+{
+  "created_at": 1780232895.0451818,
+  "current_subtask_id": "T1",
+  "max_subtasks": 6,
+  "mode": "auto",
+  "repo": null,
+  "run_id": "d509b0f5-bacc-4324-be25-1a029972c639",
+  "subtasks": [
+    {
+      "attempts": 0,
+      "created_at": 1780232895.045176,
+      "depends_on": [],
+      "description": "Inspect the relevant code and make the smallest change.",
+      "expected_files": [],
+      "id": "T1",
+      "last_error": null,
+      "retrieval_query": "Implement task orchestration for OpenCode\nsmall focused files tests",
+      "risk_level": "medium",
+      "status": "ready",
+      "success_check": "The change is applied and verified.",
+      "title": "Implement the smallest safe change for: Implement task orchestration for OpenCode",
+      "type": "edit",
+      "updated_at": 1780232895.0451818
+    }
+  ],
+  "summary": null,
+  "task": "Implement task orchestration for OpenCode",
+  "task_id": "task-7978bb370e37",
+  "updated_at": 1780232895.0451818
+}

@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+import asyncio
+import json
+import sqlite3
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+
+SYSTEM_DIR = Path(__file__).resolve().parents[2] / "system"
+sys.path.insert(0, str(SYSTEM_DIR))
+
+from rag import mcp_server
+from rag.orchestrator import (
+    load_task_graph,
+    mark_subtask_done,
+    next_subtask,
+    plan_task,
+    subtask_context,
+    task_graph_status,
+)
+from rag.profile import learn_profile_from_run, profile_init, profile_validate
+from rag.storage import ensure_db
+
+
+def make_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    ensure_db(conn)
+    return conn
+
+
+class TaskOrchestratorTest(unittest.TestCase):
+    TASK = "Implement a runtime-structured task orchestrator for OpenCode with per-subtask context, outcome tracking, retry handling, and profile learning"
+
+    def test_plan_task_writes_graph_and_ready_root_subtask(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.connect_db", return_value=conn
+            ):
+                graph = plan_task(self.TASK, max_subtasks=6)
+
+            graph_path = root / ".agent" / "task-graph.json"
+            self.assertTrue(graph_path.exists())
+            payload = json.loads(graph_path.read_text())
+            self.assertEqual(payload["task_id"], graph.task_id)
+            self.assertGreaterEqual(len(payload["subtasks"]), 1)
+            self.assertEqual(graph.subtasks[0].status.value, "ready")
+            self.assertEqual(graph.subtasks[0].depends_on, [])
+
+    def test_dependency_unblocks_next_subtask_after_done(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.connect_db", return_value=conn
+            ):
+                graph = plan_task(self.TASK, max_subtasks=6)
+                updated = mark_subtask_done(
+                    graph,
+                    graph.subtasks[0].id,
+                    retrieved_files=["system/rag/task_graph.py"],
+                    edited_files=["system/rag/orchestrator.py"],
+                    checks_run=["python -m unittest"],
+                    passed=True,
+                )
+                self.assertEqual(updated.subtasks[0].status.value, "done")
+                reloaded = load_task_graph(root)
+                self.assertIsNotNone(reloaded)
+                next_item = next_subtask(reloaded)
+                self.assertIsNotNone(next_item)
+                self.assertEqual(next_item.id, updated.subtasks[1].id)
+
+    def test_subtask_context_exports_a_focused_run(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.connect_db", return_value=conn
+            ):
+                graph = plan_task(self.TASK, max_subtasks=6)
+
+            stub = {
+                "conn": conn,
+                "repo": "dotfiles",
+                "config": {"repo_profile": {}},
+                "result": type("Result", (), {"rows": [], "summaries": [], "debug": {}, "facts": [], "context_sources": [], "memory": None})(),
+                "context": "context",
+                "files": ["system/rag/task_graph.py", "tests/rag/test_task_orchestrator.py"],
+                "edit_scope": {"likely_edit": [{"path": "system/rag/task_graph.py", "reason": "top hit"}], "likely_tests": [], "read_only": [], "avoid": []},
+                "missing_context": {"missing": ["test file"], "selected_files": ["system/rag/task_graph.py"]},
+                "commands": ["python -m unittest"],
+            }
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator._build_retrieval_context", return_value=stub
+            ):
+                payload = subtask_context(graph, graph.subtasks[0].id)
+
+            self.assertIn("edit_scope", payload)
+            self.assertIn("suggested_commands", payload)
+            self.assertTrue((root / ".agent" / "rag-runs" / f"{payload['run_id']}.json").exists())
+
+    def test_outcome_recording_redacts_and_appends_jsonl(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.connect_db", return_value=conn
+            ):
+                graph = plan_task("Fix auth flow with sk-live-secret", max_subtasks=4)
+                mark_subtask_done(
+                    graph,
+                    graph.subtasks[0].id,
+                    retrieved_files=["system/rag/task_graph.py"],
+                    edited_files=["system/rag/orchestrator.py"],
+                    checks_run=["pytest tests/rag"],
+                    notes="Bearer sk-live-secret",
+                )
+
+            outcome_log = (root / ".agent" / "outcomes.jsonl").read_text()
+            self.assertNotIn("sk-live-secret", outcome_log)
+            row = conn.execute("SELECT notes FROM task_outcomes LIMIT 1").fetchone()
+            self.assertIsNotNone(row)
+            self.assertNotIn("sk-live-secret", row["notes"] or "")
+            self.assertGreater(conn.execute("SELECT COUNT(*) AS c FROM eval_cases").fetchone()["c"], 0)
+
+    def test_profile_learning_updates_repo_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            path, profile = profile_init(root)
+            self.assertTrue(path.exists())
+            payload = {
+                "run_id": "run-1",
+                "task_id": "task-1",
+                "task": "Fix auth flow",
+                "repo": "dotfiles",
+                "outcome": {
+                    "edited_files": ["system/rag/cli.py"],
+                    "retrieved_files": ["system/rag/cli.py"],
+                    "missed_files": ["system/rag/mcp_server.py"],
+                    "checks_run": ["pytest tests/rag/test_task_orchestrator.py"],
+                    "passed": True,
+                },
+            }
+            learned_path, learned = learn_profile_from_run(payload, root)
+            self.assertEqual(learned_path, path)
+            self.assertIn("system/rag/cli.py", learned["boost_paths"])
+            self.assertIn("system/rag/mcp_server.py", learned["boost_paths"])
+            self.assertIn("*.py", learned["learned_file_patterns"])
+            self.assertIn("pytest tests/rag/test_task_orchestrator.py", learned["check_commands"])
+            self.assertEqual(profile_validate(root), [])
+
+    def test_mcp_tool_schemas_include_task_orchestrator_tools(self) -> None:
+        tools = asyncio.run(mcp_server._list_tools())
+        names = {tool.name for tool in tools}
+        for name in {
+            "rag_plan_task",
+            "rag_next_subtask",
+            "rag_subtask_context",
+            "rag_subtask_done",
+            "rag_subtask_failed",
+            "rag_task_status",
+            "rag_reflect_run",
+            "rag_learn_from_outcome",
+            "rag_search",
+            "rag_deep",
+        }:
+            self.assertIn(name, names)
+
+    def test_task_graph_status_returns_next_subtask_without_advancing(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.connect_db", return_value=conn
+            ):
+                graph = plan_task(self.TASK, max_subtasks=6)
+                status = task_graph_status(graph)
+
+            self.assertEqual(status["counts"]["done"], 0)
+            self.assertIsNotNone(status["next_subtask"])
+            self.assertEqual(graph.subtasks[0].status.value, "ready")
+
+
+if __name__ == "__main__":
+    unittest.main()

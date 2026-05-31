@@ -1246,6 +1246,247 @@ def record_retrieval_outcome(
     return _cursor_lastrowid(cursor)
 
 
+def _task_fingerprint(task: str) -> str:
+    return _normalize_task_fingerprint(redact_sensitive_text(task))
+
+
+def record_task_run(
+    conn: sqlite3.Connection,
+    *,
+    run_id: str,
+    repo: str | None,
+    task: str,
+    graph: dict[str, Any],
+    mode: str = "auto",
+    max_subtasks: int = 8,
+    status: str = "active",
+    current_subtask_id: str | None = None,
+) -> None:
+    now = time.time()
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO task_runs (
+            run_id, repo, task, task_fingerprint, mode, max_subtasks, graph_json, status,
+            current_subtask_id, created_at, updated_at, finished_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        """,
+        (
+            run_id,
+            repo,
+            redact_sensitive_text(task).strip(),
+            _task_fingerprint(task),
+            mode,
+            max_subtasks,
+            redact_sensitive_text(json.dumps(graph, sort_keys=True)),
+            status,
+            current_subtask_id,
+            now,
+            now,
+        ),
+    )
+    conn.commit()
+
+
+def update_task_run_status(
+    conn: sqlite3.Connection,
+    run_id: str,
+    status: str,
+    *,
+    current_subtask_id: str | None = None,
+    finished_at: float | None = None,
+) -> bool:
+    cursor = conn.execute(
+        "UPDATE task_runs SET status = ?, current_subtask_id = ?, updated_at = ?, finished_at = COALESCE(?, finished_at) WHERE run_id = ?",
+        (status, current_subtask_id, time.time(), finished_at, run_id),
+    )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def update_task_subtask_status(
+    conn: sqlite3.Connection,
+    run_id: str,
+    subtask_id: str,
+    status: str,
+    *,
+    current_subtask_id: str | None = None,
+) -> bool:
+    row = get_task_run(conn, run_id)
+    if row is None:
+        return False
+    graph = json.loads(row["graph_json"] or "{}")
+    for subtask in graph.get("subtasks", []):
+        if subtask.get("id") == subtask_id:
+            subtask["status"] = status
+            subtask["updated_at"] = time.time()
+            break
+    if current_subtask_id is not None:
+        graph["current_subtask_id"] = current_subtask_id
+    cursor = conn.execute(
+        "UPDATE task_runs SET graph_json = ?, current_subtask_id = COALESCE(?, current_subtask_id), updated_at = ? WHERE run_id = ?",
+        (json.dumps(graph, sort_keys=True), current_subtask_id, time.time(), run_id),
+    )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
+def list_task_runs(conn: sqlite3.Connection, repo: str | None, limit: int = 20) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM task_runs{clause} ORDER BY updated_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+def latest_task_run(conn: sqlite3.Connection, repo: str | None) -> sqlite3.Row | None:
+    rows = list_task_runs(conn, repo, limit=1)
+    return rows[0] if rows else None
+
+
+def get_task_run(conn: sqlite3.Connection, run_id: str) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM task_runs WHERE run_id = ?", (run_id,)).fetchone()
+
+
+def task_run_payload(row: sqlite3.Row) -> dict[str, Any]:
+    graph = json.loads(row["graph_json"] or "{}")
+    return {
+        "run_id": row["run_id"],
+        "repo": row["repo"],
+        "task": row["task"],
+        "task_fingerprint": row["task_fingerprint"],
+        "mode": row["mode"],
+        "max_subtasks": row["max_subtasks"],
+        "graph": graph,
+        "status": row["status"],
+        "current_subtask_id": row["current_subtask_id"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "finished_at": row["finished_at"],
+    }
+
+
+def record_task_outcome(
+    conn: sqlite3.Connection,
+    *,
+    repo: str | None,
+    task_id: str,
+    task: str,
+    subtask_id: str,
+    subtask_title: str,
+    subtask_type: str,
+    status: str,
+    retrieved_files: list[str],
+    edited_files: list[str],
+    missed_files: list[str],
+    useless_files: list[str],
+    checks_run: list[str],
+    passed: bool,
+    notes: str | None = None,
+    run_id: str | None = None,
+    attempt: int = 0,
+) -> dict[str, Any]:
+    now = time.time()
+    task_text = redact_sensitive_text(task).strip()
+    retrieved = _redact_text_list(retrieved_files)
+    edited = _redact_text_list(edited_files)
+    missed = _redact_text_list(missed_files)
+    useless = _redact_text_list(useless_files)
+    checks = _redact_text_list(checks_run)
+    cursor = conn.execute(
+        """
+        INSERT INTO task_outcomes (
+            run_id, repo, task_id, task, task_fingerprint, subtask_id, subtask_title, subtask_type,
+            status, retrieved_files_json, edited_files_json, missed_files_json, useless_files_json,
+            checks_run_json, passed, notes, attempt, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            run_id,
+            repo,
+            task_id,
+            task_text,
+            _task_fingerprint(task_text),
+            subtask_id,
+            redact_sensitive_text(subtask_title).strip(),
+            subtask_type,
+            status,
+            json.dumps(retrieved, sort_keys=True),
+            json.dumps(edited, sort_keys=True),
+            json.dumps(missed, sort_keys=True),
+            json.dumps(useless, sort_keys=True),
+            json.dumps(checks, sort_keys=True),
+            1 if passed else 0,
+            redact_sensitive_text(notes) if notes else None,
+            attempt,
+            now,
+            now,
+        ),
+    )
+    if repo:
+        if edited:
+            warm_retrieval_cache(conn, repo, edited, kind="edited", score=1.2 if passed else 0.8, metadata={"run_id": run_id or "", "passed": bool(passed)})
+        if missed:
+            warm_retrieval_cache(conn, repo, missed, kind="missed", score=1.1, metadata={"run_id": run_id or "", "task": task_text})
+    if passed and edited:
+        try:
+            add_eval_case(
+                conn,
+                repo,
+                task_text,
+                edited[:6],
+                mode="agent",
+                expected_symbols=[],
+                notes=f"Generated from subtask {subtask_id}",
+            )
+        except Exception:
+            pass
+    conn.commit()
+    return {
+        "outcome_id": _cursor_lastrowid(cursor),
+        "task_id": task_id,
+        "subtask_id": subtask_id,
+        "passed": bool(passed),
+        "missed_files": missed,
+    }
+
+
+def list_task_outcomes(conn: sqlite3.Connection, repo: str | None, limit: int = 50) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM task_outcomes{clause} ORDER BY created_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+def record_task_lesson(
+    conn: sqlite3.Connection,
+    *,
+    repo: str | None,
+    run_id: str | None,
+    task_id: str,
+    lesson_kind: str,
+    lesson: dict[str, Any],
+) -> int:
+    cursor = conn.execute(
+        """
+        INSERT INTO task_lessons (repo, run_id, task_id, lesson_kind, lesson_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (repo, run_id, task_id, lesson_kind, _redacted_json(lesson), time.time()),
+    )
+    conn.commit()
+    return _cursor_lastrowid(cursor)
+
+
+def list_task_lessons(conn: sqlite3.Connection, repo: str | None, limit: int = 50) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM task_lessons{clause} ORDER BY created_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+
 def list_retrieval_outcomes(conn: sqlite3.Connection, repo: str | None, limit: int = 50) -> list[sqlite3.Row]:
     clause, params = _scope_clause(repo)
     return conn.execute(

@@ -128,6 +128,8 @@ DEFAULT_REPO_PROFILE = {
     "generated_patterns": ["dist/**", "build/**", ".next/**", "coverage/**", "**/*.generated.*"],
     "package_manager": "unknown",
     "check_commands": [],
+    "learned_file_patterns": [],
+    "learned_task_patterns": [],
 }
 
 

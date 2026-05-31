@@ -1,32 +1,24 @@
 # RAG First
 
-Use this skill for any non-trivial code task.
+Use this skill for non-trivial coding tasks.
 
-## Before editing
+## Workflow
 
-1. Call the `rag` MCP server.
-2. Use `rag_agent_context` with the user request before serious edits.
-3. Inspect the suggested files directly and use the returned `edit_scope`.
-4. Stay inside `edit_scope` unless direct file inspection proves another file is required.
-5. If uncertainty remains, call `rag_missing_context` before wandering to unrelated files.
+1. Call `rag_plan_task` for broad tasks.
+2. Never solve a broad task as one giant prompt.
+3. Call `rag_next_subtask` and work only on the returned subtask.
+4. Call `rag_subtask_context` before editing files for that subtask.
+5. Inspect the suggested files directly.
+6. Stay inside the returned edit scope unless inspection proves otherwise.
+7. Run the suggested checks for the current subtask.
+8. Call `rag_subtask_done` or `rag_subtask_failed` after each subtask.
+9. Repeat until `rag_task_status` reports completion.
+10. Call `rag_reflect_run` and `rag_learn_from_outcome` at the end.
 
-## While editing
+## Guardrails
 
-- Follow existing project patterns — do not invent new ones.
-- Do not rewrite unrelated code.
-- Update tightly coupled docs and tests before closing the task.
-- Use `rag_find_tests` and `rag_explain_file` when the next file or test target is unclear.
+- Do not claim checks passed unless command output confirms it.
+- Do not widen the edit scope without inspecting the code that justifies it.
+- Keep failed retries local to the failing subtask.
+- Treat `.agent/task-graph.json` as the source of truth for the current run.
 
-## After editing
-
-1. Run the checks suggested by `rag_agent_context` or `rag_suggest_commands`.
-2. Do not claim checks passed unless command output confirms it.
-3. Call `rag_record_outcome` with retrieved files, edited files, checks run, and whether the task passed.
-4. Store durable facts only when they reflect stable project knowledge — not temporary guesses.
-
-## Do not use RAG to
-
-- Dump huge context blindly without reading it.
-- Replace direct file inspection when you already know the path.
-- Write unrelated files.
-- Store temporary working notes as permanent memory.
