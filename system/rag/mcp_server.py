@@ -320,6 +320,17 @@ async def _list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="rag_subtask_running",
+            description="Mark a subtask as running and increment its attempt counter.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "subtask_id": {"type": "string"},
+                },
+                "required": ["subtask_id"],
+            },
+        ),
+        types.Tool(
             name="rag_subtask_done",
             description="Record a completed subtask outcome, checks, and edited files.",
             inputSchema={
@@ -565,6 +576,13 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             graph = await asyncio.to_thread(load_task_graph)
             payload = await asyncio.to_thread(subtask_context, graph, arguments["subtask_id"])
             return _json_text(payload)
+
+        if name == "rag_subtask_running":
+            graph = await asyncio.to_thread(load_task_graph)
+            if graph is None:
+                return _text("No task graph found")
+            updated = await asyncio.to_thread(mark_subtask_running, graph, arguments["subtask_id"])
+            return _json_text(updated.to_dict())
 
         if name == "rag_subtask_done":
             graph = await asyncio.to_thread(load_task_graph)

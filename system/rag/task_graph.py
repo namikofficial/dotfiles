@@ -191,6 +191,8 @@ class TaskGraph:
         ready: list[Subtask] = []
         done_ids = {subtask.id for subtask in self.subtasks if subtask.status == SubtaskStatus.done}
         for subtask in self.subtasks:
+            if any(self.get_subtask(dep) is None for dep in subtask.depends_on):
+                continue
             if subtask.status == SubtaskStatus.ready:
                 if all(dep in done_ids for dep in subtask.depends_on):
                     ready.append(subtask)
@@ -207,11 +209,10 @@ class TaskGraph:
     def active_subtask(self) -> Subtask | None:
         if self.current_subtask_id:
             current = self.get_subtask(self.current_subtask_id)
-            if current is not None:
+            if current is not None and current.status not in {SubtaskStatus.done, SubtaskStatus.failed, SubtaskStatus.skipped}:
                 return current
         for subtask in self.subtasks:
             if subtask.status == SubtaskStatus.running:
                 return subtask
         ready = self.ready_subtasks()
         return ready[0] if ready else None
-

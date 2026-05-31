@@ -23,7 +23,9 @@ def write_task_run_export(root: Path, payload: dict[str, Any]) -> Path:
     task_run_dir(root).mkdir(parents=True, exist_ok=True)
     path = task_run_path(root, str(payload["run_id"]))
     redacted = json.loads(redact_sensitive_text(json.dumps(payload, sort_keys=True)))
-    path.write_text(json.dumps(redacted, indent=2, sort_keys=True) + "\n")
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(redacted, handle, indent=2, sort_keys=True)
+        handle.write("\n")
     return path
 
 
@@ -39,4 +41,3 @@ def list_task_run_exports(root: Path) -> list[Path]:
     if not run_dir.is_dir():
         return []
     return sorted(run_dir.glob("*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
-

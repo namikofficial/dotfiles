@@ -17,11 +17,13 @@ from rag import mcp_server
 from rag.orchestrator import (
     load_task_graph,
     mark_subtask_done,
+    mark_subtask_running,
     next_subtask,
     plan_task,
     subtask_context,
     task_graph_status,
 )
+from rag.task_graph import SubtaskStatus
 from rag.profile import learn_profile_from_run, profile_init, profile_validate
 from rag.storage import ensure_db
 
@@ -100,13 +102,27 @@ class TaskOrchestratorTest(unittest.TestCase):
                 "commands": ["python -m unittest"],
             }
             with patch("rag.orchestrator.repo_root", return_value=root), patch(
-                "rag.orchestrator._build_retrieval_context", return_value=stub
-            ):
+                "rag.orchestrator.connect_db", return_value=conn
+            ), patch("rag.orchestrator._build_retrieval_context", return_value=stub):
                 payload = subtask_context(graph, graph.subtasks[0].id)
 
             self.assertIn("edit_scope", payload)
             self.assertIn("suggested_commands", payload)
             self.assertTrue((root / ".agent" / "rag-runs" / f"{payload['run_id']}.json").exists())
+            self.assertEqual(graph.get_subtask(graph.subtasks[0].id).status.value, "running")
+
+    def test_running_tool_can_be_called_explicitly(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.connect_db", return_value=conn
+            ):
+                graph = plan_task(self.TASK, max_subtasks=6)
+                updated = mark_subtask_running(graph, graph.subtasks[0].id)
+            self.assertEqual(updated.subtasks[0].status.value, "running")
+            self.assertGreaterEqual(updated.subtasks[0].attempts, 1)
 
     def test_outcome_recording_redacts_and_appends_jsonl(self) -> None:
         conn = make_connection()
@@ -167,6 +183,7 @@ class TaskOrchestratorTest(unittest.TestCase):
             "rag_plan_task",
             "rag_next_subtask",
             "rag_subtask_context",
+            "rag_subtask_running",
             "rag_subtask_done",
             "rag_subtask_failed",
             "rag_task_status",
@@ -191,6 +208,23 @@ class TaskOrchestratorTest(unittest.TestCase):
             self.assertEqual(status["counts"]["done"], 0)
             self.assertIsNotNone(status["next_subtask"])
             self.assertEqual(graph.subtasks[0].status.value, "ready")
+
+    def test_missing_dependency_blocks_subtask(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.connect_db", return_value=conn
+            ):
+                graph = plan_task(self.TASK, max_subtasks=6)
+                graph.subtasks[1].depends_on = ["T999"]
+                graph.subtasks[1].status = SubtaskStatus.ready
+                status = task_graph_status(graph)
+            blocked = graph.get_subtask("T2")
+            self.assertEqual(blocked.status.value, "blocked")
+            self.assertIn("missing dependencies", blocked.last_error or "")
+            self.assertGreaterEqual(status["counts"]["blocked"], 1)
 
 
 if __name__ == "__main__":
