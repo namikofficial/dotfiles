@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
+
+from .storage import git_root_for
 
 
 BUILTIN_PROFILES: dict[str, dict] = {
@@ -113,3 +116,101 @@ def score_profiles(task: str, repo_signals: list[str] | None = None) -> list[Pro
             score += 0.25
         matches.append(ProfileMatch(profile_id, min(score, 1.0)))
     return sorted(matches, key=lambda match: match.score, reverse=True)
+
+
+DEFAULT_REPO_PROFILE = {
+    "repo_type": "generic",
+    "important_dirs": [],
+    "ignore_dirs": ["node_modules", ".git", ".venv", ".rag", ".agent", "__pycache__"],
+    "boost_paths": [],
+    "test_patterns": ["tests/**", "**/test_*.py", "**/*_test.py", "**/*.spec.*", "**/*.test.*"],
+    "entrypoint_patterns": [],
+    "generated_patterns": ["dist/**", "build/**", ".next/**", "coverage/**", "**/*.generated.*"],
+    "package_manager": "unknown",
+    "check_commands": [],
+}
+
+
+def repo_profile_path(root: Path | None = None) -> Path:
+    repo_root = root or git_root_for(Path.cwd()) or Path.cwd()
+    return repo_root / ".rag" / "profile.json"
+
+
+def infer_repo_profile(root: Path | None = None) -> dict:
+    repo_root = root or git_root_for(Path.cwd()) or Path.cwd()
+    profile = json.loads(json.dumps(DEFAULT_REPO_PROFILE))
+    if (repo_root / "package.json").exists():
+        profile["repo_type"] = "node"
+        if (repo_root / "pnpm-lock.yaml").exists():
+            profile["package_manager"] = "pnpm"
+            profile["check_commands"] = ["pnpm typecheck", "pnpm test"]
+        elif (repo_root / "package-lock.json").exists():
+            profile["package_manager"] = "npm"
+            profile["check_commands"] = ["npm run typecheck", "npm test"]
+    elif (repo_root / "Cargo.toml").exists():
+        profile["repo_type"] = "rust"
+        profile["package_manager"] = "cargo"
+        profile["check_commands"] = ["cargo test"]
+    elif (repo_root / "pyproject.toml").exists():
+        profile["repo_type"] = "python"
+        profile["package_manager"] = "python"
+        profile["check_commands"] = ["python -m unittest discover -s tests -p 'test_*.py'"]
+    if (repo_root / "tests").exists():
+        profile["important_dirs"].append("tests")
+    if (repo_root / "system").exists():
+        profile["important_dirs"].append("system")
+    if (repo_root / "src").exists():
+        profile["important_dirs"].append("src")
+    if (repo_root / "setup").exists():
+        profile["important_dirs"].append("setup")
+    if (repo_root / "configs").exists():
+        profile["important_dirs"].append("configs")
+    if (repo_root / "app.py").exists():
+        profile["entrypoint_patterns"].append("app.py")
+    return profile
+
+
+def validate_repo_profile(profile: dict) -> list[str]:
+    required = set(DEFAULT_REPO_PROFILE)
+    problems: list[str] = []
+    for key in sorted(required):
+        if key not in profile:
+            problems.append(f"missing {key}")
+    for key in sorted(profile):
+        if key not in DEFAULT_REPO_PROFILE:
+            problems.append(f"unknown {key}")
+    for key in (
+        "important_dirs",
+        "ignore_dirs",
+        "boost_paths",
+        "test_patterns",
+        "entrypoint_patterns",
+        "generated_patterns",
+        "check_commands",
+    ):
+        if key in profile and not isinstance(profile[key], list):
+            problems.append(f"{key} must be a list")
+    return problems
+
+
+def load_repo_profile(root: Path | None = None) -> dict:
+    path = repo_profile_path(root)
+    if not path.exists():
+        return infer_repo_profile(path.parent.parent if path.parent.name == ".rag" else path.parent)
+    data = json.loads(path.read_text())
+    profile = json.loads(json.dumps(DEFAULT_REPO_PROFILE))
+    profile.update(data)
+    return profile
+
+
+def save_repo_profile(profile: dict, root: Path | None = None) -> Path:
+    path = repo_profile_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(profile, indent=2, sort_keys=True) + "\n")
+    return path
+
+
+def init_repo_profile(root: Path | None = None) -> tuple[Path, dict]:
+    profile = infer_repo_profile(root)
+    path = save_repo_profile(profile, root)
+    return path, profile

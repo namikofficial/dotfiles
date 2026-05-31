@@ -26,8 +26,12 @@ class V7MigrationsTest(unittest.TestCase):
         self.assertIn("profile_usage", tables)
         self.assertIn("execution_runs", tables)
         self.assertIn("memory_candidates", tables)
+        self.assertIn("retrieval_runs", tables)
+        self.assertIn("retrieval_outcomes", tables)
+        self.assertIn("retrieval_cache", tables)
+        self.assertIn("eval_runs", tables)
         migrations = conn.execute("SELECT COUNT(*) AS count FROM _schema_migrations").fetchone()["count"]
-        self.assertGreaterEqual(migrations, 4)
+        self.assertGreaterEqual(migrations, 5)
 
     def test_builtin_profiles_are_seeded(self) -> None:
         conn = sqlite3.connect(":memory:")

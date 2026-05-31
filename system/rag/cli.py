@@ -29,7 +29,20 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from .agent_support import (
+    build_edit_scope,
+    describe_task,
+    evaluate_query,
+    file_card,
+    perf_report_from_result,
+    record_outcome,
+    render_agent_context_markdown,
+    repo_root,
+    runtime_config,
+    suggest_commands,
+)
 from .code_intel import tree_sitter_available
+from .evals import aggregate_eval_metrics, coverage_score, mean_reciprocal_rank, ndcg_at_k, recall_at_k
 from .indexing import index_repo
 from .llm import ask_llm, complete_llm, models_url
 from .contracts import AgentPlan, Target
@@ -45,6 +58,7 @@ from .memory import (
     store_context_pack,
     write_context_pack_file,
 )
+from .profiles import init_repo_profile, load_repo_profile, save_repo_profile, validate_repo_profile
 from .retrieval import (
     approx_tokens,
     analysis_for_plan,
@@ -83,10 +97,16 @@ from .state import (
     compact_session,
     detect_memory_conflicts,
     eval_case_expected_files,
+    eval_case_expected_symbols,
+    explain_retrieval_run,
     extract_memory_from_compaction,
     format_operational_state,
+    get_eval_run,
     get_eval_case,
+    get_retrieval_run,
     get_session,
+    latest_retrieval_run,
+    list_eval_runs,
     list_git_contexts,
     list_github_contexts,
     list_commands,
@@ -94,19 +114,26 @@ from .state import (
     list_eval_cases,
     list_errors,
     list_memory_entries,
+    list_retrieval_cache,
+    list_retrieval_runs,
     list_session_compactions,
     list_sessions,
     list_test_failures,
     list_todos,
     load_operational_state,
+    record_eval_run,
+    record_retrieval_run,
     record_session,
     record_execution_run,
     remember_memory,
     save_handoff,
     session_compaction_details,
     session_files,
+    retrieval_run_payload,
     upsert_github_context,
     update_todo_status,
+    warm_retrieval_cache,
+    clear_retrieval_cache,
 )
 from .storage import (
     collection_vector_size,
@@ -591,6 +618,108 @@ def render_query_inspection(result, mode: str, route_reason: str) -> str:
     return "\n".join(lines)
 
 
+def _json_print(payload: object) -> None:
+    console.print(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def _retrieval_plan_payload(result, *, query: str, repo: str | None, mode: str) -> dict[str, object]:
+    return {
+        "query": query,
+        "repo": repo,
+        "mode": mode,
+        "intent": getattr(result.plan, "intent", None),
+        "rewrites": list(getattr(result.plan, "rewrites", []) or []),
+        "analysis": getattr(result.plan, "analysis", None).__dict__ if getattr(result.plan, "analysis", None) else None,
+    }
+
+
+def _record_cli_retrieval_run(
+    *,
+    conn: sqlite3.Connection,
+    repo: str | None,
+    query: str,
+    mode: str,
+    result,
+    context: str,
+    selected_files: list[str],
+    route_reason: str,
+) -> dict[str, object]:
+    repo_profile = load_repo_profile(repo_root())
+    edit_scope = build_edit_scope(conn, repo, result.rows, result.summaries, query, repo_profile)
+    commands = suggest_commands(repo_root(), selected_files, query, repo_profile)
+    return record_retrieval_run(
+        conn,
+        run_id=str(uuid.uuid4()),
+        repo=repo,
+        branch=git_branch_for(repo_root()),
+        query=query,
+        mode=mode,
+        intent=getattr(result.plan, "intent", None),
+        plan=_retrieval_plan_payload(result, query=query, repo=repo, mode=mode),
+        rewrites=list(result.debug.get("rewrites", [])),
+        candidate_counts={
+            "semantic": int(result.debug.get("semantic_hits", 0)),
+            "keyword": int(result.debug.get("keyword_hits", 0)),
+            "semantic_lines": int(result.debug.get("semantic_line_hits", 0)),
+            "symbol": int(result.debug.get("symbol_hits", 0)),
+            "recent": int(result.debug.get("recent_hits", 0)),
+            "facts": int(result.debug.get("fact_hits", 0)),
+            "summaries": int(result.debug.get("file_summary_hits", 0)),
+            "memory": int(bool(result.memory)),
+            "github": int(result.debug.get("github_refs", 0)),
+            "test_failures": int(result.debug.get("test_failures", 0)),
+            "errors": int(result.debug.get("error_matches", 0)),
+        },
+        selected_files=selected_files,
+        edit_scope=edit_scope,
+        missing_context={
+            "sufficient": not bool(result.debug.get("missing_context_remaining")),
+            "missing": list(result.debug.get("missing_context_remaining", [])),
+            "desired": list(result.debug.get("missing_context_desired", [])),
+            "added": list(result.debug.get("missing_context_added", [])),
+            "selected_files": selected_files,
+            "followup_queries": [
+                f"inspect {humanize_missing_label(label)} for {query}"
+                for label in list(result.debug.get("missing_context_remaining", []))[:3]
+            ],
+        },
+        packed_context_token_estimate=approx_tokens(context),
+        timings_ms=result.debug.get("timings_ms", {}),
+        warnings=[route_reason] if route_reason else [],
+        metadata={
+            "suggested_commands": commands,
+            "context_sources": [source.title for source in result.context_sources],
+        },
+        export_root=repo_root(),
+    )
+
+
+def _learn_profile_from_run(payload: dict[str, object]) -> tuple[Path, dict]:
+    root = repo_root()
+    profile = load_repo_profile(root)
+    edit_scope = payload.get("edit_scope", {}) or {}
+    metadata = payload.get("metadata", {}) or {}
+    for key in ("likely_edit", "likely_tests"):
+        for entry in edit_scope.get(key, []):
+            path = entry.get("path")
+            if not path:
+                continue
+            if key == "likely_tests":
+                profile.setdefault("test_patterns", [])
+                if path not in profile["test_patterns"]:
+                    profile["test_patterns"].append(path)
+            else:
+                profile.setdefault("boost_paths", [])
+                if path not in profile["boost_paths"]:
+                    profile["boost_paths"].append(path)
+    for command_text in metadata.get("suggested_commands", []):
+        profile.setdefault("check_commands", [])
+        if command_text not in profile["check_commands"]:
+            profile["check_commands"].append(command_text)
+    path = save_repo_profile(profile, root)
+    return path, profile
+
+
 def run_query_mode(args: argparse.Namespace) -> int:
     timings: list[tuple[str, float]] = []
     stage_started = time.perf_counter()
@@ -608,6 +737,7 @@ def run_query_mode(args: argparse.Namespace) -> int:
     conn = connect_db()
     client = get_qdrant(effective_config)
     repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    effective_config = runtime_config(effective_config, conn, repo, args.query)
     mark("connect")
     result = retrieve(
         conn,
@@ -637,6 +767,16 @@ def run_query_mode(args: argparse.Namespace) -> int:
         operational_state_tokens=int(effective_config["answer"]["operational_state_tokens"]),
     )
     mark("context_pack")
+    run_payload = _record_cli_retrieval_run(
+        conn=conn,
+        repo=repo,
+        query=args.query,
+        mode=mode,
+        result=result,
+        context=context,
+        selected_files=files,
+        route_reason=route_reason,
+    )
     if getattr(args, "show_context", False):
         print_retrieval_explain(result.debug, result.rows)
         console.print(f"\n[bold]Route:[/bold] {mode} ({route_reason})")
@@ -661,6 +801,7 @@ def run_query_mode(args: argparse.Namespace) -> int:
         if getattr(args, "save_handoff", False):
             handoff_path = save_handoff(repo, args.query, output)
             console.print(f"\n[green]Saved[/green] handoff to {handoff_path}")
+        console.print(f"[dim]Retrieval run {run_payload['run_id']} traced.[/dim]")
         console.print(f"\n[dim]Session {session_id} saved.[/dim]")
         return 0
     answer = ask_llm(effective_config, args.query, context, mode=mode)
@@ -674,6 +815,7 @@ def run_query_mode(args: argparse.Namespace) -> int:
     if mode in {"deep", "agent"}:
         compact_session(conn, session_id)
         mark("compact")
+    console.print(f"\n[dim]Retrieval run {run_payload['run_id']} traced.[/dim]")
     console.print(f"\n[dim]Session {session_id} saved.[/dim]")
     if os.environ.get("RAG_TIMINGS"):
         console.print("\n[bold]Timings:[/bold]")
@@ -856,6 +998,180 @@ def cmd_learn(args: argparse.Namespace) -> int:
     for row in rows:
         table.add_row(row["id"], row["status"], row["kind"], f"{row['confidence']:.2f}", row["content"][:90])
     console.print(table)
+    return 0
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    if args.run_command == "list":
+        rows = list_retrieval_runs(conn, repo, limit=args.limit)
+        table = Table(title="Retrieval runs")
+        table.add_column("run_id")
+        table.add_column("mode")
+        table.add_column("query")
+        table.add_column("tokens", justify="right")
+        for row in rows:
+            payload = retrieval_run_payload(row)
+            table.add_row(
+                payload["run_id"][:8],
+                str(payload["mode"]),
+                str(payload["query"])[:80],
+                str(payload["packed_context_token_estimate"]),
+            )
+        console.print(table)
+        return 0
+    row = latest_retrieval_run(conn, repo) if args.run_command == "latest" else get_retrieval_run(conn, args.run_id)
+    if row is None:
+        console.print("[yellow]No retrieval run found.[/yellow]")
+        return 1
+    if args.run_command == "explain":
+        console.print(explain_retrieval_run(row))
+    else:
+        _json_print(retrieval_run_payload(row))
+    return 0
+
+
+def cmd_profile(args: argparse.Namespace) -> int:
+    root = repo_root()
+    if args.profile_command == "init":
+        path, profile = init_repo_profile(root)
+        console.print(f"[green]Wrote[/green] {path}")
+        _json_print(profile)
+        return 0
+    profile = load_repo_profile(root)
+    if args.profile_command == "show":
+        _json_print(profile)
+        return 0
+    if args.profile_command == "validate":
+        problems = validate_repo_profile(profile)
+        if problems:
+            for problem in problems:
+                console.print(f"- {problem}")
+            return 1
+        console.print("[green]Profile valid.[/green]")
+        return 0
+    if args.profile_command == "learn-from-run":
+        conn = connect_db()
+        row = latest_retrieval_run(conn, None) if args.run_id == "latest" else get_retrieval_run(conn, args.run_id)
+        if row is None:
+            console.print("[yellow]No retrieval run found.[/yellow]")
+            return 1
+        path, learned = _learn_profile_from_run(retrieval_run_payload(row))
+        console.print(f"[green]Updated[/green] {path}")
+        _json_print(learned)
+        return 0
+    raise SystemExit(f"Unknown profile command: {args.profile_command}")
+
+
+def cmd_cache(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    if args.cache_command == "warm":
+        paths = list(args.path or [])
+        if not paths:
+            latest = latest_retrieval_run(conn, repo)
+            if latest is not None:
+                paths = list(retrieval_run_payload(latest).get("selected_files", []))[:10]
+        if not paths:
+            console.print("[yellow]No files available to warm.[/yellow]")
+            return 1
+        warm_retrieval_cache(conn, repo, paths, kind="hot", metadata={"source": "manual-warm"})
+        console.print(f"[green]Warmed[/green] cache for {len(paths)} paths")
+        return 0
+    if args.cache_command == "clear":
+        removed = clear_retrieval_cache(conn, repo)
+        console.print(f"[green]Cleared[/green] {removed} cache rows")
+        return 0
+    rows = list_retrieval_cache(conn, repo, limit=args.limit)
+    table = Table(title="Retrieval cache")
+    table.add_column("path")
+    table.add_column("kind")
+    table.add_column("hits", justify="right")
+    table.add_column("score", justify="right")
+    for row in rows:
+        table.add_row(row["path"], row["kind"], str(row["hits"]), f"{row['score']:.2f}")
+    console.print(table)
+    return 0
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    if args.eval_command == "add":
+        case_id = add_eval_case(
+            conn,
+            repo,
+            args.query,
+            args.expect_file or [],
+            mode=args.mode,
+            expected_symbols=args.expect_symbol or [],
+            notes=getattr(args, "notes", None),
+        )
+        console.print(f"[green]Added[/green] eval case {case_id}")
+        return 0
+    if args.eval_command == "report":
+        rows = list_eval_runs(conn, repo, limit=args.limit)
+        if not rows:
+            console.print("[yellow]No eval runs recorded.[/yellow]")
+            return 0
+        latest = json.loads(rows[0]["metrics_json"] or "{}")
+        _json_print(latest)
+        return 0
+    if args.eval_command == "diff":
+        before = get_eval_run(conn, args.before)
+        after = get_eval_run(conn, args.after)
+        if before is None or after is None:
+            console.print("[yellow]Missing eval run.[/yellow]")
+            return 1
+        before_metrics = json.loads(before["metrics_json"] or "{}").get("summary", {})
+        after_metrics = json.loads(after["metrics_json"] or "{}").get("summary", {})
+        diff = {
+            key: round(float(after_metrics.get(key, 0.0)) - float(before_metrics.get(key, 0.0)), 4)
+            for key in sorted(set(before_metrics) | set(after_metrics))
+        }
+        _json_print({"before": args.before, "after": args.after, "delta": diff})
+        return 0
+    cases = list_eval_cases(conn, repo, limit=args.limit)
+    if not cases:
+        console.print("[yellow]No eval cases recorded.[/yellow]")
+        return 0
+    case_results: list[dict[str, object]] = []
+    for row in cases:
+        outcome = evaluate_query(row["query"], repo=repo, mode=row["mode"])
+        top_files = list(outcome["top_files"])
+        expected_files = eval_case_expected_files(row)
+        expected_symbols = eval_case_expected_symbols(row)
+        expected_set = set(expected_files)
+        case_results.append(
+            {
+                "case_id": row["case_id"],
+                "query": row["query"],
+                "mode": row["mode"],
+                "expected_files": expected_files,
+                "expected_symbols": expected_symbols,
+                "top_files": top_files,
+                "latency_ms": outcome["latency_ms"],
+                "packed_token_count": outcome["packed_token_count"],
+                "candidate_counts_by_channel": outcome["candidate_counts_by_channel"],
+                "recall_at_5": recall_at_k(expected_set, top_files, 5),
+                "recall_at_10": recall_at_k(expected_set, top_files, 10),
+                "mrr": mean_reciprocal_rank(expected_set, top_files),
+                "ndcg": ndcg_at_k(expected_set, top_files, 10),
+                "coverage_score": coverage_score(expected_set, top_files),
+                "matched_files": [path for path in expected_files if path in set(top_files)],
+                "file_ranks": {
+                    path: top_files.index(path) + 1
+                    for path in expected_files
+                    if path in top_files
+                },
+            }
+        )
+    metrics = aggregate_eval_metrics(case_results)
+    payload = {"summary": metrics, "cases": case_results}
+    run_id = str(uuid.uuid4())
+    record_eval_run(conn, run_id=run_id, repo=repo, case_count=len(case_results), metrics=payload)
+    _json_print({"run_id": run_id, **payload})
     return 0
 
 
@@ -1663,9 +1979,28 @@ def cmd_context(args: argparse.Namespace) -> int:
 def cmd_search(args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
-    client = get_qdrant(config)
     repo = infer_repo_filter(conn, args.repo)
+    config = runtime_config(config, conn, repo, args.query)
+    client = get_qdrant(config)
     result = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
+    context, files = gather_context(
+        result.rows,
+        config,
+        facts=result.facts,
+        summaries=result.summaries,
+        context_sources=result.context_sources,
+        memory=result.memory["summary"] if result.memory else None,
+    )
+    run_payload = _record_cli_retrieval_run(
+        conn=conn,
+        repo=repo,
+        query=args.query,
+        mode="search",
+        result=result,
+        context=context,
+        selected_files=files,
+        route_reason="search",
+    )
     if args.explain:
         print_retrieval_explain(result.debug, result.rows)
         console.print()
@@ -1685,6 +2020,7 @@ def cmd_search(args: argparse.Namespace) -> int:
             preview[:120],
         )
     console.print(table)
+    console.print(f"\n[dim]Retrieval run {run_payload['run_id']} traced.[/dim]")
     return 0
 
 
@@ -3028,6 +3364,68 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip the reranker for this query.",
     )
     search_parser.set_defaults(func=cmd_search, needs_qdrant=True)
+
+    run_parser = subparsers.add_parser("run", help="Inspect stored retrieval traces")
+    run_subparsers = run_parser.add_subparsers(dest="run_command", required=True)
+    run_latest_parser = run_subparsers.add_parser("latest", help="Show the latest retrieval run as JSON")
+    run_latest_parser.add_argument("--repo", help="Filter to one repo")
+    run_latest_parser.set_defaults(func=cmd_run)
+    run_show_parser = run_subparsers.add_parser("show", help="Show one retrieval run as JSON")
+    run_show_parser.add_argument("run_id")
+    run_show_parser.set_defaults(func=cmd_run)
+    run_explain_parser = run_subparsers.add_parser("explain", help="Explain one retrieval run")
+    run_explain_parser.add_argument("run_id")
+    run_explain_parser.set_defaults(func=cmd_run)
+    run_list_parser = run_subparsers.add_parser("list", help="List retrieval runs")
+    run_list_parser.add_argument("--repo", help="Filter to one repo")
+    run_list_parser.add_argument("--limit", type=int, default=20)
+    run_list_parser.set_defaults(func=cmd_run)
+
+    profile_parser = subparsers.add_parser("profile", help="Manage .rag/profile.json")
+    profile_subparsers = profile_parser.add_subparsers(dest="profile_command", required=True)
+    profile_subparsers.add_parser("init", help="Create .rag/profile.json").set_defaults(func=cmd_profile)
+    profile_subparsers.add_parser("show", help="Show the repo profile").set_defaults(func=cmd_profile)
+    profile_subparsers.add_parser("validate", help="Validate the repo profile").set_defaults(func=cmd_profile)
+    profile_learn_parser = profile_subparsers.add_parser("learn-from-run", help="Learn profile hints from a retrieval run")
+    profile_learn_parser.add_argument("run_id", help="Run ID or latest")
+    profile_learn_parser.set_defaults(func=cmd_profile)
+
+    cache_parser = subparsers.add_parser("cache", help="Manage retrieval cache hints")
+    cache_subparsers = cache_parser.add_subparsers(dest="cache_command", required=True)
+    cache_warm_parser = cache_subparsers.add_parser("warm", help="Warm cache paths")
+    cache_warm_parser.add_argument("--repo", help="Filter to one repo")
+    cache_warm_parser.add_argument("--path", action="append", help="Path to warm (repeatable)")
+    cache_warm_parser.set_defaults(func=cmd_cache)
+    cache_stats_parser = cache_subparsers.add_parser("stats", help="Show cache entries")
+    cache_stats_parser.add_argument("--repo", help="Filter to one repo")
+    cache_stats_parser.add_argument("--limit", type=int, default=20)
+    cache_stats_parser.set_defaults(func=cmd_cache)
+    cache_clear_parser = cache_subparsers.add_parser("clear", help="Clear cache entries")
+    cache_clear_parser.add_argument("--repo", help="Filter to one repo")
+    cache_clear_parser.set_defaults(func=cmd_cache)
+
+    eval_parser = subparsers.add_parser("eval", help="Manage retrieval eval cases and runs")
+    eval_subparsers = eval_parser.add_subparsers(dest="eval_command", required=True)
+    eval_add_parser = eval_subparsers.add_parser("add", help="Add an eval case")
+    eval_add_parser.add_argument("query")
+    eval_add_parser.add_argument("--repo", help="Filter to one repo")
+    eval_add_parser.add_argument("--mode", choices=["quick", "deep", "agent"], default="deep")
+    eval_add_parser.add_argument("--expect-file", action="append", default=[])
+    eval_add_parser.add_argument("--expect-symbol", action="append", default=[])
+    eval_add_parser.add_argument("--notes")
+    eval_add_parser.set_defaults(func=cmd_eval)
+    eval_run_parser = eval_subparsers.add_parser("run", help="Run retrieval evals")
+    eval_run_parser.add_argument("--repo", help="Filter to one repo")
+    eval_run_parser.add_argument("--limit", type=int, default=50)
+    eval_run_parser.set_defaults(func=cmd_eval)
+    eval_report_parser = eval_subparsers.add_parser("report", help="Show the latest eval run")
+    eval_report_parser.add_argument("--repo", help="Filter to one repo")
+    eval_report_parser.add_argument("--limit", type=int, default=20)
+    eval_report_parser.set_defaults(func=cmd_eval)
+    eval_diff_parser = eval_subparsers.add_parser("diff", help="Diff two eval runs")
+    eval_diff_parser.add_argument("--before", required=True)
+    eval_diff_parser.add_argument("--after", required=True)
+    eval_diff_parser.set_defaults(func=cmd_eval)
 
     add_query_parser("inspect", "Inspect query rewrites, intent, and routing details", cmd_inspect, include_mode_flag=True)
     add_query_parser("missing", "Show missing-context detection for a query", cmd_missing, include_mode_flag=True)

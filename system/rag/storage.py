@@ -503,6 +503,7 @@ def ensure_db(conn: sqlite3.Connection) -> None:
     ensure_column(conn, "error_memory", "file_paths_json", "TEXT NOT NULL DEFAULT '[]'")
     ensure_column(conn, "error_memory", "command", "TEXT")
     ensure_column(conn, "error_memory", "exit_code", "INTEGER")
+    ensure_column(conn, "eval_cases", "expected_symbols_json", "TEXT NOT NULL DEFAULT '[]'")
     conn.execute("UPDATE chunks SET index_schema = ? WHERE index_schema IS NULL", (INDEX_SCHEMA,))
     conn.execute(
         "UPDATE chunks SET embedding_model = ? WHERE embedding_model IS NULL",

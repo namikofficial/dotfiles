@@ -926,15 +926,26 @@ def add_eval_case(
     expected_files: list[str],
     *,
     mode: str = "deep",
+    expected_symbols: list[str] | None = None,
     notes: str | None = None,
 ) -> int:
     now = time.time()
     cursor = conn.execute(
         """
-        INSERT INTO eval_cases (repo, query, mode, expected_files_json, notes, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO eval_cases (
+            repo, query, mode, expected_files_json, expected_symbols_json, notes, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (repo, query.strip(), mode, json.dumps(expected_files), notes, now, now),
+        (
+            repo,
+            query.strip(),
+            mode,
+            json.dumps(expected_files),
+            json.dumps(expected_symbols or []),
+            notes,
+            now,
+            now,
+        ),
     )
     conn.commit()
     return _cursor_lastrowid(cursor)
@@ -958,6 +969,319 @@ def get_eval_case(conn: sqlite3.Connection, case_id: int) -> sqlite3.Row | None:
 def eval_case_expected_files(row: sqlite3.Row) -> list[str]:
     return json.loads(row["expected_files_json"] or "[]")
 
+
+def eval_case_expected_symbols(row: sqlite3.Row) -> list[str]:
+    return json.loads(row["expected_symbols_json"] or "[]")
+
+
+def _redacted_json(value: Any) -> str:
+    return redact_sensitive_text(json.dumps(value, sort_keys=True))
+
+
+def _load_json_column(row: sqlite3.Row, column: str, default: Any) -> Any:
+    raw = row[column]
+    if not raw:
+        return default
+    return json.loads(raw)
+
+
+def _normalize_task_fingerprint(task: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", " ", task.lower()).strip()
+    return hashlib.sha1(normalized.encode("utf-8")).hexdigest()
+
+
+def _write_run_export(export_root: Path | None, payload: dict[str, Any]) -> Path | None:
+    if export_root is None:
+        return None
+    run_dir = export_root / ".agent" / "rag-runs"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    path = run_dir / f"{payload['run_id']}.json"
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return path
+
+
+def record_retrieval_run(
+    conn: sqlite3.Connection,
+    *,
+    run_id: str,
+    repo: str | None,
+    branch: str | None,
+    query: str,
+    mode: str,
+    intent: str | None,
+    plan: dict[str, Any],
+    rewrites: list[str],
+    candidate_counts: dict[str, int],
+    selected_files: list[str],
+    edit_scope: dict[str, Any],
+    missing_context: dict[str, Any],
+    packed_context_token_estimate: int,
+    timings_ms: dict[str, float],
+    warnings: list[str] | None = None,
+    errors: list[str] | None = None,
+    metadata: dict[str, Any] | None = None,
+    export_root: Path | None = None,
+    created_at: float | None = None,
+) -> dict[str, Any]:
+    now = created_at or time.time()
+    sanitized = {
+        "run_id": run_id,
+        "timestamp": now,
+        "repo": redact_sensitive_text(repo or ""),
+        "branch": redact_sensitive_text(branch or ""),
+        "query": redact_sensitive_text(query),
+        "mode": mode,
+        "intent": intent or "",
+        "plan": json.loads(_redacted_json(plan or {})),
+        "rewrites": _redact_text_list(rewrites or []),
+        "candidate_counts": candidate_counts,
+        "selected_files": _redact_text_list(selected_files or []),
+        "edit_scope": json.loads(_redacted_json(edit_scope or {})),
+        "missing_context": json.loads(_redacted_json(missing_context or {})),
+        "packed_context_token_estimate": int(packed_context_token_estimate),
+        "timings_ms": timings_ms,
+        "warnings": _redact_text_list(warnings or []),
+        "errors": _redact_text_list(errors or []),
+        "metadata": json.loads(_redacted_json(metadata or {})),
+    }
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO retrieval_runs (
+            id, repo, branch, mode, intent, query, plan_json, rewrites_json,
+            candidate_counts_json, selected_files_json, edit_scope_json, missing_context_json,
+            packed_context_token_estimate, timings_json, warnings_json, errors_json,
+            metadata_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            run_id,
+            sanitized["repo"] or None,
+            sanitized["branch"] or None,
+            mode,
+            sanitized["intent"] or None,
+            sanitized["query"],
+            json.dumps(sanitized["plan"], sort_keys=True),
+            json.dumps(sanitized["rewrites"], sort_keys=True),
+            json.dumps(candidate_counts, sort_keys=True),
+            json.dumps(sanitized["selected_files"], sort_keys=True),
+            json.dumps(sanitized["edit_scope"], sort_keys=True),
+            json.dumps(sanitized["missing_context"], sort_keys=True),
+            int(packed_context_token_estimate),
+            json.dumps(timings_ms, sort_keys=True),
+            json.dumps(sanitized["warnings"], sort_keys=True),
+            json.dumps(sanitized["errors"], sort_keys=True),
+            json.dumps(sanitized["metadata"], sort_keys=True),
+            now,
+        ),
+    )
+    conn.commit()
+    _write_run_export(export_root, sanitized)
+    return sanitized
+
+
+def list_retrieval_runs(conn: sqlite3.Connection, repo: str | None, limit: int = 20) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM retrieval_runs{clause} ORDER BY created_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+def latest_retrieval_run(conn: sqlite3.Connection, repo: str | None) -> sqlite3.Row | None:
+    rows = list_retrieval_runs(conn, repo, limit=1)
+    return rows[0] if rows else None
+
+
+def get_retrieval_run(conn: sqlite3.Connection, run_id: str) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM retrieval_runs WHERE id = ?", (run_id,)).fetchone()
+
+
+def retrieval_run_payload(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "run_id": row["id"],
+        "timestamp": row["created_at"],
+        "repo": row["repo"],
+        "branch": row["branch"],
+        "query": row["query"],
+        "mode": row["mode"],
+        "intent": row["intent"],
+        "plan": _load_json_column(row, "plan_json", {}),
+        "rewrites": _load_json_column(row, "rewrites_json", []),
+        "candidate_counts": _load_json_column(row, "candidate_counts_json", {}),
+        "selected_files": _load_json_column(row, "selected_files_json", []),
+        "edit_scope": _load_json_column(row, "edit_scope_json", {}),
+        "missing_context": _load_json_column(row, "missing_context_json", {}),
+        "packed_context_token_estimate": row["packed_context_token_estimate"],
+        "timings_ms": _load_json_column(row, "timings_json", {}),
+        "warnings": _load_json_column(row, "warnings_json", []),
+        "errors": _load_json_column(row, "errors_json", []),
+        "metadata": _load_json_column(row, "metadata_json", {}),
+    }
+
+
+def explain_retrieval_run(row: sqlite3.Row) -> str:
+    payload = retrieval_run_payload(row)
+    candidate_counts = payload["candidate_counts"]
+    timings = payload["timings_ms"]
+    lines = [
+        f"run_id: {payload['run_id']}",
+        f"mode: {payload['mode']}",
+        f"intent: {payload['intent'] or '-'}",
+        f"query: {payload['query']}",
+        "candidate counts:",
+    ]
+    lines.extend(f"- {key}: {value}" for key, value in sorted(candidate_counts.items()))
+    lines.append("timings:")
+    lines.extend(f"- {key}: {value}ms" for key, value in sorted(timings.items()))
+    if payload["warnings"]:
+        lines.append("warnings:")
+        lines.extend(f"- {value}" for value in payload["warnings"])
+    if payload["errors"]:
+        lines.append("errors:")
+        lines.extend(f"- {value}" for value in payload["errors"])
+    return "\n".join(lines)
+
+
+def warm_retrieval_cache(
+    conn: sqlite3.Connection,
+    repo: str | None,
+    paths: list[str],
+    *,
+    kind: str = "hot",
+    score: float = 1.0,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    if not repo:
+        return
+    now = time.time()
+    for path in _redact_text_list(paths):
+        conn.execute(
+            """
+            INSERT INTO retrieval_cache (repo, path, kind, score, hits, metadata_json, updated_at)
+            VALUES (?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT(repo, path, kind) DO UPDATE SET
+                score = excluded.score,
+                hits = retrieval_cache.hits + 1,
+                metadata_json = excluded.metadata_json,
+                updated_at = excluded.updated_at
+            """,
+            (repo, path, kind, score, json.dumps(metadata or {}, sort_keys=True), now),
+        )
+    conn.commit()
+
+
+def list_retrieval_cache(conn: sqlite3.Connection, repo: str | None, limit: int = 20) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM retrieval_cache{clause} ORDER BY updated_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+def clear_retrieval_cache(conn: sqlite3.Connection, repo: str | None) -> int:
+    clause, params = _scope_clause(repo)
+    cursor = conn.execute(f"DELETE FROM retrieval_cache{clause}", params)
+    conn.commit()
+    return cursor.rowcount
+
+
+def record_retrieval_outcome(
+    conn: sqlite3.Connection,
+    *,
+    repo: str | None,
+    task: str,
+    retrieved_files: list[str],
+    edited_files: list[str],
+    checks_run: list[str],
+    passed: bool,
+    notes: str | None = None,
+    run_id: str | None = None,
+) -> int:
+    redacted_task = redact_sensitive_text(task.strip())
+    retrieved = _redact_text_list(retrieved_files)
+    edited = _redact_text_list(edited_files)
+    missed = [path for path in edited if path not in set(retrieved)]
+    now = time.time()
+    cursor = conn.execute(
+        """
+        INSERT INTO retrieval_outcomes (
+            run_id, repo, task, task_fingerprint, retrieved_files_json, edited_files_json,
+            checks_run_json, passed, notes, missed_files_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            run_id,
+            repo,
+            redacted_task,
+            _normalize_task_fingerprint(redacted_task),
+            json.dumps(retrieved, sort_keys=True),
+            json.dumps(edited, sort_keys=True),
+            json.dumps(_redact_text_list(checks_run), sort_keys=True),
+            1 if passed else 0,
+            _redact_optional(notes),
+            json.dumps(missed, sort_keys=True),
+            now,
+        ),
+    )
+    if repo:
+        if edited:
+            warm_retrieval_cache(
+                conn,
+                repo,
+                edited,
+                kind="edited",
+                score=1.2 if passed else 0.8,
+                metadata={"run_id": run_id or "", "passed": bool(passed)},
+            )
+        if missed:
+            warm_retrieval_cache(
+                conn,
+                repo,
+                missed,
+                kind="missed",
+                score=1.1,
+                metadata={"run_id": run_id or "", "task": redacted_task},
+            )
+    conn.commit()
+    return _cursor_lastrowid(cursor)
+
+
+def list_retrieval_outcomes(conn: sqlite3.Connection, repo: str | None, limit: int = 50) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM retrieval_outcomes{clause} ORDER BY created_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+def record_eval_run(
+    conn: sqlite3.Connection,
+    *,
+    run_id: str,
+    repo: str | None,
+    case_count: int,
+    metrics: dict[str, Any],
+) -> None:
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO eval_runs (id, repo, case_count, metrics_json, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (run_id, repo, case_count, _redacted_json(metrics), time.time()),
+    )
+    conn.commit()
+
+
+def list_eval_runs(conn: sqlite3.Connection, repo: str | None, limit: int = 20) -> list[sqlite3.Row]:
+    clause, params = _scope_clause(repo)
+    return conn.execute(
+        f"SELECT * FROM eval_runs{clause} ORDER BY created_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+
+
+def get_eval_run(conn: sqlite3.Connection, run_id: str) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM eval_runs WHERE id = ?", (run_id,)).fetchone()
 
 
 def load_operational_state(conn: sqlite3.Connection, repo: str | None) -> dict[str, list[sqlite3.Row]]:

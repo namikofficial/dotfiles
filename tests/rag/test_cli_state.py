@@ -72,6 +72,14 @@ class CliStateTest(unittest.TestCase):
         )
         self.assertEqual(memory_args.memory_command, "remember")
         self.assertTrue(memory_args.global_scope)
+        run_args = parser.parse_args(["run", "list", "--limit", "5"])
+        self.assertEqual(run_args.run_command, "list")
+        profile_args = parser.parse_args(["profile", "learn-from-run", "latest"])
+        self.assertEqual(profile_args.profile_command, "learn-from-run")
+        cache_args = parser.parse_args(["cache", "stats", "--limit", "5"])
+        self.assertEqual(cache_args.cache_command, "stats")
+        eval_args = parser.parse_args(["eval", "add", "why auth fails", "--expect-file", "system/rag/cli.py"])
+        self.assertEqual(eval_args.eval_command, "add")
 
     def test_parser_marks_runtime_dependencies_for_lazy_start(self) -> None:
         parser = build_parser()

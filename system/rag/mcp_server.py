@@ -15,16 +15,104 @@ Run as a module:
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-from mcp.server import NotificationOptions, Server
-from mcp.server.models import InitializationOptions
-import mcp.server.stdio
-import mcp.types as types
+try:
+    from mcp.server import NotificationOptions, Server
+    from mcp.server.models import InitializationOptions
+    import mcp.server.stdio as mcp_stdio
+    import mcp.types as types
+    MCP_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover - exercised indirectly in tests
+    MCP_AVAILABLE = False
+
+    @dataclasses.dataclass
+    class NotificationOptions:
+        pass
+
+    @dataclasses.dataclass
+    class InitializationOptions:
+        server_name: str
+        server_version: str
+        capabilities: dict[str, Any]
+
+    @dataclasses.dataclass
+    class _TextContent:
+        type: str
+        text: str
+
+    @dataclasses.dataclass
+    class _Tool:
+        name: str
+        description: str
+        inputSchema: dict[str, Any]
+
+    @dataclasses.dataclass
+    class _Resource:
+        uri: str
+        name: str
+        description: str
+        mimeType: str
+
+    class _TypesModule:
+        TextContent = _TextContent
+        Tool = _Tool
+        Resource = _Resource
+        AnyUrl = str
+
+    types = _TypesModule()
+
+    class Server:
+        def __init__(self, _name: str) -> None:
+            self._capabilities: dict[str, Any] = {}
+
+        def list_resources(self):
+            def decorator(func):
+                return func
+            return decorator
+
+        def read_resource(self):
+            def decorator(func):
+                return func
+            return decorator
+
+        def list_tools(self):
+            def decorator(func):
+                return func
+            return decorator
+
+        def call_tool(self):
+            def decorator(func):
+                return func
+            return decorator
+
+        def get_capabilities(self, **_kwargs: Any) -> dict[str, Any]:
+            return {}
+
+        async def run(self, *_args: Any, **_kwargs: Any) -> None:
+            raise RuntimeError("python package 'mcp' is required to run rag-mcp")
+
+from .agent_support import (
+    describe_task,
+    evaluate_query,
+    file_card,
+    perf_report_from_result,
+    record_outcome,
+    related_tests,
+    render_agent_context_markdown,
+    runtime_config,
+    suggest_commands,
+)
+from .memory import repo_memory_status_rows
+from .retrieval import gather_context, reranker_enabled, retrieve
+from .settings import get_mode_profile, load_config
+from .state import get_retrieval_run, latest_retrieval_run, retrieval_run_payload
+from .storage import connect_db, get_qdrant, infer_repo_filter
 
 
 _server = Server("rag-mcp")
@@ -51,6 +139,10 @@ def _run_rag(*args: str, timeout: int = 45) -> subprocess.CompletedProcess[str]:
 
 def _text(content: str) -> list[types.TextContent]:
     return [types.TextContent(type="text", text=content)]
+
+
+def _json_text(payload: Any) -> list[types.TextContent]:
+    return _text(json.dumps(payload, indent=2, sort_keys=True))
 
 
 # ---------------------------------------------------------------------------
@@ -164,8 +256,8 @@ async def _list_tools() -> list[types.Tool]:
         types.Tool(
             name="rag_agent_context",
             description=(
-                "Build a full agent context pack for a task: refreshes git, runs agent-mode "
-                "retrieval, writes .agent/handoff.md, returns task + memory + handoff content."
+                "Build agent-ready context before non-trivial edits. Returns readable task, edit scope, "
+                "missing context, evidence, git state, and suggested checks."
             ),
             inputSchema={
                 "type": "object",
@@ -176,8 +268,111 @@ async def _list_tools() -> list[types.Tool]:
                         "enum": ["opencode", "codex", "copilot", "generic"],
                         "default": "opencode",
                     },
+                    "format": {
+                        "type": "string",
+                        "enum": ["markdown", "json"],
+                        "default": "markdown",
+                        "description": "Readable markdown is default; JSON is available for automation.",
+                    },
                 },
                 "required": ["task"],
+            },
+        ),
+        types.Tool(
+            name="rag_edit_scope",
+            description="Use before editing to see likely edit files, nearby tests, read-only evidence, and paths to avoid.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string"},
+                },
+                "required": ["task"],
+            },
+        ),
+        types.Tool(
+            name="rag_missing_context",
+            description="Use when uncertain. Reports whether current retrieval is sufficient and what context is still missing.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string"},
+                    "selected_files": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["task"],
+            },
+        ),
+        types.Tool(
+            name="rag_find_tests",
+            description="Find nearby likely test files for a source file or task-relevant file.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                },
+                "required": ["path"],
+            },
+        ),
+        types.Tool(
+            name="rag_explain_file",
+            description="Return a file card: purpose, symbols, imports, related tests, risk level, and why it was selected.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "why_selected": {"type": "string"},
+                },
+                "required": ["path"],
+            },
+        ),
+        types.Tool(
+            name="rag_record_outcome",
+            description="Call after finishing work to store retrieved files, edited files, checks, and success for future ranking.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string"},
+                    "retrieved_files": {"type": "array", "items": {"type": "string"}},
+                    "edited_files": {"type": "array", "items": {"type": "string"}},
+                    "checks_run": {"type": "array", "items": {"type": "string"}},
+                    "passed": {"type": "boolean"},
+                    "notes": {"type": "string"},
+                    "run_id": {"type": "string"},
+                },
+                "required": ["task", "retrieved_files", "edited_files", "checks_run", "passed"],
+            },
+        ),
+        types.Tool(
+            name="rag_suggest_commands",
+            description="Suggest exact validation commands for the selected files and task.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string"},
+                    "selected_files": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["task"],
+            },
+        ),
+        types.Tool(
+            name="rag_perf_report",
+            description="Inspect the latest retrieval run for slow stages, candidate counts, token load, and optimization hints.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "run_id": {"type": "string"},
+                },
+            },
+        ),
+        types.Tool(
+            name="rag_eval_query",
+            description="Probe retrieval quality for a query before editing. Returns top files, coverage, warnings, and scope.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "mode": {"type": "string", "enum": ["quick", "deep", "agent"], "default": "deep"},
+                },
+                "required": ["query"],
             },
         ),
         types.Tool(
@@ -228,25 +423,126 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
         if name == "rag_agent_context":
             task = arguments["task"]
             target = arguments.get("target_agent", "opencode")
-            root = _repo_root()
+            fmt = arguments.get("format", "markdown")
             _run_rag("context", "git", "--refresh", timeout=15)
-            r = _run_rag("agent", task, "--target-agent", target, "--save-handoff", timeout=90)
-            if r.returncode != 0:
-                return _text(f"Agent context failed: {r.stderr}")
-            parts: dict[str, str] = {}
-            for fname in ("task.md", "memory.md", "handoff.md"):
-                p = root / ".agent" / fname
-                if p.exists():
-                    parts[fname] = p.read_text()
-            return _text(json.dumps(parts, indent=2))
+            payload = await asyncio.to_thread(describe_task, task, target_agent=target)
+            if fmt == "json":
+                return _json_text(
+                    {
+                        "task": payload["task"],
+                        "ready_to_edit": payload["ready_to_edit"],
+                        "edit_scope": payload["edit_scope"],
+                        "must_inspect_first": payload["files"][:6],
+                        "project_memory": payload["project_memory"],
+                        "git_state": payload["git_state"],
+                        "evidence": payload["evidence"],
+                        "missing_context": payload["missing_context"],
+                        "suggested_commands": payload["suggested_commands"],
+                        "grounding_rules": [
+                            "Stay inside edit_scope unless direct inspection disproves it.",
+                            "Do not claim checks passed unless command output confirms it.",
+                        ],
+                        "run": payload["run"],
+                    }
+                )
+            return _text(render_agent_context_markdown(payload))
+
+        if name == "rag_edit_scope":
+            payload = await asyncio.to_thread(describe_task, arguments["task"], target_agent="opencode")
+            return _json_text(payload["edit_scope"])
+
+        if name == "rag_missing_context":
+            payload = await asyncio.to_thread(describe_task, arguments["task"], target_agent="opencode")
+            missing = dict(payload["missing_context"])
+            if arguments.get("selected_files"):
+                missing["selected_files"] = list(arguments["selected_files"])
+            return _json_text(missing)
+
+        if name == "rag_find_tests":
+            conn = connect_db()
+            repo = infer_repo_filter(conn, None)
+            tests = await asyncio.to_thread(related_tests, conn, repo, arguments["path"])
+            return _json_text({"tests": tests})
+
+        if name == "rag_explain_file":
+            conn = connect_db()
+            repo = infer_repo_filter(conn, None)
+            payload = await asyncio.to_thread(
+                file_card,
+                conn,
+                repo,
+                arguments["path"],
+                arguments.get("why_selected"),
+            )
+            return _json_text(payload)
+
+        if name == "rag_record_outcome":
+            conn = connect_db()
+            repo = infer_repo_filter(conn, None)
+            outcome_id = await asyncio.to_thread(
+                record_outcome,
+                repo=repo,
+                task=arguments["task"],
+                retrieved_files=list(arguments.get("retrieved_files", [])),
+                edited_files=list(arguments.get("edited_files", [])),
+                checks_run=list(arguments.get("checks_run", [])),
+                passed=bool(arguments.get("passed", False)),
+                notes=arguments.get("notes"),
+                run_id=arguments.get("run_id"),
+            )
+            return _json_text({"stored": True, "outcome_id": outcome_id})
+
+        if name == "rag_suggest_commands":
+            commands = await asyncio.to_thread(
+                suggest_commands,
+                _repo_root(),
+                list(arguments.get("selected_files", [])),
+                arguments["task"],
+            )
+            return _json_text({"commands": commands})
+
+        if name == "rag_perf_report":
+            conn = connect_db()
+            row = get_retrieval_run(conn, arguments["run_id"]) if arguments.get("run_id") else latest_retrieval_run(conn, infer_repo_filter(conn, None))
+            if row is None:
+                return _json_text({"slow_stages": [], "candidate_counts": {}, "packed_tokens": 0, "recommendations": []})
+            payload = retrieval_run_payload(row)
+            report = {
+                "slow_stages": [stage for stage, value in payload["timings_ms"].items() if float(value) >= 150.0],
+                "candidate_counts": payload["candidate_counts"],
+                "packed_tokens": payload["packed_context_token_estimate"],
+                "recommendations": [],
+            }
+            if payload["mode"] == "quick" and any(stage in report["slow_stages"] for stage in ("github", "test_failures", "errors")):
+                report["recommendations"].append("keep quick mode on cheap channels only")
+            if payload["packed_context_token_estimate"] >= 10000:
+                report["recommendations"].append("trim packed context or rely more on summaries")
+            return _json_text(report)
+
+        if name == "rag_eval_query":
+            payload = await asyncio.to_thread(
+                evaluate_query,
+                arguments["query"],
+                mode=arguments.get("mode", "deep"),
+            )
+            payload.pop("result", None)
+            return _json_text(payload)
 
         if name == "rag_context_git_refresh":
             r = _run_rag("context", "git", "--refresh", timeout=15)
             return _text(r.stdout or "Git context refreshed")
 
         if name == "rag_memory_status":
-            r = _run_rag("memory", "status")
-            return _text(r.stdout or r.stderr or "No memory status")
+            conn = connect_db()
+            repo = infer_repo_filter(conn, None)
+            rows = repo_memory_status_rows(conn, repo)
+            if not rows:
+                return _text("No memory status")
+            lines = [
+                f"- {row['repo']}: memory={'yes' if row['has_memory'] else 'no'}, summaries={row['summary_count']}, chunks={row['chunk_count']}"
+                for row in rows
+            ]
+            return _text("\n".join(lines))
 
         if name == "rag_memory_pack":
             target = arguments.get("target_agent", "opencode")
@@ -266,7 +562,9 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
 # ---------------------------------------------------------------------------
 
 async def _run() -> None:
-    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+    if not MCP_AVAILABLE:
+        raise RuntimeError("python package 'mcp' is required to run rag-mcp")
+    async with mcp_stdio.stdio_server() as (read_stream, write_stream):
         await _server.run(
             read_stream,
             write_stream,
