@@ -15,6 +15,7 @@ SYSTEM_DIR = Path(__file__).resolve().parents[2] / "system"
 sys.path.insert(0, str(SYSTEM_DIR))
 
 from rag import mcp_server
+from rag.cli import cmd_learn, cmd_task
 from rag.orchestrator import (
     learn_from_task_outcome,
     load_task_graph,
@@ -25,9 +26,11 @@ from rag.orchestrator import (
     plan_task,
     reset_task,
     subtask_context,
+    task_continue,
     task_graph_status,
     task_step,
 )
+from rag.workflow_policy import workflow_policy_for_task
 from rag.profile import _looks_generated, learn_profile_from_run, profile_init, profile_validate
 from rag.storage import ensure_db
 from rag.task_graph import SubtaskStatus
@@ -128,6 +131,11 @@ class TaskOrchestratorTest(unittest.TestCase):
             ), patch("rag.orchestrator._build_retrieval_context", return_value=stub):
                 compact = subtask_context(graph, graph.subtasks[0].id, output_format="compact")
             self.assertNotIn("context", compact)
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.db_conn", side_effect=lambda: _db_ctx(conn)
+            ), patch("rag.orchestrator._build_retrieval_context", return_value=stub):
+                full = subtask_context(graph, graph.subtasks[0].id, output_format="full")
+            self.assertIn("context", full)
 
     def test_running_tool_can_be_called_explicitly(self) -> None:
         conn = make_connection()
@@ -227,6 +235,7 @@ class TaskOrchestratorTest(unittest.TestCase):
         names = {tool.name for tool in tools}
         for name in {
             "rag_plan_task",
+            "rag_should_use_graph",
             "rag_next_subtask",
             "rag_subtask_context",
             "rag_subtask_running",
@@ -234,12 +243,21 @@ class TaskOrchestratorTest(unittest.TestCase):
             "rag_subtask_failed",
             "rag_task_status",
             "rag_task_step",
+            "rag_task_continue",
             "rag_reflect_run",
             "rag_learn_from_outcome",
             "rag_search",
             "rag_deep",
         }:
             self.assertIn(name, names)
+
+    def test_mcp_should_use_graph_contract(self) -> None:
+        payload = asyncio.run(mcp_server._call_tool("rag_should_use_graph", {"task": "fix typo in README.md"}))
+        parsed = json.loads(payload[0].text)
+        self.assertIn("use_task_graph", parsed)
+        self.assertIn("max_subtasks", parsed)
+        self.assertIn("retrieval_mode", parsed)
+        self.assertIn("context_format", parsed)
 
     def test_task_graph_status_returns_next_subtask_without_advancing(self) -> None:
         conn = make_connection()
@@ -291,14 +309,18 @@ class TaskOrchestratorTest(unittest.TestCase):
             with patch("rag.orchestrator.repo_root", return_value=root):
                 no_graph = task_step("something")
                 self.assertEqual(no_graph["state"], "needs_plan")
+                self.assertIn("recommended_call", no_graph)
+                self.assertEqual(no_graph["recommended_call"]["tool"], "rag_plan_task")
             conn = make_connection()
             with patch("rag.orchestrator.repo_root", return_value=root), patch("rag.orchestrator.db_conn", side_effect=lambda: _db_ctx(conn)):
                 graph = plan_task(self.TASK, max_subtasks=3)
                 ready = task_step()
                 self.assertEqual(ready["state"], "needs_context")
+                self.assertEqual(ready["recommended_call"]["tool"], "rag_subtask_context")
                 mark_subtask_running(graph, graph.subtasks[0].id)
                 running = task_step()
                 self.assertEqual(running["state"], "ready_for_work")
+                self.assertEqual(running["recommended_call"]["tool"], "rag_subtask_done")
                 for subtask in graph.subtasks:
                     if subtask.status != SubtaskStatus.done:
                         if subtask.status != SubtaskStatus.running:
@@ -306,6 +328,7 @@ class TaskOrchestratorTest(unittest.TestCase):
                         mark_subtask_done(graph, subtask.id, retrieved_files=[], edited_files=[], checks_run=[], passed=True)
                 complete = task_step()
                 self.assertEqual(complete["state"], "complete")
+                self.assertEqual(complete["recommended_call"]["tool"], "rag_learn_from_outcome")
             conn2 = make_connection()
             with patch("rag.orchestrator.repo_root", return_value=root), patch("rag.orchestrator.db_conn", side_effect=lambda: _db_ctx(conn2)):
                 graph = plan_task("retry exhaustion", max_subtasks=1)
@@ -317,6 +340,83 @@ class TaskOrchestratorTest(unittest.TestCase):
                 step = task_step()
                 self.assertEqual(step["state"], "failed")
                 self.assertEqual(step["next_tool"], "rag_reflect_run")
+
+    def test_task_continue_returns_compact_context_when_needed(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.db_conn", side_effect=lambda: _db_ctx(conn)
+            ):
+                graph = plan_task(self.TASK, max_subtasks=3)
+            stub = {
+                "conn": conn,
+                "repo": "dotfiles",
+                "config": {"repo_profile": {}},
+                "result": type("Result", (), {"rows": [], "summaries": [], "debug": {}, "facts": [], "context_sources": [], "memory": None})(),
+                "context": "context",
+                "files": ["system/rag/task_graph.py"],
+                "edit_scope": {"likely_edit": [{"path": "system/rag/task_graph.py", "reason": "top hit"}], "likely_tests": [], "read_only": [], "avoid": []},
+                "missing_context": {"missing": [], "selected_files": ["system/rag/task_graph.py"]},
+                "commands": ["python -m unittest"],
+            }
+            with patch("rag.orchestrator.repo_root", return_value=root), patch(
+                "rag.orchestrator.db_conn", side_effect=lambda: _db_ctx(conn)
+            ), patch("rag.orchestrator._build_retrieval_context", return_value=stub):
+                payload = task_continue()
+            self.assertEqual(payload["step"]["state"], "needs_context")
+            self.assertEqual(payload["next_action"], "edit")
+            self.assertNotIn("context", payload["context"])
+
+    def test_policy_tiny_task_avoids_graph(self) -> None:
+        policy = workflow_policy_for_task("fix typo in README.md", runtime={"qdrant_ready": True, "llm_ready": True})
+        self.assertFalse(policy.use_task_graph)
+
+    def test_rag_first_skill_mentions_task_step_and_recommended_call(self) -> None:
+        skill_path = Path(__file__).resolve().parents[2] / "configs" / "opencode" / "skills" / "rag-first" / "SKILL.md"
+        text = skill_path.read_text()
+        self.assertIn("rag_task_step", text)
+        self.assertIn("recommended_call", text)
+
+    def test_task_doctor_fix_removes_stale_and_bootstraps_memory(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch("rag.orchestrator.db_conn", side_effect=lambda: _db_ctx(conn)):
+                _ = plan_task(self.TASK, max_subtasks=3)
+            stale = root / ".agent" / "subtasks" / "T999.md"
+            stale.write_text("stale")
+            memory_path = root / ".agent" / "memory.md"
+            if memory_path.exists():
+                memory_path.unlink()
+            captured: dict[str, object] = {}
+            with patch("rag.cli.repo_root", return_value=root), patch("rag.cli.connect_db", return_value=conn), patch(
+                "rag.cli._json_print", side_effect=lambda payload: captured.update(payload)
+            ):
+                rc = cmd_task(type("Args", (), {"repo": None, "task_command": "doctor", "fix": True})())
+            self.assertIn(rc, {0, 1})
+            self.assertFalse(stale.exists())
+            self.assertTrue(memory_path.exists())
+            self.assertIn("fixed", captured)
+
+    def test_learn_report_returns_metrics(self) -> None:
+        conn = make_connection()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root), patch("rag.orchestrator.db_conn", side_effect=lambda: _db_ctx(conn)):
+                graph = plan_task(self.TASK, max_subtasks=2)
+                mark_subtask_done(graph, graph.subtasks[0].id, retrieved_files=["a.py"], edited_files=["a.py"], checks_run=["pytest"], passed=True)
+            captured: dict[str, object] = {}
+            with patch("rag.cli.connect_db", return_value=conn), patch("rag.cli.repo_root", return_value=root), patch(
+                "rag.cli._json_print", side_effect=lambda payload: captured.update(payload)
+            ):
+                rc = cmd_learn(type("Args", (), {"learn_command": "report", "repo": None, "status": "pending", "limit": 10, "candidate_id": None, "review_status": None, "content": None})())
+            self.assertEqual(rc, 0)
+            self.assertIn("retrieval_hit_rate", captured)
+            self.assertIn("outcomes", captured)
 
     def test_reset_task_archives_files_and_preserves_memory(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

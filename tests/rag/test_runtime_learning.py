@@ -7,6 +7,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import contextmanager
+from unittest.mock import patch
 
 
 SYSTEM_DIR = Path(__file__).resolve().parents[2] / "system"
@@ -28,6 +30,11 @@ def make_connection() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     ensure_db(conn)
     return conn
+
+
+@contextmanager
+def _db_ctx(conn: sqlite3.Connection):
+    yield conn
 
 
 class RuntimeLearningTest(unittest.TestCase):
@@ -104,6 +111,25 @@ class RuntimeLearningTest(unittest.TestCase):
         self.assertIn("rag_record_outcome", names)
         self.assertIn("rag_eval_query", names)
         self.assertIn("rag_perf_report", names)
+        self.assertIn("rag_should_use_graph", names)
+        self.assertIn("rag_task_continue", names)
+
+    def test_mcp_record_outcome_returns_hit_rate_score(self) -> None:
+        conn = make_connection()
+        with patch("rag.mcp_server.db_conn", side_effect=lambda: _db_ctx(conn)), patch(
+            "rag.mcp_server.record_outcome", return_value=123
+        ):
+            parsed = mcp_server._record_outcome_payload(
+                {
+                    "task": "fix auth flow",
+                    "retrieved_files": ["a.py"],
+                    "edited_files": ["a.py", "b.py"],
+                    "checks_run": ["pytest -q"],
+                    "passed": False,
+                }
+            )
+        self.assertIn("score", parsed)
+        self.assertEqual(parsed["score"]["missed_file_count"], 1)
 
 
 if __name__ == "__main__":

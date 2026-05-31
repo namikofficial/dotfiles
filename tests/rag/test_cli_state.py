@@ -87,6 +87,13 @@ class CliStateTest(unittest.TestCase):
         self.assertFalse(task_start_args.needs_llm)
         task_doctor_args = parser.parse_args(["task", "doctor"])
         self.assertEqual(task_doctor_args.task_command, "doctor")
+        self.assertTrue(parser.parse_args(["task", "doctor", "--fix"]).fix)
+        task_step_args = parser.parse_args(["task", "step", "fix login bug"])
+        self.assertEqual(task_step_args.task_command, "step")
+        task_continue_args = parser.parse_args(["task", "continue"])
+        self.assertEqual(task_continue_args.task_command, "continue")
+        learn_report_args = parser.parse_args(["learn", "report"])
+        self.assertEqual(learn_report_args.learn_command, "report")
 
     def test_parser_marks_runtime_dependencies_for_lazy_start(self) -> None:
         parser = build_parser()

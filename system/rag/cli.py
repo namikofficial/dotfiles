@@ -69,9 +69,11 @@ from .orchestrator import (
     plan_task,
     reset_task,
     subtask_context,
+    task_continue,
     task_context_path,
     task_graph_path,
     task_graph_status,
+    task_step,
 )
 from .profiles import load_repo_profile, save_repo_profile
 from .profile import profile_init, profile_show, profile_validate
@@ -1008,6 +1010,73 @@ def cmd_v7_execute(args: argparse.Namespace) -> int:
 
 def cmd_learn(args: argparse.Namespace) -> int:
     conn = connect_db()
+    if getattr(args, "learn_command", None) == "report":
+        repo = infer_repo_filter(conn, getattr(args, "repo", None))
+        runs = [task_run_payload(row) for row in list_task_runs(conn, repo, limit=10)]
+        outcomes = list_task_outcomes(conn, repo, limit=10)
+        missed_files: set[str] = set()
+        useful_files: set[str] = set()
+        checks_count = 0
+        passed_count = 0
+        retrieved_count = 0
+        edited_count = 0
+        edited_hits = 0
+        failures: dict[str, int] = {}
+        for row in outcomes:
+            retrieved = list(dict.fromkeys(json.loads(row["retrieved_files_json"] or "[]")))
+            edited = list(dict.fromkeys(json.loads(row["edited_files_json"] or "[]")))
+            missed = json.loads(row["missed_files_json"] or "[]")
+            checks = json.loads(row["checks_run_json"] or "[]")
+            missed_files.update(missed)
+            useful_files.update(edited)
+            checks_count += len(checks)
+            retrieved_count += len(retrieved)
+            edited_count += len(edited)
+            edited_hits += sum(1 for path in edited if path in set(retrieved))
+            if row["passed"]:
+                passed_count += 1
+            else:
+                failures[row["task"]] = failures.get(row["task"], 0) + 1
+        evals = list_eval_cases(conn, repo, limit=10)
+        profile_changes = {}
+        try:
+            current_profile = load_repo_profile(repo_root())
+            profile_changes = {
+                "boost_paths_count": len(current_profile.get("boost_paths", [])),
+                "check_commands_count": len(current_profile.get("check_commands", [])),
+                "patterns_count": len(current_profile.get("learned_file_patterns", [])),
+            }
+        except Exception:
+            profile_changes = {}
+        report = {
+            "runs": runs,
+            "outcomes": [
+                {
+                    "task_id": row["task_id"],
+                    "subtask_id": row["subtask_id"],
+                    "status": row["status"],
+                    "passed": bool(row["passed"]),
+                    "created_at": row["created_at"],
+                }
+                for row in outcomes
+            ],
+            "missed_files": sorted(missed_files),
+            "useful_files": sorted(useful_files),
+            "generated_eval_cases": [
+                {"case_id": row["case_id"], "query": row["query"], "mode": row["mode"], "created_at": row["created_at"]}
+                for row in evals
+            ],
+            "profile_changes": profile_changes,
+            "repeated_failures": [{"task": task, "count": count} for task, count in sorted(failures.items(), key=lambda item: item[1], reverse=True) if count > 1],
+            "retrieval_hit_rate": round((edited_hits / edited_count), 4) if edited_count else 1.0,
+            "missed_file_count": len(missed_files),
+            "retrieved_file_count": retrieved_count,
+            "edited_file_count": edited_count,
+            "checks_count": checks_count,
+            "passed": bool(outcomes) and passed_count == len(outcomes),
+        }
+        _json_print(report)
+        return 0
     if getattr(args, "candidate_id", None) and getattr(args, "review_status", None):
         if not review_memory_candidate(conn, args.candidate_id, args.review_status, content=getattr(args, "content", None)):
             console.print(f"[red]No memory candidate found:[/red] {args.candidate_id}")
@@ -1400,14 +1469,17 @@ def cmd_task(args: argparse.Namespace) -> int:
                     warnings.append(f"context_generation_failed: {exc}")
             else:
                 warnings.append("runtime_not_ready_for_context; planned graph and next subtask only")
+            next_cli = f"rag task done {subtask.id} --edited-file <path> --retrieved-file <path> --check '<command>' --notes '<summary>'"
             _json_print(
                 {
-                    "planned": graph.to_dict(),
-                    "next_subtask": subtask.to_dict(),
-                    "context": context,
                     "policy": policy.to_dict(),
+                    "task_graph": graph.to_dict(),
+                    "next_subtask": subtask.to_dict(),
+                    "context": context or {},
                     "warnings": warnings,
-                    "next_action": "rag task context" if context is None else "edit",
+                    "next_mcp_tool": "rag_subtask_done",
+                    "next_cli_command": next_cli,
+                    "opencode_instruction": "Inspect must_inspect_first, make smallest change, run suggested checks, then call rag_subtask_done.",
                 }
             )
             return 0
@@ -1469,8 +1541,43 @@ def cmd_task(args: argparse.Namespace) -> int:
                 and report["db_run_exists"]
                 and report["memory_exists"]
             )
+            if getattr(args, "fix", False):
+                fixed: list[str] = []
+                warnings: list[str] = []
+                subtasks_path = root / ".agent" / "subtasks"
+                if graph is not None and subtasks_path.exists():
+                    subtask_ids = {s.id for s in graph.subtasks}
+                    for file in subtasks_path.glob("*.md"):
+                        if file.stem not in subtask_ids:
+                            file.unlink()
+                            fixed.append(f"removed_stale_subtask:{file.relative_to(root)}")
+                memory_path = root / ".agent" / "memory.md"
+                if not memory_path.exists():
+                    memory_path.parent.mkdir(parents=True, exist_ok=True)
+                    memory_path.write_text("# Project Memory\n\n")
+                    fixed.append("created:.agent/memory.md")
+                if graph is not None:
+                    if not task_context_path(root).exists():
+                        _ = compact_completed_subtasks(graph)
+                        fixed.append("refreshed:.agent/context.md")
+                    if not (root / ".agent" / "task.md").exists():
+                        _ = compact_completed_subtasks(graph)
+                        fixed.append("refreshed:.agent/task.md")
+                else:
+                    warnings.append("task_graph_missing; skipped task.md/context.md refresh")
+                report["fixed"] = fixed
+                report["remaining_warnings"] = warnings + ([] if report["ok"] else ["doctor_checks_not_fully_ok"])
+                report["ok"] = bool(report["ok"] and not report["remaining_warnings"])
             _json_print(report)
             return 0 if report["ok"] else 1
+
+        if args.task_command == "step":
+            _json_print(task_step(getattr(args, "description", None)))
+            return 0
+
+        if args.task_command == "continue":
+            _json_print(task_continue(getattr(args, "description", None)))
+            return 0
 
         graph = load_task_graph(root)
         if graph is None:
@@ -3923,8 +4030,10 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser.set_defaults(func=cmd_doctor, needs_qdrant=False)
 
     learn_parser = subparsers.add_parser("learn", help="Review pending memory candidates")
+    learn_parser.add_argument("learn_command", nargs="?", choices=["report"])
     learn_parser.add_argument("--status", choices=["pending", "accepted", "rejected", "edited", "all"], default="pending")
     learn_parser.add_argument("--limit", type=int, default=20)
+    learn_parser.add_argument("--repo", help="Repo name override")
     learn_parser.add_argument("--candidate-id")
     learn_parser.add_argument("--review-status", choices=["accepted", "rejected", "edited"])
     learn_parser.add_argument("--content", help="Replacement content when marking a candidate edited")
@@ -3961,6 +4070,14 @@ def build_parser() -> argparse.ArgumentParser:
     task_start_parser.add_argument("--reset-first", action="store_true", help="Reset existing task files before starting")
     task_start_parser.add_argument("--full", action="store_true", help="Return full subtask context instead of compact")
     task_start_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_step_parser = task_subparsers.add_parser("step", help="Return task router payload for the next action")
+    task_step_parser.add_argument("description", nargs="?")
+    task_step_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_continue_parser = task_subparsers.add_parser("continue", help="Return next action and compact context when needed")
+    task_continue_parser.add_argument("description", nargs="?")
+    task_continue_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
 
     task_next_parser = task_subparsers.add_parser("next", help="Return the next ready subtask")
     task_next_parser.add_argument("--repo", help="Repo name override")
@@ -4013,6 +4130,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     task_doctor_parser = task_subparsers.add_parser("doctor", help="Check task graph/.agent/DB sanity for current workflow state")
     task_doctor_parser.add_argument("--repo", help="Repo name override")
+    task_doctor_parser.add_argument("--fix", action="store_true", help="Apply safe state repairs in .agent/")
     task_doctor_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
 
     serve_parser = subparsers.add_parser("serve", help="Run local RAG integration servers")

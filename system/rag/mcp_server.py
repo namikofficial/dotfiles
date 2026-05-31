@@ -120,6 +120,7 @@ from .orchestrator import (
     plan_task,
     task_step,
     reflect_run,
+    task_continue,
     subtask_context,
     task_graph_status,
 )
@@ -128,6 +129,7 @@ from .retrieval import gather_context, reranker_enabled, retrieve
 from .settings import get_mode_profile, load_config
 from .state import get_retrieval_run, latest_retrieval_run, retrieval_run_payload
 from .storage import connect_db, get_qdrant, infer_repo_filter
+from .workflow_policy import probe_runtime, workflow_policy_for_task
 
 
 _server = Server("rag-mcp")
@@ -155,19 +157,37 @@ def _file_card_payload(path: str, why_selected: str | None) -> dict[str, Any]:
 
 
 def _record_outcome_payload(arguments: dict[str, Any]) -> dict[str, Any]:
+    retrieved = list(arguments.get("retrieved_files", []))
+    edited = list(arguments.get("edited_files", []))
+    checks = list(arguments.get("checks_run", []))
     with db_conn() as conn:
         repo = infer_repo_filter(conn, None)
         outcome_id = record_outcome(
             repo=repo,
             task=arguments["task"],
-            retrieved_files=list(arguments.get("retrieved_files", [])),
-            edited_files=list(arguments.get("edited_files", [])),
-            checks_run=list(arguments.get("checks_run", [])),
+            retrieved_files=retrieved,
+            edited_files=edited,
+            checks_run=checks,
             passed=bool(arguments.get("passed", False)),
             notes=arguments.get("notes"),
             run_id=arguments.get("run_id"),
         )
-        return {"stored": True, "outcome_id": outcome_id}
+        edited_set = list(dict.fromkeys(edited))
+        retrieved_set = set(dict.fromkeys(retrieved))
+        hits = sum(1 for path in edited_set if path in retrieved_set)
+        edited_count = len(edited_set)
+        return {
+            "stored": True,
+            "outcome_id": outcome_id,
+            "score": {
+                "retrieval_hit_rate": round((hits / edited_count), 4) if edited_count else 1.0,
+                "missed_file_count": max(0, edited_count - hits),
+                "retrieved_file_count": len(retrieved_set),
+                "edited_file_count": edited_count,
+                "checks_count": len(list(dict.fromkeys(checks))),
+                "passed": bool(arguments.get("passed", False)),
+            },
+        }
 
 
 def _repo_root() -> Path:
@@ -344,6 +364,15 @@ async def _list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
+            name="rag_should_use_graph",
+            description="Return workflow policy guidance for whether a task should use task graph orchestration.",
+            inputSchema={
+                "type": "object",
+                "properties": {"task": {"type": "string"}},
+                "required": ["task"],
+            },
+        ),
+        types.Tool(
             name="rag_next_subtask",
             description="Return the next ready subtask from the current task graph.",
             inputSchema={"type": "object", "properties": {}},
@@ -417,6 +446,16 @@ async def _list_tools() -> list[types.Tool]:
                         "type": "string",
                         "description": "Optional task description used when there is no active task graph.",
                     }
+                },
+            },
+        ),
+        types.Tool(
+            name="rag_task_continue",
+            description="Evaluate task_step and include compact context when the next action is to edit.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string"},
                 },
             },
         ),
@@ -621,13 +660,22 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             return _text(render_agent_context_markdown(payload))
 
         if name == "rag_plan_task":
-            graph = await asyncio.to_thread(
-                plan_task,
-                arguments["task"],
-                arguments.get("repo"),
-                int(arguments.get("max_subtasks", 8)),
-            )
-            return _json_text(graph.to_dict())
+            policy = workflow_policy_for_task(arguments["task"], runtime=probe_runtime())
+            requested_max = int(arguments.get("max_subtasks", 8))
+            effective_max = min(requested_max, policy.max_subtasks)
+            graph = await asyncio.to_thread(plan_task, arguments["task"], arguments.get("repo"), effective_max)
+            payload: dict[str, Any] = {
+                "task_graph": graph.to_dict(),
+                "policy": policy.to_dict(),
+                "effective_max_subtasks": effective_max,
+            }
+            if not policy.use_task_graph:
+                payload["guidance"] = "Tiny task detected; rag_agent_context may be enough unless graph flow is explicitly required."
+            return _json_text(payload)
+
+        if name == "rag_should_use_graph":
+            policy = workflow_policy_for_task(arguments["task"], runtime=probe_runtime())
+            return _json_text(policy.to_dict())
 
         if name == "rag_next_subtask":
             graph = await asyncio.to_thread(load_task_graph)
@@ -651,37 +699,65 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             graph = await asyncio.to_thread(load_task_graph)
             if graph is None:
                 return _text("No task graph found")
+            retrieved = list(arguments.get("retrieved_files", []))
+            edited = list(arguments.get("edited_files", []))
+            checks = list(arguments.get("checks_run", []))
             try:
                 updated = await asyncio.to_thread(
                     mark_subtask_done,
                     graph,
                     arguments["subtask_id"],
-                    retrieved_files=list(arguments.get("retrieved_files", [])),
-                    edited_files=list(arguments.get("edited_files", [])),
-                    checks_run=list(arguments.get("checks_run", [])),
+                    retrieved_files=retrieved,
+                    edited_files=edited,
+                    checks_run=checks,
                     passed=bool(arguments.get("passed", True)),
                     notes=arguments.get("notes"),
                 )
             except ValueError as exc:
                 return _json_text({"ok": False, "error": str(exc), "next_mcp_tool": "rag_subtask_failed"})
-            return _json_text(updated.to_dict())
+            edited_set = list(dict.fromkeys(edited))
+            retrieved_set = set(dict.fromkeys(retrieved))
+            hits = sum(1 for path in edited_set if path in retrieved_set)
+            score = {
+                "retrieval_hit_rate": round((hits / len(edited_set)), 4) if edited_set else 1.0,
+                "missed_file_count": max(0, len(edited_set) - hits),
+                "retrieved_file_count": len(retrieved_set),
+                "edited_file_count": len(edited_set),
+                "checks_count": len(list(dict.fromkeys(checks))),
+                "passed": bool(arguments.get("passed", True)),
+            }
+            return _json_text({**updated.to_dict(), "score": score})
 
         if name == "rag_subtask_failed":
             graph = await asyncio.to_thread(load_task_graph)
             if graph is None:
                 return _text("No task graph found")
+            retrieved = list(arguments.get("retrieved_files", []))
+            edited = list(arguments.get("edited_files", []))
+            checks = list(arguments.get("checks_run", []))
             updated = await asyncio.to_thread(
                 mark_subtask_failed,
                 graph,
                 arguments["subtask_id"],
-                retrieved_files=list(arguments.get("retrieved_files", [])),
-                edited_files=list(arguments.get("edited_files", [])),
-                checks_run=list(arguments.get("checks_run", [])),
+                retrieved_files=retrieved,
+                edited_files=edited,
+                checks_run=checks,
                 notes=arguments.get("notes"),
             )
             subtask = updated.get_subtask(arguments["subtask_id"])
             retryable = bool(subtask and subtask.attempts < 3)
-            return _json_text({**updated.to_dict(), "retryable": retryable, "next_mcp_tool": "rag_next_subtask"})
+            edited_set = list(dict.fromkeys(edited))
+            retrieved_set = set(dict.fromkeys(retrieved))
+            hits = sum(1 for path in edited_set if path in retrieved_set)
+            score = {
+                "retrieval_hit_rate": round((hits / len(edited_set)), 4) if edited_set else 1.0,
+                "missed_file_count": max(0, len(edited_set) - hits),
+                "retrieved_file_count": len(retrieved_set),
+                "edited_file_count": len(edited_set),
+                "checks_count": len(list(dict.fromkeys(checks))),
+                "passed": False,
+            }
+            return _json_text({**updated.to_dict(), "retryable": retryable, "next_mcp_tool": "rag_next_subtask", "score": score})
 
         if name == "rag_task_status":
             payload = await asyncio.to_thread(task_graph_status)
@@ -689,6 +765,10 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
 
         if name == "rag_task_step":
             payload = await asyncio.to_thread(task_step, arguments.get("task"))
+            return _json_text(payload)
+
+        if name == "rag_task_continue":
+            payload = await asyncio.to_thread(task_continue, arguments.get("task"))
             return _json_text(payload)
 
         if name == "rag_reflect_run":

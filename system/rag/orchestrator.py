@@ -30,6 +30,7 @@ from .state import (
 )
 from .storage import connect_db, get_qdrant, infer_repo_filter
 from .task_graph import Subtask, SubtaskOutcome, SubtaskStatus, SubtaskType, TaskGraph
+from .workflow_policy import probe_runtime, workflow_policy_for_task
 
 
 @contextmanager
@@ -362,6 +363,24 @@ def _append_outcome_jsonl(root: Path, payload: dict[str, Any]) -> None:
         handle.write(redacted + "\n")
 
 
+def _outcome_scoring(retrieved_files: list[str], edited_files: list[str], checks_run: list[str], passed: bool) -> dict[str, Any]:
+    retrieved = _unique(retrieved_files)
+    edited = _unique(edited_files)
+    edited_count = len(edited)
+    retrieved_count = len(retrieved)
+    checks_count = len(_unique(checks_run))
+    hits = sum(1 for path in edited if path in set(retrieved))
+    missed_file_count = max(0, edited_count - hits)
+    return {
+        "retrieval_hit_rate": round((hits / edited_count), 4) if edited_count else 1.0,
+        "missed_file_count": missed_file_count,
+        "retrieved_file_count": retrieved_count,
+        "edited_file_count": edited_count,
+        "checks_count": checks_count,
+        "passed": bool(passed),
+    }
+
+
 def plan_task(task: str, repo: str | None = None, max_subtasks: int = 8) -> TaskGraph:
     with db_conn() as conn:
         resolved_repo = infer_repo_filter(conn, repo)
@@ -487,7 +506,7 @@ def mark_subtask_done(
     task_graph.current_subtask_id = subtask_id
     task_graph.updated_at = time.time()
     with db_conn() as conn:
-        record_task_outcome(
+        outcome = record_task_outcome(
             conn,
             repo=task_graph.repo,
             task_id=task_graph.task_id,
@@ -506,6 +525,7 @@ def mark_subtask_done(
             run_id=run_id or task_graph.run_id,
             attempt=subtask.attempts,
         )
+    score = _outcome_scoring(retrieved_files or [], edited_files or [], checks_run or [], passed)
     task_graph.summary = f"Completed {subtask_id}: {subtask.title}"
     _refresh_blocking(task_graph)
     next_ready = None
@@ -534,6 +554,8 @@ def mark_subtask_done(
             "edited_files": edited_files or [],
             "checks_run": checks_run or [],
             "notes": notes,
+            "score": score,
+            "outcome_id": outcome.get("outcome_id"),
         },
     )
     return task_graph
@@ -558,7 +580,7 @@ def mark_subtask_failed(
     task_graph.current_subtask_id = subtask_id
     task_graph.updated_at = time.time()
     with db_conn() as conn:
-        record_task_outcome(
+        outcome = record_task_outcome(
             conn,
             repo=task_graph.repo,
             task_id=task_graph.task_id,
@@ -577,6 +599,7 @@ def mark_subtask_failed(
             run_id=run_id or task_graph.run_id,
             attempt=subtask.attempts,
         )
+    score = _outcome_scoring(retrieved_files or [], edited_files or [], checks_run or [], False)
     _refresh_blocking(task_graph)
     next_ready = None
     for candidate in task_graph.subtasks:
@@ -599,6 +622,8 @@ def mark_subtask_failed(
             "edited_files": edited_files or [],
             "checks_run": checks_run or [],
             "notes": notes,
+            "score": score,
+            "outcome_id": outcome.get("outcome_id"),
         },
     )
     _write_runtime_files(task_graph)
@@ -695,7 +720,7 @@ def _build_retrieval_context(task_text: str, repo: str | None, *, mode: str = "a
         }
 
 
-def subtask_context(task_graph: TaskGraph | None, subtask_id: str, *, output_format: str = "full") -> dict[str, Any]:
+def subtask_context(task_graph: TaskGraph | None, subtask_id: str, *, output_format: str = "compact") -> dict[str, Any]:
     graph = task_graph or load_task_graph()
     if graph is None:
         raise ValueError("No task graph available")
@@ -705,7 +730,9 @@ def subtask_context(task_graph: TaskGraph | None, subtask_id: str, *, output_for
     if subtask.status == SubtaskStatus.ready:
         mark_subtask_running(graph, subtask.id)
         subtask = graph.get_subtask(subtask.id) or subtask
-    payload = _build_retrieval_context(subtask.retrieval_query or subtask.title, graph.repo, mode="agent")
+    policy = workflow_policy_for_task(graph.task, runtime=probe_runtime())
+    retrieval_mode = policy.retrieval_mode if subtask.type == SubtaskType.research else "agent"
+    payload = _build_retrieval_context(subtask.retrieval_query or subtask.title, graph.repo, mode=retrieval_mode)
     root = repo_root()
     selected_files = payload["files"]
     commands = command_plan_for_subtask(root, subtask, selected_files, payload["config"].get("repo_profile"))
@@ -757,6 +784,7 @@ def subtask_context(task_graph: TaskGraph | None, subtask_id: str, *, output_for
         "current_subtask_id": subtask.id,
         "ready_to_edit": bool(payload["edit_scope"].get("likely_edit")),
         "run_id": run_id,
+        "policy": policy.to_dict(),
     }
     if output_format == "full":
         response["context"] = payload["context"]
@@ -858,78 +886,131 @@ def learn_from_task_outcome(run_id: str | None = None, root: Path | None = None)
 
 
 def task_step(task: str | None = None) -> dict[str, Any]:
+    policy = workflow_policy_for_task(task or "", runtime=probe_runtime()) if task else None
+    def _router(
+        state: str,
+        next_tool: str,
+        reason: str,
+        *,
+        task_id: str | None,
+        current_subtask_id: str | None,
+        subtask: dict[str, Any] | None,
+        recommended_call: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "state": state,
+            "next_tool": next_tool,
+            "reason": reason,
+            "task_id": task_id,
+            "current_subtask_id": current_subtask_id,
+            "subtask": subtask,
+            "policy": policy.to_dict() if policy else None,
+            "recommended_call": recommended_call,
+        }
+
     graph = load_task_graph()
     if graph is None:
-        return {
-            "state": "needs_plan",
-            "next_tool": "rag_plan_task",
-            "task_id": None,
-            "current_subtask_id": None,
-            "message": "No active task graph. Plan the task first.",
-            "subtask": None,
-            "task": task,
-        }
+        return _router(
+            "needs_plan",
+            "rag_plan_task",
+            "No active task graph. Plan the task first.",
+            task_id=None,
+            current_subtask_id=None,
+            subtask=None,
+            recommended_call={"tool": "rag_plan_task", "arguments": {"task": task} if task else {}},
+        )
+    policy = workflow_policy_for_task(graph.task, runtime=probe_runtime())
     _refresh_blocking(graph)
     if all(item.status == SubtaskStatus.done for item in graph.subtasks):
-        return {
-            "state": "complete",
-            "next_tool": "rag_learn_from_outcome",
-            "task_id": graph.task_id,
-            "current_subtask_id": graph.current_subtask_id,
-            "message": "Task graph complete. Learn from outcome.",
-            "subtask": None,
-        }
+        return _router(
+            "complete",
+            "rag_learn_from_outcome",
+            "Task graph complete.",
+            task_id=graph.task_id,
+            current_subtask_id=graph.current_subtask_id,
+            subtask=None,
+            recommended_call={"tool": "rag_learn_from_outcome", "arguments": {"run_id": graph.run_id} if graph.run_id else {}},
+        )
     active = graph.active_subtask()
     if active and active.status == SubtaskStatus.running:
-        return {
-            "state": "ready_for_work",
-            "next_tool": "rag_subtask_done",
-            "task_id": graph.task_id,
-            "current_subtask_id": active.id,
-            "message": "Subtask is running. Complete it or mark it failed.",
-            "subtask": active.to_dict(),
-        }
+        return _router(
+            "ready_for_work",
+            "rag_subtask_done",
+            "Subtask is running. Complete it or mark it failed.",
+            task_id=graph.task_id,
+            current_subtask_id=active.id,
+            subtask=active.to_dict(),
+            recommended_call={
+                "tool": "rag_subtask_done",
+                "arguments": {
+                    "subtask_id": active.id,
+                    "retrieved_files": [],
+                    "edited_files": [],
+                    "checks_run": [],
+                    "notes": "",
+                },
+            },
+        )
     ready = next((s for s in graph.subtasks if s.status == SubtaskStatus.ready and _deps_satisfied(graph, s)), None)
     if ready:
-        return {
-            "state": "needs_context",
-            "next_tool": "rag_subtask_context",
-            "task_id": graph.task_id,
-            "current_subtask_id": ready.id,
-            "message": "Subtask is ready. Fetch context before editing.",
-            "subtask": ready.to_dict(),
-        }
+        return _router(
+            "needs_context",
+            "rag_subtask_context",
+            "Subtask is ready. Fetch compact context before editing.",
+            task_id=graph.task_id,
+            current_subtask_id=ready.id,
+            subtask=ready.to_dict(),
+            recommended_call={"tool": "rag_subtask_context", "arguments": {"subtask_id": ready.id, "format": "compact"}},
+        )
     retryable = next((s for s in graph.subtasks if s.status == SubtaskStatus.failed and s.attempts < 3 and _deps_satisfied(graph, s)), None)
     if retryable:
-        return {
-            "state": "needs_next_subtask",
-            "next_tool": "rag_next_subtask",
-            "task_id": graph.task_id,
-            "current_subtask_id": retryable.id,
-            "message": "Retryable failed subtask is available.",
-            "subtask": retryable.to_dict(),
-        }
+        return _router(
+            "needs_context",
+            "rag_subtask_context",
+            "Retryable failed subtask is available. Rebuild compact context.",
+            task_id=graph.task_id,
+            current_subtask_id=retryable.id,
+            subtask=retryable.to_dict(),
+            recommended_call={"tool": "rag_subtask_context", "arguments": {"subtask_id": retryable.id, "format": "compact"}},
+        )
     has_terminal_failures = any(
         s.status == SubtaskStatus.failed and (s.attempts >= 3 or not _deps_satisfied(graph, s))
         for s in graph.subtasks
     )
     if has_terminal_failures:
-        return {
-            "state": "failed",
-            "next_tool": "rag_reflect_run",
-            "task_id": graph.task_id,
-            "current_subtask_id": graph.current_subtask_id,
-            "message": "Task has failed subtasks with no retries left.",
-            "subtask": None,
-        }
-    return {
-        "state": "blocked",
-        "next_tool": "rag_task_status",
-        "task_id": graph.task_id,
-        "current_subtask_id": graph.current_subtask_id,
-        "message": "No runnable subtasks. Inspect task status.",
-        "subtask": None,
-    }
+        return _router(
+            "failed",
+            "rag_reflect_run",
+            "Task has failed subtasks with no retries left.",
+            task_id=graph.task_id,
+            current_subtask_id=graph.current_subtask_id,
+            subtask=None,
+            recommended_call={"tool": "rag_reflect_run", "arguments": {}},
+        )
+    return _router(
+        "blocked",
+        "rag_task_status",
+        "No runnable subtasks. Inspect task status.",
+        task_id=graph.task_id,
+        current_subtask_id=graph.current_subtask_id,
+        subtask=None,
+        recommended_call={"tool": "rag_task_status", "arguments": {}},
+    )
+
+
+def task_continue(task: str | None = None) -> dict[str, Any]:
+    step = task_step(task)
+    response: dict[str, Any] = {"step": step, "context": {}, "next_action": "call_tool"}
+    if step.get("state") == "needs_context":
+        subtask_id = (step.get("recommended_call", {}).get("arguments", {}) or {}).get("subtask_id")
+        graph = load_task_graph()
+        if graph is not None and subtask_id:
+            response["context"] = subtask_context(graph, subtask_id, output_format="compact")
+            response["next_action"] = "edit"
+        return response
+    if step.get("state") in {"complete", "failed", "blocked"}:
+        response["next_action"] = "stop" if step["state"] in {"complete", "failed"} else "call_tool"
+    return response
 
 
 def reset_task(root: Path | None = None) -> dict[str, Any]:
