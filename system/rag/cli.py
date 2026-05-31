@@ -135,6 +135,7 @@ from .state import (
     list_retrieval_cache,
     list_retrieval_runs,
     list_task_outcomes,
+    list_task_outcomes_for_run,
     list_task_runs,
     list_session_compactions,
     list_sessions,
@@ -1353,54 +1354,153 @@ def _resolve_task_file(agent_dir: Path) -> Path:
 def cmd_task(args: argparse.Namespace) -> int:
     root = repo_root()
     conn = connect_db()
-    repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    try:
+        repo = infer_repo_filter(conn, getattr(args, "repo", None))
 
-    if args.task_command in {"init", "plan"}:
-        graph = plan_task(args.description, repo=repo, max_subtasks=getattr(args, "max_subtasks", 8))
-        console.print(f"[green]Planned[/green] {len(graph.subtasks)} subtasks in {task_graph_path(root)}")
-        _json_print(graph.to_dict())
-        return 0
+        if args.task_command in {"init", "plan"}:
+            graph = plan_task(args.description, repo=repo, max_subtasks=getattr(args, "max_subtasks", 8))
+            console.print(f"[green]Planned[/green] {len(graph.subtasks)} subtasks in {task_graph_path(root)}")
+            _json_print(graph.to_dict())
+            return 0
 
-    if args.task_command == "reset":
-        payload = reset_task(root)
-        console.print(f"[green]Reset[/green] task files in {root / '.agent'}")
-        _json_print(payload)
-        return 0
+        if args.task_command == "reset":
+            payload = reset_task(root)
+            console.print(f"[green]Reset[/green] task files in {root / '.agent'}")
+            _json_print(payload)
+            return 0
 
-    graph = load_task_graph(root)
-    if graph is None:
-        raise SystemExit("No task graph found. Run `rag task plan \"<description>\"` first.")
+        if args.task_command == "start":
+            if getattr(args, "reset_first", False):
+                reset_task(root)
+            graph = plan_task(args.description, repo=repo, max_subtasks=getattr(args, "max_subtasks", 8))
+            subtask = next_subtask(graph)
+            if subtask is None:
+                _json_print({"planned": graph.to_dict(), "next_subtask": None, "context": None})
+                return 1
+            context_format = "full" if getattr(args, "full", False) else "compact"
+            context = subtask_context(graph, subtask.id, output_format=context_format)
+            _json_print(
+                {
+                    "planned": graph.to_dict(),
+                    "next_subtask": subtask.to_dict(),
+                    "context": context,
+                }
+            )
+            return 0
 
-    if args.task_command == "next":
-        subtask = next_subtask(graph)
-        if subtask is None:
-            console.print("[yellow]No ready subtasks.[/yellow]")
-            return 1
-        console.print(f"[bold]{subtask.id}[/bold] {subtask.title}")
-        _json_print(subtask.to_dict())
-        return 0
+        if args.task_command == "doctor":
+            report: dict[str, object] = {
+                "task_graph_exists": task_graph_path(root).exists(),
+                "task_graph_json_valid": False,
+                "graph_loaded": False,
+                "current_subtask_exists": False,
+                "missing_dependencies": [],
+                "db_run_exists": False,
+                "outcomes_exist": False,
+                "memory_exists": (root / ".agent" / "memory.md").exists(),
+                "stale_subtasks_present": False,
+                "stale_subtasks": [],
+                "ok": False,
+            }
+            graph = None
+            if report["task_graph_exists"]:
+                try:
+                    graph = load_task_graph(root)
+                    report["task_graph_json_valid"] = graph is not None
+                    report["graph_loaded"] = graph is not None
+                except Exception:
+                    report["task_graph_json_valid"] = False
+            if graph is not None:
+                subtask_ids = {s.id for s in graph.subtasks}
+                if graph.current_subtask_id is None:
+                    report["current_subtask_exists"] = True
+                else:
+                    report["current_subtask_exists"] = graph.get_subtask(graph.current_subtask_id) is not None
+                missing: list[dict[str, object]] = []
+                for subtask in graph.subtasks:
+                    missing_ids = [dep for dep in subtask.depends_on if graph.get_subtask(dep) is None]
+                    if missing_ids:
+                        missing.append({"subtask_id": subtask.id, "missing_dependencies": missing_ids})
+                report["missing_dependencies"] = missing
+                if graph.run_id:
+                    report["db_run_exists"] = get_task_run(conn, graph.run_id) is not None
+                    report["outcomes_exist"] = bool(list_task_outcomes_for_run(conn, graph.run_id, limit=1))
+                else:
+                    report["outcomes_exist"] = bool(list_task_outcomes(conn, graph.repo, limit=1))
+                subtasks_path = root / ".agent" / "subtasks"
+                stale_subtasks = []
+                if subtasks_path.exists():
+                    for file in subtasks_path.glob("*.md"):
+                        stem = file.stem
+                        if stem not in subtask_ids:
+                            stale_subtasks.append(str(file.relative_to(root)))
+                report["stale_subtasks"] = stale_subtasks
+                report["stale_subtasks_present"] = bool(stale_subtasks)
+            report["ok"] = bool(
+                report["task_graph_exists"]
+                and report["task_graph_json_valid"]
+                and report["graph_loaded"]
+                and report["current_subtask_exists"]
+                and not report["missing_dependencies"]
+                and report["db_run_exists"]
+                and report["memory_exists"]
+            )
+            _json_print(report)
+            return 0 if report["ok"] else 1
 
-    if args.task_command == "context":
-        next_ready = next_subtask(graph)
-        subtask_id = getattr(args, "subtask_id", None) or graph.current_subtask_id or (next_ready.id if next_ready else None)
-        if subtask_id is None:
-            console.print("[yellow]No runnable subtask found.[/yellow]")
-            return 1
-        payload = subtask_context(graph, subtask_id)
-        _json_print(payload)
-        return 0
+        graph = load_task_graph(root)
+        if graph is None:
+            raise SystemExit("No task graph found. Run `rag task plan \"<description>\"` first.")
 
-    if args.task_command in {"done", "fail"}:
-        subtask_id = getattr(args, "subtask_id", None) or graph.current_subtask_id
-        if subtask_id is None:
-            console.print("[yellow]No current subtask.[/yellow]")
-            return 1
-        retrieved = list(getattr(args, "retrieved_file", []) or [])
-        edited = list(getattr(args, "edited_file", []) or [])
-        checks = list(getattr(args, "check", []) or [])
-        notes = getattr(args, "notes", None) or getattr(args, "summary", None)
-        if args.task_command == "done":
-            if getattr(args, "failed", False):
+        if args.task_command == "next":
+            subtask = next_subtask(graph)
+            if subtask is None:
+                console.print("[yellow]No ready subtasks.[/yellow]")
+                return 1
+            console.print(f"[bold]{subtask.id}[/bold] {subtask.title}")
+            _json_print(subtask.to_dict())
+            return 0
+
+        if args.task_command == "context":
+            next_ready = next_subtask(graph)
+            subtask_id = getattr(args, "subtask_id", None) or graph.current_subtask_id or (next_ready.id if next_ready else None)
+            if subtask_id is None:
+                console.print("[yellow]No runnable subtask found.[/yellow]")
+                return 1
+            payload = subtask_context(graph, subtask_id)
+            _json_print(payload)
+            return 0
+
+        if args.task_command in {"done", "fail"}:
+            subtask_id = getattr(args, "subtask_id", None) or graph.current_subtask_id
+            if subtask_id is None:
+                console.print("[yellow]No current subtask.[/yellow]")
+                return 1
+            retrieved = list(getattr(args, "retrieved_file", []) or [])
+            edited = list(getattr(args, "edited_file", []) or [])
+            checks = list(getattr(args, "check", []) or [])
+            notes = getattr(args, "notes", None) or getattr(args, "summary", None)
+            if args.task_command == "done":
+                if getattr(args, "failed", False):
+                    graph = mark_subtask_failed(
+                        graph,
+                        subtask_id,
+                        retrieved_files=retrieved,
+                        edited_files=edited,
+                        checks_run=checks,
+                        notes=notes,
+                    )
+                else:
+                    graph = mark_subtask_done(
+                        graph,
+                        subtask_id,
+                        retrieved_files=retrieved,
+                        edited_files=edited,
+                        checks_run=checks,
+                        passed=True,
+                        notes=notes,
+                    )
+            else:
                 graph = mark_subtask_failed(
                     graph,
                     subtask_id,
@@ -1409,66 +1509,49 @@ def cmd_task(args: argparse.Namespace) -> int:
                     checks_run=checks,
                     notes=notes,
                 )
-            else:
-                graph = mark_subtask_done(
-                    graph,
-                    subtask_id,
-                    retrieved_files=retrieved,
-                    edited_files=edited,
-                    checks_run=checks,
-                    passed=True,
-                    notes=notes,
-                )
-        else:
-            graph = mark_subtask_failed(
-                graph,
-                subtask_id,
-                retrieved_files=retrieved,
-                edited_files=edited,
-                checks_run=checks,
-                notes=notes,
-            )
-        console.print(f"[green]Updated[/green] {subtask_id} -> {args.task_command}")
-        _json_print(graph.to_dict())
-        return 0
-
-    if args.task_command == "status":
-        _json_print(task_graph_status(graph))
-        return 0
-
-    if args.task_command == "compact":
-        compacted = compact_completed_subtasks(graph)
-        if compacted is None:
-            console.print("[yellow]No task graph found.[/yellow]")
-            return 1
-        console.print(f"[green]Compacted[/green] completed subtasks into {task_context_path(root)}")
-        _json_print(compacted.to_dict())
-        return 0
-
-    if args.task_command == "list":
-        task_files = sorted((root / ".agent").glob("task*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
-        if not task_files:
-            console.print("[yellow]No task files found in .agent/[/yellow]")
+            console.print(f"[green]Updated[/green] {subtask_id} -> {args.task_command}")
+            _json_print(graph.to_dict())
             return 0
-        table = Table(title=f"Tasks in {root / '.agent'}")
-        table.add_column("file")
-        table.add_column("modified")
-        table.add_column("preview")
-        for tf in task_files[:20]:
-            import datetime as _dt
 
-            mtime = _dt.datetime.fromtimestamp(tf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-            first_line = ""
-            for ln in tf.read_text().splitlines():
-                ln = ln.strip()
-                if ln and not ln.startswith("#") and not ln.startswith("<!--") and not ln.startswith("*"):
-                    first_line = ln[:80]
-                    break
-            table.add_row(tf.name, mtime, first_line)
-        console.print(table)
-        return 0
+        if args.task_command == "status":
+            _json_print(task_graph_status(graph))
+            return 0
 
-    raise SystemExit(f"Unknown task command: {args.task_command}")
+        if args.task_command == "compact":
+            compacted = compact_completed_subtasks(graph)
+            if compacted is None:
+                console.print("[yellow]No task graph found.[/yellow]")
+                return 1
+            console.print(f"[green]Compacted[/green] completed subtasks into {task_context_path(root)}")
+            _json_print(compacted.to_dict())
+            return 0
+
+        if args.task_command == "list":
+            task_files = sorted((root / ".agent").glob("task*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if not task_files:
+                console.print("[yellow]No task files found in .agent/[/yellow]")
+                return 0
+            table = Table(title=f"Tasks in {root / '.agent'}")
+            table.add_column("file")
+            table.add_column("modified")
+            table.add_column("preview")
+            for tf in task_files[:20]:
+                import datetime as _dt
+
+                mtime = _dt.datetime.fromtimestamp(tf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                first_line = ""
+                for ln in tf.read_text().splitlines():
+                    ln = ln.strip()
+                    if ln and not ln.startswith("#") and not ln.startswith("<!--") and not ln.startswith("*"):
+                        first_line = ln[:80]
+                        break
+                table.add_row(tf.name, mtime, first_line)
+            console.print(table)
+            return 0
+
+        raise SystemExit(f"Unknown task command: {args.task_command}")
+    finally:
+        conn.close()
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -3847,6 +3930,14 @@ def build_parser() -> argparse.ArgumentParser:
     task_plan_parser.add_argument("--max-subtasks", type=int, default=8)
     task_plan_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
 
+    task_start_parser = task_subparsers.add_parser("start", help="Plan task, pick next subtask, and return subtask context")
+    task_start_parser.add_argument("description", help="Task description")
+    task_start_parser.add_argument("--repo", help="Repo name override")
+    task_start_parser.add_argument("--max-subtasks", type=int, default=8)
+    task_start_parser.add_argument("--reset-first", action="store_true", help="Reset existing task files before starting")
+    task_start_parser.add_argument("--full", action="store_true", help="Return full subtask context instead of compact")
+    task_start_parser.set_defaults(func=cmd_task, needs_qdrant=True, needs_llm=True)
+
     task_next_parser = task_subparsers.add_parser("next", help="Return the next ready subtask")
     task_next_parser.add_argument("--repo", help="Repo name override")
     task_next_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
@@ -3895,6 +3986,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     task_reset_parser = task_subparsers.add_parser("reset", help="Archive and clear active task workflow files")
     task_reset_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_doctor_parser = task_subparsers.add_parser("doctor", help="Check task graph/.agent/DB sanity for current workflow state")
+    task_doctor_parser.add_argument("--repo", help="Repo name override")
+    task_doctor_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
 
     serve_parser = subparsers.add_parser("serve", help="Run local RAG integration servers")
     serve_parser.add_argument("--http", action="store_true", help="Run the HTTP JSON endpoint server")

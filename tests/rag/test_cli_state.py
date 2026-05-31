@@ -80,6 +80,11 @@ class CliStateTest(unittest.TestCase):
         self.assertEqual(cache_args.cache_command, "stats")
         eval_args = parser.parse_args(["eval", "add", "why auth fails", "--expect-file", "system/rag/cli.py"])
         self.assertEqual(eval_args.eval_command, "add")
+        task_start_args = parser.parse_args(["task", "start", "fix login bug", "--max-subtasks", "4"])
+        self.assertEqual(task_start_args.task_command, "start")
+        self.assertEqual(task_start_args.max_subtasks, 4)
+        task_doctor_args = parser.parse_args(["task", "doctor"])
+        self.assertEqual(task_doctor_args.task_command, "doctor")
 
     def test_parser_marks_runtime_dependencies_for_lazy_start(self) -> None:
         parser = build_parser()

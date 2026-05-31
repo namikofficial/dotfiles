@@ -5,9 +5,15 @@ Apply this skill at the beginning of every new coding session before any file ed
 ## On session start
 
 1. Call `rag_status` to verify RAG is running.
-2. Call `rag_agent_context` with the user's first message as `task`.
-3. Read the `rag://task/current` resource — if a task exists and is not stale (< 24 h old), continue it.
-4. If no task exists or the user is starting something new, call `rag_task_init` with the user's request.
+2. Call `rag_task_step` first with the user's message as optional `task`.
+3. Follow `rag_task_step.next_tool` strictly:
+   - `rag_plan_task` when state is `needs_plan`
+   - `rag_next_subtask` when state is `needs_next_subtask`
+   - `rag_subtask_context` when state is `needs_context`
+   - `rag_subtask_done` or `rag_subtask_failed` when state is `ready_for_work`
+   - `rag_learn_from_outcome` when state is `complete`
+   - `rag_reflect_run` when state is `failed`
+4. Call `rag_agent_context` directly only for tiny/single-file tasks where task orchestration is unnecessary.
 5. Read `rag://memory/project` to load durable project knowledge.
 6. Read `rag://git/status` to see what has changed since the last session.
 
