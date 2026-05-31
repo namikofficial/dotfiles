@@ -20,6 +20,8 @@ WITH_AUR=0
 WITH_NVIDIA=""
 DRY_RUN=0
 NO_BACKUP=0
+INSTALL_LOCAL_AI=1
+INSTALL_LOCAL_AI_MODELS=0
 INSTALL_ZSH_PLUGINS=1
 INSTALL_TMUX_PLUGINS=1
 INSTALL_HYPR_PLUGINS=0
@@ -36,6 +38,10 @@ Usage: $0 [options]
   --no-zsh-plugins     Skip optional zsh plugin sync
   --no-tmux-plugins    Skip optional tmux plugin sync
   --install-hypr-plugins  Build/install hyprexpo locally (must run in Hyprland session)
+  --install-local-ai   Install local AI runtime links/config
+  --install-local-ai-models
+                       Also download autoload local AI models
+  --no-local-ai        Skip local AI runtime install/linking
   --dry-run            Print actions without writing changes
   --no-backup          Replace existing files without backup copy
 USAGE
@@ -58,6 +64,15 @@ while (($#)); do
     --no-zsh-plugins) INSTALL_ZSH_PLUGINS=0 ;;
     --no-tmux-plugins) INSTALL_TMUX_PLUGINS=0 ;;
     --install-hypr-plugins) INSTALL_HYPR_PLUGINS=1 ;;
+    --install-local-ai) INSTALL_LOCAL_AI=1 ;;
+    --install-local-ai-models)
+      INSTALL_LOCAL_AI=1
+      INSTALL_LOCAL_AI_MODELS=1
+      ;;
+    --no-local-ai)
+      INSTALL_LOCAL_AI=0
+      INSTALL_LOCAL_AI_MODELS=0
+      ;;
     --dry-run) DRY_RUN=1 ;;
     --no-backup) NO_BACKUP=1 ;;
     -h | --help)
@@ -239,6 +254,26 @@ else
   echo "warning: if you have access, run: git submodule update --init private/scripts" >&2
 fi
 
+if ((INSTALL_LOCAL_AI)); then
+  if ((DRY_RUN)); then
+    echo "[dry-run] mkdir -p "$HOME/.config/local-ai/templates" "$HOME/.config/local-ai/skills" "$HOME/.config/local-ai/system""
+  else
+    mkdir -p "$HOME/.config/local-ai/templates" "$HOME/.config/local-ai/skills" "$HOME/.config/local-ai/system"
+  fi
+  for f in "$REPO_DIR/ai/templates/"*.md; do
+    [ -e "$f" ] || continue
+    link_path "$f" "$HOME/.config/local-ai/templates/$(basename "$f")"
+  done
+  for f in "$REPO_DIR/ai/skills/"*.md; do
+    [ -e "$f" ] || continue
+    link_path "$f" "$HOME/.config/local-ai/skills/$(basename "$f")"
+  done
+  for f in "$REPO_DIR/ai/system/"*.md; do
+    [ -e "$f" ] || continue
+    link_path "$f" "$HOME/.config/local-ai/system/$(basename "$f")"
+  done
+fi
+
 if ((RUN_PACKAGES)); then
   cmd=("$SCRIPT_DIR/install-packages.sh")
   ((WITH_AUR)) && cmd+=(--with-aur)
@@ -264,6 +299,17 @@ if ((INSTALL_HYPR_PLUGINS)); then
     echo "[dry-run] $SCRIPT_DIR/install-hypr-plugins.sh"
   else
     "$SCRIPT_DIR/install-hypr-plugins.sh"
+  fi
+fi
+
+if ((INSTALL_LOCAL_AI)); then
+  cmd=("$SCRIPT_DIR/install-local-ai-stack.sh" --install-runtime)
+  ((DRY_RUN)) && cmd+=(--dry-run)
+  "${cmd[@]}"
+  if ((INSTALL_LOCAL_AI_MODELS)); then
+    cmd=("$SCRIPT_DIR/install-local-ai-stack.sh" --install-models)
+    ((DRY_RUN)) && cmd+=(--dry-run)
+    "${cmd[@]}"
   fi
 fi
 

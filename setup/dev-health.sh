@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 FULL=0
 FIX=0
+TMP_DIR="${XDG_RUNTIME_DIR:-$HOME/.cache}/dev-health"
+mkdir -p "$TMP_DIR"
 
 usage() {
   cat <<USAGE
@@ -50,15 +52,16 @@ info() { printf 'INFO  %s\n' "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
 run_optional() {
-  local label="$1"
+  local label="$1" out_file
   shift
-  if "$@" >/tmp/dev-health.$$ 2>&1; then
+  out_file="$TMP_DIR/${label//[^A-Za-z0-9_.-]/_}.$$"
+  if "$@" >"$out_file" 2>&1; then
     ok "$label"
   else
     warn "$label"
-    sed -n '1,12p' /tmp/dev-health.$$ | sed 's/^/      /'
+    sed -n '1,12p' "$out_file" | sed 's/^/      /'
   fi
-  rm -f /tmp/dev-health.$$
+  rm -f "$out_file"
 }
 
 service_state() {
@@ -128,11 +131,28 @@ else
 fi
 
 section "Local AI / RAG"
+LOCAL_AI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/local-ai"
 if have local-ai-runtime; then
-  local-ai-runtime status 2>/tmp/dev-health-ai.$$ | sed -n '1,12p' | sed 's/^/      /' || warn "local-ai-runtime status failed"
-  rm -f /tmp/dev-health-ai.$$
+  local_ai_state="$TMP_DIR/local-ai-runtime.$$"
+  local-ai-runtime status 2>"$local_ai_state" | sed -n '1,12p' | sed 's/^/      /' || warn "local-ai-runtime status failed"
+  rm -f "$local_ai_state"
 else
   warn "local-ai-runtime missing"
+fi
+if [ -f "$LOCAL_AI_DIR/current-model.env" ]; then
+  ok "current-model.env present"
+else
+  warn "current-model.env missing"
+fi
+if [ -f "$LOCAL_AI_DIR/rag.json" ]; then
+  ok "rag.json present"
+else
+  warn "rag.json missing"
+fi
+if curl -fsS --max-time 2 http://127.0.0.1:8080/v1/models >/dev/null 2>&1; then
+  ok "local AI endpoint reachable"
+else
+  warn "local AI endpoint unreachable at http://127.0.0.1:8080/v1/models"
 fi
 if have llama-swap-manager; then
   run_optional "llama-swap-manager status" llama-swap-manager status

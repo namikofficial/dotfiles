@@ -13,7 +13,7 @@ QDRANT_IMAGE="${RAG_QDRANT_IMAGE:-qdrant/qdrant}"
 QDRANT_STORAGE_DIR="${RAG_QDRANT_STORAGE_DIR:-$RAG_HOME/qdrant_storage}"
 DEFAULT_QDRANT_URL="${RAG_QDRANT_URL:-http://127.0.0.1:6333}"
 DEFAULT_ANSWER_URL="${RAG_ANSWER_URL:-http://127.0.0.1:8080/v1/chat/completions}"
-DEFAULT_ANSWER_MODEL="${RAG_ANSWER_MODEL:-gemma-3-4b}"
+DEFAULT_ANSWER_MODEL="${RAG_ANSWER_MODEL:-qwen3-8b}"
 
 mkdir -p "$RUNTIME_DIR" "$QDRANT_STORAGE_DIR"
 
@@ -188,7 +188,8 @@ warm_llm() {
   need_cmd curl
   url="$(answer_url)"
   model="$(answer_model)"
-  payload="$(python - "$model" <<'PY'
+  payload="$(
+    python - "$model" <<'PY'
 import json
 import sys
 
@@ -200,7 +201,7 @@ print(json.dumps({
     "stream": False,
 }))
 PY
-)"
+  )"
   curl -fsS --max-time 240 "$url" \
     -H 'Content-Type: application/json' \
     -d "$payload" >/dev/null

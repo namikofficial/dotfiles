@@ -1,97 +1,44 @@
-# Local LLM setup
+# Local LLM Setup
 
-The current local AI path is **llama-swap only**.
+## Quick start
+1. Run `setup/install-local-ai-stack.sh --install-runtime --doctor`.
+2. Start the router with `llama-swap-manager start`.
+3. Check the endpoint with `curl http://127.0.0.1:8080/v1/models`.
+4. Switch models with `llama-swap-manager switch <model>` when needed.
 
-- router: `llama-swap-manager`
-- endpoint: `http://127.0.0.1:8080/v1`
-- default model alias: `local`
-- current wired model: `gemma-3-4b`
+## Model roles
+| Model | Alias | Role | Default ctx |
+| --- | --- | --- | --- |
+| Qwen3 8B | `local`, `qwen3` | Primary chat/code/RAG | 32768 |
+| Qwen2.5 Coder 7B | `qwen-coder-7b` | Coding sessions | 32768 |
+| Gemma 3 4B | `gemma-3-4b` | Fast fallback | 32768 |
+| Phi-4 Mini | `phi-4-mini` | Compact reasoning | 16384 |
+| DeepSeek R1 Distill Qwen 7B | `deepseek-r1` | Debugging/reasoning | 32768 |
+| Llama 3.2 3B | `llama3b` | Small fallback | 65536 |
+| Qwen3 4B | `qwen3-4b` | Fast chat | 65536 |
+| Qwen3 1.7B | `router` | Routing/query rewrite | 65536 |
 
-## Install
+## llama-swap usage
+- Status: `llama-swap-manager status`
+- Start: `llama-swap-manager start`
+- Stop: `llama-swap-manager stop`
+- Logs: `llama-swap-manager logs`
+- Test chat: `llama-swap-manager test`
 
-```bash
-cd ~/Documents/code/dotfiles
-./setup/install-local-llm-stack.sh
-```
+## Switching models
+- Primary alias: `local` → `qwen3-8b`
+- Coding model: `qwen-coder-7b`
+- Fast fallback: `gemma-3-4b`
+- Example: `llama-swap-manager switch qwen-coder-7b`
 
-## Download the model
+## OOM recovery
+1. Stop the router: `llama-swap-manager stop`
+2. Switch to `gemma-3-4b`, `qwen3-4b`, or `llama3b`
+3. Reduce concurrent work and retry
+4. Lower context size before restarting if needed
 
-```bash
-bash ~/Documents/code/dotfiles/system/model-downloader.sh gemma-3-4b
-# or
-bash ~/Documents/code/dotfiles/system/model-download-setup.sh
-```
-
-Required file:
-
-```text
-~/llama-models/google_gemma-3-4b-it-Q4_K_M.gguf
-```
-
-## Start the local endpoint when needed
-
-```bash
-local-ai-runtime start
-local-ai-runtime status
-llama-swap-manager test
-```
-
-## Use it
-
-```bash
-kage ai explain
-kage ai commit-msg
-kage ai review
-```
-
-Hyprland keybinds:
-
-- `Super+Shift+E` — explain clipboard text
-- `Super+Shift+C` — generate commit message
-- `Super+Shift+R` — review last commit
-
-## Routing policy
-
-- Use local helper scripts for shell explanations, commit messages, short reviews, and clipboard summaries.
-- Use `rag quick` / `rag deep` when repo-grounded context matters.
-- Use OpenCode from the AI scratchpad when you want an interactive local-agent loop.
-- Use cloud tools only when explicitly chosen for a task that exceeds local model quality or context.
-
-## Files
-
-- `system/llama-swap-manager.sh` — local router manager
-- `system/local-ai-runtime.sh` — start/stop/status helper for llama-swap + Qdrant
-- `system/model-downloader.sh` — manual model instructions
-- `system/model-download-setup.sh` — guided HuggingFace download helper
-- `system/wayle-llm-module.sh` — Wayle LLM widget
-- `system/llama-swap/config.template.yaml` — routed model config
-
-## Troubleshooting
-
-### Router will not start
-
-```bash
-llama-swap-manager status
-llama-swap-manager logs
-llama-server --list-devices
-```
-
-### AI features say local AI is offline
-
-```bash
-local-ai-runtime start
-llama-swap-manager test
-```
-
-### Quick endpoint test
-
-```bash
-curl -s http://127.0.0.1:8080/v1/models | jq .
-```
-
-## Notes
-
-- The local AI scripts can auto-start llama-swap on first use instead of assuming it is already running.
-- Use `local-ai-runtime stop` when you want to unload the local runtime again.
-- Old `llm-manager` / port-8000 guidance is retired.
-- If you want another model, add it to `system/llama-swap/config.template.yaml` first instead of using an undocumented side path.
+## Context window guide
+- 7B/8B Q4_K_M models: `32768`
+- 3B/4B models: `65536`
+- 1.7B router models: `65536`
+- Embedding/reranker models: `8192`

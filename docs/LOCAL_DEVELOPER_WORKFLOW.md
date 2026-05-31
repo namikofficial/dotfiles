@@ -80,10 +80,13 @@ Use one local router path unless explicitly testing something else:
 - router: `llama-swap-manager`
 - endpoint: `http://127.0.0.1:8080/v1`
 - model alias: `local`
-- default model: `gemma-3-4b`
+- default model: `qwen3-8b`
 
 Routing rules:
 
+- Primary daily model: `qwen3-8b` via the `local` alias.
+- Fast fallback: `gemma-3-4b`.
+- Coding-focused sessions: `qwen-coder-7b`.
 - Use local helper scripts for shell explanations, commit messages, short reviews, and clipboard summaries.
 - Use `rag quick` / `rag deep` when repo-grounded context matters.
 - Use OpenCode from the AI scratchpad when you want an interactive local-agent loop.
