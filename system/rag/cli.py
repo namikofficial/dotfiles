@@ -31,7 +31,7 @@ from rich.progress import (
 
 from .code_intel import tree_sitter_available
 from .indexing import index_repo
-from .llm import ask_llm, models_url
+from .llm import ask_llm, complete_llm, models_url
 from .contracts import AgentPlan, Target
 from .executors import executor_matrix, get_executor
 from .learning import list_memory_candidates, review_memory_candidate
@@ -93,6 +93,7 @@ from .state import (
     list_eval_cases,
     list_errors,
     list_memory_entries,
+    list_session_compactions,
     list_sessions,
     list_test_failures,
     list_todos,
@@ -857,6 +858,102 @@ def cmd_learn(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_skill(args: argparse.Namespace) -> int:
+    """Manage auto-generated OpenCode skills."""
+    import collections
+    import re as _re
+
+    skills_auto_dir = Path("~/.codex/skills/auto").expanduser()
+    repo_skills_dir = Path(__file__).parent.parent.parent / "configs" / "opencode" / "skills"
+
+    if args.skill_command == "list":
+        all_skills: list[tuple[str, Path]] = []
+        for base, label in [(repo_skills_dir, "repo"), (skills_auto_dir, "auto")]:
+            if base.exists():
+                for p in sorted(base.iterdir()):
+                    if p.is_dir() and (p / "SKILL.md").exists():
+                        all_skills.append((label, p / "SKILL.md"))
+        if not all_skills:
+            console.print("[yellow]No skills found.[/yellow]")
+            return 0
+        table = Table(title="OpenCode skills")
+        table.add_column("source")
+        table.add_column("name")
+        table.add_column("path")
+        for label, p in all_skills:
+            table.add_row(label, p.parent.name, str(p))
+        console.print(table)
+        return 0
+
+    if args.skill_command == "generate":
+        conn = connect_db()
+        repo = resolve_repo_name(conn, getattr(args, "repo", None))
+        rows = list_session_compactions(conn, repo if not getattr(args, "global_scope", False) else None, limit=100)
+        if len(rows) < 3:
+            console.print("[yellow]Not enough sessions to generate skills (need ≥ 3).[/yellow]")
+            return 0
+
+        # Count query patterns by prefix words to find common task categories
+        category_counter: dict[str, list[str]] = collections.defaultdict(list)
+        keyword_groups = {
+            "debug": ["debug", "error", "fix", "broken", "fail", "crash", "issue"],
+            "refactor": ["refactor", "clean", "restructure", "extract", "rename"],
+            "implement": ["implement", "add", "create", "build", "write", "new"],
+            "review": ["review", "check", "inspect", "audit", "analyze"],
+            "migration": ["migrate", "migration", "upgrade", "update", "convert"],
+            "test": ["test", "spec", "coverage", "assert", "mock"],
+            "document": ["document", "docs", "readme", "explain", "describe"],
+            "deploy": ["deploy", "release", "package", "build", "ci"],
+        }
+        for row in rows:
+            summary = str(row["summary"]).lower()
+            for category, keywords in keyword_groups.items():
+                if any(kw in summary for kw in keywords):
+                    category_counter[category].append(str(row["summary"]))
+
+        skills_auto_dir.mkdir(parents=True, exist_ok=True)
+        generated = 0
+        for category, examples in category_counter.items():
+            if len(examples) < 3:
+                continue
+            skill_dir = skills_auto_dir / category
+            skill_file = skill_dir / "SKILL.md"
+            if skill_file.exists() and not getattr(args, "force", False):
+                continue
+            skill_dir.mkdir(parents=True, exist_ok=True)
+            examples_text = "\n".join(f"- {e[:120]}" for e in examples[:5])
+            config = load_config()
+            system = (
+                "You generate concise OpenCode skill files. A skill file has three required sections: "
+                "## Trigger (when to use), ## Steps (numbered instructions), ## Do not (anti-patterns). "
+                "Be specific, not generic. No more than 300 words."
+            )
+            prompt = (
+                f"Generate a SKILL.md for the '{category}' task category. "
+                f"These are real examples from this project:\n{examples_text}\n\n"
+                "Output only the markdown skill file starting with `# {Title}`."
+            )
+            try:
+                content = complete_llm(config, system, prompt, max_tokens=600)
+                if not all(section in content for section in ("##", "## ")):
+                    continue
+                skill_file.write_text(content.strip() + "\n")
+                console.print(f"[green]Generated[/green] skill: {category} → {skill_file}")
+                generated += 1
+            except Exception as exc:  # noqa: BLE001
+                console.print(f"[yellow]Skipped {category}:[/yellow] {exc}")
+
+        if generated == 0:
+            console.print("[dim]No new skills generated (need ≥ 3 matching sessions per category, or use --force).[/dim]")
+        else:
+            console.print(f"\n[bold]{generated}[/bold] skill(s) written to {skills_auto_dir}")
+        return 0
+
+    raise SystemExit(f"Unknown skill command: {args.skill_command}")
+
+
+
+
 def cmd_mcp(_args: argparse.Namespace) -> int:
     from .server import run_mcp_stdio
 
@@ -1145,7 +1242,24 @@ def cmd_status(_args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_clean(args: argparse.Namespace) -> int:
+def cmd_route(args: argparse.Namespace) -> int:
+    """Show model routing decision for a query."""
+    from .llm import _approx_tokens, _task_complexity, _select_model  # noqa: PLC0415
+    config = load_config()
+    question = args.query
+    context = args.context or ""
+    tokens = _approx_tokens(question + context)
+    complexity = _task_complexity(question, context)
+    model_id, endpoint = _select_model(config, complexity)
+    console.print("[bold]Route diagnosis[/bold]")
+    console.print(f"Query:      {question[:80]}{'...' if len(question) > 80 else ''}")
+    console.print(f"Tokens:     ~{tokens}")
+    console.print(f"Complexity: {complexity}")
+    console.print(f"Model:      {model_id}")
+    console.print(f"Endpoint:   {endpoint}")
+    return 0
+
+
     config = load_config()
     conn = connect_db()
     client = get_qdrant(config)
@@ -2847,6 +2961,11 @@ def build_parser() -> argparse.ArgumentParser:
     status_parser = subparsers.add_parser("status", help="Show quick local RAG status")
     status_parser.set_defaults(func=cmd_status)
 
+    route_parser = subparsers.add_parser("route", help="Show model routing decision for a query")
+    route_parser.add_argument("query", help="Query to diagnose")
+    route_parser.add_argument("--context", default="", help="Optional context text to simulate")
+    route_parser.set_defaults(func=cmd_route, needs_qdrant=False, needs_llm=False)
+
     clean_parser = subparsers.add_parser("clean", help="Clear repo-specific or full local RAG state")
     clean_scope = clean_parser.add_mutually_exclusive_group(required=True)
     clean_scope.add_argument("--repo", help="Clear one indexed repo by name")
@@ -2868,6 +2987,18 @@ def build_parser() -> argparse.ArgumentParser:
     learn_parser.add_argument("--review-status", choices=["accepted", "rejected", "edited"])
     learn_parser.add_argument("--content", help="Replacement content when marking a candidate edited")
     learn_parser.set_defaults(func=cmd_learn)
+
+    skill_parser = subparsers.add_parser("skill", help="Manage and generate OpenCode skills")
+    skill_subparsers = skill_parser.add_subparsers(dest="skill_command", required=True)
+
+    skill_list_parser = skill_subparsers.add_parser("list", help="List all repo and auto-generated skills")
+    skill_list_parser.set_defaults(func=cmd_skill, needs_qdrant=False, needs_llm=False)
+
+    skill_gen_parser = skill_subparsers.add_parser("generate", help="Generate skills from session patterns")
+    skill_gen_parser.add_argument("--repo", help="Limit to one repo (omit for current repo)")
+    skill_gen_parser.add_argument("--global", dest="global_scope", action="store_true", help="Analyse all repos")
+    skill_gen_parser.add_argument("--force", action="store_true", help="Overwrite existing auto-generated skills")
+    skill_gen_parser.set_defaults(func=cmd_skill, needs_qdrant=False, needs_llm=True)
 
     mcp_parser = subparsers.add_parser("mcp", help="Run the local RAG MCP-style stdio tool server")
     mcp_parser.set_defaults(func=cmd_mcp)
@@ -2916,9 +3047,11 @@ LEGACY_COMMANDS = {
     "mcp",
     "quick",
     "reindex",
+    "route",
     "search",
     "serve",
     "session",
+    "skill",
     "status",
     "suggest",
     "summarize",

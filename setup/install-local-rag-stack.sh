@@ -69,7 +69,7 @@ else
 fi
 
 ln -sfn "$REPO_DIR/system/rag.sh" "$HOME/.local/bin/rag"
-ln -sfn "$REPO_DIR/system/rag-mcp" "$HOME/.local/bin/rag-mcp"
+ln -sfn "$REPO_DIR/system/rag-mcp.sh" "$HOME/.local/bin/rag-mcp"
 ln -sfn "$REPO_DIR/system/local-ai-runtime.sh" "$LOCAL_AI_RUNTIME_LINK"
 ln -sfn "$REPO_DIR/system/completions/_rag" "$COMPLETION_DIR/_rag"
 
