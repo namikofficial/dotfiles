@@ -238,7 +238,7 @@ async def _read_resource(uri: types.AnyUrl) -> str:
 
     if s == "rag://task/current":
         p = root / ".agent" / "task.md"
-        return p.read_text() if p.exists() else "# Current Task\n\n*No task initialized. Run: rag task init \"<description>\"*"
+        return p.read_text() if p.exists() else "# Current Task\n\n*No task initialized. Run: rag task start \"<description>\"*"
 
     if s == "rag://memory/project":
         p = root / ".agent" / "memory.md"

@@ -25,7 +25,7 @@ Apply this skill at the beginning of every new coding session before any file ed
 
 ## On session end
 
-- If meaningful work was done, call `rag_task_done` with a one-paragraph summary.
+- If meaningful work was done, call `rag_reflect_run` and then `rag_learn_from_outcome`.
 - Store only stable, verified facts with `rag_memory_add`; do not store guesses or temporary state.
 
 ## When not to use RAG
