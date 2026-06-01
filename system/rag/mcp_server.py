@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import importlib
 import json
 import subprocess
 import sys
@@ -24,10 +25,13 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from mcp.server import NotificationOptions, Server
-    from mcp.server.models import InitializationOptions
-    import mcp.server.stdio as mcp_stdio
-    import mcp.types as types
+    _mcp_server = importlib.import_module("mcp.server")
+    _mcp_server_models = importlib.import_module("mcp.server.models")
+    mcp_stdio = importlib.import_module("mcp.server.stdio")
+    types = importlib.import_module("mcp.types")
+    NotificationOptions = _mcp_server.NotificationOptions
+    Server = _mcp_server.Server
+    InitializationOptions = _mcp_server_models.InitializationOptions
     MCP_AVAILABLE = True
 except ModuleNotFoundError:  # pragma: no cover - exercised indirectly in tests
     MCP_AVAILABLE = False
@@ -98,6 +102,12 @@ except ModuleNotFoundError:  # pragma: no cover - exercised indirectly in tests
         async def run(self, *_args: Any, **_kwargs: Any) -> None:
             raise RuntimeError("python package 'mcp' is required to run rag-mcp")
 
+
+TextContentLike = Any
+ResourceLike = Any
+ToolLike = Any
+AnyUrlLike = Any
+
 from .agent_support import (
     describe_task,
     evaluate_query,
@@ -118,6 +128,7 @@ from .orchestrator import (
     mark_subtask_running,
     next_subtask,
     plan_task,
+    retrieval_score,
     task_step,
     reflect_run,
     task_continue,
@@ -129,7 +140,7 @@ from .retrieval import gather_context, reranker_enabled, retrieve
 from .settings import get_mode_profile, load_config
 from .state import get_retrieval_run, latest_retrieval_run, retrieval_run_payload
 from .storage import connect_db, get_qdrant, infer_repo_filter
-from .workflow_policy import probe_runtime, workflow_policy_for_task
+from .workflow_policy import cached_probe_runtime, workflow_policy_for_task
 
 
 _server = Server("rag-mcp")
@@ -172,21 +183,10 @@ def _record_outcome_payload(arguments: dict[str, Any]) -> dict[str, Any]:
             notes=arguments.get("notes"),
             run_id=arguments.get("run_id"),
         )
-        edited_set = list(dict.fromkeys(edited))
-        retrieved_set = set(dict.fromkeys(retrieved))
-        hits = sum(1 for path in edited_set if path in retrieved_set)
-        edited_count = len(edited_set)
         return {
             "stored": True,
             "outcome_id": outcome_id,
-            "score": {
-                "retrieval_hit_rate": round((hits / edited_count), 4) if edited_count else 1.0,
-                "missed_file_count": max(0, edited_count - hits),
-                "retrieved_file_count": len(retrieved_set),
-                "edited_file_count": edited_count,
-                "checks_count": len(list(dict.fromkeys(checks))),
-                "passed": bool(arguments.get("passed", False)),
-            },
+            "score": retrieval_score(retrieved, edited, checks, bool(arguments.get("passed", False))),
         }
 
 
@@ -209,11 +209,11 @@ def _run_rag(*args: str, timeout: int = 45) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _text(content: str) -> list[types.TextContent]:
+def _text(content: str) -> list[TextContentLike]:
     return [types.TextContent(type="text", text=content)]
 
 
-def _json_text(payload: Any) -> list[types.TextContent]:
+def _json_text(payload: Any) -> list[TextContentLike]:
     return _text(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -222,7 +222,7 @@ def _json_text(payload: Any) -> list[types.TextContent]:
 # ---------------------------------------------------------------------------
 
 @_server.list_resources()
-async def _list_resources() -> list[types.Resource]:
+async def _list_resources() -> list[ResourceLike]:
     return [
         types.Resource(
             uri="rag://task/current",  # type: ignore[arg-type]
@@ -252,7 +252,7 @@ async def _list_resources() -> list[types.Resource]:
 
 
 @_server.read_resource()
-async def _read_resource(uri: types.AnyUrl) -> str:
+async def _read_resource(uri: AnyUrlLike) -> str:
     root = _repo_root()
     s = str(uri)
 
@@ -289,7 +289,7 @@ async def _read_resource(uri: types.AnyUrl) -> str:
 # ---------------------------------------------------------------------------
 
 @_server.list_tools()
-async def _list_tools() -> list[types.Tool]:
+async def _list_tools() -> list[ToolLike]:
     return [
         types.Tool(
             name="rag_status",
@@ -599,7 +599,7 @@ async def _list_tools() -> list[types.Tool]:
 
 
 @_server.call_tool()
-async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextContent]:
+async def _call_tool(name: str, arguments: dict[str, Any]) -> list[TextContentLike]:
     try:
         if name == "rag_status":
             r = _run_rag("status")
@@ -660,7 +660,7 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             return _text(render_agent_context_markdown(payload))
 
         if name == "rag_plan_task":
-            policy = workflow_policy_for_task(arguments["task"], runtime=probe_runtime())
+            policy = workflow_policy_for_task(arguments["task"], runtime=cached_probe_runtime())
             requested_max = int(arguments.get("max_subtasks", 8))
             effective_max = min(requested_max, policy.max_subtasks)
             graph = await asyncio.to_thread(plan_task, arguments["task"], arguments.get("repo"), effective_max)
@@ -674,7 +674,7 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             return _json_text(payload)
 
         if name == "rag_should_use_graph":
-            policy = workflow_policy_for_task(arguments["task"], runtime=probe_runtime())
+            policy = workflow_policy_for_task(arguments["task"], runtime=cached_probe_runtime())
             return _json_text(policy.to_dict())
 
         if name == "rag_next_subtask":
@@ -715,17 +715,7 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
                 )
             except ValueError as exc:
                 return _json_text({"ok": False, "error": str(exc), "next_mcp_tool": "rag_subtask_failed"})
-            edited_set = list(dict.fromkeys(edited))
-            retrieved_set = set(dict.fromkeys(retrieved))
-            hits = sum(1 for path in edited_set if path in retrieved_set)
-            score = {
-                "retrieval_hit_rate": round((hits / len(edited_set)), 4) if edited_set else 1.0,
-                "missed_file_count": max(0, len(edited_set) - hits),
-                "retrieved_file_count": len(retrieved_set),
-                "edited_file_count": len(edited_set),
-                "checks_count": len(list(dict.fromkeys(checks))),
-                "passed": bool(arguments.get("passed", True)),
-            }
+            score = retrieval_score(retrieved, edited, checks, bool(arguments.get("passed", True)))
             return _json_text({**updated.to_dict(), "score": score})
 
         if name == "rag_subtask_failed":
@@ -746,17 +736,7 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[types.TextCon
             )
             subtask = updated.get_subtask(arguments["subtask_id"])
             retryable = bool(subtask and subtask.attempts < 3)
-            edited_set = list(dict.fromkeys(edited))
-            retrieved_set = set(dict.fromkeys(retrieved))
-            hits = sum(1 for path in edited_set if path in retrieved_set)
-            score = {
-                "retrieval_hit_rate": round((hits / len(edited_set)), 4) if edited_set else 1.0,
-                "missed_file_count": max(0, len(edited_set) - hits),
-                "retrieved_file_count": len(retrieved_set),
-                "edited_file_count": len(edited_set),
-                "checks_count": len(list(dict.fromkeys(checks))),
-                "passed": False,
-            }
+            score = retrieval_score(retrieved, edited, checks, False)
             return _json_text({**updated.to_dict(), "retryable": retryable, "next_mcp_tool": "rag_next_subtask", "score": score})
 
         if name == "rag_task_status":

@@ -30,7 +30,7 @@ from rag.orchestrator import (
     task_graph_status,
     task_step,
 )
-from rag.workflow_policy import workflow_policy_for_task
+from rag.workflow_policy import _RUNTIME_PROBE_CACHE, cached_probe_runtime, workflow_policy_for_task
 from rag.profile import _looks_generated, learn_profile_from_run, profile_init, profile_validate
 from rag.storage import ensure_db
 from rag.task_graph import SubtaskStatus
@@ -368,6 +368,26 @@ class TaskOrchestratorTest(unittest.TestCase):
             self.assertEqual(payload["step"]["state"], "needs_context")
             self.assertEqual(payload["next_action"], "edit")
             self.assertNotIn("context", payload["context"])
+            self.assertEqual(payload["recommended_call"]["tool"], "rag_subtask_context")
+
+    def test_task_continue_needs_plan_exposes_top_level_recommended_call(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            with patch("rag.orchestrator.repo_root", return_value=root):
+                payload = task_continue("fix typo")
+        self.assertEqual(payload["step"]["state"], "needs_plan")
+        self.assertEqual(payload["next_action"], "call_tool")
+        self.assertEqual(payload["recommended_call"]["tool"], "rag_plan_task")
+
+    def test_cached_probe_runtime_uses_ttl_cache(self) -> None:
+        _RUNTIME_PROBE_CACHE["ts"] = 0.0
+        _RUNTIME_PROBE_CACHE["value"] = None
+        with patch("rag.workflow_policy.probe_runtime", return_value={"qdrant_ready": True, "llm_ready": False}) as mocked:
+            first = cached_probe_runtime(ttl_seconds=30.0)
+            second = cached_probe_runtime(ttl_seconds=30.0)
+        self.assertEqual(first, second)
+        self.assertEqual(mocked.call_count, 1)
 
     def test_policy_tiny_task_avoids_graph(self) -> None:
         policy = workflow_policy_for_task("fix typo in README.md", runtime={"qdrant_ready": True, "llm_ready": True})

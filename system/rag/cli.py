@@ -67,6 +67,7 @@ from .orchestrator import (
     mark_subtask_running,
     next_subtask,
     plan_task,
+    retrieval_score_from_counts,
     reset_task,
     subtask_context,
     task_continue,
@@ -172,7 +173,7 @@ from .storage import (
     repo_identity,
 )
 from .types import IndexInterrupted
-from .workflow_policy import probe_runtime, workflow_policy_for_task
+from .workflow_policy import cached_probe_runtime, workflow_policy_for_task
 
 
 SERVICE_HELPER = Path(__file__).resolve().parents[1] / "local-ai-runtime.sh"
@@ -1068,12 +1069,13 @@ def cmd_learn(args: argparse.Namespace) -> int:
             ],
             "profile_changes": profile_changes,
             "repeated_failures": [{"task": task, "count": count} for task, count in sorted(failures.items(), key=lambda item: item[1], reverse=True) if count > 1],
-            "retrieval_hit_rate": round((edited_hits / edited_count), 4) if edited_count else 1.0,
-            "missed_file_count": len(missed_files),
-            "retrieved_file_count": retrieved_count,
-            "edited_file_count": edited_count,
-            "checks_count": checks_count,
-            "passed": bool(outcomes) and passed_count == len(outcomes),
+            **retrieval_score_from_counts(
+                retrieved_file_count=retrieved_count,
+                edited_file_count=edited_count,
+                missed_file_count=len(missed_files),
+                checks_count=checks_count,
+                passed=bool(outcomes) and passed_count == len(outcomes),
+            ),
         }
         _json_print(report)
         return 0
@@ -1442,7 +1444,7 @@ def cmd_task(args: argparse.Namespace) -> int:
         if args.task_command == "start":
             if getattr(args, "reset_first", False):
                 reset_task(root)
-            policy = workflow_policy_for_task(args.description, runtime=probe_runtime())
+            policy = workflow_policy_for_task(args.description, runtime=cached_probe_runtime())
             graph = plan_task(
                 args.description,
                 repo=repo,

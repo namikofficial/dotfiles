@@ -30,7 +30,7 @@ from .state import (
 )
 from .storage import connect_db, get_qdrant, infer_repo_filter
 from .task_graph import Subtask, SubtaskOutcome, SubtaskStatus, SubtaskType, TaskGraph
-from .workflow_policy import probe_runtime, workflow_policy_for_task
+from .workflow_policy import cached_probe_runtime, workflow_policy_for_task
 
 
 @contextmanager
@@ -363,7 +363,7 @@ def _append_outcome_jsonl(root: Path, payload: dict[str, Any]) -> None:
         handle.write(redacted + "\n")
 
 
-def _outcome_scoring(retrieved_files: list[str], edited_files: list[str], checks_run: list[str], passed: bool) -> dict[str, Any]:
+def retrieval_score(retrieved_files: list[str], edited_files: list[str], checks_run: list[str], passed: bool) -> dict[str, Any]:
     retrieved = _unique(retrieved_files)
     edited = _unique(edited_files)
     edited_count = len(edited)
@@ -377,6 +377,27 @@ def _outcome_scoring(retrieved_files: list[str], edited_files: list[str], checks
         "retrieved_file_count": retrieved_count,
         "edited_file_count": edited_count,
         "checks_count": checks_count,
+        "passed": bool(passed),
+    }
+
+
+def retrieval_score_from_counts(
+    *,
+    retrieved_file_count: int,
+    edited_file_count: int,
+    missed_file_count: int,
+    checks_count: int,
+    passed: bool,
+) -> dict[str, Any]:
+    edited = max(0, int(edited_file_count))
+    missed = max(0, min(int(missed_file_count), edited))
+    hits = max(0, edited - missed)
+    return {
+        "retrieval_hit_rate": round((hits / edited), 4) if edited else 1.0,
+        "missed_file_count": missed,
+        "retrieved_file_count": max(0, int(retrieved_file_count)),
+        "edited_file_count": edited,
+        "checks_count": max(0, int(checks_count)),
         "passed": bool(passed),
     }
 
@@ -525,7 +546,7 @@ def mark_subtask_done(
             run_id=run_id or task_graph.run_id,
             attempt=subtask.attempts,
         )
-    score = _outcome_scoring(retrieved_files or [], edited_files or [], checks_run or [], passed)
+    score = retrieval_score(retrieved_files or [], edited_files or [], checks_run or [], passed)
     task_graph.summary = f"Completed {subtask_id}: {subtask.title}"
     _refresh_blocking(task_graph)
     next_ready = None
@@ -599,7 +620,7 @@ def mark_subtask_failed(
             run_id=run_id or task_graph.run_id,
             attempt=subtask.attempts,
         )
-    score = _outcome_scoring(retrieved_files or [], edited_files or [], checks_run or [], False)
+    score = retrieval_score(retrieved_files or [], edited_files or [], checks_run or [], False)
     _refresh_blocking(task_graph)
     next_ready = None
     for candidate in task_graph.subtasks:
@@ -730,7 +751,7 @@ def subtask_context(task_graph: TaskGraph | None, subtask_id: str, *, output_for
     if subtask.status == SubtaskStatus.ready:
         mark_subtask_running(graph, subtask.id)
         subtask = graph.get_subtask(subtask.id) or subtask
-    policy = workflow_policy_for_task(graph.task, runtime=probe_runtime())
+    policy = workflow_policy_for_task(graph.task, runtime=cached_probe_runtime())
     retrieval_mode = policy.retrieval_mode if subtask.type == SubtaskType.research else "agent"
     payload = _build_retrieval_context(subtask.retrieval_query or subtask.title, graph.repo, mode=retrieval_mode)
     root = repo_root()
@@ -886,7 +907,7 @@ def learn_from_task_outcome(run_id: str | None = None, root: Path | None = None)
 
 
 def task_step(task: str | None = None) -> dict[str, Any]:
-    policy = workflow_policy_for_task(task or "", runtime=probe_runtime()) if task else None
+    policy = workflow_policy_for_task(task or "", runtime=cached_probe_runtime()) if task else None
     def _router(
         state: str,
         next_tool: str,
@@ -919,7 +940,7 @@ def task_step(task: str | None = None) -> dict[str, Any]:
             subtask=None,
             recommended_call={"tool": "rag_plan_task", "arguments": {"task": task} if task else {}},
         )
-    policy = workflow_policy_for_task(graph.task, runtime=probe_runtime())
+    policy = workflow_policy_for_task(graph.task, runtime=cached_probe_runtime())
     _refresh_blocking(graph)
     if all(item.status == SubtaskStatus.done for item in graph.subtasks):
         return _router(
@@ -1000,7 +1021,12 @@ def task_step(task: str | None = None) -> dict[str, Any]:
 
 def task_continue(task: str | None = None) -> dict[str, Any]:
     step = task_step(task)
-    response: dict[str, Any] = {"step": step, "context": {}, "next_action": "call_tool"}
+    response: dict[str, Any] = {
+        "step": step,
+        "context": {},
+        "next_action": "call_tool",
+        "recommended_call": dict(step.get("recommended_call", {})),
+    }
     if step.get("state") == "needs_context":
         subtask_id = (step.get("recommended_call", {}).get("arguments", {}) or {}).get("subtask_id")
         graph = load_task_graph()

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import time
 from dataclasses import dataclass, asdict
 from typing import Any
 
@@ -60,6 +61,20 @@ def probe_runtime() -> dict[str, bool]:
     return runtime
 
 
+_RUNTIME_PROBE_CACHE: dict[str, Any] = {"ts": 0.0, "value": None}
+
+
+def cached_probe_runtime(ttl_seconds: float = 15.0) -> dict[str, bool]:
+    now = time.time()
+    cached = _RUNTIME_PROBE_CACHE.get("value")
+    if isinstance(cached, dict) and (now - float(_RUNTIME_PROBE_CACHE.get("ts", 0.0))) < ttl_seconds:
+        return dict(cached)
+    value = probe_runtime()
+    _RUNTIME_PROBE_CACHE["ts"] = now
+    _RUNTIME_PROBE_CACHE["value"] = dict(value)
+    return dict(value)
+
+
 def workflow_policy_for_task(task: str, *, runtime: dict[str, bool] | None = None) -> WorkflowPolicy:
     runtime = runtime or {"qdrant_ready": True, "llm_ready": True}
     reasons: list[str] = []
@@ -103,4 +118,3 @@ def workflow_policy_for_task(task: str, *, runtime: dict[str, bool] | None = Non
         collect_context_now=collect_context_now,
         reasons=reasons,
     )
-
