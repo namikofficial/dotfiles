@@ -38,7 +38,7 @@ ai_select_model() {
 
 ai_start_server() {
   if command -v llama-swap-manager >/dev/null 2>&1; then
-    llama-swap-manager start >/dev/null 2>&1 || true
+    llama-swap-manager start
   fi
 }
 

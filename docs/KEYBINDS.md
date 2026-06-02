@@ -32,13 +32,13 @@ flowchart LR
 | `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `super-tab-overview.sh` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
-| ``Super + ` `` | Toggle full spatial scratch scene | `scratchpad-manager.sh toggle scene` |
+| ``Super + ` `` | Open compact scratch launcher; use `lsi` inside the terminal scratchpad for full listings | `scratchpad-manager.sh toggle scene` |
 | `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
 | `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
 | `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
 | `Super + S` | Spatial scratchpad dashboard | `scratchpad-manager.sh menu` |
 | `Super + Ctrl + S` | Logs scratchpad | `scratchpad-manager.sh launch logs` |
-| `Super + Alt + S` | AI workspace shell | `scratchpad-manager.sh launch ai` |
+| `Super + Alt + S` | AI workspace shell with runtime startup fallback | `scratchpad-manager.sh launch ai` |
 | `Super + Ctrl + Alt + S` | Database scratchpad | `scratchpad-manager.sh launch db` |
 | `Super + Alt + O` | Obsidian scratchpad/focus | `scratchpad-manager.sh launch obsidian` |
 | `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |
@@ -54,6 +54,7 @@ flowchart LR
 | `Super + Ctrl + Alt + ,` | Apply per-app routing to focused app | `app-routing-apply-focused.sh` |
 | `Super + Ctrl + Y` | Switch panel to Wayle when installed | `panel-switch.sh wayle` |
 | `Super + Shift + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
+| `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
 | `Super + Ctrl + Alt + Y` | Toggle panel | `panel-switch.sh toggle` |
 | `Super + Escape` | Power menu | `power-menu.sh` |
 | `Super + Ctrl + L` | Lock screen | `lock.sh` |

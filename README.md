@@ -149,10 +149,10 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Ctrl + 1..0` in launcher/actions: quick-select top 10 rows
 - `Enter` in launcher/actions: open/run selected row
 - opener key again (`Super+Space` / `Super+A`): close launcher/actions
-- ``Super + ` ``: toggle the full spatial scratch scene with a responsive main/AI/runner layout
+- ``Super + ` ``: open the compact scratch launcher; the terminal scratchpad stays compact by default and uses `lsi` for on-demand inspection when you want a full listing
 - `Super + S`: compact scratchpad dashboard for scene, AI, runner, shell, and side tools; press again to close
 - `Super + Ctrl + S`: toggle the project runner terminal rooted in the focused repo
-- `Super + Alt + S`: toggle the AI workspace shell rooted in the focused repo, with local OpenCode/llama-swap config ready; run `opencode` manually when you want it
+- `Super + Alt + S`: toggle the AI workspace shell rooted in the focused repo; it now starts the local runtime first (`local-ai-runtime.sh start` / `ensure-llm`) and only drops to `zsh` after that path fails
 - `Super + Ctrl + Alt + S`: toggle the database scratchpad
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)

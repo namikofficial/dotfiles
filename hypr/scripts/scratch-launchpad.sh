@@ -43,7 +43,7 @@ float_small() {
 entries() {
   printf '%s\0info\x1f%s\n' \
     "󰌠  terminal scratchpad  Drop-down dev terminal"   "scratch-terminal" \
-    "󰏚  ai scratchpad        Project AI workspace"     "scratch-ai" \
+    "󰏚  ai workspace         Project AI shell"         "scratch-ai" \
     "󰍹  notes scratchpad     Notes and clipboard"      "scratch-notes" \
     "󰇬  db scratchpad        SQL console"              "scratch-db" \
     "󰠩  browser devtools     Chrome/Chromium devtools" "scratch-browser" \
@@ -55,7 +55,8 @@ entries() {
     "󰻠  fastfetch           System information"        "fastfetch"  \
     "  Python REPL         Interactive Python shell"  "python"     \
     "  JSON viewer         Explore JSON (python)"     "json"       \
-    "󰌌  Hash / encode       md5, sha256, base64"       "hash"
+    "󰌌  Hash / encode       md5, sha256, base64"       "hash"       \
+    "  Inspect cwd         Full directory listing"     "inspect"
 }
 
 # ── Rofi ─────────────────────────────────────────────────────────────────────
@@ -71,7 +72,7 @@ action="$(entries | rofi \
 
 # Map index → action key
 mapfile -t keys < <(printf '%s\n' \
-  scratch-terminal scratch-ai scratch-notes scratch-db scratch-browser btop lazygit qalc clipboard logs fastfetch python json hash)
+  scratch-terminal scratch-ai scratch-notes scratch-db scratch-browser btop lazygit qalc clipboard logs fastfetch python json hash inspect)
 
 key="${keys[$action]:-}"
 
@@ -210,5 +211,9 @@ while True:
         pass
     print()
 "
+    ;;
+
+  inspect)
+    float_large "directory inspect" bash -lc 'cd "$1"; exec zsh -ic "lsi"' _ "$cwd"
     ;;
 esac

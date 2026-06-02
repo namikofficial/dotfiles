@@ -16,6 +16,7 @@ exec(mainMod .. " + CTRL + Slash", home .. "/.config/hypr/scripts/hypr-binds.sh"
 exec(mainMod .. " + A", ctx.menu)
 exec(mainMod .. " + Y", ctx.overview)
 exec(mainMod .. " + SHIFT + Y", home .. "/.config/hypr/scripts/panel-switch.sh toggle-view")
+exec(mainMod .. " + ALT + Y", home .. "/.config/hypr/scripts/panel-switch.sh toggle-view")
 exec(mainMod .. " + CTRL + Y", home .. "/.config/hypr/scripts/panel-switch.sh wayle")
 exec(mainMod .. " + CTRL + ALT + Y", home .. "/.config/hypr/scripts/panel-switch.sh toggle")
 exec(mainMod .. " + CTRL + SHIFT + Y", home .. "/.config/hypr/scripts/theme-pass.sh")

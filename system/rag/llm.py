@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import urllib.request
+import urllib.error
 
 
 _CODE_SIGNALS = ("def ", "class ", "function ", "import ", "require(", "fn ", "async fn")
@@ -68,8 +69,11 @@ def complete_llm(config: dict, system_prompt: str, user_prompt: str, max_tokens:
         data=payload,
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=240) as response:
-        body = json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=240) as response:
+            body = json.load(response)
+    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
+        raise RuntimeError(f"LLM request failed: {exc}") from exc
     return body.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
 
 
@@ -91,8 +95,11 @@ def _complete_routed(config: dict, system_prompt: str, user_prompt: str, model_i
         data=payload,
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=240) as response:
-        body = json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=240) as response:
+            body = json.load(response)
+    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as exc:
+        raise RuntimeError(f"LLM request failed: {exc}") from exc
     return body.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
 
 
@@ -126,4 +133,3 @@ def ask_llm(config: dict, question: str, context: str, mode: str = "quick") -> s
 
 def models_url(answer_url: str) -> str:
     return answer_url.replace("/chat/completions", "/models")
-

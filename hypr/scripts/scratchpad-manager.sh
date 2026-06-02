@@ -713,12 +713,16 @@ PY
 }
 
 scene_toggle() {
+  if spatial_visible; then
+    scene_exit
+    return 0
+  fi
   if [ -s "$scene_state" ] && scene_state_live; then
     scene_exit
-  else
-    rm -f "$scene_state"
-    scene_enter
+    return 0
   fi
+  rm -f "$scene_state"
+  scene_enter
 }
 
 ensure_spawned() {

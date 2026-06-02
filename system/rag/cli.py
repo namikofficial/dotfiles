@@ -1729,7 +1729,10 @@ def cmd_index(args: argparse.Namespace) -> int:
     if profile["repo_memory"]:
         repo = repo_identity(root)[1]
         console.print(f"[cyan]Refreshing repo memory[/cyan] for {repo} ...")
-        store_repo_memory(conn, repo, generate_repo_memory(conn, config, repo))
+        summary = generate_repo_memory(conn, config, repo)
+        store_repo_memory(conn, repo, summary)
+        if summary.startswith("# Repo memory unavailable"):
+            console.print(f"[yellow]Repo memory degraded[/yellow] for {repo}; indexed data was kept.")
     console.print(
         f"[green]Indexed[/green] {changed_files} files and {total_chunks} chunks from {root} "
         f"(profile: {profile_name})"
@@ -1781,7 +1784,10 @@ def cmd_reindex(args: argparse.Namespace) -> int:
         if profile["repo_memory"]:
             repo = repo_identity(root)[1]
             console.print(f"[cyan]Refreshing repo memory[/cyan] for {repo} ...")
-            store_repo_memory(conn, repo, generate_repo_memory(conn, config, repo))
+            summary = generate_repo_memory(conn, config, repo)
+            store_repo_memory(conn, repo, summary)
+            if summary.startswith("# Repo memory unavailable"):
+                console.print(f"[yellow]Repo memory degraded[/yellow] for {repo}; indexed data was kept.")
     console.print(f"[green]Reindexed[/green] {total_files} changed files and {total_chunks} chunks (profile: {profile_name})")
     return 0
 

@@ -16,6 +16,7 @@ OPENCODE_RUNTIME_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 OPENCODE_RUNTIME_CONFIG="${OPENCODE_RUNTIME_DIR}/opencode.json"
 AI_CONTEXT="${NOXFLOW_AI_CONTEXT:-$PWD}"
 PROMPT_BUILDER="${HOME}/.config/hypr/scripts/ai-helper-context.sh"
+LOCAL_AI_RUNTIME="${HOME}/Documents/code/dotfiles/system/local-ai-runtime.sh"
 
 C_BOLD='\033[1m'
 C_DIM='\033[2m'
@@ -62,7 +63,13 @@ ensure_server() {
     return 0
   fi
 
-  [ "$auto_start" = "1" ] && command -v llama-swap-manager >/dev/null 2>&1 && llama-swap-manager start >/dev/null 2>&1 || true
+  if [ "$auto_start" = "1" ]; then
+    if [ -x "$LOCAL_AI_RUNTIME" ]; then
+      "$LOCAL_AI_RUNTIME" start >/dev/null 2>&1 || "$LOCAL_AI_RUNTIME" ensure-llm >/dev/null 2>&1 || true
+    elif command -v llama-swap-manager >/dev/null 2>&1; then
+      llama-swap-manager start >/dev/null 2>&1 || true
+    fi
+  fi
 
   curl -fsS --max-time 2 "$HEALTH_ENDPOINT" >/dev/null 2>&1
 }
@@ -150,13 +157,15 @@ printf '%s\n' "╚════════════════════�
 printf '\n'
 
 if ! ensure_server; then
-  printf '%sServer is still unavailable. Dropping into a shell.%s\n' "$C_RED" "$C_RESET"
-  exec zsh -li
+  printf '%sServer is still unavailable after startup attempts.%s\n' "$C_RED" "$C_RESET"
+  printf '%sOpening the local chat scratchpad for diagnostics and retry commands.%s\n' "$C_YELLOW" "$C_RESET"
+  exec "$HOME/.config/hypr/scripts/local-llm-chat-enhanced.sh"
 fi
 
 model="$(select_model)" || {
   printf '%sNo models are currently exposed by llama-swap.%s\n' "$C_RED" "$C_RESET"
-  exec zsh -li
+  printf '%sOpening the local chat scratchpad so you can retry after the runtime is up.%s\n' "$C_YELLOW" "$C_RESET"
+  exec "$HOME/.config/hypr/scripts/local-llm-chat-enhanced.sh"
 }
 
 ensure_opencode_config || {
