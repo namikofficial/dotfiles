@@ -1,6 +1,6 @@
-# Arch Workstation Dotfiles
+# Arch + Hyprland Workstation Dotfiles
 
-This repository is designed to bootstrap a complete Arch + Hyprland workstation with reproducible shell, UI, and desktop behavior.
+This repository bootstraps an Arch + Hyprland workstation with reproducible shell, desktop, settings, and local AI runtime behavior.
 
 ## Includes
 
@@ -151,7 +151,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - opener key again (`Super+Space` / `Super+A`): close launcher/actions
 - `Super + \`: open/close the Scratch Hub for AI, runner/logs, DB, notes, Obsidian, terminal, browser DevTools, music, Sidecar actions, and the full scene
 - `Super + Shift + \`: toggle the full work scene: main window + AI + runner/logs
-- `Super + Alt + \`: toggle the AI workspace shell rooted in the focused repo; it starts the local runtime first (`local-ai-runtime.sh start` / `ensure-llm`) and only drops to `zsh` after that path fails
+- `Super + Alt + \`: toggle the AI scratchpad rooted in the focused repo; it starts the local runtime when needed and opens a project shell prepared for OpenCode/local models, falling back to the local chat scratchpad if the runtime is unavailable
 - `Super + Ctrl + \`: toggle the project runner terminal rooted in the focused repo
 - `Super + Ctrl + Alt + \`: toggle the database scratchpad
 - `Super + B`: open Google Chrome

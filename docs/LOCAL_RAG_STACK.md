@@ -1,8 +1,8 @@
-# Local RAG stack
+# Local RAG stack and runtime
 
-This repo now includes a repeatable local RAG bootstrap aimed at the current laptop profile and broader repo work, not just dotfiles:
+This repo includes a repeatable local RAG bootstrap for the current workstation and broader repo work, not just dotfiles:
 
-- **Answer model:** Gemma 3 4B Q4_K_M via local llama-swap
+- **Answer model:** Qwen3 8B Q4_K_M via local llama-swap
 - **Vector store:** Qdrant (local Docker container)
 - **Dense embeddings:** FastEmbed with **`BAAI/bge-small-en-v1.5`** by default
 - **Keyword retrieval:** SQLite FTS5 over the indexed chunks

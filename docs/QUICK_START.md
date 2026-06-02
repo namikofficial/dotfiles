@@ -1,13 +1,13 @@
-# Quick start: local AI + llama-swap
+# Local AI runtime quick start
 
-## Current path
+## Default path
 
 The active local AI workflow is:
 
 - **router:** `llama-swap-manager`
 - **endpoint:** `http://127.0.0.1:8080/v1`
 - **model alias:** `local`
-- **current model:** `gemma-3-4b`
+- **current model:** `qwen3-8b`
 
 ## 5-minute setup
 
@@ -66,4 +66,4 @@ tail -f ~/.cache/kage/llm-logs/llama-swap.log
 - Use `local-ai-runtime stop` when you want the machine to cool back down.
 - `llm-manager` is retired.
 - Port `8000` is no longer the documented local AI path.
-- If you want more than `gemma-3-4b`, wire it into `system/llama-swap/config.template.yaml` first.
+- If you want to switch away from `qwen3-8b`, use `llama-swap-manager switch <model>` or update `system/llama-swap/config.template.yaml` first.
