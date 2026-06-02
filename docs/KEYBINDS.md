@@ -41,6 +41,7 @@ flowchart LR
 | ``Super + Shift + ` `` | Move focused window to Sidecar and focus it there | `sidepanel.sh send` |
 | ``Super + Ctrl + ` `` | Stash active window into Sidecar | `sidepanel.sh stash` |
 | ``Super + Alt + ` `` | Toggle Sidecar visibility | `sidepanel.sh toggle` |
+| Sidecar multi-window | Parked windows tile dynamically inside the shelf | `sidepanel.sh` |
 | `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |
 | `Super + Alt + N` | Toggle DND | `notif-dnd-toggle.sh` |
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |

@@ -111,6 +111,7 @@ Keep scratchpads role-specific instead of treating them as interchangeable termi
 - `Super+Ctrl+Alt+\`: database role
 - Obsidian and Browser DevTools roles: use the hub cards
 - ``Super+` ``: show/hide Sidecar, ``Super+Shift+` ``: move focused window to Sidecar, ``Super+Ctrl+` ``: stash, ``Super+Shift+1..0``: move focused Sidecar window back to a workspace
+- Multiple Sidecar windows tile inside the shelf instead of stacking on top of each other.
 
 ## Desktop Recovery
 

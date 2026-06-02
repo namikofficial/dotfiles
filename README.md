@@ -172,6 +172,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - ``Super + Ctrl + ` ``: stash the focused window in the Sidecar silently
 - ``Super + Shift + ` ``: move the focused window to Sidecar and focus it there
 - ``Super + Alt + ` ``: toggle Sidecar visibility without moving windows
+- Sidecar windows tile dynamically inside the shelf when more than one window is parked there.
 - `Super + arrows`: focus left/right/up/down
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle windows in current workspace
 - `Super + Shift + arrows`: move the tiled window left/right/up/down
