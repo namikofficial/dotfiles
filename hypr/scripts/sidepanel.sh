@@ -57,6 +57,14 @@ sidepanel_client() {
   ' | head -n1
 }
 
+sidepanel_clients() {
+  hyprctl -j clients 2>/dev/null | jq -r --arg ws "special:${side_ws}" --arg class "$side_class" '
+    .[]
+    | select((.workspace.name // "") == $ws or (.class // "") == $class)
+    | .address
+  '
+}
+
 move_window_to_workspace() {
   address="$1"
   workspace="$2"
@@ -67,35 +75,161 @@ move_window_to_workspace() {
 }
 
 sidepanel_geometry() {
-  hyprctl -j monitors 2>/dev/null | jq -r '
-    (map(select(.focused == true))[0] // .[0] // {}) as $m
-    | ($m.reserved // [0, 0, 0, 0]) as $r
-    | ($m.x // 0) as $mx
-    | ($m.y // 0) as $my
-    | (($r[0] // 0) | tonumber) as $left
-    | (($r[1] // 0) | tonumber) as $top
-    | (($r[2] // 0) | tonumber) as $right
-    | (($r[3] // 0) | tonumber) as $bottom
-    | (($m.width // 1600) - $left - $right) as $usable_w
-    | (($m.height // 900) - $top - $bottom) as $usable_h
-    | ([$usable_w * 0.34 | floor, 460] | max) as $w
-    | ([$usable_h * 0.92 | floor, 520] | max) as $h
-    | ($mx + $left + $usable_w - $w - 14) as $x
-    | ($my + $top + (($usable_h - $h) / 2 | floor)) as $y
-    | "\($x|floor) \($y|floor) \($w|floor) \($h|floor)"
-  ' 2>/dev/null || printf '1000 60 620 820\n'
+  python3 - "$(hyprctl -j monitors 2>/dev/null || printf '[]')" <<'PY' 2>/dev/null || printf '1000 60 560 820\n'
+import json
+import sys
+
+try:
+    monitors = json.loads(sys.argv[1])
+except Exception:
+    monitors = []
+
+m = next((item for item in monitors if item.get("focused")), monitors[0] if monitors else {})
+reserved = list(m.get("reserved") or [0, 0, 0, 0])
+reserved += [0] * (4 - len(reserved))
+left, top, right, bottom = [int(value or 0) for value in reserved[:4]]
+mx = int(m.get("x", 0) or 0)
+my = int(m.get("y", 0) or 0)
+mw = int(m.get("width", 1600) or 1600)
+mh = int(m.get("height", 900) or 900)
+
+usable_x = mx + left
+usable_y = my + top
+usable_w = max(320, mw - left - right)
+usable_h = max(240, mh - top - bottom)
+gap = max(8, min(18, round(usable_w * 0.008)))
+
+if usable_w < 760:
+    # Very small screens: use most of the width but keep a clear margin.
+    w = max(300, round(usable_w * 0.92))
+elif usable_w < 1200:
+    # Tablet / narrow laptop layouts: side shelf is wider for usability.
+    w = max(360, min(round(usable_w * 0.48), 520))
+else:
+    # Desktop / normal laptop layouts: stable right-side shelf.
+    w = max(460, min(round(usable_w * 0.34), 720))
+
+h = max(360, min(round(usable_h * 0.92), usable_h - (gap * 2)))
+x = usable_x + usable_w - w - gap
+y = usable_y + max(gap, round((usable_h - h) / 2))
+
+print(int(x), int(y), int(w), int(h))
+PY
+}
+
+sidepanel_layouts() {
+  python3 - "$(hyprctl -j monitors 2>/dev/null || printf '[]')" "$(hyprctl -j clients 2>/dev/null || printf '[]')" "$side_ws" "$side_class" <<'PY' 2>/dev/null
+import json
+import math
+import sys
+
+try:
+    monitors = json.loads(sys.argv[1])
+except Exception:
+    monitors = []
+try:
+    clients = json.loads(sys.argv[2])
+except Exception:
+    clients = []
+side_ws = "special:" + sys.argv[3]
+side_class = sys.argv[4]
+
+m = next((item for item in monitors if item.get("focused")), monitors[0] if monitors else {})
+reserved = list(m.get("reserved") or [0, 0, 0, 0])
+reserved += [0] * (4 - len(reserved))
+left, top, right, bottom = [int(value or 0) for value in reserved[:4]]
+mx = int(m.get("x", 0) or 0)
+my = int(m.get("y", 0) or 0)
+mw = int(m.get("width", 1600) or 1600)
+mh = int(m.get("height", 900) or 900)
+
+usable_x = mx + left
+usable_y = my + top
+usable_w = max(320, mw - left - right)
+usable_h = max(240, mh - top - bottom)
+gap = max(8, min(18, round(usable_w * 0.008)))
+
+if usable_w < 760:
+    shelf_w = max(300, round(usable_w * 0.92))
+elif usable_w < 1200:
+    shelf_w = max(360, min(round(usable_w * 0.48), 520))
+else:
+    shelf_w = max(460, min(round(usable_w * 0.34), 720))
+
+shelf_h = max(360, min(round(usable_h * 0.92), usable_h - (gap * 2)))
+shelf_x = usable_x + usable_w - shelf_w - gap
+shelf_y = usable_y + max(gap, round((usable_h - shelf_h) / 2))
+
+side_clients = [
+    client for client in clients
+    if client.get("workspace", {}).get("name") == side_ws or client.get("class") == side_class
+]
+side_clients.sort(key=lambda client: int(client.get("focusHistoryID", 999999) or 999999))
+count = len(side_clients)
+if count == 0:
+    raise SystemExit(0)
+
+if count == 1:
+    layout = [(shelf_x, shelf_y, shelf_w, shelf_h)]
+elif count == 2:
+    h1 = (shelf_h - gap) // 2
+    h2 = shelf_h - gap - h1
+    layout = [
+        (shelf_x, shelf_y, shelf_w, h1),
+        (shelf_x, shelf_y + h1 + gap, shelf_w, h2),
+    ]
+else:
+    cols = 2 if shelf_w >= 520 else 1
+    rows = math.ceil(count / cols)
+    cell_w = (shelf_w - gap * (cols - 1)) // cols
+    cell_h = max(220, (shelf_h - gap * (rows - 1)) // rows)
+    if cell_h * rows + gap * (rows - 1) > shelf_h:
+        cell_h = max(160, (shelf_h - gap * (rows - 1)) // rows)
+    layout = []
+    for index in range(count):
+        row = index // cols
+        col = index % cols
+        x = shelf_x + col * (cell_w + gap)
+        y = shelf_y + row * (cell_h + gap)
+        w = cell_w if col < cols - 1 else shelf_x + shelf_w - x
+        h = cell_h if row < rows - 1 else shelf_y + shelf_h - y
+        layout.append((x, y, w, h))
+
+for client, (x, y, w, h) in zip(side_clients, layout):
+    address = client.get("address", "")
+    if address:
+        print(address, int(x), int(y), int(w), int(h))
+PY
+}
+
+set_sidepanel_geometry_exact() {
+  address="$1"
+  x="$2"
+  y="$3"
+  w="$4"
+  h="$5"
+  [ -n "$address" ] || return 0
+  address_lua="$(lua_string "address:$address")"
+  if ! window_is_floating "$address"; then
+    hypr_eval "hl.dispatch(hl.dsp.window.float({ state = true, window = ${address_lua} }))" || return 1
+  fi
+  hypr_eval "hl.dispatch(hl.dsp.window.resize({ x = ${w}, y = ${h}, window = ${address_lua} }))" || return 1
+  hypr_eval "hl.dispatch(hl.dsp.window.move({ x = ${x}, y = ${y}, window = ${address_lua} }))" || return 1
 }
 
 set_sidepanel_geometry() {
   address="$1"
-  [ -n "$address" ] || return 0
-  read -r x y w h <<EOF_GEOM
-$(sidepanel_geometry)
-EOF_GEOM
-  address_lua="$(lua_string "address:$address")"
-  hypr_eval "hl.dispatch(hl.dsp.window.float({ state = true, window = ${address_lua} }))" || return 1
-  hypr_eval "hl.dispatch(hl.dsp.window.resize({ x = ${w}, y = ${h}, window = ${address_lua} }))" || return 1
-  hypr_eval "hl.dispatch(hl.dsp.window.move({ x = ${x}, y = ${y}, window = ${address_lua} }))" || return 1
+  geometry="$(sidepanel_geometry || true)"
+  set -- $geometry
+  [ "$#" -eq 4 ] || return 1
+  set_sidepanel_geometry_exact "$address" "$1" "$2" "$3" "$4"
+}
+
+set_all_sidepanel_geometry() {
+  sidepanel_layouts | while read -r address x y w h; do
+    [ -n "$address" ] || continue
+    set_sidepanel_geometry_exact "$address" "$x" "$y" "$w" "$h" || true
+  done
 }
 
 focus_window() {
@@ -103,6 +237,16 @@ focus_window() {
   [ -n "$address" ] || return 0
   address_lua="$(lua_string "address:$address")"
   hypr_eval "hl.dispatch(hl.dsp.focus({ window = ${address_lua} }))"
+}
+
+window_is_floating() {
+  address="$1"
+  [ -n "$address" ] || return 1
+  hyprctl -j clients 2>/dev/null | jq -e --arg address "$address" '
+    .[]
+    | select((.address // "") == $address)
+    | (.floating == true)
+  ' >/dev/null 2>&1
 }
 
 active_window_address() {
@@ -253,7 +397,9 @@ send_active_to_sidecar() {
   record_sidecar_window "$active" "$(normal_current_workspace)" >/dev/null 2>&1 || true
   move_window_to_workspace "$address" "special:${side_ws}" >/dev/null 2>&1 || return 1
   show_sidecar
-  set_sidepanel_geometry "$address" >/dev/null 2>&1 || true
+  set_all_sidepanel_geometry
+  sleep 0.08
+  set_all_sidepanel_geometry
   focus_window "$address" >/dev/null 2>&1 || true
 }
 
@@ -276,8 +422,10 @@ toggle_sidecar() {
   fi
   ensure_sidepanel_client
   show_sidecar
+  set_all_sidepanel_geometry
+  sleep 0.08
+  set_all_sidepanel_geometry
   address="$(sidepanel_client || true)"
-  [ -n "$address" ] && set_sidepanel_geometry "$address" >/dev/null 2>&1 || true
   [ -n "$address" ] && focus_window "$address" >/dev/null 2>&1 || true
 }
 
@@ -327,7 +475,7 @@ ensure_sidepanel_client() {
     address="$(sidepanel_client || true)"
     if [ -n "$address" ]; then
       move_window_to_workspace "$address" "special:${side_ws}" >/dev/null 2>&1 || true
-      set_sidepanel_geometry "$address" >/dev/null 2>&1 || true
+      set_all_sidepanel_geometry
       return 0
     fi
     sleep 0.05
