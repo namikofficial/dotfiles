@@ -106,7 +106,16 @@ def generate_repo_memory(
     user_prompt = (
         f"Repo: {repo}\nRoot: {repo_row['root']}\n\nFile summaries:\n{file_summary_text}\n\nFacts:\n{fact_text}\n"
     )
-    return complete_llm(config, system_prompt, user_prompt, max_tokens=1400)
+    try:
+        return complete_llm(config, system_prompt, user_prompt, max_tokens=1400)
+    except Exception as exc:  # noqa: BLE001
+        return (
+            "# Repo memory unavailable\n\n"
+            f"- repo: {repo}\n"
+            f"- reason: {exc}\n\n"
+            "The repo was indexed successfully, but durable memory could not be refreshed.\n"
+            "Run `rag memory refresh` again once the local LLM is available."
+        )
 
 
 

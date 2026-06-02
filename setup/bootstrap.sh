@@ -20,6 +20,8 @@ WITH_AUR=0
 WITH_NVIDIA=""
 DRY_RUN=0
 NO_BACKUP=0
+INSTALL_LOCAL_AI=1
+INSTALL_LOCAL_AI_MODELS=0
 INSTALL_ZSH_PLUGINS=1
 INSTALL_TMUX_PLUGINS=1
 INSTALL_HYPR_PLUGINS=0
@@ -36,6 +38,10 @@ Usage: $0 [options]
   --no-zsh-plugins     Skip optional zsh plugin sync
   --no-tmux-plugins    Skip optional tmux plugin sync
   --install-hypr-plugins  Build/install hyprexpo locally (must run in Hyprland session)
+  --install-local-ai   Install local AI runtime links/config
+  --install-local-ai-models
+                       Also download autoload local AI models
+  --no-local-ai        Skip local AI runtime install/linking
   --dry-run            Print actions without writing changes
   --no-backup          Replace existing files without backup copy
 USAGE
@@ -46,7 +52,10 @@ while (($#)); do
     --scripts-dir)
       shift
       SCRIPTS_DIR="${1:-}"
-      [ -n "$SCRIPTS_DIR" ] || { echo "--scripts-dir requires a path" >&2; exit 1; }
+      [ -n "$SCRIPTS_DIR" ] || {
+        echo "--scripts-dir requires a path" >&2
+        exit 1
+      }
       ;;
     --install-packages) RUN_PACKAGES=1 ;;
     --with-aur) WITH_AUR=1 ;;
@@ -55,9 +64,18 @@ while (($#)); do
     --no-zsh-plugins) INSTALL_ZSH_PLUGINS=0 ;;
     --no-tmux-plugins) INSTALL_TMUX_PLUGINS=0 ;;
     --install-hypr-plugins) INSTALL_HYPR_PLUGINS=1 ;;
+    --install-local-ai) INSTALL_LOCAL_AI=1 ;;
+    --install-local-ai-models)
+      INSTALL_LOCAL_AI=1
+      INSTALL_LOCAL_AI_MODELS=1
+      ;;
+    --no-local-ai)
+      INSTALL_LOCAL_AI=0
+      INSTALL_LOCAL_AI_MODELS=0
+      ;;
     --dry-run) DRY_RUN=1 ;;
     --no-backup) NO_BACKUP=1 ;;
-    -h|--help)
+    -h | --help)
       usage
       exit 0
       ;;
@@ -77,8 +95,8 @@ backup_if_needed() {
     return 0
   fi
 
-  if (( NO_BACKUP )); then
-    if (( DRY_RUN )); then
+  if ((NO_BACKUP)); then
+    if ((DRY_RUN)); then
       echo "[dry-run] rm -rf '$target'"
     else
       rm -rf "$target"
@@ -87,7 +105,7 @@ backup_if_needed() {
   fi
 
   local backup="${target}.bak.${STAMP}"
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] mv '$target' '$backup'"
   else
     mv "$target" "$backup"
@@ -118,7 +136,7 @@ link_path() {
 
   backup_if_needed "$target"
 
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] ln -s '$source' '$target'"
   else
     ln -s "$source" "$target"
@@ -139,7 +157,7 @@ copy_path() {
 
   backup_if_needed "$target"
 
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] cp -a '$source' '$target'"
   else
     cp -a "$source" "$target"
@@ -164,7 +182,7 @@ link_runtime_path() {
 
   backup_if_needed "$target"
 
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] ln -s '$source' '$target'"
   else
     ln -s "$source" "$target"
@@ -175,19 +193,28 @@ link_runtime_path() {
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
 link_path "$REPO_DIR/sddm/dmrc" "$HOME/.dmrc"
 link_path "$REPO_DIR/git/gitconfig" "$HOME/.gitconfig"
+link_path "$REPO_DIR/git/hooks/commit-msg" "$HOME/.config/git/hooks/commit-msg"
 link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_path "$REPO_DIR/tmux/tmux-help" "$HOME/.local/bin/tmux-help"
 link_path "$REPO_DIR/tmux/tmux-sessions" "$HOME/.local/bin/tmux-sessions"
+link_path "$REPO_DIR/setup/dev-health.sh" "$HOME/.local/bin/dev-health"
+link_path "$REPO_DIR/setup/check-stale-references.sh" "$HOME/.local/bin/dotfiles-stale-check"
+link_path "$REPO_DIR/setup/project-profile.sh" "$HOME/.local/bin/project-profile"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
 link_path "$REPO_DIR/nvim" "$HOME/.config/nvim"
 link_path "$REPO_DIR/uwsm/default-id" "$HOME/.config/uwsm/default-id"
+link_path "$REPO_DIR/uwsm/env" "$HOME/.config/uwsm/env"
 link_path "$REPO_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
+link_path "$REPO_DIR/settings/features.env" "$HOME/.config/dotfiles/features.env"
 link_path "$REPO_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
 link_path "$REPO_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
 
 mkdir -p "$HOME/.config/hypr" "$HOME/.config/kitty"
-link_path "$REPO_DIR/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"
+link_path "$REPO_DIR/hypr/hyprland.lua" "$HOME/.config/hypr/hyprland.lua"
+link_path "$REPO_DIR/hypr/conf" "$HOME/.config/hypr/conf"
+link_path "$REPO_DIR/hypr/lib" "$HOME/.config/hypr/lib"
+link_path "$REPO_DIR/hypr/monitor-layout.json" "$HOME/.config/hypr/monitor-layout.json"
 link_path "$REPO_DIR/hypr/hypridle.conf" "$HOME/.config/hypr/hypridle.conf"
 link_path "$REPO_DIR/hypr/hyprlock.conf" "$HOME/.config/hypr/hyprlock.conf"
 link_path "$REPO_DIR/hypr/hyprpaper.conf" "$HOME/.config/hypr/hyprpaper.conf"
@@ -199,17 +226,14 @@ link_runtime_path "$HOME/.cache/hypr/theme-colors-rofi.rasi" "$HOME/.config/rofi
 link_path "$REPO_DIR/kitty/kitty.conf" "$HOME/.config/kitty/kitty.conf"
 link_path "$REPO_DIR/chrome/chrome-flags.conf" "$HOME/.config/chrome-flags.conf"
 copy_path "$REPO_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
-copy_path "$REPO_DIR/kde/kdeglobals" "$HOME/.config/kdeglobals"
-link_path "$REPO_DIR/kde/dolphinrc" "$HOME/.config/dolphinrc"
-link_path "$REPO_DIR/kde/kiorc" "$HOME/.config/kiorc"
-link_path "$REPO_DIR/kde/gwenviewrc" "$HOME/.config/gwenviewrc"
 link_path "$REPO_DIR/theme/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
 link_path "$REPO_DIR/theme/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
-link_path "$REPO_DIR/theme/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf"
-link_path "$REPO_DIR/theme/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf"
-copy_path "$REPO_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
 
-if (( DRY_RUN )); then
+if ((!DRY_RUN)) && command -v luac >/dev/null 2>&1; then
+  "$REPO_DIR/hypr/scripts/hypr-validate.sh" "$REPO_DIR/hypr/hyprland.lua"
+fi
+
+if ((DRY_RUN)); then
   echo "[dry-run] mkdir -p '$HOME/.local/bin'"
 else
   mkdir -p "$HOME/.local/bin"
@@ -218,7 +242,7 @@ fi
 if [ -d "$SCRIPTS_DIR/bin" ]; then
   while IFS= read -r -d '' file; do
     target="$HOME/.local/bin/$(basename "$file")"
-    if (( DRY_RUN )); then
+    if ((DRY_RUN)); then
       echo "[dry-run] ln -sf '$file' '$target'"
     else
       ln -sf "$file" "$target"
@@ -230,31 +254,62 @@ else
   echo "warning: if you have access, run: git submodule update --init private/scripts" >&2
 fi
 
-if (( RUN_PACKAGES )); then
+if ((INSTALL_LOCAL_AI)); then
+  if ((DRY_RUN)); then
+    echo "[dry-run] mkdir -p "$HOME/.config/local-ai/templates" "$HOME/.config/local-ai/skills" "$HOME/.config/local-ai/system""
+  else
+    mkdir -p "$HOME/.config/local-ai/templates" "$HOME/.config/local-ai/skills" "$HOME/.config/local-ai/system"
+  fi
+  for f in "$REPO_DIR/ai/templates/"*.md; do
+    [ -e "$f" ] || continue
+    link_path "$f" "$HOME/.config/local-ai/templates/$(basename "$f")"
+  done
+  for f in "$REPO_DIR/ai/skills/"*.md; do
+    [ -e "$f" ] || continue
+    link_path "$f" "$HOME/.config/local-ai/skills/$(basename "$f")"
+  done
+  for f in "$REPO_DIR/ai/system/"*.md; do
+    [ -e "$f" ] || continue
+    link_path "$f" "$HOME/.config/local-ai/system/$(basename "$f")"
+  done
+fi
+
+if ((RUN_PACKAGES)); then
   cmd=("$SCRIPT_DIR/install-packages.sh")
-  (( WITH_AUR )) && cmd+=(--with-aur)
+  ((WITH_AUR)) && cmd+=(--with-aur)
   [ -n "$WITH_NVIDIA" ] && cmd+=("$WITH_NVIDIA")
-  (( DRY_RUN )) && cmd+=(--dry-run)
+  ((DRY_RUN)) && cmd+=(--dry-run)
   "${cmd[@]}"
 fi
 
-if (( INSTALL_ZSH_PLUGINS )); then
+if ((INSTALL_ZSH_PLUGINS)); then
   cmd=("$SCRIPT_DIR/install-zsh-plugins.sh")
-  (( DRY_RUN )) && cmd+=(--dry-run)
+  ((DRY_RUN)) && cmd+=(--dry-run)
   "${cmd[@]}"
 fi
 
-if (( INSTALL_TMUX_PLUGINS )); then
+if ((INSTALL_TMUX_PLUGINS)); then
   cmd=("$SCRIPT_DIR/install-tmux-plugins.sh")
-  (( DRY_RUN )) && cmd+=(--dry-run)
+  ((DRY_RUN)) && cmd+=(--dry-run)
   "${cmd[@]}"
 fi
 
-if (( INSTALL_HYPR_PLUGINS )); then
-  if (( DRY_RUN )); then
+if ((INSTALL_HYPR_PLUGINS)); then
+  if ((DRY_RUN)); then
     echo "[dry-run] $SCRIPT_DIR/install-hypr-plugins.sh"
   else
     "$SCRIPT_DIR/install-hypr-plugins.sh"
+  fi
+fi
+
+if ((INSTALL_LOCAL_AI)); then
+  cmd=("$SCRIPT_DIR/install-local-ai-stack.sh" --install-runtime)
+  ((DRY_RUN)) && cmd+=(--dry-run)
+  "${cmd[@]}"
+  if ((INSTALL_LOCAL_AI_MODELS)); then
+    cmd=("$SCRIPT_DIR/install-local-ai-stack.sh" --install-models)
+    ((DRY_RUN)) && cmd+=(--dry-run)
+    "${cmd[@]}"
   fi
 fi
 
@@ -262,5 +317,5 @@ cat <<DONE
 
 Bootstrap complete.
 - Reload shell: exec zsh
-- Reload Hyprland: hyprctl reload
+- Restart Hyprland/login session to activate hyprland.lua after migration
 DONE

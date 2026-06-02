@@ -6,10 +6,28 @@ entries:
     copy: edit ~/.config/dev-cheatsheet/custom.yaml
     source: ~/.config/dev-cheatsheet/custom.yaml
     tags: [daily]
-  - key: Health check
-    description: run weekly workstation audit script
-    copy: ~/Documents/code/dotfiles/setup/weekly-health-check.sh
-    source: ~/Documents/code/dotfiles/setup/weekly-health-check.sh
+  - key: Dev health
+    description: run fast local developer readiness check
+    copy: dev-health
+    source: ~/Documents/code/dotfiles/setup/dev-health.sh
+    tags: [daily]
+  - key: Deep health
+    description: run full workstation health log
+    copy: dev-health --full
+    source: ~/Documents/code/dotfiles/setup/dev-health.sh
+  - key: Stale guard
+    description: check for retired stack references in docs/scripts
+    copy: dotfiles-stale-check
+    source: ~/Documents/code/dotfiles/setup/check-stale-references.sh
+  - key: Project profiles
+    description: show known project paths and git state
+    copy: project-profile status
+    source: ~/Documents/code/dotfiles/setup/project-profile.sh
+    tags: [daily]
+  - key: Recover desktop
+    description: open desktop recovery menu
+    copy: ~/.config/hypr/scripts/desktop-recovery.sh
+    source: ~/.config/hypr/scripts/desktop-recovery.sh
   - key: Reload
     description: reload theme, kitty, hyprland, panel, and caches
     copy: ~/.config/hypr/scripts/theme-pass.sh

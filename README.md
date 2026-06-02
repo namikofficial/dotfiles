@@ -1,6 +1,6 @@
-# Arch Workstation Dotfiles
+# Arch + Hyprland Workstation Dotfiles
 
-This repository is designed to bootstrap a complete Arch + Hyprland workstation with reproducible shell, UI, and desktop behavior.
+This repository bootstraps an Arch + Hyprland workstation with reproducible shell, desktop, settings, and local AI runtime behavior.
 
 ## Includes
 
@@ -12,14 +12,15 @@ This repository is designed to bootstrap a complete Arch + Hyprland workstation 
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
 - `docs/NETWORK_STACK_POLICY.md` locked Wi-Fi stack policy (NetworkManager + wpa_supplicant)
+- `docs/LOCAL_DEVELOPER_WORKFLOW.md` day-to-day developer readiness, project, AI, and recovery workflow
 - `hypr/` for Hyprland, Wayle-first shell scripts, Rofi, wlogout, lockscreen, and helper scripts
 - `wayle/` for the preferred future shell config
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
-- `theme/` for GTK, Qt5/Qt6, and Kvantum visual consistency
+- `theme/` for GTK visual consistency
 - `setup/` automation scripts for links and package installation
 - `settings/` schema-driven settings state (`settingsctl` + Settings Hub)
-- `kde/` + `mime/` managed KDE defaults and MIME handlers
+- `mime/` managed MIME handlers
 
 ## Quick start
 
@@ -37,14 +38,12 @@ That command:
 - links tmux config (`~/.tmux.conf`)
 - links Neovim config (`~/.config/nvim`)
 - links Atuin config into `~/.config/atuin/config.toml`
-- links UWSM compositor env (`~/.config/uwsm/env-hyprland`)
+- links UWSM compositor env (`~/.config/uwsm/env` and `~/.config/uwsm/env-hyprland`)
 - links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
-- links Hyprland, Wayle, Waybar, Rofi, SwayNC, wlogout, and Kitty configs into `~/.config`
-- links static theme configs (`gtk`, `qt5ct`, `qt6ct`) into `~/.config`
+- links the modular Hyprland entrypoint (`hyprland.lua` + `hypr/conf/*.lua`), Wayle, Rofi, wlogout, and Kitty configs into `~/.config`
+- links GTK theme configs into `~/.config`
 - links portal routing so screen sharing uses XDPH and file picking uses GTK
 - links Chrome flags to `~/.config/chrome-flags.conf`
-- copies runtime-managed KDE/theme defaults (`kdeglobals`, `Kvantum`) into `~/.config` so wallpaper sync can update them without dirtying the repo
-- links KDE app defaults (`dolphinrc`, `kiorc`, `gwenviewrc`)
 - copies MIME defaults (`~/.config/mimeapps.list`) so local handler changes stay machine-specific
 - links your private scripts commands into `~/.local/bin` when `private/scripts` (or another `--scripts-dir`) is available
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
@@ -68,7 +67,7 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 
 ## Package manifests
 
-- `setup/pacman-packages.txt`: official repository packages (`tlp`, `syncthing`, and the rest of the workstation stack)
+- `setup/pacman-packages.txt`: official repository packages for the base workstation stack
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
@@ -96,11 +95,33 @@ Install packages only:
 ./setup/install-packages.sh --with-aur
 ```
 
-Remove legacy shell experiments after the Wayle/SwayNC cleanup:
+Run shell checks locally:
+
+```sh
+./setup/check-dotfiles.sh --all
+```
+
+Remove legacy shell experiments after the Wayle-first shell cleanup:
 
 ```sh
 ./setup/remove-legacy-shell-packages.sh
 ```
+
+## Local Developer Health
+
+Use the fast readiness check before focused work:
+
+```sh
+dev-health
+dev-health --full
+dotfiles-stale-check
+project-profile status
+```
+
+- `dev-health` checks repo state, required tools, settings links, desktop services, local AI/RAG status, project profile state, and disk pressure.
+- `dev-health --full` also runs the deeper weekly health log.
+- `dotfiles-stale-check` blocks stale retired-stack references from creeping back into docs/scripts.
+- `project-profile` lists and launches common workspaces from one source of truth.
 
 If package install fails with `db.lck`, clear stale lock and retry:
 
@@ -115,28 +136,28 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 
 ## Keybind highlights (Hyprland)
 
-- `Super + Y`: primary workspace hub (`workspace-overview-toggle.sh`)
+- `Super + Y`: primary workspace hub (`workspace-overview.sh`)
 - `Super + W`: workspace/window overview switcher (direct Rofi list)
 - `Super + Tab`: overview toggle (`hyprexpo` if loaded, otherwise fallback Rofi overview)
 - `Super + Shift + Tab`: direct Rofi overview
-- `Super + Space`: ultra-fast app launcher (type-to-search, minimal chrome)
-- `Super + Shift + Space`: window/workspace search
-- `Super + Ctrl + Space`: command palette (quick actions)
+- `Super + Space`: desktop command palette
+- `Super + Shift + Space`: ultra-fast app launcher
+- `Super + Ctrl + Space`: workspace/window search
 - `Super + F1`: open keybind helper overlay (`hypr-binds.sh`)
 - `Super + Ctrl + /`: open keybind helper overlay
-- `Super + A` / `Super + /`: quick actions (press again to close)
+- `Super + A` / `Super + /`: desktop command palette (press again to close)
 - `Ctrl + 1..0` in launcher/actions: quick-select top 10 rows
 - `Enter` in launcher/actions: open/run selected row
 - opener key again (`Super+Space` / `Super+A`): close launcher/actions
-- ``Super + ` ``: toggle the full spatial scratch scene with a responsive main/AI/runner layout
-- `Super + S`: compact scratchpad dashboard for scene, AI, runner, shell, and side tools; press again to close
-- `Super + Ctrl + S`: toggle the project runner terminal rooted in the focused repo
-- `Super + Alt + S`: toggle the AI workspace shell rooted in the focused repo, with local OpenCode/llama-swap config ready; run `opencode` manually when you want it
-- `Super + Ctrl + Alt + S`: toggle the database scratchpad
+- `Super + \`: open/close the Scratch Hub for AI, runner/logs, DB, notes, Obsidian, terminal, browser DevTools, music, Sidecar actions, and the full scene
+- `Super + Shift + \`: toggle the full work scene: main window + AI + runner/logs
+- `Super + Alt + \`: toggle the AI scratchpad rooted in the focused repo; it starts the local runtime when needed and opens a project shell prepared for OpenCode/local models, falling back to the local chat scratchpad if the runtime is unavailable
+- `Super + Ctrl + \`: toggle the project runner terminal rooted in the focused repo
+- `Super + Ctrl + Alt + \`: toggle the database scratchpad
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)
 - `Super + ,`: open Settings Hub
-- `Super + Shift + ,`: re-apply last selected settings section
+- `Super + Shift + ,`: restore last minimized window
 - `Super + Ctrl + ,`: quick settings toggle (notification sounds)
 - `Super + Alt + ,`: open the Rofi settings editor
 - `Super + Ctrl + Alt + ,`: apply per-app routing to focused app
@@ -144,14 +165,17 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + .`: fullscreen dev cheatsheet overlay (searchable + tabbed)
 - `Super + F`: toggle floating on active window
 - `Super + M`: maximize/unmaximize active window
-- `Super + G`: toggle tiling layout (`dwindle` <-> `master`)
-- `Super + Alt + G`: cycle dynamic layouts (`dwindle -> master -> allfloat -> allpseudo`)
-- `Super + Shift + G`: toggle floating-grid workspace mode
-- `Super + \`: toggle side panel special workspace
-- `Super + Shift + \`: move active window to side panel and open it
-- `Super + H/J/K/L`: focus left/down/up/right
+- `Super + G`: cycle layout state (`dwindle -> master -> monocle`)
+- `Super + Alt + G`: toggle tiling layout (`dwindle` <-> `master`)
+- `Super + Shift + G`: toggle floating for the focused window
+- ``Super + ` ``: show or hide Sidecar without moving windows
+- ``Super + Ctrl + ` ``: stash the focused window in the Sidecar silently
+- ``Super + Shift + ` ``: move the focused window to Sidecar and focus it there
+- ``Super + Alt + ` ``: toggle Sidecar visibility without moving windows
+- Sidecar windows tile dynamically inside the shelf when more than one window is parked there.
+- `Super + arrows`: focus left/right/up/down
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle windows in current workspace
-- `Super + Shift + H/J/K/L`: move window left/down/up/right
+- `Super + Shift + arrows`: move the tiled window left/right/up/down
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
 - `Super + N`: toggle notification panel
@@ -166,7 +190,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + R`: toggle screen recording (`wf-recorder`)
 - `Super + Shift + T`: screenshot OCR -> clipboard (`ocr-capture.sh`)
 - In-workspace-hub hotkeys: `Ctrl + Alt + R` rename, `Ctrl + Alt + Backspace` clear label, `Ctrl + Alt + F` favorite, `Ctrl + Alt + S` shortcuts, `Ctrl + Alt + M/O/P` window move/send actions
-- `Super + Ctrl + Shift + Y`: apply theme pass (GTK + Qt + Kvantum)
+- `Super + Ctrl + Shift + Y`: apply theme pass (GTK + app refresh)
 - `Super + Ctrl + Y`: switch panel to Wayle when installed
 - `Super + Shift + Y`: toggle panel visibility only (show/hide current panel)
 - `Super + Ctrl + Alt + Y`: toggle the current panel shell
@@ -176,8 +200,8 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Fn + 2/3/4/5` (`XF86Launch2..5`): AI helper actions (`ask`, `clipboard`, `shell`, `debug`)
 - `Super + Alt + 2`: freeform AI prompt with no preset base prompt
 - `Super + Alt + 3/4/5`: fallback AI helper actions (`clipboard`, `shell`, `debug`)
-- `Super + Ctrl + H/J/K/L` (or arrows): move floating window
-- `Super + Ctrl + Shift + H/J/K/L` (or arrows): resize floating window
+- `Super + Ctrl + arrows`: move floating window by pixels
+- `Super + Ctrl + Shift + arrows`: resize floating window
 - `Super + [ / ]`: previous/next workspace
 - `Super + Ctrl + 9`: open logs workspace helper
 - `Super + Ctrl + Shift + 9`: open logs workspace stack
@@ -220,7 +244,7 @@ Normalize existing copied files to symlinks:
 - Tmux prefix is `Ctrl + Space`; pane navigation is `Prefix + h/j/k/l`
 - Neovim config is in `nvim/` and bootstraps plugins with `lazy.nvim`
 
-Notification panel now includes sticky "System Hub" controls (GPU/media/network/panel status, copy summary, widget toggles, and quick controls) via SwayNC.
+Notification panel now routes through the Wayle-first shell path with sticky System Hub controls for GPU/media/network/panel status, copy summary, widget toggles, and quick controls.
 
 AI helper behavior:
 
@@ -233,14 +257,16 @@ AI helper behavior:
 
 ```sh
 exec zsh
-hyprctl reload
+~/.config/hypr/scripts/hypr-reload-safe.sh
 systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
 ~/.config/hypr/scripts/theme-pass.sh   # same reload flow as Super+Ctrl+Shift+Y
 ~/.config/hypr/scripts/panel-switch.sh show
 ~/.config/hypr/scripts/launcher.sh --warm-cache
 ```
 
-If Wayle, Waybar, or Rofi was already running before bootstrap, restart your Hyprland session once.
+If this machine was started from the old hyprlang config provider, restart your Hyprland session once so `hyprland.lua` becomes active.
+
+When the Lua provider is active, `hypr-reload-safe.sh` validates `hyprland.lua` plus `hypr/conf/*.lua` before it calls `hyprctl reload`.
 
 ## Post-install verify
 
@@ -261,10 +287,9 @@ You can run the bundled checker too:
 ./setup/verify-nvidia.sh
 ```
 
-If you want live GPU metrics in Waybar (instead of low-noise runtime status), run:
+If you want the Wayle shell to refresh low-noise runtime status after GPU/theme changes, run:
 
 ```sh
-export WAYBAR_GPU_DEEP_POLL=1
 ~/.config/hypr/scripts/panel-switch.sh show
 ```
 
@@ -318,20 +343,6 @@ Notes path defaults:
 - Scratch file: `~/Documents/notes/inbox.md`
 - `open-notes.sh` prefers Obsidian when it is installed, then falls back to official VS Code.
 
-## KDE companion apps on Hyprland
-
-For a Hyprland-first setup with native KDE file management, image viewing, and a GUI settings app:
-
-```sh
-sudo pacman -S --needed gwenview systemsettings ark
-```
-
-If you want a full Plasma session installed alongside Hyprland later, keep it separate from the base dotfiles install:
-
-```sh
-sudo pacman -S --needed plasma-desktop plasma-workspace
-```
-
 ## Timeshift daily auto snapshots (keep latest 5)
 
 ```sh
@@ -369,7 +380,7 @@ Or use repo automation:
 - On current Arch repos (since the March 3, 2026 NVIDIA 570+ packaging change), `nvidia-dkms` is not provided and `nvidia-open-dkms` is the official kernel-module package.
 - On this setup, forcing `nvidia_drm` modeset can trigger login/shutdown hangs on some hybrid laptops.
 - The included safe profile keeps boot stable by blacklisting `nvidia_drm` during compositor startup.
-- Waybar now exposes a real system tray, and `nm-applet` plus `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls.
+- Wayle plus tray applets now own panel status, and `nm-applet` plus `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls.
   Set `HYPR_ENABLE_NM_APPLET=0` or `HYPR_ENABLE_BLUEMAN_APPLET=0` if you want the panel-only workflow instead.
 
 If login freezes and `nvidia-persistenced` times out, run:

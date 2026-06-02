@@ -59,7 +59,7 @@
   },
   "default_apps": {
     "browser_desktop": "google-chrome.desktop",
-    "image_viewer_desktop": "org.kde.gwenview.desktop",
+    "image_viewer_desktop": "google-chrome.desktop",
     "editor_desktop": "code.desktop"
   },
   "app_routing": {

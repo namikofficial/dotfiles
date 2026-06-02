@@ -19,7 +19,7 @@ flowchart LR
 | Keybind | Action | Script/Target |
 |---|---|---|
 | `Super + Return` | Open terminal | `kitty` |
-| `Super + E` | Open file manager | `dolphin` |
+| `Super + E` | Open file manager | `kitty --class yazi -e yazi` |
 | `Super + Space` | Desktop command palette | `desktop-palette.sh` |
 | `Super + Shift + Space` | Fast app launcher | `launcher.sh --fast` |
 | `Super + Ctrl + Space` | Window/workspace search | `workspace-overview.sh` |
@@ -27,20 +27,21 @@ flowchart LR
 | `Super + F1` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + A` or `Super + /` | Desktop command palette | `desktop-palette.sh` |
 | `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
-| `Super + Y` | Workspace hub (primary path) | `workspace-overview-toggle.sh` |
+| `Super + Y` | Workspace hub (primary path) | `workspace-overview.sh` |
 | `Super + W` | Workspace overview (direct Rofi path) | `workspace-overview.sh` |
-| `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `workspace-overview-toggle.sh` |
+| `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `super-tab-overview.sh` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
-| `Super + \`` | Toggle spatial scratch scene | `scratchpad-manager.sh toggle scene` |
-| `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
-| `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
-| `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
-| `Super + S` | Spatial scratchpad dashboard | `scratchpad-manager.sh menu` |
-| `Super + Ctrl + S` | Logs scratchpad | `scratchpad-manager.sh launch logs` |
-| `Super + Alt + S` | AI workspace shell | `scratchpad-manager.sh launch ai` |
-| `Super + Ctrl + Alt + S` | Database scratchpad | `scratchpad-manager.sh launch db` |
-| `Super + Alt + O` | Obsidian scratchpad/focus | `scratchpad-manager.sh launch obsidian` |
+| `Super + \` | Scratch Hub for AI, runner/logs, DB, notes, tools, Sidecar, and scene | `scratchpad-manager.sh menu` |
+| `Super + Shift + \` | Toggle full work scene | `scratchpad-manager.sh toggle scene` |
+| `Super + Alt + \` | AI workspace shell with runtime startup fallback | `scratchpad-manager.sh launch ai` |
+| `Super + Ctrl + \` | Logs scratchpad | `scratchpad-manager.sh launch logs` |
+| `Super + Ctrl + Alt + \` | Database scratchpad | `scratchpad-manager.sh launch db` |
+| ``Super + ` `` | Show or hide Sidecar without moving windows | `sidepanel.sh toggle` |
+| ``Super + Shift + ` `` | Move focused window to Sidecar and focus it there | `sidepanel.sh send` |
+| ``Super + Ctrl + ` `` | Stash active window into Sidecar | `sidepanel.sh stash` |
+| ``Super + Alt + ` `` | Toggle Sidecar visibility | `sidepanel.sh toggle` |
+| Sidecar multi-window | Parked windows tile dynamically inside the shelf | `sidepanel.sh` |
 | `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |
 | `Super + Alt + N` | Toggle DND | `notif-dnd-toggle.sh` |
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |
@@ -48,12 +49,13 @@ flowchart LR
 | `Super + Alt + E` | Open notes folder | `open-notes.sh` |
 | `Super + D` | Desktop command palette | `desktop-palette.sh` |
 | `Super + ,` | Open Settings Hub | `settings-hub.sh` |
-| `Super + Shift + ,` | Re-apply last selected settings section | `settings-hub.sh last` |
+| `Super + Shift + ,` | Restore last minimized window | `minimize-window.sh restore` |
 | `Super + Ctrl + ,` | Quick settings toggle (notification sounds) | `settings-hub.sh quick` |
 | `Super + Alt + ,` | Open Rofi settings editor | `settings/editor.sh` |
 | `Super + Ctrl + Alt + ,` | Apply per-app routing to focused app | `app-routing-apply-focused.sh` |
 | `Super + Ctrl + Y` | Switch panel to Wayle when installed | `panel-switch.sh wayle` |
 | `Super + Shift + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
+| `Super + Alt + Y` | Toggle panel visibility (view only) | `panel-switch.sh toggle-view` |
 | `Super + Ctrl + Alt + Y` | Toggle panel | `panel-switch.sh toggle` |
 | `Super + Escape` | Power menu | `power-menu.sh` |
 | `Super + Ctrl + L` | Lock screen | `lock.sh` |
@@ -63,14 +65,15 @@ flowchart LR
 | Keybind | Action |
 |---|---|
 | `Super + F` | Toggle floating |
-| `Super + M` | Maximize / unmaximize (fullscreen mode 1) |
-| `Super + Shift + F` | Fullscreen (mode 1) |
-| `Super + Ctrl + F` | Fullscreen (mode 0) |
-| `Super + G` | Toggle `dwindle` / `master` |
-| `Super + Alt + G` | Cycle dynamic layout (`dwindle -> master -> allfloat -> allpseudo`) |
-| `Super + Shift + G` | Toggle floating-grid |
+| `Super + M` | Maximize / unmaximize |
+| `Super + Shift + F` | Maximize / unmaximize |
+| `Super + Ctrl + F` | Fullscreen / unfullscreen |
+| `Super + G` | Cycle layout state (`dwindle -> master -> monocle`) |
+| `Super + Alt + G` | Toggle `dwindle` / `master` |
+| `Super + Shift + G` | Toggle focused window floating |
 | `Super + Ctrl + G` | Force `master` |
 | `Super + Ctrl + Shift + G` | Force `dwindle` |
+| `Super + Ctrl + Alt + Shift + G` | Monocle-style focused/maximized mode |
 | `Super + T` | Toggle window group (tab-like stack) |
 | `Super + Ctrl + T` | Move active window out of group |
 | `Super + Alt + ;` / `Super + Alt + .` | Prev/next tab in group |
@@ -79,11 +82,11 @@ flowchart LR
 
 | Keybind | Action |
 |---|---|
-| `Super + H/J/K/L` or arrows | Move focus |
+| `Super + arrows` | Move focus |
 | `Alt + Tab` / `Alt + Shift + Tab` | Cycle windows in current workspace |
-| `Super + Shift + H/J/K/L` or arrows | Move window |
-| `Super + Ctrl + H/J/K/L` or arrows | Move floating window |
-| `Super + Ctrl + Shift + H/J/K/L` or arrows | Resize floating window |
+| `Super + Shift + arrows` | Move tiled window in that direction |
+| `Super + Ctrl + arrows` | Move floating window by pixels |
+| `Super + Ctrl + Shift + arrows` | Resize floating window |
 
 ## Workspace
 
@@ -189,7 +192,7 @@ flowchart LR
 | `Ctrl + Alt + S` | Show overview shortcuts panel |
 | `Ctrl + Alt + M` | Move selected window to workspace |
 | `Ctrl + Alt + O` | Move selected window + follow |
-| `Ctrl + Alt + P` | Send selected window to side panel |
+| `Ctrl + Alt + P` | Send selected window to Sidecar |
 
 ## Notification Panel Contents
 

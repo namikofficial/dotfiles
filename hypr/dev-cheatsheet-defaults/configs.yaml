@@ -3,8 +3,8 @@ slug: configs
 entries:
   - key: Hyprland config
     description: main compositor config
-    copy: ~/.config/hypr/hyprland.conf
-    source: ~/.config/hypr/hyprland.conf
+    copy: ~/.config/hypr/hyprland.lua
+    source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Keybind docs
     description: canonical shortcut table

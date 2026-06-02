@@ -1,14 +1,23 @@
 #!/usr/bin/env sh
 # tmux-projects.sh — open tmux-sessionizer (FZF project picker) in a float
-# Bound to: Super + Shift + grave  (the ` key)
+# Historical helper; the primary work scene now uses Super + Shift + grave.
 set -eu
 
 class_name="noxflow-tmux-projects"
 sessionizer="${HOME}/.local/bin/tmux-sessionizer"
 
+lua_string() {
+  jq -Rn --arg value "$1" '$value'
+}
+
+focus_window() {
+  target_lua="$(lua_string "$1")"
+  hyprctl eval "hl.dispatch(hl.dsp.focus({ window = ${target_lua} }))" >/dev/null
+}
+
 # If an instance is already visible, focus it instead of spawning a new one
 if hyprctl clients 2>/dev/null | rg -q "class: ${class_name}"; then
-  hyprctl dispatch focuswindow "class:${class_name}" >/dev/null 2>&1 || true
+  focus_window "class:${class_name}" >/dev/null 2>&1 || true
   exit 0
 fi
 

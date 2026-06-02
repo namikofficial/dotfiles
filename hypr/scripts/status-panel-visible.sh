@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-if pgrep -x wayle >/dev/null 2>&1; then
+if systemctl --user is-active --quiet wayle.service 2>/dev/null; then
   echo true
 else
   echo false

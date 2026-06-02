@@ -43,8 +43,7 @@ mkdir -p "$(dirname "$out")"
   for f in \
     "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf" \
     /usr/share/xdg-desktop-portal/hyprland-portals.conf \
-    /usr/share/xdg-desktop-portal/gtk-portals.conf \
-    /usr/share/xdg-desktop-portal/kde-portals.conf; do
+    /usr/share/xdg-desktop-portal/gtk-portals.conf; do
     [ -f "$f" ] || continue
     echo "--- $f"
     sed -n '1,120p' "$f"
@@ -79,6 +78,6 @@ mkdir -p "$(dirname "$out")"
   echo
   echo "== pactl info =="
   pactl info 2>&1
-} > "$out"
+} >"$out"
 
 echo "Debug log written to: $out"

@@ -50,6 +50,8 @@ ICON_MAP = {
     "database": "󰆼",
     "music": "󰝚",
     "browser": "󰓂",
+    "sidecar": "󰓫",
+    "restore": "󰁯",
 }
 
 PRIMARY_LAYOUT = [
@@ -65,6 +67,25 @@ SECONDARY_LAYOUT = [
     ("notes", 0, 1, 1, 1),
     ("obsidian", 1, 1, 1, 1),
     ("music", 2, 1, 1, 1),
+]
+
+SIDECAR_CARDS = [
+    {
+        "name": "sidecar",
+        "title": "Sidecar",
+        "desc": "Show the window shelf without moving windows.",
+        "icon": ICON_MAP["sidecar"],
+        "accent": "card-sidecar",
+        "cmd": [str(Path.home() / ".config/hypr/scripts/sidepanel.sh"), "toggle"],
+    },
+    {
+        "name": "sidecar-restore-all",
+        "title": "Restore Sidecar",
+        "desc": "Pull all tracked shelf windows to this workspace.",
+        "icon": ICON_MAP["restore"],
+        "accent": "card-sidecar",
+        "cmd": [str(Path.home() / ".config/hypr/scripts/sidepanel.sh"), "restore-all"],
+    },
 ]
 
 
@@ -205,6 +226,7 @@ def load_css():
             .card-db { background: linear-gradient(135deg, rgba(167, 139, 250, 0.18), rgba(15,23,42,0.6)); }
             .card-music { background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(15,23,42,0.6)); }
             .card-browser { background: linear-gradient(135deg, rgba(148, 163, 184, 0.18), rgba(15,23,42,0.6)); }
+            .card-sidecar { background: linear-gradient(135deg, rgba(20, 184, 166, 0.16), rgba(15,23,42,0.6)); }
             """
         )
     display = Gdk.Display.get_default()
@@ -217,7 +239,7 @@ def load_css():
 class ScratchDashboard(Gtk.ApplicationWindow):
     def __init__(self, app):
         super().__init__(application=app)
-        self.set_title("Spatial Scratchpad")
+        self.set_title("Scratch Hub")
         self.set_decorated(False)
         default_w, default_h = dashboard_window_size()
         self.set_default_size(default_w, default_h)
@@ -244,10 +266,10 @@ class ScratchDashboard(Gtk.ApplicationWindow):
         overlay.add_overlay(shell)
 
         header = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        title = Gtk.Label(label="Spatial Scratchpad")
+        title = Gtk.Label(label="Scratch Hub")
         title.add_css_class("scratch-title")
         title.set_xalign(0)
-        subtitle = Gtk.Label(label="Compact launch surface for the current repo, runner, and side tools.")
+        subtitle = Gtk.Label(label="Scratch hub for AI, runner, notes, tools, scene, and Sidecar.")
         subtitle.add_css_class("scratch-subtitle")
         subtitle.set_xalign(0)
         header.append(title)
@@ -288,7 +310,10 @@ class ScratchDashboard(Gtk.ApplicationWindow):
                 continue
             secondary.attach(self.build_card_button(pad, state.get(name, "idle")), x, y, w, h)
 
-        footer = Gtk.Label(label="Keys: S scene  A AI  L runner  T shell  B browser  D database  N notes  O Obsidian  M music  Esc close")
+        for index, card in enumerate(SIDECAR_CARDS):
+            secondary.attach(self.build_card_button(card, "ready"), index + 2, 1, 1, 1)
+
+        footer = Gtk.Label(label="Keys: \\ hub toggle  ` Sidecar show/hide  Shift+` send window  S scene  A AI  L runner  T shell  B browser  D database  N notes  O Obsidian  M music  Esc close")
         footer.add_css_class("scratch-footer")
         footer.set_xalign(0)
         shell.append(footer)
@@ -376,11 +401,19 @@ class ScratchDashboard(Gtk.ApplicationWindow):
             Gdk.KEY_M: "music",
             Gdk.KEY_b: "browser-devtools",
             Gdk.KEY_B: "browser-devtools",
+            Gdk.KEY_c: "sidecar",
+            Gdk.KEY_C: "sidecar",
+            Gdk.KEY_r: "sidecar-restore-all",
+            Gdk.KEY_R: "sidecar-restore-all",
         }
         if keyval in hotkeys:
             if hotkeys[keyval] == "scene":
                 self.on_activate(None, SCENE_CARD["cmd"])
                 return True
+            for card in SIDECAR_CARDS:
+                if card["name"] == hotkeys[keyval]:
+                    self.on_activate(None, card["cmd"])
+                    return True
             for pad in SCRATCHPADS:
                 if pad["name"] == hotkeys[keyval]:
                     self.on_activate(None, pad["cmd"])

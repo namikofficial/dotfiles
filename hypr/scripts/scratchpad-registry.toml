@@ -28,6 +28,7 @@ class = "noxflow-scratch-ai"
 mode = "overlay"
 workspace = "scratch_spatial"
 launch = "ai"
+restore_policy = "keep_overlay"
 dashboard = { x = 2, y = 0, w = 1, h = 2, accent = "card-ai" }
 scene_geometry = { x = 50, y = 0, w = 50, h = 85, min_w = 420, min_h = 420 }
 overlay_geometry = { x = 50, y = 0, w = 50, h = 85, min_w = 420, min_h = 420 }
@@ -40,6 +41,7 @@ class = "noxflow-scratch-logs"
 mode = "overlay"
 workspace = "scratch_spatial"
 launch = "terminal-cmd"
+restore_policy = "keep_overlay"
 dashboard = { x = 0, y = 2, w = 3, h = 1, accent = "card-logs" }
 scene_geometry = { x = 0, y = 70, w = 100, h = 30, min_w = 980, min_h = 220 }
 overlay_geometry = { x = 0, y = 70, w = 100, h = 30, min_w = 980, min_h = 220 }

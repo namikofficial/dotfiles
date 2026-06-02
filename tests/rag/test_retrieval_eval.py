@@ -113,7 +113,7 @@ class RetrievalEvalTest(unittest.TestCase):
     def test_keybind_query_includes_binding_and_script_target(self) -> None:
         result = self._retrieve("Super Alt S", mode="deep")
         paths = {row["path"] for row in result.rows}
-        self.assertIn("hypr/hyprland.conf", paths)
+        self.assertIn("hypr/hyprland.lua", paths)
         context, _files = gather_context(result.rows, self.config, facts=result.facts, summaries=result.summaries)
         self.assertIn("super-alt-s.sh", context)
 

@@ -5,6 +5,16 @@ set -euo pipefail
 
 class_name="noxflow-lazygit"
 
+lua_string() {
+  jq -Rn --arg value "$1" '$value'
+}
+
+focus_window() {
+  local target_lua
+  target_lua="$(lua_string "$1")"
+  hyprctl eval "hl.dispatch(hl.dsp.focus({ window = ${target_lua} }))" >/dev/null
+}
+
 if ! command -v lazygit >/dev/null 2>&1; then
   notify-send -a "tmux-lazygit" "lazygit not found" \
     "Install with: sudo pacman -S lazygit" 2>/dev/null || true
@@ -13,7 +23,7 @@ fi
 
 # If an instance is already visible, focus it
 if hyprctl clients 2>/dev/null | rg -q "class: ${class_name}"; then
-  hyprctl dispatch focuswindow "class:${class_name}" >/dev/null 2>&1 || true
+  focus_window "class:${class_name}" >/dev/null 2>&1 || true
   exit 0
 fi
 

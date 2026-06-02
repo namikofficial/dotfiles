@@ -4,17 +4,17 @@ entries:
   - key: Super+.
     description: open this cheatsheet overlay
     copy: ~/.config/hypr/scripts/dev-cheatsheet.sh
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+Space
     description: app launcher
     copy: ~/.config/hypr/scripts/launcher.sh --fast
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: Super+W
     description: workspace overview menu
     copy: ~/.config/hypr/scripts/workspace-overview.sh
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
     tags: [daily]
   - key: gs
     description: git status alias

@@ -27,19 +27,15 @@ force_copy() {
   echo "copy $dst <- $src"
 }
 
-force_link "$ROOT_DIR/hypr/hyprland.conf" "$HOME/.config/hypr/hyprland.conf"
+force_link "$ROOT_DIR/hypr/hyprland.lua" "$HOME/.config/hypr/hyprland.lua"
+force_link "$ROOT_DIR/hypr/lib" "$HOME/.config/hypr/lib"
+force_link "$ROOT_DIR/hypr/monitor-layout.json" "$HOME/.config/hypr/monitor-layout.json"
+force_link "$ROOT_DIR/uwsm/env" "$HOME/.config/uwsm/env"
 force_link "$ROOT_DIR/wayle/config.toml" "$HOME/.config/wayle/config.toml"
 force_link "$ROOT_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
 force_link "$ROOT_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
 force_link "$ROOT_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
 force_link "$HOME/.cache/hypr/theme-colors-rofi.rasi" "$HOME/.config/rofi/theme-colors-rofi.rasi"
-force_link "$ROOT_DIR/theme/qt5ct/qt5ct.conf" "$HOME/.config/qt5ct/qt5ct.conf"
-force_link "$ROOT_DIR/theme/qt6ct/qt6ct.conf" "$HOME/.config/qt6ct/qt6ct.conf"
-force_copy "$ROOT_DIR/kde/kdeglobals" "$HOME/.config/kdeglobals"
-force_link "$ROOT_DIR/kde/dolphinrc" "$HOME/.config/dolphinrc"
-force_link "$ROOT_DIR/kde/kiorc" "$HOME/.config/kiorc"
-force_link "$ROOT_DIR/kde/gwenviewrc" "$HOME/.config/gwenviewrc"
 force_copy "$ROOT_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
-force_copy "$ROOT_DIR/theme/Kvantum" "$HOME/.config/Kvantum"
 
 echo "Normalization complete."

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scratch-launchpad.sh — Super+Alt+` launcher pad
+# scratch-launchpad.sh — auxiliary scratch hub launcher
 # Opens tools as floating kitty windows (large or small) or delegates
 # to existing scripts.  Think: Windows Game Bar, but useful.
 set -euo pipefail
@@ -43,10 +43,12 @@ float_small() {
 entries() {
   printf '%s\0info\x1f%s\n' \
     "󰌠  terminal scratchpad  Drop-down dev terminal"   "scratch-terminal" \
-    "󰏚  ai scratchpad        Project AI workspace"     "scratch-ai" \
+    "󰏚  ai workspace         Project AI shell"         "scratch-ai" \
     "󰍹  notes scratchpad     Notes and clipboard"      "scratch-notes" \
     "󰇬  db scratchpad        SQL console"              "scratch-db" \
     "󰠩  browser devtools     Chrome/Chromium devtools" "scratch-browser" \
+    "󰓫  sidecar              Window shelf actions"     "sidecar" \
+    "󰁯  restore sidecar      Pull shelf windows here"  "sidecar-restore" \
     "󰍛  btop                System monitor"           "btop"       \
     "󰚩  lazygit             Visual git client"        "lazygit"    \
     "󰆩  qalc                Calculator"               "qalc"       \
@@ -55,7 +57,8 @@ entries() {
     "󰻠  fastfetch           System information"        "fastfetch"  \
     "  Python REPL         Interactive Python shell"  "python"     \
     "  JSON viewer         Explore JSON (python)"     "json"       \
-    "󰌌  Hash / encode       md5, sha256, base64"       "hash"
+    "󰌌  Hash / encode       md5, sha256, base64"       "hash"       \
+    "  Inspect cwd         Full directory listing"     "inspect"
 }
 
 # ── Rofi ─────────────────────────────────────────────────────────────────────
@@ -71,7 +74,7 @@ action="$(entries | rofi \
 
 # Map index → action key
 mapfile -t keys < <(printf '%s\n' \
-  scratch-terminal scratch-ai scratch-notes scratch-db scratch-browser btop lazygit qalc clipboard logs fastfetch python json hash)
+  scratch-terminal scratch-ai scratch-notes scratch-db scratch-browser sidecar sidecar-restore btop lazygit qalc clipboard logs fastfetch python json hash inspect)
 
 key="${keys[$action]:-}"
 
@@ -114,6 +117,14 @@ case "$key" in
 
   scratch-browser)
     "$HOME/.config/hypr/scripts/scratchpad-manager.sh" browser-devtools
+    ;;
+
+  sidecar)
+    "$HOME/.config/hypr/scripts/sidepanel.sh" toggle
+    ;;
+
+  sidecar-restore)
+    "$HOME/.config/hypr/scripts/sidepanel.sh" restore-all
     ;;
 
   btop)
@@ -210,5 +221,9 @@ while True:
         pass
     print()
 "
+    ;;
+
+  inspect)
+    float_large "directory inspect" bash -lc 'cd "$1"; exec zsh -ic "lsi"' _ "$cwd"
     ;;
 esac

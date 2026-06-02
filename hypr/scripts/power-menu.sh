@@ -93,7 +93,13 @@ show_compact_menu() {
     "󰌾  Lock") ~/.config/hypr/scripts/lock.sh ;;
     "󰤄  Sleep") systemctl suspend ;;
     "󰒲  Hibernate") systemctl hibernate ;;
-    "󰍃  Logout") hyprctl dispatch exit ;;
+    "󰍃  Logout")
+      if command -v uwsm >/dev/null 2>&1; then
+        uwsm stop
+      else
+        hyprctl dispatch exit
+      fi
+      ;;
     "󰜉  Reboot") systemctl reboot ;;
     "󰐥  Shutdown") systemctl poweroff ;;
     "󰑐  Restore Panel") ~/.config/hypr/scripts/panel-switch.sh show ;;

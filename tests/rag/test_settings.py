@@ -23,9 +23,10 @@ from rag.settings import (
 
 
 class SettingsTest(unittest.TestCase):
-    def test_default_config_uses_dense_qdrant_without_sparse_keys(self) -> None:
-        self.assertNotIn("qdrant_vectors", DEFAULT_CONFIG)
-        self.assertNotIn("qdrant_sparse", DEFAULT_CONFIG)
+    def test_default_config_includes_qdrant_vector_config(self) -> None:
+        self.assertIn("qdrant_vectors", DEFAULT_CONFIG)
+        self.assertIn("dense_name", DEFAULT_CONFIG["qdrant_vectors"])
+        self.assertIn("qdrant_sparse", DEFAULT_CONFIG)
 
     def test_load_config_migrates_legacy_flat_tokens(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

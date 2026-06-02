@@ -1,0 +1,67 @@
+{
+  "_comment": "Copy relevant sections into your MCP client config. Replace <PLACEHOLDERS>.",
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/namik/Documents"],
+      "enabled": true,
+      "_note": "Always enabled. Adjust path to your workspace."
+    },
+    "git": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "/home/namik/Documents/code/dotfiles"],
+      "enabled": true,
+      "_note": "Set repository to your active repo."
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "/home/namik/.local/share/rag/rag.db"],
+      "enabled": true,
+      "_note": "RAG database."
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "enabled": true,
+      "_note": "Library documentation lookup."
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:password@localhost/dbname"],
+      "enabled": false,
+      "_note": "OPTIONAL. Replace connection string. Enable for NoxCRM work."
+    },
+    "browser": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-playwright"],
+      "enabled": false,
+      "_note": "OPTIONAL. Requires playwright browsers installed."
+    },
+    "rag": {
+      "type": "local",
+      "command": ["rag-mcp"],
+      "enabled": true,
+      "timeout": 8000,
+      "_note": "Local RAG MCP server. Requires install-local-rag-stack.sh to be run."
+    },
+    "qdrant": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-qdrant"],
+      "env": {
+        "QDRANT_URL": "http://127.0.0.1:6333",
+        "COLLECTION_NAME": "rag"
+      },
+      "enabled": false,
+      "_note": "OPTIONAL. Enable if using Qdrant for vector search."
+    },
+    "obsidian": {
+      "command": "npx",
+      "args": ["-y", "mcp-obsidian"],
+      "env": {
+        "VAULT_PATH": "/home/namik/Documents/obsidian"
+      },
+      "enabled": false,
+      "_note": "OPTIONAL. Set VAULT_PATH to your Obsidian vault."
+    }
+  }
+}

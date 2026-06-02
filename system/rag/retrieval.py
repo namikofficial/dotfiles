@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import difflib
+import fnmatch
 import json
 import math
 import re
@@ -1402,6 +1403,11 @@ def rerank_chunks(
     analysis = analysis_for_plan(plan, config)
     query_terms_set = set(analysis.expanded_terms or analysis.terms)
     boosts = query_intelligence_config(config).get("boosts", {})
+    adaptive = config.get("adaptive_ranking", {})
+    boost_paths = set(adaptive.get("boost_paths", []))
+    hot_paths = set(adaptive.get("hot_paths", []))
+    missed_paths = set(adaptive.get("missed_paths", []))
+    avoid_patterns = list(adaptive.get("avoid_patterns", []))
     max_modified = max((float(row["modified_at"] or 0.0) for row in rows), default=1.0) or 1.0
     scored = []
     for row in rows:
@@ -1430,7 +1436,7 @@ def rerank_chunks(
                 final_score += 0.08
             if symbol.startswith("bind:") or symbol == "entries":
                 final_score += 0.12
-            if any(token in path_lower for token in ("hyprland.conf", "hyprland.yaml", "keybind", "cheatsheet")):
+            if any(token in path_lower for token in ("hyprland.lua", "hyprland.yaml", "keybind", "cheatsheet")):
                 final_score += 0.12
         elif plan.intent == "tool":
             if symbol.startswith("tool:"):
@@ -1449,9 +1455,36 @@ def rerank_chunks(
             final_score += 0.18
         if row["path"] in summary_paths:
             final_score += 0.1
+        if row["path"] in boost_paths:
+            final_score += 0.14
+        if row["path"] in hot_paths:
+            final_score += 0.08
+        if row["path"] in missed_paths:
+            final_score += 0.06
+        if any(fnmatch.fnmatch(row["path"], pattern) for pattern in avoid_patterns):
+            final_score -= 0.1
         scored.append((final_score, row))
     scored.sort(key=lambda item: item[0], reverse=True)
-    return [row for _score, row in scored[: reranker_config["top_k_output"]]]
+    top = [row for _score, row in scored[: reranker_config["top_k_output"]]]
+
+    # Optional neural re-ranking pass when mode = "neural" or "auto"
+    reranker_mode = reranker_config.get("mode", "heuristic")
+    if reranker_mode in ("neural", "auto"):
+        try:
+            from .rerank import rerank_neural, _try_load_neural
+            if reranker_mode == "auto" and not _try_load_neural():
+                return top
+            query_text = " ".join(analysis.terms or [])
+            if query_text:
+                from collections import namedtuple
+                _R = namedtuple("_R", ["text", "file_path", "score"])
+                proxy = [_R(text=r["content"] or "", file_path=r["path"] or "", score=0.5) for r in top]
+                reranked_proxy = rerank_neural(query_text, proxy)
+                path_order = {p.file_path: i for i, p in enumerate(reranked_proxy)}
+                top = sorted(top, key=lambda r: path_order.get(r["path"] or "", len(top)))
+        except Exception:
+            pass
+    return top
 
 
 def reranker_enabled(config: dict, override: bool | None) -> bool:
@@ -1499,20 +1532,30 @@ def collect_retrieval_candidates(
     summaries = file_summary_hits(conn, plan, config)
     timings_ms["summaries"] = (time.perf_counter() - started) * 1000
 
+    quick_error_query = plan.mode == "quick" and plan.intent == "error"
+
+    memory = None
     started = time.perf_counter()
-    memory = repo_memory_row(conn, plan.repo)
+    if plan.mode != "quick":
+        memory = repo_memory_row(conn, plan.repo)
     timings_ms["memory"] = (time.perf_counter() - started) * 1000
 
+    github_refs: list[sqlite3.Row] = []
     started = time.perf_counter()
-    github_refs = github_context_hits(conn, plan)
+    if plan.mode != "quick":
+        github_refs = github_context_hits(conn, plan)
     timings_ms["github"] = (time.perf_counter() - started) * 1000
 
+    test_failures: list[sqlite3.Row] = []
     started = time.perf_counter()
-    test_failures = test_failure_hits(conn, plan)
+    if plan.mode != "quick" or quick_error_query:
+        test_failures = test_failure_hits(conn, plan)
     timings_ms["test_failures"] = (time.perf_counter() - started) * 1000
 
+    errors: list[sqlite3.Row] = []
     started = time.perf_counter()
-    errors = error_matches(conn, plan)
+    if plan.mode != "quick" or quick_error_query:
+        errors = error_matches(conn, plan)
     timings_ms["errors"] = (time.perf_counter() - started) * 1000
     return RetrievalCandidates(
         plan=plan,

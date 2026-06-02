@@ -32,7 +32,7 @@ read_list() {
 }
 
 run_pacman() {
-  if (( EUID == 0 )); then
+  if ((EUID == 0)); then
     pacman "$@"
   else
     sudo pacman "$@"
@@ -55,7 +55,7 @@ check_pacman_lock() {
 }
 
 run_yay() {
-  if (( EUID == 0 )); then
+  if ((EUID == 0)); then
     if [ -z "${SUDO_USER:-}" ]; then
       echo "warning: skipping AUR operation because script is running as root without SUDO_USER" >&2
       return 1
@@ -78,7 +78,7 @@ filter_pacman_packages() {
   local -a candidates=()
   local -a filtered=()
   for entry in "$@"; do
-    IFS='|' read -r -a candidates <<< "$entry"
+    IFS='|' read -r -a candidates <<<"$entry"
     picked=""
     for candidate in "${candidates[@]}"; do
       if pacman -Si "$candidate" >/dev/null 2>&1; then
@@ -92,7 +92,7 @@ filter_pacman_packages() {
       echo "warning: skipping unavailable pacman package '$entry'" >&2
     fi
   done
-  if (( ${#filtered[@]} > 0 )); then
+  if ((${#filtered[@]} > 0)); then
     printf '%s\n' "${filtered[@]}"
   fi
 }
@@ -104,7 +104,7 @@ filter_aur_packages() {
   local -a candidates=()
   local -a filtered=()
   for entry in "$@"; do
-    IFS='|' read -r -a candidates <<< "$entry"
+    IFS='|' read -r -a candidates <<<"$entry"
     picked=""
     for candidate in "${candidates[@]}"; do
       if run_yay -Si "$candidate" >/dev/null 2>&1; then
@@ -118,38 +118,39 @@ filter_aur_packages() {
       echo "warning: skipping unavailable AUR package '$entry'" >&2
     fi
   done
-  if (( ${#filtered[@]} > 0 )); then
+  if ((${#filtered[@]} > 0)); then
     printf '%s\n' "${filtered[@]}"
   fi
 }
 
 mapfile -t BASE_PACKAGES < <(read_list "$PACMAN_LIST")
-if (( ${#BASE_PACKAGES[@]} == 0 )); then
+if ((${#BASE_PACKAGES[@]} == 0)); then
   echo "No pacman packages defined in $PACMAN_LIST" >&2
   exit 1
 fi
 
-if (( WITH_NVIDIA == 0 )) && command -v lspci >/dev/null 2>&1 && lspci | grep -qi 'NVIDIA'; then
+if ((WITH_NVIDIA == 0)) && command -v lspci >/dev/null 2>&1 && lspci | grep -qi 'NVIDIA'; then
   echo "info: NVIDIA hardware detected; leaving the current driver stack untouched (use --with-nvidia to opt in)." >&2
 fi
 
 PACMAN_FLAGS=()
 YAY_FLAGS=()
-if (( NONCONFIRM )); then
+if ((NONCONFIRM)); then
   PACMAN_FLAGS+=(--noconfirm)
   YAY_FLAGS+=(--noconfirm --answerclean None --answerdiff None)
 fi
 
 EXTRA_PACKAGES=()
-if (( WITH_NVIDIA )); then
-  mapfile -t EXTRA_PACKAGES < <(read_list "$NVIDIA_LIST")
+if ((WITH_NVIDIA)); then
+  mapfile -t NVIDIA_PACKAGES < <(read_list "$NVIDIA_LIST")
+  EXTRA_PACKAGES+=("${NVIDIA_PACKAGES[@]}")
 fi
 
 mapfile -t PACMAN_PACKAGES < <(filter_pacman_packages "${BASE_PACKAGES[@]}" "${EXTRA_PACKAGES[@]}")
 
-if (( ${#PACMAN_PACKAGES[@]} > 0 )); then
+if ((${#PACMAN_PACKAGES[@]} > 0)); then
   check_pacman_lock
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] sudo pacman -Syu --needed ${PACMAN_FLAGS[*]} ${PACMAN_PACKAGES[*]}"
   else
     run_pacman -Syu --needed "${PACMAN_FLAGS[@]}" "${PACMAN_PACKAGES[@]}"
@@ -158,8 +159,8 @@ else
   echo "No installable pacman packages after filtering."
 fi
 
-if (( WITH_AUR )); then
-  if (( EUID == 0 )); then
+if ((WITH_AUR)); then
+  if ((EUID == 0)); then
     if ! sudo -u "$AS_USER" env -u SUDO_USER -u SUDO_UID -u SUDO_GID \
       PATH="/usr/local/sbin:/usr/local/bin:/usr/bin:/bin" \
       sh -lc 'command -v yay >/dev/null 2>&1'; then
@@ -172,10 +173,10 @@ if (( WITH_AUR )); then
   fi
 
   mapfile -t AUR_PACKAGES < <(read_list "$AUR_LIST")
-  if (( ${#AUR_PACKAGES[@]} > 0 )); then
+  if ((${#AUR_PACKAGES[@]} > 0)); then
     mapfile -t AUR_FILTERED < <(filter_aur_packages "${AUR_PACKAGES[@]}")
-    if (( ${#AUR_FILTERED[@]} > 0 )); then
-      if (( DRY_RUN )); then
+    if ((${#AUR_FILTERED[@]} > 0)); then
+      if ((DRY_RUN)); then
         echo "[dry-run] yay -S --needed ${YAY_FLAGS[*]} ${AUR_FILTERED[*]}"
       else
         run_yay -S --needed "${YAY_FLAGS[@]}" "${AUR_FILTERED[@]}"
@@ -186,9 +187,9 @@ if (( WITH_AUR )); then
   fi
 fi
 
-if (( ! DRY_RUN )) && command -v pkgfile >/dev/null 2>&1; then
+if ((!DRY_RUN)) && command -v pkgfile >/dev/null 2>&1; then
   echo "Refreshing pkgfile database..."
-  if (( EUID == 0 )); then
+  if ((EUID == 0)); then
     pkgfile --update || echo "warning: pkgfile --update failed" >&2
   else
     sudo pkgfile --update || echo "warning: pkgfile --update failed" >&2

@@ -47,12 +47,12 @@ actions=(
   "OCR Area -> Clipboard"
   "Toggle Screen Record"
   "Toggle Layout (Master/Dwindle)"
-  "Toggle Floating Grid"
+  "Toggle Focused Window Floating"
   "Switch Panel to Wayle"
   "Toggle Panel Engine"
-  "Toggle Panel Engine"
+  "Hide Panel"
   "Toggle Panel Visibility"
-  "Restart Current Panel"
+  "Show/Restore Panel"
   "Copy Notification Summary"
   "Show Keybind Cheat Sheet"
   "Apply Theme Pass"
@@ -65,20 +65,23 @@ actions=(
   "Performance Profile"
   "System Monitor"
   "Lock Screen"
-  "Cycle Dynamic Layout (4 modes)"
+  "Cycle Layout (Dwindle/Master/Monocle)"
   "Logs Workspace (9)"
   "Logs Workspace Stack"
-  "Toggle Side Panel"
-  "Move Window -> Side Panel"
+  "Toggle Sidecar"
+  "Move Window -> Sidecar"
   "Open LocalSend"
   "Open Syncthing UI"
+  "Syncthing Control Menu"
   "Open Obsidian"
   "Open Terminal"
   "Open Notes"
   "Open Wayle Notification Panel"
   "Open Settings Hub"
   "Monitor Control"
-  "Run Weekly Health Check"
+  "Run Dev Health"
+  "Recover Desktop"
+  "Project Profiles"
 )
 
 hint_for_index() {
@@ -181,7 +184,7 @@ case "$choice_index" in
   18) ~/.config/hypr/scripts/layout-switcher.sh allfloat ;;
   19) ~/.config/hypr/scripts/panel-switch.sh wayle ;;
   20) ~/.config/hypr/scripts/panel-switch.sh toggle ;;
-  21) ~/.config/hypr/scripts/panel-switch.sh toggle ;;
+  21) ~/.config/hypr/scripts/panel-switch.sh hide ;;
   22) ~/.config/hypr/scripts/panel-switch.sh toggle-view ;;
   23) ~/.config/hypr/scripts/panel-switch.sh show ;;
   24) ~/.config/hypr/scripts/notification-summary.sh copy ;;
@@ -203,12 +206,15 @@ case "$choice_index" in
   40) ~/.config/hypr/scripts/sidepanel.sh send ;;
   41) flatpak run org.localsend.localsend_app >/dev/null 2>&1 & ;;
   42) ~/.config/hypr/scripts/open-syncthing.sh ;;
-  43) obsidian >/dev/null 2>&1 & ;;
-  44) kitty >/dev/null 2>&1 & ;;
-  45) ~/.config/hypr/scripts/open-notes.sh ;;
-  46) ~/.config/hypr/scripts/notif-center-toggle.sh ;;
-  47) ~/.config/hypr/scripts/settings-hub.sh ;;
-  48) ~/.config/hypr/scripts/monitor-control.sh menu ;;
-  49) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/weekly-health-check.sh; read -r -p 'Press enter to close'" ;;
+  43) ~/.config/hypr/scripts/syncthing-control.sh menu ;;
+  44) obsidian >/dev/null 2>&1 & ;;
+  45) kitty >/dev/null 2>&1 & ;;
+  46) ~/.config/hypr/scripts/open-notes.sh ;;
+  47) ~/.config/hypr/scripts/notif-center-toggle.sh ;;
+  48) ~/.config/hypr/scripts/settings-hub.sh ;;
+  49) ~/.config/hypr/scripts/monitor-control.sh menu ;;
+  50) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/dev-health.sh; read -r -p 'Press enter to close'" ;;
+  51) ~/.config/hypr/scripts/desktop-recovery.sh menu ;;
+  52) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/project-profile.sh status; read -r -p 'Press enter to close'" ;;
   *) exit 0 ;;
 esac

@@ -48,6 +48,8 @@
 - JSON helpers: `je`, `jj`, `jc`, `jk`, `jl`, `jp`, `jf`, `jv`, `jh`
 - Devlink helpers: `dl`, `dld`, `dlp`, `dlh`, `dlm`
 - Alc commands: `ff`, `frg`, `fkill`, `tnotes`, `doctor`, `pkillport`
+- Local readiness: `dev-health`, `dev-health --full`, `dotfiles-stale-check`
+- Project profiles: `project-profile status`, `project-profile launch noxcrm`, `ppr tmux dotfiles`
 
 ## Power / Graphics
 - Current power profile: `powerprofilesctl get`
@@ -55,7 +57,7 @@
 - Set performance mode: `powerprofilesctl set performance`
 - Set power-saver mode: `powerprofilesctl set power-saver`
 - Battery summary: `batt`
-- Wayle status/media data is built into the shell; no separate Waybar GPU polling flow.
+- Wayle status/media data is built into the shell; no separate legacy panel GPU polling flow.
 
 ## Git
 - Status short: `gss`
@@ -86,11 +88,12 @@
 
 ## Hyprland Quick Keys
 - `Super + Return`: terminal (`kitty`)
-- `Super + Space`: app launcher (press again to close)
+- `Super + Space`: desktop command palette
+- `Super + Shift + Space`: fast app launcher
 - In launcher: Tab A = top 5 frequent, Tab B = all apps, `Ctrl + Tab` switches tabs
 - `Super + .`: fullscreen dev cheatsheet overlay
 - `Super + F1`: keybind helper overlay
-- `Super + A` or `Super + /`: quick actions (press again to close)
+- `Super + A` or `Super + /`: desktop command palette (press again to close)
 - `Super + Ctrl + /`: keybind helper overlay
 - In launcher/actions: `Ctrl + 1..0` quick-select, `Enter` run/open
 - `Super + W`: workspace overview picker (Rofi)
@@ -98,24 +101,24 @@
 - `Super + Shift + Tab`: direct Rofi overview
 - `Super + F`: toggle floating for active window
 - `Super + M`: maximize / unmaximize active window
-- `Super + G`: toggle `dwindle` / `master` layout
-- `Super + Alt + G`: cycle dynamic layouts (`dwindle/master/allfloat/allpseudo`)
+- `Super + G`: cycle layout state (`dwindle/master/monocle`)
+- `Super + Alt + G`: toggle `dwindle` / `master` layout
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle workspace windows
+- ``Super + ` ``: toggle full spatial scratch scene
 - `Super + \\`: toggle side panel special workspace
 - `Super + Shift + \\`: move current window into side panel + open it
 - `Super + Ctrl + 9`: open logs workspace terminal (workspace 9)
 - `Super + Ctrl + 0`: open/focus telemetry dashboard on workspace `0` key slot (`Hyprland workspace 10`)
 - `Super + Ctrl + Shift + 0`: reset the telemetry tmux session and reopen it
-- `Super + D`: quick actions
+- `Super + D`: desktop command palette
 - `Super + O`: wallpaper picker
 - `Super + Shift + O`: next wallpaper
 - `Super + N`: toggle notification panel
-- `Super + Shift + Space`: window/workspace search
-- `Super + Ctrl + Space`: command palette
+- `Super + Ctrl + Space`: window/workspace search
 - `Super + Alt + N`: toggle DND
 - `Super + Ctrl + N`: copy notification/status summary
-- `Super + Shift + N`: toggle scratchpad notes
-- `Super + \``: toggle scratchpad terminal
+- `Super + Shift + N`: open notes folder
+- `Super + S`: spatial scratchpad dashboard
 - `Super + Alt + E`: open notes folder in editor
 - `Super + I`: pick a color (`hyprpicker -a`)
 - `Super + Shift + I`: toggle night light
@@ -198,7 +201,7 @@
 
 ## Session Repair
 - Reload shell config: `exec zsh`
-- Reload Hyprland config: `hyprctl reload`
+- Reload Hyprland config when the live provider is Lua: `~/.config/hypr/scripts/hypr-reload-safe.sh`
 - Restart portal services: `systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk`
 - Restore preferred panel: `~/.config/hypr/scripts/panel-switch.sh show`
 - Toggle NetworkManager tray applet: `~/.config/hypr/scripts/nm-applet-toggle.sh`
@@ -217,6 +220,9 @@
 - Apply improved SDDM theme/background: `sudo ~/Documents/code/dotfiles/setup/configure-sddm.sh`
 
 ## Weekly Health Check
+
+- Fast developer readiness: `dev-health`
+- Deep health log: `dev-health --full`
 - Run now: `~/Documents/code/dotfiles/setup/weekly-health-check.sh`
 - Enable weekly timer: `~/Documents/code/dotfiles/setup/configure-weekly-healthcheck.sh`
 - Latest log: `cat ~/Documents/code/dotfiles/logs/health-latest.log`

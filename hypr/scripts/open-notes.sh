@@ -29,11 +29,6 @@ if [ -n "${TERMINAL:-}" ] && command -v "$TERMINAL" >/dev/null 2>&1; then
   exit 0
 fi
 
-if command -v dolphin >/dev/null 2>&1; then
-  dolphin "$notes_dir" >/dev/null 2>&1 &
-  exit 0
-fi
-
 if command -v xdg-open >/dev/null 2>&1; then
   xdg-open "$notes_dir" >/dev/null 2>&1 &
 fi

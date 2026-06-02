@@ -9,6 +9,34 @@ for p in /usr/lib/hyprpolkitagent /usr/libexec /usr/lib/polkit-gnome; do
 done
 export PATH
 
+# Load feature flags (overrides env defaults set inline below).
+_features_env="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/features.env"
+# shellcheck source=/dev/null
+[ -f "$_features_env" ] && . "$_features_env"
+unset _features_env
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
+LOG_DIR="$STATE_DIR/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/hypr-startup-$(date +%Y%m%d-%H%M%S).log"
+ln -sfn "$(basename "$LOG_FILE")" "$LOG_DIR/hypr-startup-latest.log"
+
+log() {
+  printf '%s %s\n' "$(date -Is)" "$*" >>"$LOG_FILE"
+}
+
+prune_startup_logs() {
+  find "$LOG_DIR" -maxdepth 1 -type f -name 'hypr-startup-*.log' -printf '%T@ %p\n' 2>/dev/null |
+    sort -nr |
+    awk 'NR > 10 { print $2 }' |
+    while IFS= read -r old_log; do
+      [ -n "$old_log" ] && rm -f -- "$old_log"
+    done
+}
+
+prune_startup_logs
+log "starting Hyprland session bootstrap"
+
 resolve_cmd() {
   cmd="$1"
   if command -v "$cmd" >/dev/null 2>&1; then
@@ -64,19 +92,39 @@ loaded_hyprexpo_path() {
   awk '/\/.*hyprexpo\.so$/ { print $NF; exit }' "/proc/$hypr_pid/maps" 2>/dev/null
 }
 
+setting_bool() {
+  key="$1"
+  fallback="${2:-true}"
+
+  if [ -x "$HOME/.config/hypr/scripts/settingsctl" ]; then
+    value="$("$HOME/.config/hypr/scripts/settingsctl" get "$key" 2>/dev/null || true)"
+    case "$value" in
+      true | false)
+        printf '%s\n' "$value"
+        return 0
+        ;;
+    esac
+  fi
+
+  printf '%s\n' "$fallback"
+}
+
 # Warm launcher cache first so Super+Space opens immediately.
 if [ -x "$HOME/.config/hypr/scripts/launcher.sh" ]; then
+  log "warming launcher cache"
   "$HOME/.config/hypr/scripts/launcher.sh" --warm-cache >/dev/null 2>&1 &
 fi
 
 # Initialize notification cache/state early so downstream scripts can emit
 # events safely during session bootstrap.
 if [ -x "$HOME/.config/hypr/scripts/lib/log.sh" ]; then
+  log "initializing notification cache"
   "$HOME/.config/hypr/scripts/lib/log.sh" --init >/dev/null 2>&1 || true
 fi
 
 # Apply generated settings overlays for Hypr/Wayle at session start.
 if [ -x "$HOME/.config/hypr/scripts/settingsctl" ]; then
+  log "scheduling generated settings apply"
   (
     sleep 0.5
     "$HOME/.config/hypr/scripts/settingsctl" apply all >/dev/null 2>&1 || true
@@ -85,11 +133,30 @@ fi
 
 # Warm cheatsheet cache so Super+. opens immediately.
 if [ -x "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" ]; then
+  log "warming cheatsheet cache"
   "$HOME/.config/hypr/scripts/dev-cheatsheet.sh" --warm-cache >/dev/null 2>&1 &
 fi
 
+# Warm scratch/AI dependencies so Super+` paths do not stall on first use.
+(
+  log "warming scratchpad dependencies"
+  sleep 2
+  for cmd in jq python3 hyprctl kitty; do
+    command -v "$cmd" >/dev/null 2>&1 || true
+  done
+  if [ -x "$HOME/.config/hypr/scripts/scratchpad-manager.sh" ]; then
+    "$HOME/.config/hypr/scripts/scratchpad-manager.sh" menu >/dev/null 2>&1 || true
+  fi
+  if command -v curl >/dev/null 2>&1 && command -v llama-swap-manager >/dev/null 2>&1; then
+    if ! curl -fsS --max-time 1 "${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}" >/dev/null 2>&1; then
+      llama-swap-manager start >/dev/null 2>&1 || true
+    fi
+  fi
+) &
+
 # Keep the clipboard browser daemon warm so clipboard UI opens on the hot path.
 if [ -x "$HOME/.config/hypr/scripts/cliphist-daemon.sh" ]; then
+  log "scheduling clipboard browser daemon warmup"
   (
     sleep 3
     "$HOME/.config/hypr/scripts/cliphist-daemon.sh" start >/dev/null 2>&1 || true
@@ -99,6 +166,7 @@ fi
 # Warm desktop-app binaries/resources in page cache so first-launch latency is
 # less noticeable without keeping the apps visibly open all session.
 if [ "${HYPR_WARM_DESKTOP_APPS:-1}" = "1" ] && [ -x "$HOME/.config/hypr/scripts/app-warm-cache.sh" ]; then
+  log "scheduling desktop app cache warmup"
   (
     sleep 6
     "$HOME/.config/hypr/scripts/app-warm-cache.sh" --session >/dev/null 2>&1 || true
@@ -108,6 +176,7 @@ fi
 # Optional cold-start improvement: keep browser process hot in background.
 # Default off to reduce login work; opt in with HYPR_PRELAUNCH_BROWSER=1.
 if [ "${HYPR_PRELAUNCH_BROWSER:-0}" = "1" ] && ! pgrep -x 'chrome|google-chrome|google-chrome-stable|chromium|chromium-browser' >/dev/null 2>&1; then
+  log "scheduling browser prelaunch"
   (
     sleep 10
     for browser in google-chrome-stable google-chrome chromium chromium-browser; do
@@ -121,6 +190,7 @@ fi
 
 # Re-apply preferred monitor layout and mode choices at session start.
 if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
+  log "scheduling monitor layout apply"
   (
     sleep 1
     "$HOME/.config/hypr/scripts/monitor-control.sh" apply >/dev/null 2>&1 || true
@@ -128,43 +198,53 @@ if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
 fi
 
 # Start tray applets by default so Wi-Fi/Bluetooth have menu-style controls.
-# Set HYPR_ENABLE_*_APPLET=0 to keep the panel-only workflow.
-if [ "${HYPR_ENABLE_NM_APPLET:-1}" = "1" ]; then
+if [ "$(setting_bool startup.nm_applet_autostart true)" = "true" ]; then
+  log "starting nm-applet"
   run_once nm-applet nm-applet
 fi
-if [ "${HYPR_ENABLE_BLUEMAN_APPLET:-1}" = "1" ]; then
+if [ "$(setting_bool startup.blueman_applet_autostart true)" = "true" ]; then
+  log "starting blueman-applet"
   run_once blueman-applet blueman-applet
 fi
+log "starting udiskie tray"
 run_cmd_if_not '(^|/)udiskie( .*)?$' udiskie --smart-tray --menu nested --no-appindicator
 ensure_single_process udiskie
 
 # Secret service for apps like Obsidian (encrypted token/key storage).
 if command -v gnome-keyring-daemon >/dev/null 2>&1; then
   if ! pgrep -x gnome-keyring-daemon >/dev/null 2>&1; then
+    log "starting gnome-keyring-daemon"
     gnome-keyring-daemon --start --components=secrets >/dev/null 2>&1 || true
   fi
 fi
 
+log "starting avizo-service"
 run_once avizo-service avizo-service
 # Wayle is the only managed panel shell.
 if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
+  log "showing panel shell"
   "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
 fi
 
+log "starting monitor hotplug watcher"
 run_cmd_if_not "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh" "$HOME/.config/hypr/scripts/monitor-hotplug-watch.sh"
 # Let Hyprland's generic monitor rules handle displays by default.
 # Only start kanshi when the user has provided an explicit profile config.
 KANSHI_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 if [ -f "$KANSHI_CONFIG_HOME/kanshi/config" ]; then
+  log "starting kanshi"
   run_once kanshi kanshi
 fi
+log "starting hypridle"
 run_once hypridle hypridle
+log "starting power profile watcher"
 run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
 
 # hyprpm currently fails its header refresh path on Hyprland 0.54.1
 # ("You need to run make all first"), which surfaces a false outdated-plugin
 # warning on login. Keep automatic hyprpm reload opt-in until that is fixed.
 if [ "${HYPR_USE_HYPRPM_RELOAD:-0}" = "1" ] && resolve_cmd hyprpm >/dev/null 2>&1; then
+  log "scheduling hyprpm reload"
   (
     sleep 3
     hyprpm reload >/dev/null 2>&1 || true
@@ -176,6 +256,7 @@ fi
 # plugin was built against an older ABI. Super+Tab loads it on demand.
 hyprexpo_plugin="${XDG_DATA_HOME:-$HOME/.local/share}/hypr/plugins/hyprexpo/hyprexpo.so"
 if [ "${HYPR_LOAD_HYPREXPO_AT_STARTUP:-0}" = "1" ] && [ -f "$hyprexpo_plugin" ]; then
+  log "scheduling hyprexpo plugin load"
   (
     sleep 2
     current_hyprexpo="$(loaded_hyprexpo_path || true)"
@@ -196,19 +277,20 @@ for agent in \
   /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 \
   /usr/libexec/polkit-gnome-authentication-agent-1 \
   lxqt-policykit-agent \
-  mate-polkit \
-  polkit-kde-authentication-agent-1; do
+  mate-polkit; do
   if pgrep -f 'polkit.*agent|hyprpolkitagent' >/dev/null 2>&1; then
     break
   fi
 
   if [ -x "$agent" ]; then
+    log "starting polkit agent: $agent"
     "$agent" >/dev/null 2>&1 &
     break
   fi
 
   bin="$(resolve_cmd "$agent" || true)"
   if [ -n "$bin" ]; then
+    log "starting polkit agent: $bin"
     "$bin" >/dev/null 2>&1 &
     break
   fi
@@ -218,6 +300,7 @@ done
 wlpaste_bin="$(resolve_cmd wl-paste || true)"
 cliphist_bin="$(resolve_cmd cliphist || true)"
 if [ -n "$wlpaste_bin" ] && [ -n "$cliphist_bin" ]; then
+  log "starting clipboard history watchers"
   pkill -f 'wl-paste --type text --watch .*cliphist store' >/dev/null 2>&1 || true
   pkill -f 'wl-paste --type image --watch .*cliphist store' >/dev/null 2>&1 || true
   "$wlpaste_bin" --type text --watch "$cliphist_bin" store >/dev/null 2>&1 &
@@ -226,19 +309,24 @@ fi
 
 # Start kage project watch daemon
 (
+  log "starting kage project watcher"
   sleep 2
   _kage_watch_pid_file="${HOME}/.cache/kage/project-watch.pid"
   if [ -f "$_kage_watch_pid_file" ]; then
     _kage_wpid="$(cat "$_kage_watch_pid_file" 2>/dev/null || true)"
-    [ -n "$_kage_wpid" ] && kill -0 "$_kage_wpid" 2>/dev/null && true || \
-      "$HOME/.config/hypr/scripts/kage" project watch >/dev/null 2>&1 &
+    if [ -n "$_kage_wpid" ] && kill -0 "$_kage_wpid" 2>/dev/null; then
+      true
+    else
+      setsid -f "$HOME/.config/hypr/scripts/kage" project watch >/dev/null 2>&1
+    fi
   else
-    "$HOME/.config/hypr/scripts/kage" project watch >/dev/null 2>&1 &
+    setsid -f "$HOME/.config/hypr/scripts/kage" project watch >/dev/null 2>&1
   fi
 ) &
 
 # Set default wallpaper + sync theme after daemon boot.
 if [ -x "$HOME/.config/hypr/scripts/set-wallpaper.sh" ]; then
+  log "scheduling wallpaper init"
   (
     sleep 1.5
     "$HOME/.config/hypr/scripts/set-wallpaper.sh" --init >/dev/null 2>&1 || true
@@ -246,9 +334,13 @@ if [ -x "$HOME/.config/hypr/scripts/set-wallpaper.sh" ]; then
 fi
 
 if [ -x "$HOME/.config/hypr/scripts/dynamic-theme-sync.sh" ]; then
+  log "starting dynamic theme watcher"
   run_cmd_if_not "$HOME/.config/hypr/scripts/dynamic-theme-sync.sh watch" "$HOME/.config/hypr/scripts/dynamic-theme-sync.sh" watch
 fi
 
 if [ -x "$HOME/.config/hypr/scripts/wallpaper-rotate.sh" ]; then
+  log "starting wallpaper rotation"
   run_cmd_if_not "$HOME/.config/hypr/scripts/wallpaper-rotate.sh" "$HOME/.config/hypr/scripts/wallpaper-rotate.sh"
 fi
+
+log "startup bootstrap queued"

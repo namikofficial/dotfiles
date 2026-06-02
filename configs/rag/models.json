@@ -1,0 +1,33 @@
+{
+  "roles": {
+    "answer_model": {
+      "provider": "openai_compat",
+      "model_id": "qwen-coder-7b",
+      "endpoint": "http://127.0.0.1:8080/v1/chat/completions"
+    },
+    "summarizer_model": {
+      "provider": "openai_compat",
+      "model_id": "gemma-3-4b",
+      "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+      "fallback_role": "answer_model"
+    },
+    "code_model": {
+      "provider": "openai_compat",
+      "model_id": "qwen-coder-7b",
+      "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+      "fallback_role": "answer_model"
+    },
+    "long_context_model": {
+      "provider": "openai_compat",
+      "model_id": "qwen3-8b",
+      "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+      "fallback_role": "code_model"
+    },
+    "memory_extract_model": {
+      "provider": "openai_compat",
+      "model_id": "gemma-3-4b",
+      "endpoint": "http://127.0.0.1:8080/v1/chat/completions",
+      "fallback_role": "summarizer_model"
+    }
+  }
+}

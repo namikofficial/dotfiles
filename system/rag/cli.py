@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import hashlib
 import json
+import os
 import re
 import shutil
 import sqlite3
 import subprocess
+import sys
 import time
+import uuid
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -25,9 +29,25 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from .agent_support import (
+    build_edit_scope,
+    describe_task,
+    evaluate_query,
+    file_card,
+    perf_report_from_result,
+    record_outcome,
+    render_agent_context_markdown,
+    repo_root,
+    runtime_config,
+    suggest_commands,
+)
 from .code_intel import tree_sitter_available
+from .evals import aggregate_eval_metrics, coverage_score, mean_reciprocal_rank, ndcg_at_k, recall_at_k
 from .indexing import index_repo
-from .llm import ask_llm, models_url
+from .llm import ask_llm, complete_llm, models_url
+from .contracts import AgentPlan, Target
+from .executors import executor_matrix, get_executor
+from .learning import list_memory_candidates, review_memory_candidate
 from .memory import (
     build_context_pack,
     generate_repo_memory,
@@ -38,6 +58,26 @@ from .memory import (
     store_context_pack,
     write_context_pack_file,
 )
+from .orchestrator import (
+    compact_completed_subtasks,
+    learn_from_task_outcome,
+    load_task_graph,
+    mark_subtask_done,
+    mark_subtask_failed,
+    mark_subtask_running,
+    next_subtask,
+    plan_task,
+    retrieval_score_from_counts,
+    reset_task,
+    subtask_context,
+    task_continue,
+    task_context_path,
+    task_graph_path,
+    task_graph_status,
+    task_step,
+)
+from .profiles import load_repo_profile, save_repo_profile
+from .profile import profile_init, profile_show, profile_validate
 from .retrieval import (
     approx_tokens,
     analysis_for_plan,
@@ -55,6 +95,9 @@ from .retrieval import (
     retrieve,
 )
 from .runtime import CHUNKER_NAME, CONFIG_PATH, DB_PATH, INDEX_SCHEMA, console
+from .model_registry import model_role_matrix
+from .prompt_compiler import compile_prompt
+from .router import build_agent_plan, target_from_flag
 from .settings import (
     get_index_profile,
     get_mode_profile,
@@ -73,9 +116,18 @@ from .state import (
     compact_session,
     detect_memory_conflicts,
     eval_case_expected_files,
+    eval_case_expected_symbols,
+    explain_retrieval_run,
+    extract_memory_from_compaction,
     format_operational_state,
+    get_eval_run,
     get_eval_case,
+    get_retrieval_run,
+    get_task_run,
     get_session,
+    latest_retrieval_run,
+    latest_task_run,
+    list_eval_runs,
     list_git_contexts,
     list_github_contexts,
     list_commands,
@@ -83,17 +135,31 @@ from .state import (
     list_eval_cases,
     list_errors,
     list_memory_entries,
+    list_retrieval_cache,
+    list_retrieval_runs,
+    list_task_outcomes,
+    list_task_outcomes_for_run,
+    list_task_runs,
+    list_session_compactions,
     list_sessions,
     list_test_failures,
     list_todos,
     load_operational_state,
+    record_eval_run,
+    record_retrieval_run,
+    task_run_payload,
     record_session,
+    record_execution_run,
     remember_memory,
     save_handoff,
     session_compaction_details,
     session_files,
+    retrieval_run_payload,
     upsert_github_context,
     update_todo_status,
+    update_task_run_status,
+    warm_retrieval_cache,
+    clear_retrieval_cache,
 )
 from .storage import (
     collection_vector_size,
@@ -107,6 +173,29 @@ from .storage import (
     repo_identity,
 )
 from .types import IndexInterrupted
+from .workflow_policy import cached_probe_runtime, workflow_policy_for_task
+
+
+SERVICE_HELPER = Path(__file__).resolve().parents[1] / "local-ai-runtime.sh"
+
+
+def ensure_local_runtime(args: argparse.Namespace) -> None:
+    for action, required in (
+        ("ensure-qdrant", getattr(args, "needs_qdrant", False)),
+        ("ensure-llm", getattr(args, "needs_llm", False)),
+    ):
+        if not required:
+            continue
+        if not SERVICE_HELPER.is_file():
+            raise SystemExit(f"Missing runtime helper: {SERVICE_HELPER}")
+        try:
+            subprocess.run([str(SERVICE_HELPER), action], check=True)
+        except subprocess.CalledProcessError as exc:
+            label = "Qdrant" if action == "ensure-qdrant" else "local LLM"
+            raise SystemExit(
+                f"Unable to start {label.lower()} automatically. "
+                f"Run `{SERVICE_HELPER.name} start` and retry."
+            ) from exc
 
 
 class SuggestingArgumentParser(argparse.ArgumentParser):
@@ -556,13 +645,127 @@ def render_query_inspection(result, mode: str, route_reason: str) -> str:
     return "\n".join(lines)
 
 
+def _json_print(payload: object) -> None:
+    console.print(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def _retrieval_plan_payload(result, *, query: str, repo: str | None, mode: str) -> dict[str, object]:
+    return {
+        "query": query,
+        "repo": repo,
+        "mode": mode,
+        "intent": getattr(result.plan, "intent", None),
+        "rewrites": list(getattr(result.plan, "rewrites", []) or []),
+        "analysis": getattr(result.plan, "analysis", None).__dict__ if getattr(result.plan, "analysis", None) else None,
+    }
+
+
+def _record_cli_retrieval_run(
+    *,
+    conn: sqlite3.Connection,
+    repo: str | None,
+    query: str,
+    mode: str,
+    result,
+    context: str,
+    selected_files: list[str],
+    route_reason: str,
+) -> dict[str, object]:
+    repo_profile = load_repo_profile(repo_root())
+    edit_scope = build_edit_scope(conn, repo, result.rows, result.summaries, query, repo_profile)
+    commands = suggest_commands(repo_root(), selected_files, query, repo_profile)
+    return record_retrieval_run(
+        conn,
+        run_id=str(uuid.uuid4()),
+        repo=repo,
+        branch=git_branch_for(repo_root()),
+        query=query,
+        mode=mode,
+        intent=getattr(result.plan, "intent", None),
+        plan=_retrieval_plan_payload(result, query=query, repo=repo, mode=mode),
+        rewrites=list(result.debug.get("rewrites", [])),
+        candidate_counts={
+            "semantic": int(result.debug.get("semantic_hits", 0)),
+            "keyword": int(result.debug.get("keyword_hits", 0)),
+            "semantic_lines": int(result.debug.get("semantic_line_hits", 0)),
+            "symbol": int(result.debug.get("symbol_hits", 0)),
+            "recent": int(result.debug.get("recent_hits", 0)),
+            "facts": int(result.debug.get("fact_hits", 0)),
+            "summaries": int(result.debug.get("file_summary_hits", 0)),
+            "memory": int(bool(result.memory)),
+            "github": int(result.debug.get("github_refs", 0)),
+            "test_failures": int(result.debug.get("test_failures", 0)),
+            "errors": int(result.debug.get("error_matches", 0)),
+        },
+        selected_files=selected_files,
+        edit_scope=edit_scope,
+        missing_context={
+            "sufficient": not bool(result.debug.get("missing_context_remaining")),
+            "missing": list(result.debug.get("missing_context_remaining", [])),
+            "desired": list(result.debug.get("missing_context_desired", [])),
+            "added": list(result.debug.get("missing_context_added", [])),
+            "selected_files": selected_files,
+            "followup_queries": [
+                f"inspect {humanize_missing_label(label)} for {query}"
+                for label in list(result.debug.get("missing_context_remaining", []))[:3]
+            ],
+        },
+        packed_context_token_estimate=approx_tokens(context),
+        timings_ms=result.debug.get("timings_ms", {}),
+        warnings=[route_reason] if route_reason else [],
+        metadata={
+            "suggested_commands": commands,
+            "context_sources": [source.title for source in result.context_sources],
+        },
+        export_root=repo_root(),
+    )
+
+
+def _learn_profile_from_run(payload: dict[str, object]) -> tuple[Path, dict]:
+    root = repo_root()
+    profile = load_repo_profile(root)
+    edit_scope = payload.get("edit_scope", {}) or {}
+    metadata = payload.get("metadata", {}) or {}
+    for key in ("likely_edit", "likely_tests"):
+        for entry in edit_scope.get(key, []):
+            path = entry.get("path")
+            if not path:
+                continue
+            if key == "likely_tests":
+                profile.setdefault("test_patterns", [])
+                if path not in profile["test_patterns"]:
+                    profile["test_patterns"].append(path)
+            else:
+                profile.setdefault("boost_paths", [])
+                if path not in profile["boost_paths"]:
+                    profile["boost_paths"].append(path)
+    for command_text in metadata.get("suggested_commands", []):
+        profile.setdefault("check_commands", [])
+        if command_text not in profile["check_commands"]:
+            profile["check_commands"].append(command_text)
+    path = save_repo_profile(profile, root)
+    return path, profile
+
+
 def run_query_mode(args: argparse.Namespace) -> int:
+    timings: list[tuple[str, float]] = []
+    stage_started = time.perf_counter()
+
+    def mark(stage: str) -> None:
+        nonlocal stage_started
+        now = time.perf_counter()
+        timings.append((stage, (now - stage_started) * 1000))
+        stage_started = now
+
     config = load_config()
     mode, route_reason = resolved_mode(args, config)
     effective_config = get_mode_profile(config, mode)
+    mark("config")
     conn = connect_db()
     client = get_qdrant(effective_config)
     repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    effective_config = runtime_config(effective_config, conn, repo, args.query)
+    mark("connect")
     result = retrieve(
         conn,
         client,
@@ -572,12 +775,14 @@ def run_query_mode(args: argparse.Namespace) -> int:
         reranker_enabled(effective_config, getattr(args, "rerank", None)),
         mode=mode,
     )
+    mark("retrieve")
     if not result.rows:
         console.print("[yellow]No indexed context matched that query.[/yellow]")
         return 1
     state_text: str | None = None
     if effective_config["answer"]["use_operational_state"]:
         state_text = format_operational_state(load_operational_state(conn, repo))
+        mark("operational_state")
     context, files = gather_context(
         result.rows,
         effective_config,
@@ -587,6 +792,17 @@ def run_query_mode(args: argparse.Namespace) -> int:
         memory=optional_repo_memory(args, result, effective_config),
         operational_state=state_text,
         operational_state_tokens=int(effective_config["answer"]["operational_state_tokens"]),
+    )
+    mark("context_pack")
+    run_payload = _record_cli_retrieval_run(
+        conn=conn,
+        repo=repo,
+        query=args.query,
+        mode=mode,
+        result=result,
+        context=context,
+        selected_files=files,
+        route_reason=route_reason,
     )
     if getattr(args, "show_context", False):
         print_retrieval_explain(result.debug, result.rows)
@@ -612,9 +828,11 @@ def run_query_mode(args: argparse.Namespace) -> int:
         if getattr(args, "save_handoff", False):
             handoff_path = save_handoff(repo, args.query, output)
             console.print(f"\n[green]Saved[/green] handoff to {handoff_path}")
+        console.print(f"[dim]Retrieval run {run_payload['run_id']} traced.[/dim]")
         console.print(f"\n[dim]Session {session_id} saved.[/dim]")
         return 0
     answer = ask_llm(effective_config, args.query, context, mode=mode)
+    mark("llm")
     console.print(f"[bold]{mode.title()} answer:[/bold]")
     console.print(answer or "[red]No answer returned.[/red]")
     console.print("\n[bold]Relevant files:[/bold]")
@@ -623,8 +841,858 @@ def run_query_mode(args: argparse.Namespace) -> int:
     session_id = record_session(conn, repo, mode, args.query, route_reason, "answer", answer, files)
     if mode in {"deep", "agent"}:
         compact_session(conn, session_id)
+        mark("compact")
+    console.print(f"\n[dim]Retrieval run {run_payload['run_id']} traced.[/dim]")
     console.print(f"\n[dim]Session {session_id} saved.[/dim]")
+    if os.environ.get("RAG_TIMINGS"):
+        console.print("\n[bold]Timings:[/bold]")
+        for stage, elapsed_ms in timings:
+            console.print(f"- {stage}: {elapsed_ms:.1f}ms")
     return 0
+
+
+def _context_for_agent_plan(plan: AgentPlan, *, rerank: bool | None = None) -> tuple[sqlite3.Connection, dict, str]:
+    config = load_config()
+    effective_config = get_mode_profile(config, plan.mode)
+    effective_config["retrieval_pipeline"]["semantic_limit"] = plan.retrieval_semantic_limit
+    effective_config["retrieval_pipeline"]["keyword_limit"] = plan.retrieval_keyword_limit
+    conn = connect_db()
+    client = get_qdrant(effective_config)
+    result = retrieve(
+        conn,
+        client,
+        effective_config,
+        plan.task,
+        plan.repo if plan.repo != "unscoped" else None,
+        reranker_enabled(effective_config, rerank),
+        mode=plan.mode,
+    )
+    state_text: str | None = None
+    if plan.context.include_git or plan.context.include_test_failures or plan.context.include_recent_errors:
+        state_text = format_operational_state(load_operational_state(conn, plan.repo))
+    context, _files = gather_context(
+        result.rows,
+        effective_config,
+        facts=result.facts,
+        summaries=result.summaries,
+        context_sources=result.context_sources if plan.context.include_git or plan.context.include_github else [],
+        memory=result.memory["summary"] if plan.context.include_memory and result.memory else None,
+        operational_state=state_text,
+        operational_state_tokens=int(effective_config["answer"]["operational_state_tokens"]),
+    )
+    return conn, effective_config, context
+
+
+def render_agent_plan_json(plan: AgentPlan) -> str:
+    return json.dumps(plan.to_dict(), indent=2, sort_keys=True)
+
+
+def cmd_v7_plan(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    plan = build_agent_plan(
+        args.query,
+        conn=conn,
+        repo=getattr(args, "repo", None),
+        explicit_target=target_from_flag(getattr(args, "target", None)),
+    )
+    console.print(render_agent_plan_json(plan))
+    return 0
+
+
+def cmd_v7_context(args: argparse.Namespace) -> int:
+    ensure_local_runtime(argparse.Namespace(needs_qdrant=True, needs_llm=False))
+    conn = connect_db()
+    plan = build_agent_plan(
+        args.query,
+        conn=conn,
+        repo=getattr(args, "repo", None),
+        explicit_target=target_from_flag(getattr(args, "target", None)),
+    )
+    conn.close()
+    context_conn, _config, context = _context_for_agent_plan(plan, rerank=getattr(args, "rerank", None))
+    prompt = compile_prompt(plan, context)
+    console.print("[bold]Context summary[/bold]")
+    console.print(prompt.context_summary)
+    console.print("\n[bold]AgentPlan[/bold]")
+    console.print(render_agent_plan_json(plan))
+    console.print("\n[bold]Compiled context[/bold]")
+    console.print(context or "No context packed.")
+    context_conn.close()
+    return 0
+
+
+def cmd_v7_execute(args: argparse.Namespace) -> int:
+    ensure_local_runtime(argparse.Namespace(needs_qdrant=True, needs_llm=False))
+    conn = connect_db()
+    plan = build_agent_plan(
+        args.query,
+        conn=conn,
+        repo=getattr(args, "repo", None),
+        explicit_target=target_from_flag(args.target),
+    )
+    conn.close()
+    context_conn, _config, context = _context_for_agent_plan(plan, rerank=getattr(args, "rerank", None))
+    prompt = compile_prompt(plan, context)
+    executor = get_executor(plan.target)
+    ok, reason = executor.available()
+    if not ok:
+        console.print(f"[red]{plan.target} unavailable:[/red] {reason}")
+        return 1
+    run_id = str(uuid.uuid4())
+    prompt_hash = hashlib.sha256(prompt.text().encode("utf-8")).hexdigest()
+    if getattr(args, "dry_run", False) or plan.target in {"copy", "local-answer"}:
+        output = executor.dry_run(prompt, plan) if getattr(args, "dry_run", False) else prompt.text()
+        console.print(output)
+        record_execution_run(
+            context_conn,
+            run_id=run_id,
+            session_id=plan.session_id,
+            repo=plan.repo,
+            target=plan.target,
+            profile_id=plan.profile,
+            intent=plan.intent,
+            mode=plan.mode,
+            risk_level=plan.risk_level,
+            query=plan.task,
+            prompt_hash=prompt_hash,
+            agent_plan=plan.to_dict(),
+            status="dry_run" if getattr(args, "dry_run", False) else "printed",
+            stdout=output,
+            files_modified=[],
+        )
+        context_conn.close()
+        return 0
+    started = time.time()
+    record_execution_run(
+        context_conn,
+        run_id=run_id,
+        session_id=plan.session_id,
+        repo=plan.repo,
+        target=plan.target,
+        profile_id=plan.profile,
+        intent=plan.intent,
+        mode=plan.mode,
+        risk_level=plan.risk_level,
+        query=plan.task,
+        prompt_hash=prompt_hash,
+        agent_plan=plan.to_dict(),
+        status="running",
+        started_at=started,
+    )
+    result = executor.run(prompt, plan)
+    record_execution_run(
+        context_conn,
+        run_id=run_id,
+        session_id=plan.session_id,
+        repo=plan.repo,
+        target=plan.target,
+        profile_id=plan.profile,
+        intent=plan.intent,
+        mode=plan.mode,
+        risk_level=plan.risk_level,
+        query=plan.task,
+        prompt_hash=prompt_hash,
+        agent_plan=plan.to_dict(),
+        status="success" if result.success else "failed",
+        stdout=result.stdout,
+        stderr=result.stderr,
+        exit_code=result.exit_code,
+        duration_ms=result.duration_ms,
+        files_modified=result.files_modified,
+        started_at=started,
+        finished_at=time.time(),
+    )
+    console.print(result.stdout)
+    if result.stderr:
+        console.print(result.stderr)
+    context_conn.close()
+    return result.exit_code
+
+
+def cmd_learn(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    if getattr(args, "learn_command", None) == "report":
+        repo = infer_repo_filter(conn, getattr(args, "repo", None))
+        runs = [task_run_payload(row) for row in list_task_runs(conn, repo, limit=10)]
+        outcomes = list_task_outcomes(conn, repo, limit=10)
+        missed_files: set[str] = set()
+        useful_files: set[str] = set()
+        checks_count = 0
+        passed_count = 0
+        retrieved_count = 0
+        edited_count = 0
+        edited_hits = 0
+        failures: dict[str, int] = {}
+        for row in outcomes:
+            retrieved = list(dict.fromkeys(json.loads(row["retrieved_files_json"] or "[]")))
+            edited = list(dict.fromkeys(json.loads(row["edited_files_json"] or "[]")))
+            missed = json.loads(row["missed_files_json"] or "[]")
+            checks = json.loads(row["checks_run_json"] or "[]")
+            missed_files.update(missed)
+            useful_files.update(edited)
+            checks_count += len(checks)
+            retrieved_count += len(retrieved)
+            edited_count += len(edited)
+            edited_hits += sum(1 for path in edited if path in set(retrieved))
+            if row["passed"]:
+                passed_count += 1
+            else:
+                failures[row["task"]] = failures.get(row["task"], 0) + 1
+        evals = list_eval_cases(conn, repo, limit=10)
+        profile_changes = {}
+        try:
+            current_profile = load_repo_profile(repo_root())
+            profile_changes = {
+                "boost_paths_count": len(current_profile.get("boost_paths", [])),
+                "check_commands_count": len(current_profile.get("check_commands", [])),
+                "patterns_count": len(current_profile.get("learned_file_patterns", [])),
+            }
+        except Exception:
+            profile_changes = {}
+        report = {
+            "runs": runs,
+            "outcomes": [
+                {
+                    "task_id": row["task_id"],
+                    "subtask_id": row["subtask_id"],
+                    "status": row["status"],
+                    "passed": bool(row["passed"]),
+                    "created_at": row["created_at"],
+                }
+                for row in outcomes
+            ],
+            "missed_files": sorted(missed_files),
+            "useful_files": sorted(useful_files),
+            "generated_eval_cases": [
+                {"case_id": row["case_id"], "query": row["query"], "mode": row["mode"], "created_at": row["created_at"]}
+                for row in evals
+            ],
+            "profile_changes": profile_changes,
+            "repeated_failures": [{"task": task, "count": count} for task, count in sorted(failures.items(), key=lambda item: item[1], reverse=True) if count > 1],
+            **retrieval_score_from_counts(
+                retrieved_file_count=retrieved_count,
+                edited_file_count=edited_count,
+                missed_file_count=len(missed_files),
+                checks_count=checks_count,
+                passed=bool(outcomes) and passed_count == len(outcomes),
+            ),
+        }
+        _json_print(report)
+        return 0
+    if getattr(args, "candidate_id", None) and getattr(args, "review_status", None):
+        if not review_memory_candidate(conn, args.candidate_id, args.review_status, content=getattr(args, "content", None)):
+            console.print(f"[red]No memory candidate found:[/red] {args.candidate_id}")
+            return 1
+    rows = list_memory_candidates(conn, status=args.status, limit=args.limit)
+    table = Table(title="Memory candidates")
+    table.add_column("id")
+    table.add_column("status")
+    table.add_column("kind")
+    table.add_column("confidence")
+    table.add_column("content")
+    for row in rows:
+        table.add_row(row["id"], row["status"], row["kind"], f"{row['confidence']:.2f}", row["content"][:90])
+    console.print(table)
+    return 0
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    if args.run_command == "list":
+        task_rows = [
+            ("task", row)
+            for row in list_task_runs(conn, repo, limit=args.limit)
+        ]
+        retrieval_rows = [
+            ("retrieval", row)
+            for row in list_retrieval_runs(conn, repo, limit=args.limit)
+        ]
+        rows = sorted(
+            task_rows + retrieval_rows,
+            key=lambda item: item[1]["created_at"],
+            reverse=True,
+        )[: args.limit]
+        table = Table(title="Runs")
+        table.add_column("run_id")
+        table.add_column("kind")
+        table.add_column("mode")
+        table.add_column("query/task")
+        table.add_column("tokens", justify="right")
+        for kind, row in rows:
+            payload = task_run_payload(row) if kind == "task" else retrieval_run_payload(row)
+            label = payload.get("query", payload.get("task", ""))
+            table.add_row(
+                payload["run_id"][:8],
+                kind,
+                str(payload["mode"]),
+                str(label)[:80],
+                str(payload.get("packed_context_token_estimate", payload.get("max_subtasks", 0))),
+            )
+        console.print(table)
+        return 0
+    if args.run_command == "latest":
+        task_row = latest_task_run(conn, repo)
+        retrieval_row = latest_retrieval_run(conn, repo)
+        if task_row is None and retrieval_row is None:
+            row = None
+            kind = None
+        elif task_row is None:
+            row = retrieval_row
+            kind = "retrieval"
+        elif retrieval_row is None:
+            row = task_row
+            kind = "task"
+        else:
+            if task_row["created_at"] >= retrieval_row["created_at"]:
+                row = task_row
+                kind = "task"
+            else:
+                row = retrieval_row
+                kind = "retrieval"
+    else:
+        row = get_task_run(conn, args.run_id) or get_retrieval_run(conn, args.run_id)
+        kind = "task" if row is not None and "graph_json" in row.keys() else "retrieval" if row is not None else None
+    if row is None:
+        console.print("[yellow]No run found.[/yellow]")
+        return 1
+    if kind == "task":
+        payload = task_run_payload(row)
+        if args.run_command == "explain":
+            console.print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            _json_print(payload)
+    else:
+        if args.run_command == "explain":
+            console.print(explain_retrieval_run(row))
+        else:
+            _json_print(retrieval_run_payload(row))
+    return 0
+
+
+def cmd_profile(args: argparse.Namespace) -> int:
+    root = repo_root()
+    if args.profile_command == "init":
+        path, profile = profile_init(root)
+        console.print(f"[green]Wrote[/green] {path}")
+        _json_print(profile)
+        return 0
+    profile = profile_show(root)
+    if args.profile_command == "show":
+        _json_print(profile)
+        return 0
+    if args.profile_command == "validate":
+        problems = profile_validate(root)
+        if problems:
+            for problem in problems:
+                console.print(f"- {problem}")
+            return 1
+        console.print("[green]Profile valid.[/green]")
+        return 0
+    if args.profile_command == "learn-from-run":
+        conn = connect_db()
+        row = latest_task_run(conn, None) if args.run_id == "latest" else get_task_run(conn, args.run_id)
+        if row is None:
+            console.print("[yellow]No task run found.[/yellow]")
+            return 1
+        path, learned = learn_from_task_outcome(args.run_id if args.run_id != "latest" else None, root)
+        console.print(f"[green]Updated[/green] {path}")
+        _json_print(learned)
+        return 0
+    raise SystemExit(f"Unknown profile command: {args.profile_command}")
+
+
+def cmd_cache(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    if args.cache_command == "warm":
+        paths = list(args.path or [])
+        if not paths:
+            latest = latest_retrieval_run(conn, repo)
+            if latest is not None:
+                paths = list(retrieval_run_payload(latest).get("selected_files", []))[:10]
+        if not paths:
+            console.print("[yellow]No files available to warm.[/yellow]")
+            return 1
+        warm_retrieval_cache(conn, repo, paths, kind="hot", metadata={"source": "manual-warm"})
+        console.print(f"[green]Warmed[/green] cache for {len(paths)} paths")
+        return 0
+    if args.cache_command == "clear":
+        removed = clear_retrieval_cache(conn, repo)
+        console.print(f"[green]Cleared[/green] {removed} cache rows")
+        return 0
+    rows = list_retrieval_cache(conn, repo, limit=args.limit)
+    table = Table(title="Retrieval cache")
+    table.add_column("path")
+    table.add_column("kind")
+    table.add_column("hits", justify="right")
+    table.add_column("score", justify="right")
+    for row in rows:
+        table.add_row(row["path"], row["kind"], str(row["hits"]), f"{row['score']:.2f}")
+    console.print(table)
+    return 0
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    conn = connect_db()
+    repo = infer_repo_filter(conn, getattr(args, "repo", None))
+    if args.eval_command == "add":
+        case_id = add_eval_case(
+            conn,
+            repo,
+            args.query,
+            args.expect_file or [],
+            mode=args.mode,
+            expected_symbols=args.expect_symbol or [],
+            notes=getattr(args, "notes", None),
+        )
+        console.print(f"[green]Added[/green] eval case {case_id}")
+        return 0
+    if args.eval_command == "report":
+        rows = list_eval_runs(conn, repo, limit=args.limit)
+        if not rows:
+            console.print("[yellow]No eval runs recorded.[/yellow]")
+            return 0
+        latest = json.loads(rows[0]["metrics_json"] or "{}")
+        _json_print(latest)
+        return 0
+    if args.eval_command == "diff":
+        before = get_eval_run(conn, args.before)
+        after = get_eval_run(conn, args.after)
+        if before is None or after is None:
+            console.print("[yellow]Missing eval run.[/yellow]")
+            return 1
+        before_metrics = json.loads(before["metrics_json"] or "{}").get("summary", {})
+        after_metrics = json.loads(after["metrics_json"] or "{}").get("summary", {})
+        diff = {
+            key: round(float(after_metrics.get(key, 0.0)) - float(before_metrics.get(key, 0.0)), 4)
+            for key in sorted(set(before_metrics) | set(after_metrics))
+        }
+        _json_print({"before": args.before, "after": args.after, "delta": diff})
+        return 0
+    cases = list_eval_cases(conn, repo, limit=args.limit)
+    if not cases:
+        console.print("[yellow]No eval cases recorded.[/yellow]")
+        return 0
+    case_results: list[dict[str, object]] = []
+    for row in cases:
+        outcome = evaluate_query(row["query"], repo=repo, mode=row["mode"])
+        top_files = list(outcome["top_files"])
+        expected_files = eval_case_expected_files(row)
+        expected_symbols = eval_case_expected_symbols(row)
+        expected_set = set(expected_files)
+        case_results.append(
+            {
+                "case_id": row["case_id"],
+                "query": row["query"],
+                "mode": row["mode"],
+                "expected_files": expected_files,
+                "expected_symbols": expected_symbols,
+                "top_files": top_files,
+                "latency_ms": outcome["latency_ms"],
+                "packed_token_count": outcome["packed_token_count"],
+                "candidate_counts_by_channel": outcome["candidate_counts_by_channel"],
+                "recall_at_5": recall_at_k(expected_set, top_files, 5),
+                "recall_at_10": recall_at_k(expected_set, top_files, 10),
+                "mrr": mean_reciprocal_rank(expected_set, top_files),
+                "ndcg": ndcg_at_k(expected_set, top_files, 10),
+                "coverage_score": coverage_score(expected_set, top_files),
+                "matched_files": [path for path in expected_files if path in set(top_files)],
+                "file_ranks": {
+                    path: top_files.index(path) + 1
+                    for path in expected_files
+                    if path in top_files
+                },
+            }
+        )
+    metrics = aggregate_eval_metrics(case_results)
+    payload = {"summary": metrics, "cases": case_results}
+    run_id = str(uuid.uuid4())
+    record_eval_run(conn, run_id=run_id, repo=repo, case_count=len(case_results), metrics=payload)
+    _json_print({"run_id": run_id, **payload})
+    return 0
+
+
+def cmd_skill(args: argparse.Namespace) -> int:
+    """Manage auto-generated OpenCode skills."""
+    import collections
+    import re as _re
+
+    skills_auto_dir = Path("~/.codex/skills/auto").expanduser()
+    repo_skills_dir = Path(__file__).parent.parent.parent / "configs" / "opencode" / "skills"
+
+    if args.skill_command == "list":
+        all_skills: list[tuple[str, Path]] = []
+        for base, label in [(repo_skills_dir, "repo"), (skills_auto_dir, "auto")]:
+            if base.exists():
+                for p in sorted(base.iterdir()):
+                    if p.is_dir() and (p / "SKILL.md").exists():
+                        all_skills.append((label, p / "SKILL.md"))
+        if not all_skills:
+            console.print("[yellow]No skills found.[/yellow]")
+            return 0
+        table = Table(title="OpenCode skills")
+        table.add_column("source")
+        table.add_column("name")
+        table.add_column("path")
+        for label, p in all_skills:
+            table.add_row(label, p.parent.name, str(p))
+        console.print(table)
+        return 0
+
+    if args.skill_command == "generate":
+        conn = connect_db()
+        repo = resolve_repo_name(conn, getattr(args, "repo", None))
+        rows = list_session_compactions(conn, repo if not getattr(args, "global_scope", False) else None, limit=100)
+        if len(rows) < 3:
+            console.print("[yellow]Not enough sessions to generate skills (need ≥ 3).[/yellow]")
+            return 0
+
+        # Count query patterns by prefix words to find common task categories
+        category_counter: dict[str, list[str]] = collections.defaultdict(list)
+        keyword_groups = {
+            "debug": ["debug", "error", "fix", "broken", "fail", "crash", "issue"],
+            "refactor": ["refactor", "clean", "restructure", "extract", "rename"],
+            "implement": ["implement", "add", "create", "build", "write", "new"],
+            "review": ["review", "check", "inspect", "audit", "analyze"],
+            "migration": ["migrate", "migration", "upgrade", "update", "convert"],
+            "test": ["test", "spec", "coverage", "assert", "mock"],
+            "document": ["document", "docs", "readme", "explain", "describe"],
+            "deploy": ["deploy", "release", "package", "build", "ci"],
+        }
+        for row in rows:
+            summary = str(row["summary"]).lower()
+            for category, keywords in keyword_groups.items():
+                if any(kw in summary for kw in keywords):
+                    category_counter[category].append(str(row["summary"]))
+
+        skills_auto_dir.mkdir(parents=True, exist_ok=True)
+        generated = 0
+        for category, examples in category_counter.items():
+            if len(examples) < 3:
+                continue
+            skill_dir = skills_auto_dir / category
+            skill_file = skill_dir / "SKILL.md"
+            if skill_file.exists() and not getattr(args, "force", False):
+                continue
+            skill_dir.mkdir(parents=True, exist_ok=True)
+            examples_text = "\n".join(f"- {e[:120]}" for e in examples[:5])
+            config = load_config()
+            system = (
+                "You generate concise OpenCode skill files. A skill file has three required sections: "
+                "## Trigger (when to use), ## Steps (numbered instructions), ## Do not (anti-patterns). "
+                "Be specific, not generic. No more than 300 words."
+            )
+            prompt = (
+                f"Generate a SKILL.md for the '{category}' task category. "
+                f"These are real examples from this project:\n{examples_text}\n\n"
+                "Output only the markdown skill file starting with `# {Title}`."
+            )
+            try:
+                content = complete_llm(config, system, prompt, max_tokens=600)
+                if not all(section in content for section in ("##", "## ")):
+                    continue
+                skill_file.write_text(content.strip() + "\n")
+                console.print(f"[green]Generated[/green] skill: {category} → {skill_file}")
+                generated += 1
+            except Exception as exc:  # noqa: BLE001
+                console.print(f"[yellow]Skipped {category}:[/yellow] {exc}")
+
+        if generated == 0:
+            console.print("[dim]No new skills generated (need ≥ 3 matching sessions per category, or use --force).[/dim]")
+        else:
+            console.print(f"\n[bold]{generated}[/bold] skill(s) written to {skills_auto_dir}")
+        return 0
+
+    raise SystemExit(f"Unknown skill command: {args.skill_command}")
+
+
+
+
+def cmd_mcp(_args: argparse.Namespace) -> int:
+    from .server import run_mcp_stdio
+
+    return run_mcp_stdio()
+
+
+def _resolve_task_file(agent_dir: Path) -> Path:
+    """Return the most recent task file in agent_dir, falling back to task.md."""
+    timestamped = sorted(agent_dir.glob("task-*.md"), key=lambda p: p.name, reverse=True)
+    if timestamped:
+        return timestamped[0]
+    return agent_dir / "task.md"
+
+
+def cmd_task(args: argparse.Namespace) -> int:
+    root = repo_root()
+    conn = connect_db()
+    try:
+        repo = infer_repo_filter(conn, getattr(args, "repo", None))
+
+        if args.task_command in {"init", "plan"}:
+            graph = plan_task(args.description, repo=repo, max_subtasks=getattr(args, "max_subtasks", 8))
+            console.print(f"[green]Planned[/green] {len(graph.subtasks)} subtasks in {task_graph_path(root)}")
+            _json_print(graph.to_dict())
+            return 0
+
+        if args.task_command == "reset":
+            payload = reset_task(root)
+            console.print(f"[green]Reset[/green] task files in {root / '.agent'}")
+            _json_print(payload)
+            return 0
+
+        if args.task_command == "start":
+            if getattr(args, "reset_first", False):
+                reset_task(root)
+            policy = workflow_policy_for_task(args.description, runtime=cached_probe_runtime())
+            graph = plan_task(
+                args.description,
+                repo=repo,
+                max_subtasks=min(getattr(args, "max_subtasks", 8), policy.max_subtasks),
+            )
+            subtask = next_subtask(graph)
+            if subtask is None:
+                _json_print(
+                    {
+                        "planned": graph.to_dict(),
+                        "next_subtask": None,
+                        "context": None,
+                        "policy": policy.to_dict(),
+                    }
+                )
+                return 1
+            context = None
+            warnings: list[str] = []
+            if policy.collect_context_now:
+                context_format = "full" if getattr(args, "full", False) else policy.context_format
+                try:
+                    context = subtask_context(graph, subtask.id, output_format=context_format)
+                except Exception as exc:  # noqa: BLE001
+                    warnings.append(f"context_generation_failed: {exc}")
+            else:
+                warnings.append("runtime_not_ready_for_context; planned graph and next subtask only")
+            next_cli = f"rag task done {subtask.id} --edited-file <path> --retrieved-file <path> --check '<command>' --notes '<summary>'"
+            _json_print(
+                {
+                    "policy": policy.to_dict(),
+                    "task_graph": graph.to_dict(),
+                    "next_subtask": subtask.to_dict(),
+                    "context": context or {},
+                    "warnings": warnings,
+                    "next_mcp_tool": "rag_subtask_done",
+                    "next_cli_command": next_cli,
+                    "opencode_instruction": "Inspect must_inspect_first, make smallest change, run suggested checks, then call rag_subtask_done.",
+                }
+            )
+            return 0
+
+        if args.task_command == "doctor":
+            report: dict[str, object] = {
+                "task_graph_exists": task_graph_path(root).exists(),
+                "task_graph_json_valid": False,
+                "graph_loaded": False,
+                "current_subtask_exists": False,
+                "missing_dependencies": [],
+                "db_run_exists": False,
+                "outcomes_exist": False,
+                "memory_exists": (root / ".agent" / "memory.md").exists(),
+                "stale_subtasks_present": False,
+                "stale_subtasks": [],
+                "ok": False,
+            }
+            graph = None
+            if report["task_graph_exists"]:
+                try:
+                    graph = load_task_graph(root)
+                    report["task_graph_json_valid"] = graph is not None
+                    report["graph_loaded"] = graph is not None
+                except Exception:
+                    report["task_graph_json_valid"] = False
+            if graph is not None:
+                subtask_ids = {s.id for s in graph.subtasks}
+                if graph.current_subtask_id is None:
+                    report["current_subtask_exists"] = True
+                else:
+                    report["current_subtask_exists"] = graph.get_subtask(graph.current_subtask_id) is not None
+                missing: list[dict[str, object]] = []
+                for subtask in graph.subtasks:
+                    missing_ids = [dep for dep in subtask.depends_on if graph.get_subtask(dep) is None]
+                    if missing_ids:
+                        missing.append({"subtask_id": subtask.id, "missing_dependencies": missing_ids})
+                report["missing_dependencies"] = missing
+                if graph.run_id:
+                    report["db_run_exists"] = get_task_run(conn, graph.run_id) is not None
+                    report["outcomes_exist"] = bool(list_task_outcomes_for_run(conn, graph.run_id, limit=1))
+                else:
+                    report["outcomes_exist"] = bool(list_task_outcomes(conn, graph.repo, limit=1))
+                subtasks_path = root / ".agent" / "subtasks"
+                stale_subtasks = []
+                if subtasks_path.exists():
+                    for file in subtasks_path.glob("*.md"):
+                        stem = file.stem
+                        if stem not in subtask_ids:
+                            stale_subtasks.append(str(file.relative_to(root)))
+                report["stale_subtasks"] = stale_subtasks
+                report["stale_subtasks_present"] = bool(stale_subtasks)
+            report["ok"] = bool(
+                report["task_graph_exists"]
+                and report["task_graph_json_valid"]
+                and report["graph_loaded"]
+                and report["current_subtask_exists"]
+                and not report["missing_dependencies"]
+                and report["db_run_exists"]
+                and report["memory_exists"]
+            )
+            if getattr(args, "fix", False):
+                fixed: list[str] = []
+                warnings: list[str] = []
+                subtasks_path = root / ".agent" / "subtasks"
+                if graph is not None and subtasks_path.exists():
+                    subtask_ids = {s.id for s in graph.subtasks}
+                    for file in subtasks_path.glob("*.md"):
+                        if file.stem not in subtask_ids:
+                            file.unlink()
+                            fixed.append(f"removed_stale_subtask:{file.relative_to(root)}")
+                memory_path = root / ".agent" / "memory.md"
+                if not memory_path.exists():
+                    memory_path.parent.mkdir(parents=True, exist_ok=True)
+                    memory_path.write_text("# Project Memory\n\n")
+                    fixed.append("created:.agent/memory.md")
+                if graph is not None:
+                    if not task_context_path(root).exists():
+                        _ = compact_completed_subtasks(graph)
+                        fixed.append("refreshed:.agent/context.md")
+                    if not (root / ".agent" / "task.md").exists():
+                        _ = compact_completed_subtasks(graph)
+                        fixed.append("refreshed:.agent/task.md")
+                else:
+                    warnings.append("task_graph_missing; skipped task.md/context.md refresh")
+                report["fixed"] = fixed
+                report["remaining_warnings"] = warnings + ([] if report["ok"] else ["doctor_checks_not_fully_ok"])
+                report["ok"] = bool(report["ok"] and not report["remaining_warnings"])
+            _json_print(report)
+            return 0 if report["ok"] else 1
+
+        if args.task_command == "step":
+            _json_print(task_step(getattr(args, "description", None)))
+            return 0
+
+        if args.task_command == "continue":
+            _json_print(task_continue(getattr(args, "description", None)))
+            return 0
+
+        graph = load_task_graph(root)
+        if graph is None:
+            raise SystemExit("No task graph found. Run `rag task plan \"<description>\"` first.")
+
+        if args.task_command == "next":
+            subtask = next_subtask(graph)
+            if subtask is None:
+                console.print("[yellow]No ready subtasks.[/yellow]")
+                return 1
+            console.print(f"[bold]{subtask.id}[/bold] {subtask.title}")
+            _json_print(subtask.to_dict())
+            return 0
+
+        if args.task_command == "context":
+            next_ready = next_subtask(graph)
+            subtask_id = getattr(args, "subtask_id", None) or graph.current_subtask_id or (next_ready.id if next_ready else None)
+            if subtask_id is None:
+                console.print("[yellow]No runnable subtask found.[/yellow]")
+                return 1
+            payload = subtask_context(graph, subtask_id)
+            _json_print(payload)
+            return 0
+
+        if args.task_command in {"done", "fail"}:
+            subtask_id = getattr(args, "subtask_id", None) or graph.current_subtask_id
+            if subtask_id is None:
+                console.print("[yellow]No current subtask.[/yellow]")
+                return 1
+            retrieved = list(getattr(args, "retrieved_file", []) or [])
+            edited = list(getattr(args, "edited_file", []) or [])
+            checks = list(getattr(args, "check", []) or [])
+            notes = getattr(args, "notes", None) or getattr(args, "summary", None)
+            if args.task_command == "done":
+                if getattr(args, "failed", False):
+                    graph = mark_subtask_failed(
+                        graph,
+                        subtask_id,
+                        retrieved_files=retrieved,
+                        edited_files=edited,
+                        checks_run=checks,
+                        notes=notes,
+                    )
+                else:
+                    graph = mark_subtask_done(
+                        graph,
+                        subtask_id,
+                        retrieved_files=retrieved,
+                        edited_files=edited,
+                        checks_run=checks,
+                        passed=True,
+                        notes=notes,
+                    )
+            else:
+                graph = mark_subtask_failed(
+                    graph,
+                    subtask_id,
+                    retrieved_files=retrieved,
+                    edited_files=edited,
+                    checks_run=checks,
+                    notes=notes,
+                )
+            console.print(f"[green]Updated[/green] {subtask_id} -> {args.task_command}")
+            _json_print(graph.to_dict())
+            return 0
+
+        if args.task_command == "status":
+            _json_print(task_graph_status(graph))
+            return 0
+
+        if args.task_command == "compact":
+            compacted = compact_completed_subtasks(graph)
+            if compacted is None:
+                console.print("[yellow]No task graph found.[/yellow]")
+                return 1
+            console.print(f"[green]Compacted[/green] completed subtasks into {task_context_path(root)}")
+            _json_print(compacted.to_dict())
+            return 0
+
+        if args.task_command == "list":
+            task_files = sorted((root / ".agent").glob("task*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if not task_files:
+                console.print("[yellow]No task files found in .agent/[/yellow]")
+                return 0
+            table = Table(title=f"Tasks in {root / '.agent'}")
+            table.add_column("file")
+            table.add_column("modified")
+            table.add_column("preview")
+            for tf in task_files[:20]:
+                import datetime as _dt
+
+                mtime = _dt.datetime.fromtimestamp(tf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                first_line = ""
+                for ln in tf.read_text().splitlines():
+                    ln = ln.strip()
+                    if ln and not ln.startswith("#") and not ln.startswith("<!--") and not ln.startswith("*"):
+                        first_line = ln[:80]
+                        break
+                table.add_row(tf.name, mtime, first_line)
+            console.print(table)
+            return 0
+
+        raise SystemExit(f"Unknown task command: {args.task_command}")
+    finally:
+        conn.close()
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    if not args.http:
+        raise SystemExit("Use `rag serve --http` to start the HTTP integration server.")
+    from .server import run_http
+
+    return run_http(args.host, args.port)
 
 
 def cmd_index(args: argparse.Namespace) -> int:
@@ -661,7 +1729,10 @@ def cmd_index(args: argparse.Namespace) -> int:
     if profile["repo_memory"]:
         repo = repo_identity(root)[1]
         console.print(f"[cyan]Refreshing repo memory[/cyan] for {repo} ...")
-        store_repo_memory(conn, repo, generate_repo_memory(conn, config, repo))
+        summary = generate_repo_memory(conn, config, repo)
+        store_repo_memory(conn, repo, summary)
+        if summary.startswith("# Repo memory unavailable"):
+            console.print(f"[yellow]Repo memory degraded[/yellow] for {repo}; indexed data was kept.")
     console.print(
         f"[green]Indexed[/green] {changed_files} files and {total_chunks} chunks from {root} "
         f"(profile: {profile_name})"
@@ -713,7 +1784,10 @@ def cmd_reindex(args: argparse.Namespace) -> int:
         if profile["repo_memory"]:
             repo = repo_identity(root)[1]
             console.print(f"[cyan]Refreshing repo memory[/cyan] for {repo} ...")
-            store_repo_memory(conn, repo, generate_repo_memory(conn, config, repo))
+            summary = generate_repo_memory(conn, config, repo)
+            store_repo_memory(conn, repo, summary)
+            if summary.startswith("# Repo memory unavailable"):
+                console.print(f"[yellow]Repo memory degraded[/yellow] for {repo}; indexed data was kept.")
     console.print(f"[green]Reindexed[/green] {total_files} changed files and {total_chunks} chunks (profile: {profile_name})")
     return 0
 
@@ -721,15 +1795,20 @@ def cmd_reindex(args: argparse.Namespace) -> int:
 def cmd_status(_args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
-    client = get_qdrant(config)
     collection_name = config["qdrant_collection"]
     points = 0
-    if client.collection_exists(collection_name):
-        points = int(client.get_collection(collection_name).points_count or 0)
+    qdrant_status = "stopped"
+    try:
+        client = get_qdrant(config)
+        if client.collection_exists(collection_name):
+            points = int(client.get_collection(collection_name).points_count or 0)
+        qdrant_status = "running"
+    except Exception:
+        client = None
     console.print("[bold]RAG status[/bold]")
     console.print(f"Config: {CONFIG_PATH}")
     console.print(f"SQLite: {DB_PATH}")
-    console.print(f"Qdrant: {config['qdrant_url']}")
+    console.print(f"Qdrant: {config['qdrant_url']} ({qdrant_status})")
     console.print(f"Collection: {collection_name}")
     console.print()
     console.print(f"Repos indexed: {conn.execute('SELECT COUNT(*) FROM indexed_repos').fetchone()[0]}")
@@ -789,6 +1868,24 @@ def cmd_status(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_route(args: argparse.Namespace) -> int:
+    """Show model routing decision for a query."""
+    from .llm import _approx_tokens, _task_complexity, _select_model  # noqa: PLC0415
+    config = load_config()
+    question = args.query
+    context = args.context or ""
+    tokens = _approx_tokens(question + context)
+    complexity = _task_complexity(question, context)
+    model_id, endpoint = _select_model(config, complexity)
+    console.print("[bold]Route diagnosis[/bold]")
+    console.print(f"Query:      {question[:80]}{'...' if len(question) > 80 else ''}")
+    console.print(f"Tokens:     ~{tokens}")
+    console.print(f"Complexity: {complexity}")
+    console.print(f"Model:      {model_id}")
+    console.print(f"Endpoint:   {endpoint}")
+    return 0
+
+
 def cmd_clean(args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
@@ -814,6 +1911,9 @@ def cmd_clean(args: argparse.Namespace) -> int:
         conn.execute("DELETE FROM test_failure_memory")
         conn.execute("DELETE FROM task_sessions")
         conn.execute("DELETE FROM session_compactions")
+        conn.execute("DELETE FROM task_runs")
+        conn.execute("DELETE FROM task_outcomes")
+        conn.execute("DELETE FROM task_lessons")
         conn.commit()
         ensure_collection(client, config)
         console.print("[green]Cleared[/green] all local RAG state")
@@ -846,6 +1946,9 @@ def cmd_clean(args: argparse.Namespace) -> int:
     conn.execute("DELETE FROM test_failure_memory WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM task_sessions WHERE repo = ?", (repo,))
     conn.execute("DELETE FROM session_compactions WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM task_runs WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM task_outcomes WHERE repo = ?", (repo,))
+    conn.execute("DELETE FROM task_lessons WHERE repo = ?", (repo,))
     conn.commit()
     console.print(f"[green]Cleared[/green] repo state for {repo}")
     return 0
@@ -1006,15 +2109,178 @@ def cmd_context(args: argparse.Namespace) -> int:
         )
         console.print(f"[green]Stored[/green] test failure {failure_id}")
         return 0
+
+    if args.context_command == "system":
+        repo_root_path = Path.cwd()
+        candidate = repo_root_path
+        while candidate != candidate.parent:
+            if (candidate / ".git").exists():
+                repo_root_path = candidate
+                break
+            candidate = candidate.parent
+
+        sections: list[str] = []
+
+        makefile = repo_root_path / "Makefile"
+        if makefile.exists():
+            targets = re.findall(r'^([a-zA-Z][a-zA-Z0-9_-]+)\s*:', makefile.read_text(), re.MULTILINE)
+            if targets:
+                sections.append("## Makefile targets\n" + "\n".join(f"- {t}" for t in targets[:30]))
+
+        pkg = repo_root_path / "package.json"
+        if pkg.exists():
+            try:
+                data = json.loads(pkg.read_text())
+                scripts = data.get("scripts", {})
+                if scripts:
+                    sections.append("## npm scripts\n" + "\n".join(f"- {k}: {v}" for k, v in list(scripts.items())[:20]))
+            except Exception:
+                pass
+
+        pyproject = repo_root_path / "pyproject.toml"
+        if pyproject.exists():
+            text = pyproject.read_text()
+            scripts_match = re.search(r'\[tool\.poetry\.scripts\](.*?)(?=\[|\Z)', text, re.DOTALL)
+            if not scripts_match:
+                scripts_match = re.search(r'\[project\.scripts\](.*?)(?=\[|\Z)', text, re.DOTALL)
+            if scripts_match:
+                sections.append("## pyproject scripts\n" + scripts_match.group(0).strip()[:400])
+
+        workflows_dir = repo_root_path / ".github" / "workflows"
+        if workflows_dir.is_dir():
+            job_lines = []
+            for wf in sorted(workflows_dir.glob("*.yml"))[:5]:
+                job_names = re.findall(r'^\s{2}([a-zA-Z][a-zA-Z0-9_-]+)\s*:', wf.read_text(), re.MULTILINE)
+                if job_names:
+                    job_lines.append(f"{wf.name}: {', '.join(job_names[:6])}")
+            if job_lines:
+                sections.append("## GitHub Actions jobs\n" + "\n".join(f"- {l}" for l in job_lines))
+
+        setup_dir = repo_root_path / "setup"
+        if setup_dir.is_dir():
+            scripts = [p.name for p in sorted(setup_dir.glob("*.sh"))[:20]]
+            if scripts:
+                sections.append("## setup scripts\n" + "\n".join(f"- {s}" for s in scripts))
+
+        if not sections:
+            console.print("[yellow]No recognizable project tool files found.[/yellow]")
+            return 0
+
+        repo_label = repo or repo_root_path.name
+        content = f"# System context for {repo_label}\n\n" + "\n\n".join(sections)
+        console.print(content)
+
+        if getattr(args, "store", False):
+            memory_id = remember_memory(conn, repo_label, "project_facts", "system-context", content)
+            console.print(f"[green]Stored[/green] system context as memory {memory_id}")
+
+        return 0
+
+    if args.context_command == "tmux":
+        lines = getattr(args, "lines", 50)
+        try:
+            result = subprocess.run(
+                ["tmux", "capture-pane", "-p", "-S", f"-{lines}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                raise SystemExit("tmux not running or no active pane.")
+            output = result.stdout.strip()
+        except FileNotFoundError:
+            raise SystemExit("tmux is not installed or not in PATH.")
+
+        console.print(f"[bold]tmux pane capture[/bold] (last {lines} lines):")
+        console.print(output)
+
+        if getattr(args, "store", False):
+            if any(word in output.lower() for word in ("error", "failed", "exception", "traceback")):
+                failure_id = add_test_failure(
+                    conn,
+                    repo or Path.cwd().resolve().name,
+                    "tmux-capture",
+                    output,
+                    runner="tmux",
+                    exit_code=None,
+                    source="local",
+                )
+                console.print(f"[green]Stored[/green] as test failure {failure_id}")
+            else:
+                console.print("[dim]No error patterns detected; not storing as failure.[/dim]")
+        return 0
+
+    if args.context_command == "devhealth":
+        started_at = time.time()
+        try:
+            result = subprocess.run(
+                ["dev-health"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            output = result.stdout + result.stderr
+        except FileNotFoundError:
+            raise SystemExit("dev-health not found. Make sure ~/.local/bin is in PATH.")
+
+        console.print(output)
+
+        if getattr(args, "store", False):
+            finished_at = time.time()
+            record_execution_run(
+                conn,
+                run_id=f"devhealth-{uuid.uuid4().hex[:12]}",
+                session_id=f"context-{uuid.uuid4().hex[:12]}",
+                repo=repo or Path.cwd().resolve().name,
+                target="dev-health",
+                profile_id="context",
+                intent="devhealth",
+                mode="context",
+                risk_level="low",
+                query="dev-health",
+                prompt_hash=hashlib.sha256(output.encode("utf-8", errors="ignore")).hexdigest(),
+                agent_plan={"source": "context.devhealth", "command": "dev-health"},
+                status="completed" if result.returncode == 0 else "failed",
+                stdout=result.stdout or None,
+                stderr=result.stderr or None,
+                exit_code=result.returncode,
+                duration_ms=int((finished_at - started_at) * 1000),
+                files_modified=[],
+                started_at=started_at,
+                finished_at=finished_at,
+            )
+            console.print("[green]Stored[/green] dev-health output as execution run")
+
+        return 0
+
     raise SystemExit(f"Unknown context command: {args.context_command}")
 
 
 def cmd_search(args: argparse.Namespace) -> int:
     config = load_config()
     conn = connect_db()
-    client = get_qdrant(config)
     repo = infer_repo_filter(conn, args.repo)
+    config = runtime_config(config, conn, repo, args.query)
+    client = get_qdrant(config)
     result = retrieve(conn, client, config, args.query, repo, reranker_enabled(config, args.rerank))
+    context, files = gather_context(
+        result.rows,
+        config,
+        facts=result.facts,
+        summaries=result.summaries,
+        context_sources=result.context_sources,
+        memory=result.memory["summary"] if result.memory else None,
+    )
+    run_payload = _record_cli_retrieval_run(
+        conn=conn,
+        repo=repo,
+        query=args.query,
+        mode="search",
+        result=result,
+        context=context,
+        selected_files=files,
+        route_reason="search",
+    )
     if args.explain:
         print_retrieval_explain(result.debug, result.rows)
         console.print()
@@ -1034,6 +2300,7 @@ def cmd_search(args: argparse.Namespace) -> int:
             preview[:120],
         )
     console.print(table)
+    console.print(f"\n[dim]Retrieval run {run_payload['run_id']} traced.[/dim]")
     return 0
 
 
@@ -1483,6 +2750,156 @@ def cmd_memory(args: argparse.Namespace) -> int:
             table.add_row(row["domain"], row["tool"], row["aliases"], row["description"] or "-")
         console.print(table)
         return 0
+
+    if args.memory_command == "extract":
+        rows = list_session_compactions(conn, repo, limit=getattr(args, "limit", 20))
+        if not rows:
+            console.print("[yellow]No session compactions found.[/yellow]")
+            return 0
+
+        total_added = 0
+        for row in rows:
+            candidates = extract_memory_from_compaction(row)
+            for c in candidates:
+                if len(c["value"]) > 8:
+                    try:
+                        remember_memory(
+                            conn,
+                            repo if c["scope"] == "repo" else None,
+                            c["kind"],
+                            c["subject"],
+                            c["value"],
+                            global_scope=(c["scope"] == "global"),
+                            source_session_id=row["session_id"],
+                        )
+                        total_added += 1
+                    except Exception:
+                        pass
+
+        if getattr(args, "llm", False):
+            system_prompt = (
+                "You are extracting developer memory from a session log. "
+                'Return ONLY a JSON array of objects: [{"kind": "convention|architecture|tool|pattern|warning", '
+                '"subject": "<short label>", "value": "<fact>", "scope": "repo|global"}]. '
+                "Extract at most 5 items. Omit trivial or duplicate items. Return [] if nothing useful."
+            )
+            for row in rows[:5]:
+                details = session_compaction_details(row)
+                context = f"Query: {row['summary']}\nDecisions: {details.get('decisions', [])}\nFacts: {details.get('useful_facts', [])}"
+                try:
+                    raw = complete_llm(config, system_prompt, context, max_tokens=400)
+                    match = re.search(r'\[.*\]', raw, re.DOTALL)
+                    if match:
+                        items = json.loads(match.group())
+                        for item in items[:5]:
+                            if isinstance(item, dict) and item.get("value"):
+                                remember_memory(
+                                    conn,
+                                    repo if item.get("scope") == "repo" else None,
+                                    item.get("kind", "convention"),
+                                    item.get("subject", "fact"),
+                                    str(item["value"]),
+                                    global_scope=(item.get("scope") == "global"),
+                                    source_session_id=row["session_id"],
+                                )
+                                total_added += 1
+                except Exception:
+                    pass
+
+        console.print(f"[green]Extracted[/green] {total_added} memory candidates from {len(rows)} sessions")
+        return 0
+
+    if args.memory_command == "consolidate":
+        cutoff = time.time() - (90 * 86400)
+        memory_columns = {row["name"] for row in conn.execute("PRAGMA table_info(developer_memory)").fetchall()}
+        if "confidence_score" in memory_columns:
+            result = conn.execute(
+                """UPDATE developer_memory SET status = 'stale'
+                   WHERE status = 'active' AND updated_at < ? AND confidence_score < 0.4""",
+                (cutoff,),
+            )
+        else:
+            now = time.time()
+            result = conn.execute(
+                """UPDATE developer_memory SET status = 'stale', updated_at = ?
+                   WHERE status = 'active' AND updated_at < ?
+                     AND source_session_id IS NOT NULL
+                     AND COALESCE(last_used_at, updated_at) < ?""",
+                (now, cutoff, cutoff),
+            )
+        expired = result.rowcount
+
+        rows_dup = conn.execute(
+            """SELECT kind, normalized_subject, repo, COUNT(*) as cnt
+               FROM developer_memory WHERE status = 'active'
+               GROUP BY kind, normalized_subject, repo HAVING cnt > 1"""
+        ).fetchall()
+        merged = 0
+        for dup in rows_dup:
+            entries = conn.execute(
+                """SELECT memory_id FROM developer_memory
+                   WHERE kind = ? AND normalized_subject = ?
+                     AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
+                     AND status = 'active'
+                   ORDER BY updated_at DESC""",
+                (dup["kind"], dup["normalized_subject"], dup["repo"], dup["repo"]),
+            ).fetchall()
+            for entry in entries[1:]:
+                conn.execute(
+                    "UPDATE developer_memory SET status = 'stale' WHERE memory_id = ?",
+                    (entry["memory_id"],),
+                )
+                merged += 1
+        conn.commit()
+        console.print(f"[green]Consolidated[/green] memory: expired {expired} old entries, merged {merged} duplicates")
+        return 0
+
+    if args.memory_command == "prune":
+        limit_days = getattr(args, "days", 180)
+        cutoff = time.time() - (limit_days * 86400)
+        result = conn.execute(
+            "DELETE FROM developer_memory WHERE status = 'stale' AND updated_at < ?",
+            (cutoff,),
+        )
+        conn.commit()
+        console.print(f"[green]Pruned[/green] {result.rowcount} stale memory entries older than {limit_days} days")
+        return 0
+
+    if args.memory_command == "promote":
+        threshold = getattr(args, "threshold", 3)
+        rows_candidates = conn.execute(
+            """SELECT kind, normalized_subject, value, repo, COUNT(DISTINCT source_session_id) as seen_count
+               FROM developer_memory
+               WHERE status = 'active' AND source_session_id IS NOT NULL
+               GROUP BY kind, normalized_subject, repo
+               HAVING seen_count >= ?""",
+            (threshold,),
+        ).fetchall()
+        promoted = 0
+        memory_columns = {row["name"] for row in conn.execute("PRAGMA table_info(developer_memory)").fetchall()}
+        for row in rows_candidates:
+            if "confidence_score" in memory_columns:
+                conn.execute(
+                    """UPDATE developer_memory SET confidence_score = 0.9, status = 'active'
+                       WHERE kind = ? AND normalized_subject = ?
+                         AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
+                         AND status = 'active'""",
+                    (row["kind"], row["normalized_subject"], row["repo"], row["repo"]),
+                )
+            else:
+                now = time.time()
+                conn.execute(
+                    """UPDATE developer_memory SET status = 'active', updated_at = ?, last_used_at = ?
+                       WHERE kind = ? AND normalized_subject = ?
+                         AND ((repo IS NULL AND ? IS NULL) OR repo = ?)
+                         AND status = 'active'""",
+                    (now, now, row["kind"], row["normalized_subject"], row["repo"], row["repo"]),
+                )
+            promoted += 1
+        conn.commit()
+        console.print(f"[green]Promoted[/green] {promoted} memory groups (seen in ≥{threshold} sessions)")
+        return 0
+
     raise SystemExit(f"Unknown memory command: {args.memory_command}")
 
 
@@ -1879,6 +3296,14 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             "session_compactions",
             "context_packs",
             "eval_cases",
+            "task_runs",
+            "task_outcomes",
+            "task_lessons",
+            "profiles",
+            "profile_usage",
+            "execution_runs",
+            "memory_candidates",
+            "_schema_migrations",
         }
         table_names = {
             row["name"]
@@ -1908,6 +3333,12 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         github_context_count = int(conn.execute("SELECT COUNT(*) AS count FROM github_context").fetchone()["count"])
         test_failure_count = conn.execute("SELECT COUNT(*) AS count FROM test_failure_memory").fetchone()["count"]
         eval_case_count = conn.execute("SELECT COUNT(*) AS count FROM eval_cases").fetchone()["count"]
+        execution_count = conn.execute("SELECT COUNT(*) AS count FROM execution_runs").fetchone()["count"]
+        candidate_count = conn.execute("SELECT COUNT(*) AS count FROM memory_candidates WHERE status = 'pending'").fetchone()["count"]
+        migration_count = conn.execute("SELECT COUNT(*) AS count FROM _schema_migrations").fetchone()["count"]
+        task_run_count = conn.execute("SELECT COUNT(*) AS count FROM task_runs").fetchone()["count"]
+        task_outcome_count = conn.execute("SELECT COUNT(*) AS count FROM task_outcomes").fetchone()["count"]
+        task_lesson_count = conn.execute("SELECT COUNT(*) AS count FROM task_lessons").fetchone()["count"]
 
         table.add_row("sqlite data", "ok", f"{repo_count} repos, {chunk_count} chunks")
         table.add_row(
@@ -1918,7 +3349,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 f"{memory_note_count} memory notes, {context_pack_count} context packs, "
                 f"{git_context_count} git snapshots, {github_context_count} GitHub refs, {test_failure_count} test failures, "
                 f"{todo_count} todos, {decision_count} decisions, {session_count} sessions, "
-                f"{compaction_count} compactions, {eval_case_count} eval cases"
+                f"{compaction_count} compactions, {eval_case_count} eval cases, "
+                f"{task_run_count} task runs, {task_outcome_count} task outcomes, {task_lesson_count} task lessons, "
+                f"{execution_count} execution runs, {candidate_count} pending candidates, {migration_count} migrations"
             ),
         )
         schema_drift = conn.execute(
@@ -2026,6 +3459,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         "ok" if config["reranker"]["enabled"] else "off",
         f"{config['reranker']['mode']} (top {config['reranker']['top_k_output']})",
     )
+    for executor_id, ok, reason in executor_matrix():
+        table.add_row(f"executor:{executor_id}", "ok" if ok else "warn", reason)
+    for role, ok, reason in model_role_matrix():
+        table.add_row(f"model:{role}", "ok" if ok else "warn", reason)
     profile_name, _profile = get_index_profile(config, None)
     table.add_row("index profile", "ok", profile_name)
     table.add_row(
@@ -2056,6 +3493,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = SuggestingArgumentParser(prog="rag")
+    parser.set_defaults(needs_qdrant=False, needs_llm=False)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     def add_query_parser(
@@ -2120,7 +3558,11 @@ def build_parser() -> argparse.ArgumentParser:
             )
         else:
             query_parser.set_defaults(output_format=default_output_format, save_handoff=False, target_agent="generic")
-        query_parser.set_defaults(func=handler)
+        query_parser.set_defaults(
+            func=handler,
+            needs_qdrant=True,
+            needs_llm=name in {"ask", "quick", "deep", "agent"},
+        )
         return query_parser
 
     index_parser = subparsers.add_parser("index", help="Index a repo or folder")
@@ -2140,7 +3582,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["fast", "balanced", "deep"],
         help="Indexing profile to use (defaults to config indexing.profile).",
     )
-    index_parser.set_defaults(func=cmd_index)
+    index_parser.set_defaults(func=cmd_index, needs_qdrant=True)
 
     add_query_parser("ask", "Ask a question against the local index", cmd_ask, include_mode_flag=True)
     add_query_parser("quick", "Force the fast retrieval+answer path", cmd_quick)
@@ -2184,7 +3626,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Persist the generated handoff under ~/ai-rag/projects/<repo>/handoffs/.",
     )
-    handoff_parser.set_defaults(func=cmd_handoff, output_format="handoff")
+    handoff_parser.set_defaults(func=cmd_handoff, output_format="handoff", needs_qdrant=True, needs_llm=True)
 
     search_parser = subparsers.add_parser("search", help="Search indexed chunks")
     search_parser.add_argument("query")
@@ -2208,7 +3650,69 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Skip the reranker for this query.",
     )
-    search_parser.set_defaults(func=cmd_search)
+    search_parser.set_defaults(func=cmd_search, needs_qdrant=True)
+
+    run_parser = subparsers.add_parser("run", help="Inspect stored retrieval traces")
+    run_subparsers = run_parser.add_subparsers(dest="run_command", required=True)
+    run_latest_parser = run_subparsers.add_parser("latest", help="Show the latest retrieval run as JSON")
+    run_latest_parser.add_argument("--repo", help="Filter to one repo")
+    run_latest_parser.set_defaults(func=cmd_run)
+    run_show_parser = run_subparsers.add_parser("show", help="Show one retrieval run as JSON")
+    run_show_parser.add_argument("run_id")
+    run_show_parser.set_defaults(func=cmd_run)
+    run_explain_parser = run_subparsers.add_parser("explain", help="Explain one retrieval run")
+    run_explain_parser.add_argument("run_id")
+    run_explain_parser.set_defaults(func=cmd_run)
+    run_list_parser = run_subparsers.add_parser("list", help="List retrieval runs")
+    run_list_parser.add_argument("--repo", help="Filter to one repo")
+    run_list_parser.add_argument("--limit", type=int, default=20)
+    run_list_parser.set_defaults(func=cmd_run)
+
+    profile_parser = subparsers.add_parser("profile", help="Manage .rag/profile.json")
+    profile_subparsers = profile_parser.add_subparsers(dest="profile_command", required=True)
+    profile_subparsers.add_parser("init", help="Create .rag/profile.json").set_defaults(func=cmd_profile)
+    profile_subparsers.add_parser("show", help="Show the repo profile").set_defaults(func=cmd_profile)
+    profile_subparsers.add_parser("validate", help="Validate the repo profile").set_defaults(func=cmd_profile)
+    profile_learn_parser = profile_subparsers.add_parser("learn-from-run", help="Learn profile hints from a retrieval run")
+    profile_learn_parser.add_argument("run_id", help="Run ID or latest")
+    profile_learn_parser.set_defaults(func=cmd_profile)
+
+    cache_parser = subparsers.add_parser("cache", help="Manage retrieval cache hints")
+    cache_subparsers = cache_parser.add_subparsers(dest="cache_command", required=True)
+    cache_warm_parser = cache_subparsers.add_parser("warm", help="Warm cache paths")
+    cache_warm_parser.add_argument("--repo", help="Filter to one repo")
+    cache_warm_parser.add_argument("--path", action="append", help="Path to warm (repeatable)")
+    cache_warm_parser.set_defaults(func=cmd_cache)
+    cache_stats_parser = cache_subparsers.add_parser("stats", help="Show cache entries")
+    cache_stats_parser.add_argument("--repo", help="Filter to one repo")
+    cache_stats_parser.add_argument("--limit", type=int, default=20)
+    cache_stats_parser.set_defaults(func=cmd_cache)
+    cache_clear_parser = cache_subparsers.add_parser("clear", help="Clear cache entries")
+    cache_clear_parser.add_argument("--repo", help="Filter to one repo")
+    cache_clear_parser.set_defaults(func=cmd_cache)
+
+    eval_parser = subparsers.add_parser("eval", help="Manage retrieval eval cases and runs")
+    eval_subparsers = eval_parser.add_subparsers(dest="eval_command", required=True)
+    eval_add_parser = eval_subparsers.add_parser("add", help="Add an eval case")
+    eval_add_parser.add_argument("query")
+    eval_add_parser.add_argument("--repo", help="Filter to one repo")
+    eval_add_parser.add_argument("--mode", choices=["quick", "deep", "agent"], default="deep")
+    eval_add_parser.add_argument("--expect-file", action="append", default=[])
+    eval_add_parser.add_argument("--expect-symbol", action="append", default=[])
+    eval_add_parser.add_argument("--notes")
+    eval_add_parser.set_defaults(func=cmd_eval)
+    eval_run_parser = eval_subparsers.add_parser("run", help="Run retrieval evals")
+    eval_run_parser.add_argument("--repo", help="Filter to one repo")
+    eval_run_parser.add_argument("--limit", type=int, default=50)
+    eval_run_parser.set_defaults(func=cmd_eval)
+    eval_report_parser = eval_subparsers.add_parser("report", help="Show the latest eval run")
+    eval_report_parser.add_argument("--repo", help="Filter to one repo")
+    eval_report_parser.add_argument("--limit", type=int, default=20)
+    eval_report_parser.set_defaults(func=cmd_eval)
+    eval_diff_parser = eval_subparsers.add_parser("diff", help="Diff two eval runs")
+    eval_diff_parser.add_argument("--before", required=True)
+    eval_diff_parser.add_argument("--after", required=True)
+    eval_diff_parser.set_defaults(func=cmd_eval)
 
     add_query_parser("inspect", "Inspect query rewrites, intent, and routing details", cmd_inspect, include_mode_flag=True)
     add_query_parser("missing", "Show missing-context detection for a query", cmd_missing, include_mode_flag=True)
@@ -2289,13 +3793,29 @@ def build_parser() -> argparse.ArgumentParser:
     output_group.add_argument("--output-file", help="Path to a failure output file")
     context_failure_add.set_defaults(func=cmd_context)
 
+    context_system_parser = context_subparsers.add_parser("system", help="Gather project tool context (Makefile, npm scripts, etc.)")
+    context_system_parser.add_argument("--repo", help="Target repo")
+    context_system_parser.add_argument("--store", action="store_true", help="Store result in RAG DB")
+    context_system_parser.set_defaults(func=cmd_context)
+
+    context_tmux_parser = context_subparsers.add_parser("tmux", help="Capture active tmux pane output")
+    context_tmux_parser.add_argument("--lines", type=int, default=50, help="Number of lines to capture")
+    context_tmux_parser.add_argument("--repo", help="Target repo")
+    context_tmux_parser.add_argument("--store", action="store_true", help="Store as test failure if errors detected")
+    context_tmux_parser.set_defaults(func=cmd_context)
+
+    context_devhealth_parser = context_subparsers.add_parser("devhealth", help="Run dev-health and store result")
+    context_devhealth_parser.add_argument("--repo", help="Target repo")
+    context_devhealth_parser.add_argument("--store", action="store_true", help="Store result in RAG DB")
+    context_devhealth_parser.set_defaults(func=cmd_context)
+
     reindex_parser = subparsers.add_parser("reindex", help="Reindex changed files in previously indexed repos")
     reindex_parser.add_argument(
         "--profile",
         choices=["fast", "balanced", "deep"],
         help="Indexing profile to use (defaults to config indexing.profile).",
     )
-    reindex_parser.set_defaults(func=cmd_reindex)
+    reindex_parser.set_defaults(func=cmd_reindex, needs_qdrant=True)
 
     summarize_files_parser = subparsers.add_parser(
         "summarize-files",
@@ -2341,6 +3861,11 @@ def build_parser() -> argparse.ArgumentParser:
         "tool_preferences",
         "hardware_profile",
         "repo_conventions",
+        "convention",
+        "architecture",
+        "tool",
+        "pattern",
+        "warning",
     ])
     memory_remember_parser.add_argument("subject")
     memory_remember_parser.add_argument("value", nargs="+")
@@ -2384,6 +3909,26 @@ def build_parser() -> argparse.ArgumentParser:
     memory_taxonomy_parser.add_argument("--format", choices=["table", "yaml"], default="table")
     memory_taxonomy_parser.add_argument("--limit", type=int, default=30)
     memory_taxonomy_parser.set_defaults(func=cmd_memory)
+
+    memory_extract_parser = memory_subparsers.add_parser("extract", help="Extract memory from recent session compactions")
+    memory_extract_parser.add_argument("--repo", help="Target repo")
+    memory_extract_parser.add_argument("--limit", type=int, default=20, help="Max sessions to analyse")
+    memory_extract_parser.add_argument("--llm", action="store_true", help="Also run LLM-based extraction (slower)")
+    memory_extract_parser.set_defaults(func=cmd_memory)
+
+    memory_consolidate_parser = memory_subparsers.add_parser("consolidate", help="Merge duplicates and expire stale memory")
+    memory_consolidate_parser.add_argument("--repo", help="Target repo")
+    memory_consolidate_parser.set_defaults(func=cmd_memory)
+
+    memory_prune_parser = memory_subparsers.add_parser("prune", help="Delete old stale memory entries")
+    memory_prune_parser.add_argument("--repo", help="Target repo")
+    memory_prune_parser.add_argument("--days", type=int, default=180, help="Delete stale entries older than N days")
+    memory_prune_parser.set_defaults(func=cmd_memory)
+
+    memory_promote_parser = memory_subparsers.add_parser("promote", help="Promote facts seen across 3+ sessions")
+    memory_promote_parser.add_argument("--repo", help="Target repo")
+    memory_promote_parser.add_argument("--threshold", type=int, default=3, help="Min sessions to trigger promotion")
+    memory_promote_parser.set_defaults(func=cmd_memory)
 
     todo_parser = subparsers.add_parser("todo", help="Manage structured RAG todos")
     todo_subparsers = todo_parser.add_subparsers(dest="todo_command", required=True)
@@ -2473,11 +4018,16 @@ def build_parser() -> argparse.ArgumentParser:
     status_parser = subparsers.add_parser("status", help="Show quick local RAG status")
     status_parser.set_defaults(func=cmd_status)
 
+    route_parser = subparsers.add_parser("route", help="Show model routing decision for a query")
+    route_parser.add_argument("query", help="Query to diagnose")
+    route_parser.add_argument("--context", default="", help="Optional context text to simulate")
+    route_parser.set_defaults(func=cmd_route, needs_qdrant=False, needs_llm=False)
+
     clean_parser = subparsers.add_parser("clean", help="Clear repo-specific or full local RAG state")
     clean_scope = clean_parser.add_mutually_exclusive_group(required=True)
     clean_scope.add_argument("--repo", help="Clear one indexed repo by name")
     clean_scope.add_argument("--all", action="store_true", help="Clear the whole local RAG index")
-    clean_parser.set_defaults(func=cmd_clean)
+    clean_parser.set_defaults(func=cmd_clean, needs_qdrant=True)
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local RAG health")
     doctor_parser.add_argument(
@@ -2485,14 +4035,226 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run deeper health checks (config/schema drift, vector sizing, /v1/models alias checks, gh/tree-sitter, and answer probe).",
     )
-    doctor_parser.set_defaults(func=cmd_doctor)
+    doctor_parser.set_defaults(func=cmd_doctor, needs_qdrant=False)
+
+    learn_parser = subparsers.add_parser("learn", help="Review pending memory candidates")
+    learn_parser.add_argument("learn_command", nargs="?", choices=["report"])
+    learn_parser.add_argument("--status", choices=["pending", "accepted", "rejected", "edited", "all"], default="pending")
+    learn_parser.add_argument("--limit", type=int, default=20)
+    learn_parser.add_argument("--repo", help="Repo name override")
+    learn_parser.add_argument("--candidate-id")
+    learn_parser.add_argument("--review-status", choices=["accepted", "rejected", "edited"])
+    learn_parser.add_argument("--content", help="Replacement content when marking a candidate edited")
+    learn_parser.set_defaults(func=cmd_learn)
+
+    skill_parser = subparsers.add_parser("skill", help="Manage and generate OpenCode skills")
+    skill_subparsers = skill_parser.add_subparsers(dest="skill_command", required=True)
+
+    skill_list_parser = skill_subparsers.add_parser("list", help="List all repo and auto-generated skills")
+    skill_list_parser.set_defaults(func=cmd_skill, needs_qdrant=False, needs_llm=False)
+
+    skill_gen_parser = skill_subparsers.add_parser("generate", help="Generate skills from session patterns")
+    skill_gen_parser.add_argument("--repo", help="Limit to one repo (omit for current repo)")
+    skill_gen_parser.add_argument("--global", dest="global_scope", action="store_true", help="Analyse all repos")
+    skill_gen_parser.add_argument("--force", action="store_true", help="Overwrite existing auto-generated skills")
+    skill_gen_parser.set_defaults(func=cmd_skill, needs_qdrant=False, needs_llm=True)
+
+    mcp_parser = subparsers.add_parser("mcp", help="Run the local RAG MCP-style stdio tool server")
+    mcp_parser.set_defaults(func=cmd_mcp)
+
+    task_parser = subparsers.add_parser("task", help="Manage .agent/ task workflow files")
+    task_subparsers = task_parser.add_subparsers(dest="task_command", required=True)
+
+    task_plan_parser = task_subparsers.add_parser("plan", help="Plan a task into subtasks and write .agent/task-graph.json")
+    task_plan_parser.add_argument("description", help="Task description")
+    task_plan_parser.add_argument("--repo", help="Repo name override")
+    task_plan_parser.add_argument("--max-subtasks", type=int, default=8)
+    task_plan_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_start_parser = task_subparsers.add_parser("start", help="Plan task, pick next subtask, and return subtask context")
+    task_start_parser.add_argument("description", help="Task description")
+    task_start_parser.add_argument("--repo", help="Repo name override")
+    task_start_parser.add_argument("--max-subtasks", type=int, default=8)
+    task_start_parser.add_argument("--reset-first", action="store_true", help="Reset existing task files before starting")
+    task_start_parser.add_argument("--full", action="store_true", help="Return full subtask context instead of compact")
+    task_start_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_step_parser = task_subparsers.add_parser("step", help="Return task router payload for the next action")
+    task_step_parser.add_argument("description", nargs="?")
+    task_step_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_continue_parser = task_subparsers.add_parser("continue", help="Return next action and compact context when needed")
+    task_continue_parser.add_argument("description", nargs="?")
+    task_continue_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_next_parser = task_subparsers.add_parser("next", help="Return the next ready subtask")
+    task_next_parser.add_argument("--repo", help="Repo name override")
+    task_next_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_context_parser = task_subparsers.add_parser("context", help="Build focused context for one subtask")
+    task_context_parser.add_argument("subtask_id", nargs="?")
+    task_context_parser.add_argument("--repo", help="Repo name override")
+    task_context_parser.add_argument("--target-agent", default="opencode", choices=["opencode", "codex", "copilot", "generic"])
+    task_context_parser.set_defaults(func=cmd_task, needs_qdrant=True, needs_llm=True)
+
+    task_done_parser = task_subparsers.add_parser("done", help="Mark one subtask done")
+    task_done_parser.add_argument("subtask_id", nargs="?")
+    task_done_parser.add_argument("--repo", help="Repo name override")
+    task_done_parser.add_argument("--retrieved-file", action="append", default=[])
+    task_done_parser.add_argument("--edited-file", action="append", default=[])
+    task_done_parser.add_argument("--check", action="append", default=[])
+    task_done_parser.add_argument("--notes")
+    task_done_parser.add_argument("--summary")
+    task_done_parser.add_argument("--failed", action="store_true", help="Mark the subtask as unsuccessful while still recording it as done.")
+    task_done_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_fail_parser = task_subparsers.add_parser("fail", help="Record a failed subtask attempt")
+    task_fail_parser.add_argument("subtask_id", nargs="?")
+    task_fail_parser.add_argument("--repo", help="Repo name override")
+    task_fail_parser.add_argument("--retrieved-file", action="append", default=[])
+    task_fail_parser.add_argument("--edited-file", action="append", default=[])
+    task_fail_parser.add_argument("--check", action="append", default=[])
+    task_fail_parser.add_argument("--notes")
+    task_fail_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_status_parser = task_subparsers.add_parser("status", help="Show task graph progress")
+    task_status_parser.add_argument("--repo", help="Repo name override")
+    task_status_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_compact_parser = task_subparsers.add_parser("compact", help="Compact completed subtasks")
+    task_compact_parser.add_argument("--repo", help="Repo name override")
+    task_compact_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_init_parser = task_subparsers.add_parser("init", help="Initialize a new task in .agent/")
+    task_init_parser.add_argument("description", help="Task description")
+    task_init_parser.add_argument("--timestamped", action="store_true", help="Create a timestamped task file (task-YYYYMMDD-HHMMSS.md)")
+    task_init_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_list_parser = task_subparsers.add_parser("list", help="List task files in .agent/")
+    task_list_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_reset_parser = task_subparsers.add_parser("reset", help="Archive and clear active task workflow files")
+    task_reset_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    task_doctor_parser = task_subparsers.add_parser("doctor", help="Check task graph/.agent/DB sanity for current workflow state")
+    task_doctor_parser.add_argument("--repo", help="Repo name override")
+    task_doctor_parser.add_argument("--fix", action="store_true", help="Apply safe state repairs in .agent/")
+    task_doctor_parser.set_defaults(func=cmd_task, needs_qdrant=False, needs_llm=False)
+
+    serve_parser = subparsers.add_parser("serve", help="Run local RAG integration servers")
+    serve_parser.add_argument("--http", action="store_true", help="Run the HTTP JSON endpoint server")
+    serve_parser.add_argument("--host", default="127.0.0.1")
+    serve_parser.add_argument("--port", type=int, default=7433)
+    serve_parser.set_defaults(func=cmd_serve)
     return parser
 
 
-def main() -> int:
+LEGACY_COMMANDS = {
+    "agent",
+    "ask",
+    "clean",
+    "command",
+    "context",
+    "decision",
+    "deep",
+    "doctor",
+    "error",
+    "facts",
+    "graph",
+    "handoff",
+    "index",
+    "inspect",
+    "learn",
+    "memory",
+    "missing",
+    "mcp",
+    "quick",
+    "reindex",
+    "route",
+    "search",
+    "serve",
+    "session",
+    "skill",
+    "status",
+    "suggest",
+    "summarize",
+    "summarize-files",
+    "task",
+    "todo",
+    "trace",
+    "why",
+}
+
+
+def _parse_public_invocation(flag: str, rest: list[str]) -> argparse.Namespace:
+    dry_run = False
+    repo: str | None = None
+    remaining: list[str] = []
+    index = 0
+    while index < len(rest):
+        item = rest[index]
+        if item == "--dry-run":
+            dry_run = True
+        elif item == "--repo" and index + 1 < len(rest):
+            repo = rest[index + 1]
+            index += 1
+        else:
+            remaining.append(item)
+        index += 1
+    query = " ".join(remaining).strip()
+    if not query:
+        raise SystemExit(f"{flag} requires a task string")
+    target = flag.removeprefix("--")
+    if target == "plan":
+        return argparse.Namespace(query=query, repo=repo, target=None, func=cmd_v7_plan, needs_qdrant=False, needs_llm=False)
+    if target == "context":
+        return argparse.Namespace(query=query, repo=repo, target=None, rerank=None, func=cmd_v7_context, needs_qdrant=True, needs_llm=False)
+    return argparse.Namespace(query=query, repo=repo, target=target, rerank=None, dry_run=dry_run, func=cmd_v7_execute, needs_qdrant=True, needs_llm=False)
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if not argv:
+        from .tui import run_tui
+
+        return run_tui()
+    if argv[0] == "debug":
+        if len(argv) == 1:
+            raise SystemExit("Use `rag debug <legacy-command> ...`.")
+        argv = argv[1:]
+    if argv[0] == "--doctor":
+        argv = ["doctor", *argv[1:]]
+    elif argv[0] == "--learn":
+        argv = ["learn", *argv[1:]]
+    elif argv[0] in {"--plan", "--context", "--codex", "--opencode", "--aider"}:
+        args = _parse_public_invocation(argv[0], argv[1:])
+        try:
+            ensure_local_runtime(args)
+            return args.func(args)
+        except KeyboardInterrupt:
+            console.print("[yellow]Cancelled.[/yellow]")
+            return 130
+    elif argv[0] not in LEGACY_COMMANDS and not argv[0].startswith("-"):
+        args = argparse.Namespace(
+            query=" ".join(argv),
+            repo=None,
+            target=None,
+            rerank=None,
+            dry_run=True,
+            func=cmd_v7_execute,
+            needs_qdrant=True,
+            needs_llm=False,
+        )
+        try:
+            ensure_local_runtime(args)
+            return args.func(args)
+        except KeyboardInterrupt:
+            console.print("[yellow]Cancelled.[/yellow]")
+            return 130
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
+        ensure_local_runtime(args)
         return args.func(args)
     except KeyboardInterrupt:
         console.print("[yellow]Cancelled.[/yellow]")

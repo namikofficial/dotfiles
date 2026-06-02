@@ -271,6 +271,22 @@ _auto_ls_list() {
   fi
 }
 
+inspect_dir() {
+  emulate -L zsh
+  local -a args
+  args=("$@")
+  if command -v eza >/dev/null 2>&1; then
+    eza -lah --icons=auto --group-directories-first -- "${args[@]}"
+  elif ls --color=auto -d . >/dev/null 2>&1; then
+    command ls -lah --color=auto -- "${args[@]}"
+  elif ls -G -d . >/dev/null 2>&1; then
+    command ls -lahG -- "${args[@]}"
+  else
+    command ls -lah -- "${args[@]}"
+  fi
+}
+alias lsi='inspect_dir'
+
 # Auto-list directory contents after changing directories (works for cd + autocd).
 auto_ls_chpwd() {
   emulate -L zsh
@@ -293,22 +309,7 @@ auto_ls_chpwd() {
 
   print -P "%B%F{blue}auto-ls%f%b %F{8}(${PWD:t})%f"
   if (( total_entries > max_entries )); then
-    local -a shown_entries
-    shown_entries=( "${entries[@][1,max_entries]}" )
-    print -P "%F{yellow}showing first %F{cyan}${max_entries}%f/%F{green}${total_entries}%f entries %F{8}(set AUTO_LS_MAX_ENTRIES to change)%f"
-    if command -v eza >/dev/null 2>&1; then
-      eza --icons=auto --group-directories-first -- "${shown_entries[@]}"
-    elif ls --color=auto -d . >/dev/null 2>&1; then
-      command ls -hF --color=auto -d -- "${shown_entries[@]}"
-    elif ls -G -d . >/dev/null 2>&1; then
-      command ls -hFG -d -- "${shown_entries[@]}"
-    else
-      command ls -hF -d -- "${shown_entries[@]}"
-    fi
-    integer remaining_entries=$(( total_entries - max_entries ))
-    if (( remaining_entries > 0 )); then
-      print -P "%F{8}... and %F{magenta}${remaining_entries}%f%F{8} more%f"
-    fi
+    print -P "%F{yellow}${total_entries}%f entries here; use %F{cyan}lsi%f for a full listing or %F{cyan}la%f/%F{cyan}lt%f for structured views"
     return 0
   fi
 

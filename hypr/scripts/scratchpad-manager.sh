@@ -22,6 +22,11 @@ runtime_dir() {
 }
 
 state_dir="$(runtime_dir)"
+lock_file="$state_dir/scratchpad-manager.lock"
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"$lock_file"
+  flock -n 9 || exit 0
+fi
 
 dashboard_script="$HOME/.config/hypr/scripts/scratchpad-dashboard.py"
 registry_file="$HOME/.config/hypr/scripts/scratchpad-registry.toml"
@@ -31,6 +36,7 @@ scene_state="$state_dir/scratchpad-scene-state.json"
 log_context_file="$state_dir/scratchpad-log-context"
 ai_context_file="$state_dir/scratchpad-ai-context"
 dashboard_log="$state_dir/scratchpad-dashboard.log"
+registry_cache=""
 
 spatial_visible() {
   hyprctl -j monitors 2>/dev/null | jq -e '
@@ -39,7 +45,7 @@ spatial_visible() {
 }
 
 toggle_workspace() {
-  hyprctl dispatch togglespecialworkspace scratch_spatial >/dev/null 2>&1 || true
+  toggle_special_workspace scratch_spatial >/dev/null 2>&1 || true
 }
 
 show_workspace() {
@@ -48,17 +54,35 @@ show_workspace() {
 
 window_exists() {
   local class_name="$1"
-  hyprctl clients 2>/dev/null | grep -q "class: ${class_name}"
+  [ -n "$(client_address "$class_name" || true)" ]
+}
+
+load_registry_cache() {
+  [ -n "$registry_cache" ] && return 0
+  registry_cache="$(python3 - "$registry_file" <<'PY'
+import json, sys, tomllib
+from pathlib import Path
+data = tomllib.loads(Path(sys.argv[1]).read_text())
+print(json.dumps(data))
+PY
+)"
+}
+
+registry_jq() {
+  local query="${*: -1}"
+  local args=("${@:1:$(($#-1))}")
+  load_registry_cache
+  jq -r "${args[@]}" "$query" <<<"$registry_cache" 2>/dev/null || true
 }
 
 pad_class() {
   local pad="$1"
-  python3 - "$registry_file" "$pad" <<'PY'
-import sys, tomllib
-from pathlib import Path
-registry = tomllib.loads(Path(sys.argv[1]).read_text())
-print(registry["scratchpads"].get(sys.argv[2], {}).get("class", ""))
-PY
+  registry_jq --arg pad "$pad" '.scratchpads[$pad].class // ""'
+}
+
+pad_restore_policy() {
+  local pad="$1"
+  registry_jq --arg pad "$pad" '.scratchpads[$pad].restore_policy // "keep_overlay"'
 }
 
 client_address() {
@@ -70,6 +94,64 @@ client_address() {
 
 active_window_json() {
   hyprctl -j activewindow 2>/dev/null || printf '{}\n'
+}
+
+lua_string() {
+  jq -Rn --arg value "$1" '$value'
+}
+
+hypr_eval() {
+  hyprctl eval "$1" >/dev/null
+}
+
+toggle_special_workspace() {
+  local workspace="$1"
+  local workspace_lua
+  workspace_lua="$(lua_string "$workspace")"
+  hypr_eval "hl.dispatch(hl.dsp.workspace.toggle_special(${workspace_lua}))"
+}
+
+move_window_to_workspace() {
+  local workspace="$1" address="$2"
+  [ -n "$address" ] || return 0
+  local workspace_lua address_lua
+  workspace_lua="$(lua_string "$workspace")"
+  address_lua="$(lua_string "address:$address")"
+  hypr_eval "hl.dispatch(hl.dsp.window.move({ workspace = ${workspace_lua}, follow = false, window = ${address_lua} }))"
+}
+
+focus_window() {
+  local target="$1"
+  [ -n "$target" ] || return 0
+  local target_lua
+  target_lua="$(lua_string "$target")"
+  hypr_eval "hl.dispatch(hl.dsp.focus({ window = ${target_lua} }))"
+}
+
+close_window() {
+  local address="$1"
+  [ -n "$address" ] || return 0
+  local address_lua
+  address_lua="$(lua_string "address:$address")"
+  hypr_eval "hl.dispatch(hl.dsp.window.close({ window = ${address_lua} }))"
+}
+
+set_window_geometry() {
+  local address="$1" x="$2" y="$3" w="$4" h="$5"
+  [ -n "$address" ] || return 0
+  local address_lua
+  address_lua="$(lua_string "address:$address")"
+  hypr_eval "hl.dispatch(hl.dsp.window.float({ state = true, window = ${address_lua} }))" || return 1
+  hypr_eval "hl.dispatch(hl.dsp.window.resize({ x = ${w}, y = ${h}, window = ${address_lua} }))" || return 1
+  hypr_eval "hl.dispatch(hl.dsp.window.move({ x = ${x}, y = ${y}, window = ${address_lua} }))" || return 1
+}
+
+unset_window_floating() {
+  local address="$1"
+  [ -n "$address" ] || return 0
+  local address_lua
+  address_lua="$(lua_string "address:$address")"
+  hypr_eval "hl.dispatch(hl.dsp.window.float({ state = false, window = ${address_lua} }))"
 }
 
 active_window_matches_class() {
@@ -100,11 +182,11 @@ active_workspace_id() {
 
 geometry_px() {
   local pad="$1" kind="$2"
-  python3 - "$registry_file" "$pad" "$kind" "$(focused_monitor_json)" <<'PY'
-import json, sys, tomllib
-from pathlib import Path
+  load_registry_cache
+  python3 - "$registry_cache" "$pad" "$kind" "$(focused_monitor_json)" <<'PY'
+import json, sys
 
-registry = tomllib.loads(Path(sys.argv[1]).read_text())
+registry = json.loads(sys.argv[1])
 pad_name = sys.argv[2]
 if pad_name == "main":
     pad = {"scene_geometry": registry.get("scene", {}).get("main", {}).get("geometry", {})}
@@ -146,13 +228,13 @@ apply_geometry() {
   local address="$1" pad="$2" kind="$3"
   [ -n "$address" ] || return 0
   read -r x y w h < <(geometry_px "$pad" "$kind")
-  hyprctl --batch "dispatch setfloating address:$address; dispatch resizewindowpixel exact $w $h,address:$address; dispatch movewindowpixel exact $x $y,address:$address" >/dev/null 2>&1 || true
+  set_window_geometry "$address" "$x" "$y" "$w" "$h" || true
 }
 
 apply_exact_geometry() {
   local address="$1" x="$2" y="$3" w="$4" h="$5"
   [ -n "$address" ] || return 0
-  hyprctl --batch "dispatch setfloating address:$address; dispatch resizewindowpixel exact $w $h,address:$address; dispatch movewindowpixel exact $x $y,address:$address" >/dev/null 2>&1 || true
+  set_window_geometry "$address" "$x" "$y" "$w" "$h" || true
 }
 
 scene_layout_px() {
@@ -231,6 +313,15 @@ show_dashboard() {
     fi
     rm -f "$dashboard_pidfile"
   fi
+  dashboard_address="$(hyprctl -j clients 2>/dev/null | jq -r '
+    .[]
+    | select((.title // "") == "Scratch Hub" or (.title // "") == "Spatial Scratchpad" or (.initialTitle // "") == "Scratch Hub")
+    | .address
+  ' | head -n1)"
+  if [ -n "$dashboard_address" ]; then
+    close_window "$dashboard_address" >/dev/null 2>&1 || true
+    return 0
+  fi
   [ -x "$dashboard_script" ] || return 0
   NOXFLOW_SCRATCH_RUNTIME="$state_dir" "$dashboard_script" >>"$dashboard_log" 2>&1 &
   return 0
@@ -263,7 +354,7 @@ spawn_notes() {
 
 spawn_obsidian() {
   if hyprctl clients 2>/dev/null | grep -qi "class: .*obsidian"; then
-    hyprctl dispatch focuswindow "class:^(obsidian|Obsidian)$" >/dev/null 2>&1 || true
+    focus_window "class:^(obsidian|Obsidian)$" >/dev/null 2>&1 || true
     return 0
   fi
   if command -v obsidian >/dev/null 2>&1; then
@@ -352,6 +443,7 @@ normal_workspace_window_json() {
       | select((.workspace.id // 0) == $workspace)
       | select(((.class // "") | test("^noxflow-scratch"; "i") | not))
       | select((.title // "") != "Spatial Scratchpad")
+      | select((.title // "") != "Scratch Hub")
     ]
     | sort_by(.focusHistoryID // 999999)
     | .[0] // {}
@@ -379,7 +471,7 @@ except Exception:
 def is_scratch(client):
     cls = str(client.get("class", ""))
     title = str(client.get("title", ""))
-    return cls.lower().startswith("noxflow-scratch") or title == "Spatial Scratchpad"
+    return cls.lower().startswith("noxflow-scratch") or title in {"Spatial Scratchpad", "Scratch Hub"}
 
 if active.get("pid") and not is_scratch(active) and int(active.get("workspace", {}).get("id", 0) or 0) == workspace:
     print(json.dumps(active))
@@ -406,7 +498,7 @@ context_cwd() {
 forget_client() {
   local address="$1"
   [ -n "$address" ] || return 0
-  hyprctl dispatch closewindow "address:$address" >/dev/null 2>&1 || true
+  close_window "$address" >/dev/null 2>&1 || true
   for _ in {1..20}; do
     hyprctl -j clients 2>/dev/null | jq -e --arg address "$address" '
       any(.[]; (.address // "") == $address)
@@ -450,10 +542,10 @@ launch_overlay_pad() {
   fi
   address="$(wait_for_client "$class_name" || true)"
   [ -n "$address" ] || return 0
-  hyprctl dispatch movetoworkspacesilent "special:$(workspace_for),address:$address" >/dev/null 2>&1 || true
+  move_window_to_workspace "special:$(workspace_for)" "$address" >/dev/null 2>&1 || true
   arrange_overlay
   show_workspace
-  hyprctl dispatch focuswindow "address:$address" >/dev/null 2>&1 || true
+  focus_window "address:$address" >/dev/null 2>&1 || true
   update_state "$pad" active
 }
 
@@ -464,7 +556,7 @@ arrange_overlay() {
     [ -n "$class_name" ] || continue
     address="$(client_address "$class_name" || true)"
     [ -n "$address" ] || continue
-    hyprctl dispatch movetoworkspacesilent "special:$(workspace_for),address:$address" >/dev/null 2>&1 || true
+    move_window_to_workspace "special:$(workspace_for)" "$address" >/dev/null 2>&1 || true
     apply_geometry "$address" "$pad" overlay_geometry
   done
 }
@@ -491,7 +583,7 @@ except Exception:
 def is_scratch(client):
     cls = str(client.get("class", ""))
     title = str(client.get("title", ""))
-    return cls.lower().startswith("noxflow-scratch") or title == "Spatial Scratchpad"
+    return cls.lower().startswith("noxflow-scratch") or title in {"Spatial Scratchpad", "Scratch Hub"}
 
 target = active
 if is_scratch(active) or int(active.get("workspace", {}).get("id", 0) or 0) != workspace:
@@ -556,11 +648,11 @@ scene_enter() {
   ai="$(wait_for_client "$ai_class" || true)"
   logs="$(wait_for_client "$logs_class" || true)"
 
-  [ -n "$ai" ] && hyprctl dispatch movetoworkspacesilent "$workspace,address:$ai" >/dev/null 2>&1 || true
-  [ -n "$logs" ] && hyprctl dispatch movetoworkspacesilent "$workspace,address:$logs" >/dev/null 2>&1 || true
+  [ -n "$ai" ] && move_window_to_workspace "$workspace" "$ai" >/dev/null 2>&1 || true
+  [ -n "$logs" ] && move_window_to_workspace "$workspace" "$logs" >/dev/null 2>&1 || true
   sleep 0.05
 
-  [ -n "$main" ] && hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
+  [ -n "$main" ] && focus_window "address:$main" >/dev/null 2>&1 || true
   while read -r name x y w h; do
     case "$name" in
       main) apply_exact_geometry "$main" "$x" "$y" "$w" "$h" ;;
@@ -569,14 +661,14 @@ scene_enter() {
     esac
   done < <(scene_layout_px)
 
-  [ -n "$main" ] && hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
+  [ -n "$main" ] && focus_window "address:$main" >/dev/null 2>&1 || true
   update_state scene active
   update_state ai active
   update_state logs active
 }
 
 scene_exit() {
-  local main x y w h floating
+  local main x y w h floating restore_main_tiled=0
   main="$(scene_main_address || true)"
   if [ -n "$main" ] && [ -s "$scene_state" ]; then
     read -r x y w h floating < <(python3 - "$scene_state" <<'PY'
@@ -590,30 +682,57 @@ print(at[0] if len(at) > 0 else 0, at[1] if len(at) > 1 else 0,
       size[0] if len(size) > 0 else 1000, size[1] if len(size) > 1 else 700,
       "true" if main.get("floating") else "false")
 PY
-)
-    hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
-    hyprctl --batch "dispatch movewindowpixel exact $x $y,address:$main; dispatch resizewindowpixel exact $w $h,address:$main" >/dev/null 2>&1 || true
-    [ "$floating" = "false" ] && hyprctl dispatch settiled "address:$main" >/dev/null 2>&1 || true
-    hyprctl dispatch focuswindow "address:$main" >/dev/null 2>&1 || true
+    )
+    focus_window "address:$main" >/dev/null 2>&1 || true
+    restore_main_tiled=1
+    focus_window "address:$main" >/dev/null 2>&1 || true
   fi
 
-  local ai logs
+  local ai logs ai_policy logs_policy
   ai="$(client_address "$(pad_class ai)" || true)"
   logs="$(client_address "$(pad_class logs)" || true)"
-  [ -n "$ai" ] && hyprctl dispatch movetoworkspacesilent "special:scratch_spatial,address:$ai" >/dev/null 2>&1 || true
-  [ -n "$logs" ] && hyprctl dispatch movetoworkspacesilent "special:scratch_spatial,address:$logs" >/dev/null 2>&1 || true
+  ai_policy="$(pad_restore_policy ai)"
+  logs_policy="$(pad_restore_policy logs)"
+  if [ -n "$ai" ]; then
+    if [ "$ai_policy" = "close" ]; then
+      forget_client "$ai"
+    else
+      move_window_to_workspace "special:scratch_spatial" "$ai" >/dev/null 2>&1 || true
+    fi
+  fi
+  if [ -n "$logs" ]; then
+    if [ "$logs_policy" = "close" ]; then
+      forget_client "$logs"
+    else
+      move_window_to_workspace "special:scratch_spatial" "$logs" >/dev/null 2>&1 || true
+    fi
+  fi
   arrange_overlay
+  if [ "$restore_main_tiled" = "1" ] && [ -n "$main" ]; then
+    sleep 0.05
+    unset_window_floating "$main" >/dev/null 2>&1 || true
+    focus_window "address:$main" >/dev/null 2>&1 || true
+  fi
   rm -f "$scene_state"
   update_state scene idle
+  if [ "$restore_main_tiled" = "1" ] && [ -n "$main" ]; then
+    sleep 0.20
+    unset_window_floating "$main" >/dev/null 2>&1 || true
+    focus_window "address:$main" >/dev/null 2>&1 || true
+  fi
 }
 
 scene_toggle() {
+  if spatial_visible; then
+    scene_exit
+    return 0
+  fi
   if [ -s "$scene_state" ] && scene_state_live; then
     scene_exit
-  else
-    rm -f "$scene_state"
-    scene_enter
+    return 0
   fi
+  rm -f "$scene_state"
+  scene_enter
 }
 
 ensure_spawned() {

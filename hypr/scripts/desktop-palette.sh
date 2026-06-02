@@ -23,7 +23,10 @@ stop_if_running() {
 focused_cwd() {
   local pid
   pid="$(hyprctl -j activewindow 2>/dev/null | jq -r '.pid // empty' 2>/dev/null || true)"
-  [ -n "$pid" ] || { echo "$HOME"; return 0; }
+  [ -n "$pid" ] || {
+    echo "$HOME"
+    return 0
+  }
   readlink "/proc/${pid}/cwd" 2>/dev/null || echo "$HOME"
 }
 
@@ -59,7 +62,7 @@ root="$(git_root "$cwd")"
 
 case "$action" in
   Apps)
-    exec "$HOME/.config/hypr/scripts/launcher.sh" --mode all
+    exec "$HOME/.config/hypr/scripts/launcher.sh" --fast
     ;;
   "Frequent Apps")
     exec "$HOME/.config/hypr/scripts/launcher.sh"
@@ -71,6 +74,9 @@ git commit current project
 open noxcrm backend
 switch to dev mode
 restart portals
+recover desktop
+run dev health
+project profiles
 run schemathesis
 open postgres logs
 EOF
@@ -88,6 +94,15 @@ EOF
         ;;
       "restart portals")
         exec "$HOME/.config/hypr/scripts/restart-portals.sh"
+        ;;
+      "recover desktop")
+        exec "$HOME/.config/hypr/scripts/desktop-recovery.sh" menu
+        ;;
+      "run dev health")
+        exec kitty --title "dev-health" -e bash -lc "cd '$HOME/Documents/code/dotfiles' && setup/dev-health.sh; read -r -p 'Press enter to close'"
+        ;;
+      "project profiles")
+        exec kitty --title "project profiles" -e bash -lc "cd '$HOME/Documents/code/dotfiles' && setup/project-profile.sh status; read -r -p 'Press enter to close'"
         ;;
       "run schemathesis")
         exec kitty --title "schemathesis" -e bash -lc 'command -v schemathesis >/dev/null 2>&1 && exec schemathesis --help || exec bash'

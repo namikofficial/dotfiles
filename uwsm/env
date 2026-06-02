@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+# Session-wide desktop environment variables that should be available before
+# Hyprland launches. Keep HYPR*/AQ_* values in uwsm/env-hyprland instead.
+export MOZ_ENABLE_WAYLAND=1
+export QT_QPA_PLATFORM='wayland;xcb'
+export SDL_VIDEODRIVER=wayland
+export NIXOS_OZONE_WL=1
+export LIBVA_DRIVER_NAME=iHD
+export XCURSOR_THEME=Bibata-Modern-Ice
+export XCURSOR_SIZE=24
+export HYPRCURSOR_SIZE=24

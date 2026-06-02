@@ -7,7 +7,7 @@ if [ ! -x "$launcher_bin" ]; then
 fi
 
 if [ -z "$launcher_bin" ] || [ ! -x "$launcher_bin" ]; then
-  command -v notify-send >/dev/null 2>&1 && \
+  command -v notify-send >/dev/null 2>&1 &&
     notify-send -a "Prism" "Prism Launcher not found" "Install with: sudo pacman -S prismlauncher"
   exit 1
 fi
@@ -30,10 +30,5 @@ export MANGOHUD
 
 # Consistent Wayland-first behavior for Qt apps.
 export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland;xcb}"
-export QT_QPA_PLATFORMTHEME="${QT_QPA_PLATFORMTHEME:-qt6ct}"
-export QT_STYLE_OVERRIDE="${QT_STYLE_OVERRIDE:-kvantum}"
-export KVANTUM_THEME="${KVANTUM_THEME:-NoxflowDynamic}"
-export KDE_SESSION_VERSION=6
-export KDE_FULL_SESSION=false
 
-exec "$launcher_bin" -style kvantum "$@"
+exec "$launcher_bin" "$@"

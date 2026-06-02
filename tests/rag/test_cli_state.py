@@ -4,6 +4,7 @@ import json
 import sqlite3
 import sys
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -12,6 +13,8 @@ sys.path.insert(0, str(SYSTEM_DIR))
 
 from rag.cli import build_parser, route_mode, suggestion_for_argparse_error, workflow_keys_for_query
 from rag.memory import build_context_pack
+import rag.cli as rag_cli
+import rag.memory as rag_memory
 from rag.retrieval import gather_context
 from rag.settings import DEFAULT_CONFIG, get_mode_profile
 from rag.state import (
@@ -72,6 +75,42 @@ class CliStateTest(unittest.TestCase):
         )
         self.assertEqual(memory_args.memory_command, "remember")
         self.assertTrue(memory_args.global_scope)
+        run_args = parser.parse_args(["run", "list", "--limit", "5"])
+        self.assertEqual(run_args.run_command, "list")
+        profile_args = parser.parse_args(["profile", "learn-from-run", "latest"])
+        self.assertEqual(profile_args.profile_command, "learn-from-run")
+        cache_args = parser.parse_args(["cache", "stats", "--limit", "5"])
+        self.assertEqual(cache_args.cache_command, "stats")
+        eval_args = parser.parse_args(["eval", "add", "why auth fails", "--expect-file", "system/rag/cli.py"])
+        self.assertEqual(eval_args.eval_command, "add")
+        task_start_args = parser.parse_args(["task", "start", "fix login bug", "--max-subtasks", "4"])
+        self.assertEqual(task_start_args.task_command, "start")
+        self.assertEqual(task_start_args.max_subtasks, 4)
+        self.assertFalse(task_start_args.needs_qdrant)
+        self.assertFalse(task_start_args.needs_llm)
+        task_doctor_args = parser.parse_args(["task", "doctor"])
+        self.assertEqual(task_doctor_args.task_command, "doctor")
+        self.assertTrue(parser.parse_args(["task", "doctor", "--fix"]).fix)
+        task_step_args = parser.parse_args(["task", "step", "fix login bug"])
+        self.assertEqual(task_step_args.task_command, "step")
+        task_continue_args = parser.parse_args(["task", "continue"])
+        self.assertEqual(task_continue_args.task_command, "continue")
+        learn_report_args = parser.parse_args(["learn", "report"])
+        self.assertEqual(learn_report_args.learn_command, "report")
+
+    def test_parser_marks_runtime_dependencies_for_lazy_start(self) -> None:
+        parser = build_parser()
+        ask_args = parser.parse_args(["ask", "explain config"])
+        self.assertTrue(ask_args.needs_qdrant)
+        self.assertTrue(ask_args.needs_llm)
+
+        search_args = parser.parse_args(["search", "AuthService.login"])
+        self.assertTrue(search_args.needs_qdrant)
+        self.assertFalse(search_args.needs_llm)
+
+        status_args = parser.parse_args(["status"])
+        self.assertFalse(status_args.needs_qdrant)
+        self.assertFalse(status_args.needs_llm)
 
     def test_cli_suggestions_for_typos_and_workflows(self) -> None:
         message = "argument command: invalid choice: 'serach' (choose from 'index', 'search', 'status')"
@@ -203,6 +242,51 @@ class CliStateTest(unittest.TestCase):
         first = normalize_error_text("RuntimeError: boom at src/app.py:12")
         second = normalize_error_text("RuntimeError: boom at src/app.py:48")
         self.assertEqual(first, second)
+
+    def test_generate_repo_memory_falls_back_when_llm_is_unavailable(self) -> None:
+        conn = make_connection()
+        conn.execute(
+            "INSERT INTO indexed_repos (repo, root, last_indexed) VALUES (?, ?, ?)",
+            ("dotfiles", "/repo/dotfiles", 10.0),
+        )
+        conn.execute(
+            "INSERT INTO file_summaries (repo, path, file_hash, language, kind, summary, symbols, facts_count, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            ("dotfiles", "system/rag/cli.py", "deadbeef", "python", "module", "CLI entrypoints", "cmd_index", 4, 10.0),
+        )
+        conn.execute(
+            "INSERT INTO facts (repo, path, file_hash, kind, key, value, line, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("dotfiles", "system/rag/cli.py", "deadbeef", "tool", "rag", "index", 1, 10.0),
+        )
+        with mock.patch.object(rag_memory, "complete_llm", side_effect=RuntimeError("LLM request failed")):
+            summary = rag_memory.generate_repo_memory(conn, {"answer_model": "x", "answer_url": "http://127.0.0.1"}, "dotfiles")
+        self.assertIn("Repo memory unavailable", summary)
+        self.assertIn("rag memory refresh", summary)
+
+    def test_cmd_index_keeps_repo_when_memory_refresh_is_degraded(self) -> None:
+        calls: list[str] = []
+        conn = make_connection()
+        conn.execute(
+            "INSERT INTO indexed_repos (repo, root, last_indexed) VALUES (?, ?, ?)",
+            ("dotfiles", "/repo/dotfiles", 10.0),
+        )
+        with mock.patch.object(rag_cli, "load_config", return_value={"answer_model": "x", "answer_url": "http://127.0.0.1"}), \
+            mock.patch.object(rag_cli, "connect_db", return_value=conn), \
+            mock.patch.object(rag_cli, "get_qdrant", return_value=object()), \
+            mock.patch.object(rag_cli, "get_index_profile", return_value=("deep", {"repo_memory": True})), \
+            mock.patch.object(rag_cli, "repo_identity", return_value=(Path("/repo/dotfiles"), "dotfiles")), \
+            mock.patch.object(rag_cli, "index_repo", return_value=(3, 12)), \
+            mock.patch.object(rag_cli, "make_index_progress") as progress_mock, \
+            mock.patch.object(rag_cli, "make_index_progress_callback", return_value=None), \
+            mock.patch.object(rag_cli, "generate_repo_memory", return_value="# Repo memory unavailable\n\n- repo: dotfiles\n- reason: LLM down"), \
+            mock.patch.object(rag_cli.console, "print", side_effect=lambda *args, **kwargs: calls.append(" ".join(str(a) for a in args))):
+            progress_mock.return_value.__enter__.return_value = mock.Mock()
+            progress_mock.return_value.__exit__.return_value = False
+            rc = rag_cli.cmd_index(mock.Mock(path="/repo/dotfiles", profile="deep", changed_only=False))
+        self.assertEqual(rc, 0)
+        row = conn.execute("SELECT summary FROM repo_memory WHERE repo = ?", ("dotfiles",)).fetchone()
+        self.assertIsNotNone(row)
+        self.assertIn("Repo memory unavailable", row["summary"])
+        self.assertTrue(any("Repo memory degraded" in line for line in calls))
 
 
 if __name__ == "__main__":

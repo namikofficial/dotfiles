@@ -1,0 +1,36 @@
+{
+  "context": {
+    "edit_scope": {
+      "avoid": [],
+      "likely_edit": [
+        {
+          "path": "system/rag/task_graph.py",
+          "reason": "top hit"
+        }
+      ],
+      "likely_tests": [],
+      "read_only": []
+    },
+    "evidence": [
+      "system/rag/task_graph.py",
+      "tests/rag/test_task_orchestrator.py"
+    ],
+    "missing_context": {
+      "missing": [
+        "test file"
+      ],
+      "selected_files": [
+        "system/rag/task_graph.py"
+      ]
+    },
+    "suggested_commands": [
+      "python -m unittest discover -s tests/rag -p 'test_*.py'"
+    ],
+    "task": "Implement the smallest safe change for: Implement task orchestration for OpenCode"
+  },
+  "repo": null,
+  "run_id": "task-7978bb370e37-T1-d1e8eac5",
+  "subtask_id": "T1",
+  "task": "Implement task orchestration for OpenCode",
+  "task_id": "task-7978bb370e37"
+}

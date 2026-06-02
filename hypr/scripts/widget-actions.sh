@@ -84,8 +84,8 @@ case "$action" in
   disk)
     if command -v baobab >/dev/null 2>&1; then
       run_bg baobab
-    elif command -v dolphin >/dev/null 2>&1; then
-      run_bg dolphin /
+    elif command -v yazi >/dev/null 2>&1; then
+      run_bg kitty --class yazi -e yazi /
     elif command -v xdg-open >/dev/null 2>&1; then
       run_bg xdg-open /
     else

@@ -56,6 +56,32 @@ def ensure_column(conn: sqlite3.Connection, table: str, column: str, column_type
         conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
 
 
+def apply_migrations(conn: sqlite3.Connection) -> None:
+    migrations_dir = Path(__file__).resolve().parent / "migrations"
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS _schema_migrations (
+            id TEXT PRIMARY KEY,
+            applied_at REAL NOT NULL
+        )
+        """
+    )
+    if not migrations_dir.is_dir():
+        conn.commit()
+        return
+    applied = {row[0] for row in conn.execute("SELECT id FROM _schema_migrations").fetchall()}
+    for path in sorted(migrations_dir.glob("*.sql")):
+        migration_id = path.name
+        if migration_id in applied:
+            continue
+        conn.executescript(path.read_text())
+        conn.execute(
+            "INSERT OR IGNORE INTO _schema_migrations (id, applied_at) VALUES (?, ?)",
+            (migration_id, time.time()),
+        )
+    conn.commit()
+
+
 
 def seed_tool_taxonomy(conn: sqlite3.Connection) -> None:
     now = time.time()
@@ -69,6 +95,20 @@ def seed_tool_taxonomy(conn: sqlite3.Connection) -> None:
                 """,
                 (domain, tool, json.dumps(aliases), description, now, now),
             )
+
+
+def seed_profiles(conn: sqlite3.Connection) -> None:
+    from .profiles import BUILTIN_PROFILES
+
+    now = time.time()
+    for profile_id, profile in BUILTIN_PROFILES.items():
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO profiles (id, yaml_source, is_user_override, created_at)
+            VALUES (?, ?, 0, ?)
+            """,
+            (profile_id, json.dumps(profile, sort_keys=True), now),
+        )
 
 
 
@@ -441,8 +481,63 @@ def ensure_db(conn: sqlite3.Connection) -> None:
             updated_at REAL NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_eval_cases_repo_updated ON eval_cases(repo, updated_at);
+
+        CREATE TABLE IF NOT EXISTS task_runs (
+            run_id TEXT PRIMARY KEY,
+            repo TEXT,
+            task TEXT NOT NULL,
+            task_fingerprint TEXT NOT NULL,
+            mode TEXT NOT NULL DEFAULT 'auto',
+            max_subtasks INTEGER NOT NULL DEFAULT 8,
+            graph_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            current_subtask_id TEXT,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL,
+            finished_at REAL
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_runs_repo_created ON task_runs(repo, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_task_runs_repo_status ON task_runs(repo, status, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS task_outcomes (
+            outcome_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id TEXT,
+            repo TEXT,
+            task_id TEXT NOT NULL,
+            task TEXT NOT NULL,
+            task_fingerprint TEXT NOT NULL,
+            subtask_id TEXT NOT NULL,
+            subtask_title TEXT NOT NULL,
+            subtask_type TEXT NOT NULL,
+            status TEXT NOT NULL,
+            retrieved_files_json TEXT NOT NULL DEFAULT '[]',
+            edited_files_json TEXT NOT NULL DEFAULT '[]',
+            missed_files_json TEXT NOT NULL DEFAULT '[]',
+            useless_files_json TEXT NOT NULL DEFAULT '[]',
+            checks_run_json TEXT NOT NULL DEFAULT '[]',
+            passed INTEGER NOT NULL DEFAULT 0,
+            notes TEXT,
+            attempt INTEGER NOT NULL DEFAULT 0,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_outcomes_repo_created ON task_outcomes(repo, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_task_outcomes_run_created ON task_outcomes(run_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_task_outcomes_task_hash ON task_outcomes(repo, task_fingerprint, created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS task_lessons (
+            lesson_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            repo TEXT,
+            run_id TEXT,
+            task_id TEXT NOT NULL,
+            lesson_kind TEXT NOT NULL,
+            lesson_json TEXT NOT NULL DEFAULT '{}',
+            created_at REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_lessons_repo_created ON task_lessons(repo, created_at DESC);
         """
     )
+    apply_migrations(conn)
     ensure_column(conn, "indexed_repos", "last_indexed_branch", "TEXT")
     ensure_column(conn, "indexed_repos", "last_indexed_commit", "TEXT")
     ensure_column(conn, "chunks", "index_schema", "TEXT")
@@ -462,6 +557,7 @@ def ensure_db(conn: sqlite3.Connection) -> None:
     ensure_column(conn, "error_memory", "file_paths_json", "TEXT NOT NULL DEFAULT '[]'")
     ensure_column(conn, "error_memory", "command", "TEXT")
     ensure_column(conn, "error_memory", "exit_code", "INTEGER")
+    ensure_column(conn, "eval_cases", "expected_symbols_json", "TEXT NOT NULL DEFAULT '[]'")
     conn.execute("UPDATE chunks SET index_schema = ? WHERE index_schema IS NULL", (INDEX_SCHEMA,))
     conn.execute(
         "UPDATE chunks SET embedding_model = ? WHERE embedding_model IS NULL",
@@ -475,6 +571,7 @@ def ensure_db(conn: sqlite3.Connection) -> None:
         "UPDATE error_memory SET fingerprint_hash = '' WHERE fingerprint_hash IS NULL"
     )
     seed_tool_taxonomy(conn)
+    seed_profiles(conn)
     conn.commit()
 
 

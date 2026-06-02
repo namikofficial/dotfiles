@@ -4,7 +4,7 @@ entries:
   - key: Hyprland + hyprexpo
     description: mission-control style workspace overview
     copy: hyprctl plugin list
-    source: ~/.config/hypr/hyprland.conf
+    source: ~/.config/hypr/hyprland.lua
   - key: Wayle shell
     description: top panel, notifications, and widgets
     copy: ~/.config/wayle/config.toml
