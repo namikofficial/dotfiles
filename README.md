@@ -168,9 +168,9 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + G`: cycle layout state (`dwindle -> master -> monocle`)
 - `Super + Alt + G`: toggle tiling layout (`dwindle` <-> `master`)
 - `Super + Shift + G`: toggle floating for the focused window
-- ``Super + ` ``: smart Sidecar action; send a normal focused window, hide Sidecar when a Sidecar window is focused, or restore the latest tracked Sidecar window
+- ``Super + ` ``: show or hide Sidecar without moving windows
 - ``Super + Ctrl + ` ``: stash the focused window in the Sidecar silently
-- ``Super + Shift + ` ``: restore the most recent Sidecar window to the current workspace
+- ``Super + Shift + ` ``: move the focused window to Sidecar and focus it there
 - ``Super + Alt + ` ``: toggle Sidecar visibility without moving windows
 - `Super + arrows`: focus left/right/up/down
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle windows in current workspace

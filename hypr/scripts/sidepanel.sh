@@ -265,36 +265,20 @@ restore_address_to_current_workspace() {
 }
 
 smart_sidecar() {
+  toggle_sidecar
+}
+
+toggle_sidecar() {
   local address
-  if active_window_in_sidecar_workspace; then
-    if sidepanel_visible; then
-      hide_sidecar_if_visible
-      notify "Hid Sidecar"
-      return 0
-    fi
-  fi
-  if active_window_is_normal; then
-    if send_active_to_sidecar; then
-      notify "Moved window to Sidecar"
-      return 0
-    fi
-  fi
-  address="$(tracked_address || true)"
-  if [ -n "$address" ]; then
-    if restore_address_to_current_workspace "$address"; then
-      notify "Restored most recent Sidecar window"
-      return 0
-    fi
-  fi
   if sidepanel_visible; then
     hide_sidecar_if_visible
-  else
-    ensure_sidepanel_client
-    show_sidecar
-    address="$(sidepanel_client || true)"
-    [ -n "$address" ] && set_sidepanel_geometry "$address" >/dev/null 2>&1 || true
-    [ -n "$address" ] && focus_window "$address" >/dev/null 2>&1 || true
+    return 0
   fi
+  ensure_sidepanel_client
+  show_sidecar
+  address="$(sidepanel_client || true)"
+  [ -n "$address" ] && set_sidepanel_geometry "$address" >/dev/null 2>&1 || true
+  [ -n "$address" ] && focus_window "$address" >/dev/null 2>&1 || true
 }
 
 restore_all() {
@@ -335,7 +319,7 @@ ensure_sidepanel_client() {
 
   kitty --class "$side_class" --title "Sidecar" -e zsh -lic '
     cd "$HOME"
-    printf "Sidecar\n\nUse Super+\` to send, hide, or restore latest.\nUse Super+Ctrl+\` to stash without opening.\nUse Super+Shift+\` to restore the most recent window.\nUse Super+Alt+\` to show or hide this shelf.\nMove a focused Sidecar window with Super+Shift+1..0.\n\n"
+    printf "Sidecar\n\nUse Super+\` to show or hide this shelf.\nUse Super+Shift+\` to move the focused window here.\nUse Super+Ctrl+\` to stash without opening.\nMove a focused Sidecar window back with Super+Shift+1..0.\n\n"
     exec zsh -l
   ' >/dev/null 2>&1 &
 
@@ -357,15 +341,7 @@ notify() {
 
 case "$mode" in
   toggle)
-    if sidepanel_visible; then
-      toggle_special_workspace "$side_ws" >/dev/null 2>&1 || true
-    else
-      ensure_sidepanel_client
-      toggle_special_workspace "$side_ws" >/dev/null 2>&1 || true
-      address="$(sidepanel_client || true)"
-      [ -n "$address" ] && set_sidepanel_geometry "$address" >/dev/null 2>&1 || true
-      [ -n "$address" ] && focus_window "$address" >/dev/null 2>&1 || true
-    fi
+    toggle_sidecar
     ;;
   send)
     send_active_to_sidecar >/dev/null 2>&1 || true

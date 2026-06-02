@@ -110,7 +110,7 @@ Keep scratchpads role-specific instead of treating them as interchangeable termi
 - `Super+Ctrl+\`: runner/logs role, project-rooted command terminal
 - `Super+Ctrl+Alt+\`: database role
 - Obsidian and Browser DevTools roles: use the hub cards
-- ``Super+` ``: smart Sidecar send/hide/restore-latest, ``Super+Ctrl+` ``: stash, ``Super+Shift+` ``: restore latest, ``Super+Alt+` ``: show/hide
+- ``Super+` ``: show/hide Sidecar, ``Super+Shift+` ``: move focused window to Sidecar, ``Super+Ctrl+` ``: stash, ``Super+Shift+1..0``: move focused Sidecar window back to a workspace
 
 ## Desktop Recovery
 

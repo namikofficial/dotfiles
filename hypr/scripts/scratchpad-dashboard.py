@@ -313,7 +313,7 @@ class ScratchDashboard(Gtk.ApplicationWindow):
         for index, card in enumerate(SIDECAR_CARDS):
             secondary.attach(self.build_card_button(card, "ready"), index + 2, 1, 1, 1)
 
-        footer = Gtk.Label(label="Keys: \\ hub toggle  ` Sidecar send/hide/latest  S scene  A AI  L runner  T shell  B browser  D database  N notes  O Obsidian  M music  Esc close")
+        footer = Gtk.Label(label="Keys: \\ hub toggle  ` Sidecar show/hide  Shift+` send window  S scene  A AI  L runner  T shell  B browser  D database  N notes  O Obsidian  M music  Esc close")
         footer.add_css_class("scratch-footer")
         footer.set_xalign(0)
         shell.append(footer)

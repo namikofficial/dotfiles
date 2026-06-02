@@ -37,8 +37,8 @@ flowchart LR
 | `Super + Alt + \` | AI workspace shell with runtime startup fallback | `scratchpad-manager.sh launch ai` |
 | `Super + Ctrl + \` | Logs scratchpad | `scratchpad-manager.sh launch logs` |
 | `Super + Ctrl + Alt + \` | Database scratchpad | `scratchpad-manager.sh launch db` |
-| ``Super + ` `` | Smart Sidecar send/hide/restore-latest action | `sidepanel.sh smart` |
-| ``Super + Shift + ` `` | Restore most recent Sidecar window | `sidepanel.sh restore` |
+| ``Super + ` `` | Show or hide Sidecar without moving windows | `sidepanel.sh toggle` |
+| ``Super + Shift + ` `` | Move focused window to Sidecar and focus it there | `sidepanel.sh send` |
 | ``Super + Ctrl + ` `` | Stash active window into Sidecar | `sidepanel.sh stash` |
 | ``Super + Alt + ` `` | Toggle Sidecar visibility | `sidepanel.sh toggle` |
 | `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |
