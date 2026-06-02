@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # tmux-projects.sh — open tmux-sessionizer (FZF project picker) in a float
-# Bound to: Super + Shift + grave  (the ` key)
+# Historical helper; the primary work scene now uses Super + Shift + grave.
 set -eu
 
 class_name="noxflow-tmux-projects"

@@ -118,7 +118,7 @@ Ctrl + Alt + F (inside overview) -> Toggle favorite workspace
 Ctrl + Alt + S (inside overview) -> Open this shortcuts panel
 Ctrl + Alt + M (window row) -> Move window to workspace
 Ctrl + Alt + O (window row) -> Move window and follow
-Ctrl + Alt + P (window row) -> Send window to side panel
+Ctrl + Alt + P (window row) -> Send window to Sidecar
 EOF_KEYS
 )"
 
@@ -215,7 +215,7 @@ send_window_to_sidepanel() {
 
   hyprctl dispatch focuswindow "address:$window_addr" >/dev/null 2>&1 || true
   "$HOME/.config/hypr/scripts/sidepanel.sh" send >/dev/null 2>&1 || true
-  notify "Window sent" "Moved to side panel"
+  notify "Window sent" "Moved to Sidecar"
 }
 
 if ! command -v hyprctl >/dev/null 2>&1; then

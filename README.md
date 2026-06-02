@@ -149,11 +149,11 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Ctrl + 1..0` in launcher/actions: quick-select top 10 rows
 - `Enter` in launcher/actions: open/run selected row
 - opener key again (`Super+Space` / `Super+A`): close launcher/actions
-- ``Super + ` ``: open the compact scratch launcher; the terminal scratchpad stays compact by default and uses `lsi` for on-demand inspection when you want a full listing
-- `Super + S`: compact scratchpad dashboard for scene, AI, runner, shell, and side tools; press again to close
-- `Super + Ctrl + S`: toggle the project runner terminal rooted in the focused repo
-- `Super + Alt + S`: toggle the AI workspace shell rooted in the focused repo; it now starts the local runtime first (`local-ai-runtime.sh start` / `ensure-llm`) and only drops to `zsh` after that path fails
-- `Super + Ctrl + Alt + S`: toggle the database scratchpad
+- `Super + \`: open/close the Scratch Hub for AI, runner/logs, DB, notes, Obsidian, terminal, browser DevTools, music, Sidecar actions, and the full scene
+- `Super + Shift + \`: toggle the full work scene: main window + AI + runner/logs
+- `Super + Alt + \`: toggle the AI workspace shell rooted in the focused repo; it starts the local runtime first (`local-ai-runtime.sh start` / `ensure-llm`) and only drops to `zsh` after that path fails
+- `Super + Ctrl + \`: toggle the project runner terminal rooted in the focused repo
+- `Super + Ctrl + Alt + \`: toggle the database scratchpad
 - `Super + B`: open Google Chrome
 - `Super + D`: quick actions (duplicate utility key)
 - `Super + ,`: open Settings Hub
@@ -168,8 +168,10 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + G`: cycle layout state (`dwindle -> master -> monocle`)
 - `Super + Alt + G`: toggle tiling layout (`dwindle` <-> `master`)
 - `Super + Shift + G`: toggle floating for the focused window
-- `Super + \`: toggle side panel special workspace
-- `Super + Shift + \`: move active window to side panel and open it
+- ``Super + ` ``: smart Sidecar action; send a normal focused window, hide Sidecar when a Sidecar window is focused, or restore the latest tracked Sidecar window
+- ``Super + Ctrl + ` ``: stash the focused window in the Sidecar silently
+- ``Super + Shift + ` ``: restore the most recent Sidecar window to the current workspace
+- ``Super + Alt + ` ``: toggle Sidecar visibility without moving windows
 - `Super + arrows`: focus left/right/up/down
 - `Alt + Tab` / `Alt + Shift + Tab`: cycle windows in current workspace
 - `Super + Shift + arrows`: move the tiled window left/right/up/down

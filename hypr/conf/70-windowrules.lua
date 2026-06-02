@@ -137,7 +137,7 @@ rule({
 
 rule({
   name = "scratch-dashboard",
-  match = { title = "^(Spatial Scratchpad)$" },
+  match = { title = "^(Spatial Scratchpad|Scratch Hub)$" },
   float = true,
   center = true,
   rounding = 18,

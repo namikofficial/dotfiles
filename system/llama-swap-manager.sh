@@ -59,18 +59,20 @@ render_config() {
     exit 1
   }
   resolve_bins
-  python - "$TEMPLATE" "$CONFIG_FILE" "$MODEL_ROOT" "$LLAMA_SERVER_BIN" <<'PY'
+  local tmp
+  tmp="$(mktemp "${TMPDIR:-/tmp}/llama-swap-config.XXXXXX.yaml")"
+  python - "$TEMPLATE" "$tmp" "$MODEL_ROOT" "$LLAMA_SERVER_BIN" <<'PY'
 from pathlib import Path
-import datetime
 import os
 import re
-import shutil
 import sys
 
 template = Path(sys.argv[1])
 config = Path(sys.argv[2])
 model_root = Path(sys.argv[3])
 llama_server = sys.argv[4]
+gpu_layers = os.environ.get("LLAMA_N_GPU_LAYERS", "").strip()
+gpu_layers_arg = f"--n-gpu-layers {gpu_layers}" if gpu_layers else ""
 specs = {
     'qwen3-8b': 'Qwen3-8B-Q4_K_M.gguf',
     'qwen-coder-7b': 'qwen2.5-coder-7b-instruct-q4_k_m.gguf',
@@ -89,7 +91,12 @@ def valid_gguf(path: Path) -> bool:
         return False
 
 available = {name for name, filename in specs.items() if valid_gguf(model_root / filename)}
-rendered = template.read_text().replace('__MODEL_ROOT__', str(model_root)).replace('__LLAMA_SERVER__', llama_server)
+rendered = (
+    template.read_text()
+    .replace('__MODEL_ROOT__', str(model_root))
+    .replace('__LLAMA_SERVER__', llama_server)
+    .replace('__GPU_LAYERS_ARG__', gpu_layers_arg)
+)
 lines = rendered.splitlines()
 out = []
 i = 0
@@ -115,28 +122,36 @@ while i < len(lines):
     if name in available:
         out.extend(block)
         out.append('')
-if i < len(lines) and lines[i].strip() == 'groups:':
-    groups = []
-    for line in lines[i + 1:]:
-        match = re.match(r'^  (/[^:]+): \[(.*)\]$', line)
-        if not match:
-            continue
-        members = [item.strip() for item in match.group(2).split(',') if item.strip()]
-        members = [item for item in members if item in available]
-        if members:
-            groups.append(f"  {match.group(1)}: [{', '.join(members)}]")
-    if groups:
-        out.append('groups:')
-        out.extend(groups)
 content = '\n'.join(out).rstrip() + '\n'
-config.parent.mkdir(parents=True, exist_ok=True)
-if config.exists():
-    stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-    shutil.copy2(config, config.with_name(f'{config.name}.bak.{stamp}'))
-tmp = config.with_name(f'{config.name}.new')
-tmp.write_text(content)
-os.replace(tmp, config)
+config.write_text(content)
 PY
+  validate_config "$tmp" || {
+    rm -f "$tmp"
+    exit 1
+  }
+  if [ -f "$CONFIG_FILE" ]; then
+    local stamp
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    cp -p "$CONFIG_FILE" "${CONFIG_FILE}.bak.${stamp}"
+  fi
+  mv "$tmp" "$CONFIG_FILE"
+}
+
+validate_config() {
+  local config="$1"
+  if grep -Eq '^groups:|^[[:space:]]+/[^:]+:[[:space:]]*\[' "$config"; then
+    echo "invalid llama-swap config: legacy groups syntax is not allowed" >&2
+    return 1
+  fi
+  if "$LLAMA_SWAP_BIN" --config "$config" --version >/dev/null 2>&1; then
+    return 0
+  fi
+  if "$LLAMA_SWAP_BIN" -config "$config" -version >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "llama-swap rejected generated config: $config" >&2
+  "$LLAMA_SWAP_BIN" --config "$config" --version >&2 || true
+  return 1
 }
 
 start() {

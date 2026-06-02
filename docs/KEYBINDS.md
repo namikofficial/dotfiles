@@ -32,15 +32,15 @@ flowchart LR
 | `Super + Tab` | Overview toggle (`hyprexpo` if available, Rofi fallback) | `super-tab-overview.sh` |
 | `Super + Shift + Tab` | Fallback overview | `workspace-overview.sh` |
 | `Super + B` | Open browser | `google-chrome-stable` |
-| ``Super + ` `` | Open compact scratch launcher; use `lsi` inside the terminal scratchpad for full listings | `scratchpad-manager.sh toggle scene` |
-| `Super + \` | Toggle side panel special workspace | `sidepanel.sh toggle` |
-| `Super + Shift + \` | Move active window to side panel and open it | `sidepanel.sh send` |
-| `Super + Ctrl + \` | Stash active window into side panel | `sidepanel.sh stash` |
-| `Super + S` | Spatial scratchpad dashboard | `scratchpad-manager.sh menu` |
-| `Super + Ctrl + S` | Logs scratchpad | `scratchpad-manager.sh launch logs` |
-| `Super + Alt + S` | AI workspace shell with runtime startup fallback | `scratchpad-manager.sh launch ai` |
-| `Super + Ctrl + Alt + S` | Database scratchpad | `scratchpad-manager.sh launch db` |
-| `Super + Alt + O` | Obsidian scratchpad/focus | `scratchpad-manager.sh launch obsidian` |
+| `Super + \` | Scratch Hub for AI, runner/logs, DB, notes, tools, Sidecar, and scene | `scratchpad-manager.sh menu` |
+| `Super + Shift + \` | Toggle full work scene | `scratchpad-manager.sh toggle scene` |
+| `Super + Alt + \` | AI workspace shell with runtime startup fallback | `scratchpad-manager.sh launch ai` |
+| `Super + Ctrl + \` | Logs scratchpad | `scratchpad-manager.sh launch logs` |
+| `Super + Ctrl + Alt + \` | Database scratchpad | `scratchpad-manager.sh launch db` |
+| ``Super + ` `` | Smart Sidecar send/hide/restore-latest action | `sidepanel.sh smart` |
+| ``Super + Shift + ` `` | Restore most recent Sidecar window | `sidepanel.sh restore` |
+| ``Super + Ctrl + ` `` | Stash active window into Sidecar | `sidepanel.sh stash` |
+| ``Super + Alt + ` `` | Toggle Sidecar visibility | `sidepanel.sh toggle` |
 | `Super + N` | Toggle notification panel | `notif-center-toggle.sh` |
 | `Super + Alt + N` | Toggle DND | `notif-dnd-toggle.sh` |
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |
@@ -191,7 +191,7 @@ flowchart LR
 | `Ctrl + Alt + S` | Show overview shortcuts panel |
 | `Ctrl + Alt + M` | Move selected window to workspace |
 | `Ctrl + Alt + O` | Move selected window + follow |
-| `Ctrl + Alt + P` | Send selected window to side panel |
+| `Ctrl + Alt + P` | Send selected window to Sidecar |
 
 ## Notification Panel Contents
 

@@ -104,13 +104,13 @@ rag doctor
 
 Keep scratchpads role-specific instead of treating them as interchangeable terminals:
 
-- `Super+S`: dashboard for all roles
-- ``Super+` ``: full spatial scene
-- `Super+Alt+S`: AI role, project-rooted shell for OpenCode/local models
-- `Super+Ctrl+S`: runner/logs role, project-rooted command terminal
-- `Super+Ctrl+Alt+S`: database role
-- `Super+Alt+O`: Obsidian role
-- Browser DevTools role: use the dashboard card
+- `Super+\`: Scratch Hub for all roles, Sidecar actions, and the full scene
+- `Super+Shift+\`: full work scene with main window, AI, and runner/logs
+- `Super+Alt+\`: AI role, project-rooted shell for OpenCode/local models
+- `Super+Ctrl+\`: runner/logs role, project-rooted command terminal
+- `Super+Ctrl+Alt+\`: database role
+- Obsidian and Browser DevTools roles: use the hub cards
+- ``Super+` ``: smart Sidecar send/hide/restore-latest, ``Super+Ctrl+` ``: stash, ``Super+Shift+` ``: restore latest, ``Super+Alt+` ``: show/hide
 
 ## Desktop Recovery
 

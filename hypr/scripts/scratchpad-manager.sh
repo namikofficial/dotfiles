@@ -313,6 +313,15 @@ show_dashboard() {
     fi
     rm -f "$dashboard_pidfile"
   fi
+  dashboard_address="$(hyprctl -j clients 2>/dev/null | jq -r '
+    .[]
+    | select((.title // "") == "Scratch Hub" or (.title // "") == "Spatial Scratchpad" or (.initialTitle // "") == "Scratch Hub")
+    | .address
+  ' | head -n1)"
+  if [ -n "$dashboard_address" ]; then
+    close_window "$dashboard_address" >/dev/null 2>&1 || true
+    return 0
+  fi
   [ -x "$dashboard_script" ] || return 0
   NOXFLOW_SCRATCH_RUNTIME="$state_dir" "$dashboard_script" >>"$dashboard_log" 2>&1 &
   return 0
@@ -434,6 +443,7 @@ normal_workspace_window_json() {
       | select((.workspace.id // 0) == $workspace)
       | select(((.class // "") | test("^noxflow-scratch"; "i") | not))
       | select((.title // "") != "Spatial Scratchpad")
+      | select((.title // "") != "Scratch Hub")
     ]
     | sort_by(.focusHistoryID // 999999)
     | .[0] // {}
@@ -461,7 +471,7 @@ except Exception:
 def is_scratch(client):
     cls = str(client.get("class", ""))
     title = str(client.get("title", ""))
-    return cls.lower().startswith("noxflow-scratch") or title == "Spatial Scratchpad"
+    return cls.lower().startswith("noxflow-scratch") or title in {"Spatial Scratchpad", "Scratch Hub"}
 
 if active.get("pid") and not is_scratch(active) and int(active.get("workspace", {}).get("id", 0) or 0) == workspace:
     print(json.dumps(active))
@@ -573,7 +583,7 @@ except Exception:
 def is_scratch(client):
     cls = str(client.get("class", ""))
     title = str(client.get("title", ""))
-    return cls.lower().startswith("noxflow-scratch") or title == "Spatial Scratchpad"
+    return cls.lower().startswith("noxflow-scratch") or title in {"Spatial Scratchpad", "Scratch Hub"}
 
 target = active
 if is_scratch(active) or int(active.get("workspace", {}).get("id", 0) or 0) != workspace:

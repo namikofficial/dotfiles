@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scratch-launchpad.sh — Super+Alt+` launcher pad
+# scratch-launchpad.sh — auxiliary scratch hub launcher
 # Opens tools as floating kitty windows (large or small) or delegates
 # to existing scripts.  Think: Windows Game Bar, but useful.
 set -euo pipefail
@@ -47,6 +47,8 @@ entries() {
     "󰍹  notes scratchpad     Notes and clipboard"      "scratch-notes" \
     "󰇬  db scratchpad        SQL console"              "scratch-db" \
     "󰠩  browser devtools     Chrome/Chromium devtools" "scratch-browser" \
+    "󰓫  sidecar              Window shelf actions"     "sidecar" \
+    "󰁯  restore sidecar      Pull shelf windows here"  "sidecar-restore" \
     "󰍛  btop                System monitor"           "btop"       \
     "󰚩  lazygit             Visual git client"        "lazygit"    \
     "󰆩  qalc                Calculator"               "qalc"       \
@@ -72,7 +74,7 @@ action="$(entries | rofi \
 
 # Map index → action key
 mapfile -t keys < <(printf '%s\n' \
-  scratch-terminal scratch-ai scratch-notes scratch-db scratch-browser btop lazygit qalc clipboard logs fastfetch python json hash inspect)
+  scratch-terminal scratch-ai scratch-notes scratch-db scratch-browser sidecar sidecar-restore btop lazygit qalc clipboard logs fastfetch python json hash inspect)
 
 key="${keys[$action]:-}"
 
@@ -115,6 +117,14 @@ case "$key" in
 
   scratch-browser)
     "$HOME/.config/hypr/scripts/scratchpad-manager.sh" browser-devtools
+    ;;
+
+  sidecar)
+    "$HOME/.config/hypr/scripts/sidepanel.sh" toggle
+    ;;
+
+  sidecar-restore)
+    "$HOME/.config/hypr/scripts/sidepanel.sh" restore-all
     ;;
 
   btop)
