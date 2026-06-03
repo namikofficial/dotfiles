@@ -56,3 +56,5 @@
 	commitGraph = true
 [pack]
 	threads = 0
+[init]
+	defaultBranch = main

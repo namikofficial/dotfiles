@@ -381,12 +381,14 @@ alias kage="$HOME/.config/hypr/scripts/kage"
 
 find_codex_bin_dir() {
   emulate -L zsh
-  typeset -a latest_node_dirs
-  latest_node_dirs=("$NVM_DIR"/versions/node/*(N/om[1]))
-  if [ -n "${latest_node_dirs[1]}" ] && [ -x "${latest_node_dirs[1]}/bin/codex" ]; then
-    print -r -- "${latest_node_dirs[1]}/bin"
+  typeset -a node_dirs
+  node_dirs=("$NVM_DIR"/versions/node/*(/Nom))
+  local dir
+  for dir in "${node_dirs[@]}"; do
+    [ -x "$dir/bin/codex" ] || continue
+    print -r -- "$dir/bin"
     return 0
-  fi
+  done
   for codex_bin in "$HOME"/.vscode/extensions/openai.chatgpt-*-linux-x64/bin/linux-x86_64/codex(N); do
     [ -x "$codex_bin" ] || continue
     print -r -- "${codex_bin:h}"

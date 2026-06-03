@@ -69,7 +69,7 @@
     },
     "rag": {
       "type": "local",
-      "command": ["rag-mcp"],
+      "command": ["/home/namik/Documents/code/dotfiles/system/rag-mcp.sh"],
       "enabled": true,
       "timeout": 8000
     }
