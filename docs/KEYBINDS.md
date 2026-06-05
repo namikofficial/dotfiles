@@ -135,6 +135,9 @@ flowchart LR
 |---|---|
 | `Ctrl + R` | Atuin history picker |
 | `Alt + C` | Fuzzy zoxide jump |
+| `Alt + Left` / `Alt + Right` | Move by word in Kitty/zsh |
+| `Ctrl + Left` / `Ctrl + Right` | Move by word in Kitty/zsh |
+| `Alt + Backspace` | Delete previous word in Kitty/zsh |
 | `Esc` | Enter `zsh-vi-mode` normal mode |
 
 ## Tmux Keymaps
@@ -168,6 +171,9 @@ flowchart LR
 | `Ctrl + Shift + Enter` | New terminal window (same cwd) |
 | `Ctrl + Shift + O` / `Ctrl + Shift + E` | Split horizontal / vertical |
 | `Ctrl + Shift + H/J/K/L` | Focus left/down/up/right split |
+| `Alt + Left` / `Alt + Right` | Backward/forward word movement in terminal input |
+| `Ctrl + Left` / `Ctrl + Right` | Backward/forward word movement in terminal input |
+| `Alt + Backspace` | Delete previous word in terminal input |
 | `Ctrl + Shift + Alt + H/J/K/L` | Resize split (narrow/short/tall/wide) |
 | `Ctrl + Shift + F5` | Reload kitty config |
 | `Super + Ctrl + Shift + Y` | Reload theme, Kitty, Hyprland, panel, and caches |

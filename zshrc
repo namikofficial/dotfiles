@@ -620,6 +620,26 @@ bindkey '^[[Z' reverse-menu-complete
 bindkey -M emacs '^[[Z' reverse-menu-complete 2>/dev/null || true
 bindkey -M viins '^[[Z' reverse-menu-complete 2>/dev/null || true
 
+# Make Kitty-style word-motion keys behave consistently in both emacs and vi insert mode.
+bindkey '^[b' backward-word
+bindkey '^[f' forward-word
+bindkey '^[[1;5D' backward-word
+bindkey '^[[1;5C' forward-word
+bindkey '^[^?' backward-kill-word
+bindkey '^[\b' backward-kill-word
+bindkey -M emacs '^[b' backward-word 2>/dev/null || true
+bindkey -M emacs '^[f' forward-word 2>/dev/null || true
+bindkey -M emacs '^[[1;5D' backward-word 2>/dev/null || true
+bindkey -M emacs '^[[1;5C' forward-word 2>/dev/null || true
+bindkey -M emacs '^[^?' backward-kill-word 2>/dev/null || true
+bindkey -M emacs '^[\b' backward-kill-word 2>/dev/null || true
+bindkey -M viins '^[b' backward-word 2>/dev/null || true
+bindkey -M viins '^[f' forward-word 2>/dev/null || true
+bindkey -M viins '^[[1;5D' backward-word 2>/dev/null || true
+bindkey -M viins '^[[1;5C' forward-word 2>/dev/null || true
+bindkey -M viins '^[^?' backward-kill-word 2>/dev/null || true
+bindkey -M viins '^[\b' backward-kill-word 2>/dev/null || true
+
 # Completion menu navigation keys (when menu selection is active).
 bindkey -M menuselect '^[[A' up-line-or-history 2>/dev/null || true
 bindkey -M menuselect '^[[B' down-line-or-history 2>/dev/null || true
@@ -870,3 +890,7 @@ fi
 alias llama-gemma="llama-start gemma"
 alias llama-code="llama-start code"
 alias llama-status="curl -s http://127.0.0.1:8000/v1/models | jq '.data[0].id' 2>/dev/null || echo 'Server not running'"
+
+
+# Added by Antigravity CLI installer
+export PATH="/home/namik/.local/bin:$PATH"
