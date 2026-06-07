@@ -8,7 +8,7 @@
         "baseURL": "http://127.0.0.1:8080/v1",
         "apiKey": "local"
       },
-"models": {
+      "models": {
          "local": {
            "name": "local",
            "tools": true
@@ -34,6 +34,46 @@
            "tools": true
          }
        }
+    },
+    "minmax": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "MinMax",
+      "options": {
+        "baseURL": "https://api.minimax.io/v1",
+        "apiKey": "{file:~/.config/opencode/keys/minmax.key}"
+      },
+      "models": {
+        "MiniMax-M2.7": {
+          "name": "MiniMax-M2.7",
+          "tools": true
+        },
+        "MiniMax-M2.7-highspeed": {
+          "name": "MiniMax-M2.7-highspeed",
+          "tools": true
+        },
+        "MiniMax-M3": {
+          "name": "MiniMax-M3",
+          "tools": true
+        }
+      }
+    },
+    "cerebras": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Cerebras",
+      "options": {
+        "baseURL": "https://api.cerebras.ai/v1",
+        "apiKey": "{file:~/.config/opencode/keys/cerebras.key}"
+      },
+      "models": {
+        "gpt-oss-120b": {
+          "name": "gpt-oss-120b",
+          "tools": true
+        },
+        "zai-glm-4.7": {
+          "name": "zai-glm-4.7",
+          "tools": true
+        }
+      }
     }
   },
   "mcp": {
@@ -79,6 +119,20 @@
       "/home/namik/Documents/code/dotfiles/configs/opencode/skills",
       "/home/namik/.codex/skills"
     ]
+  },
+  "agent": {
+    "minmax-subagent": {
+      "description": "MinMax-backed coding subagent for implementation-heavy tasks.",
+      "mode": "subagent",
+      "model": "minmax/MiniMax-M2.7",
+      "prompt": "You are a focused coding subagent. Inspect first, make the smallest correct change, run the most relevant checks you can, and report concrete results only."
+    },
+    "cerebras-backup-subagent": {
+      "description": "Cerebras-backed fallback subagent for narrow coding or search tasks.",
+      "mode": "subagent",
+      "model": "cerebras/gpt-oss-120b",
+      "prompt": "You are a fallback coding subagent. Stay narrow, avoid speculative rewrites, and return concise evidence-backed results."
+    }
   },
   "model": "llamacpp/qwen-coder-7b",
   "small_model": "llamacpp/gemma-3-4b"
