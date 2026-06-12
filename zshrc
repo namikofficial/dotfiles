@@ -7,9 +7,17 @@ autoload -Uz colors && colors
 zmodload zsh/datetime
 
 # Centralize repo locations so we can source shared configs from here.
-if [[ -z "${DOTFILES_HOME:-}" ]]; then
-  zshrc_source="${(%):-%N}"
-  DOTFILES_HOME="${zshrc_source:A:h}"
+zshrc_source="${(%):-%N}"
+if command -v readlink >/dev/null 2>&1; then
+  zshrc_source="$(readlink -f -- "$zshrc_source" 2>/dev/null || print -r -- "${zshrc_source:A}")"
+else
+  zshrc_source="${zshrc_source:A}"
+fi
+zshrc_dir="${zshrc_source:h}"
+if [[ -f "$zshrc_dir/aliases.zsh" ]]; then
+  DOTFILES_HOME="$zshrc_dir"
+elif [[ -z "${DOTFILES_HOME:-}" ]]; then
+  DOTFILES_HOME="${zshrc_source:h}"
 fi
 
 if [[ -z "${SCRIPTS_HOME:-}" ]]; then
@@ -28,7 +36,7 @@ fi
 SCRIPTS_HOME="${SCRIPTS_HOME:-$DOTFILES_HOME/private/scripts}"
 SCRIPTS_BIN="${SCRIPTS_BIN:-$SCRIPTS_HOME/bin}"
 export DOTFILES_HOME SCRIPTS_HOME SCRIPTS_BIN
-unset zshrc_source scripts_candidate
+unset zshrc_source zshrc_dir scripts_candidate
 
 # Optional startup profiler.
 if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
@@ -878,7 +886,7 @@ fix-time() {
 # Starship prompt (should be last)
 eval "$(starship init zsh)"
 
-kitty_dashboard_maybe_show
+(( ${+functions[kitty_dashboard_maybe_show]} )) && kitty_dashboard_maybe_show
 
 if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
   startup_elapsed_ms=$(( (EPOCHREALTIME - __ZSH_STARTUP_BEGIN_MS) * 1000 ))
@@ -894,3 +902,6 @@ alias llama-status="curl -s http://127.0.0.1:8000/v1/models | jq '.data[0].id' 2
 
 # Added by Antigravity CLI installer
 export PATH="/home/namik/.local/bin:$PATH"
+
+# OpenClaw completion
+[ -f "$HOME/.openclaw/completions/openclaw.zsh" ] && source "$HOME/.openclaw/completions/openclaw.zsh"
