@@ -9,31 +9,27 @@
         "apiKey": "local"
       },
       "models": {
-         "local": {
-           "name": "local",
-           "tools": true
-         },
-         "qwen3-8b": {
-           "name": "qwen3-8b",
-           "tools": true
-         },
-         "qwen-coder-7b": {
-           "name": "qwen-coder-7b",
-           "tools": true
-         },
-         "gemma-3-4b": {
-           "name": "gemma-3-4b",
-           "tools": true
-         },
-         "deepseek-r1-7b": {
-           "name": "deepseek-r1-7b",
-           "tools": false
-         },
-         "phi-4-mini": {
-           "name": "phi-4-mini",
-           "tools": true
-         }
-       }
+        "qwen3-4b": {
+          "name": "qwen3-4b",
+          "tools": true
+        },
+        "qwen3-8b": {
+          "name": "qwen3-8b",
+          "tools": true
+        },
+        "qwen-coder-7b": {
+          "name": "qwen-coder-7b",
+          "tools": true
+        },
+        "gemma-3-4b": {
+          "name": "gemma-3-4b",
+          "tools": true
+        },
+        "phi-4-mini": {
+          "name": "phi-4-mini",
+          "tools": true
+        }
+      }
     },
     "minmax": {
       "npm": "@ai-sdk/openai-compatible",
@@ -98,7 +94,7 @@
         "OBSIDIAN_VERIFY_SSL": "{env:OBSIDIAN_VERIFY_SSL}",
         "OBSIDIAN_ENABLE_CACHE": "{env:OBSIDIAN_ENABLE_CACHE}"
       },
-      "enabled": false,
+      "enabled": true,
       "timeout": 10000
     },
     "context7": {
@@ -114,6 +110,28 @@
       "timeout": 8000
     }
   },
+  "lsp": {
+    "typescript": {
+      "command": ["typescript-language-server", "--stdio"],
+      "extensions": [".ts", ".tsx", ".mts", ".cts"]
+    },
+    "rust": {
+      "command": ["rust-analyzer"],
+      "extensions": [".rs"]
+    },
+    "python": {
+      "command": ["pyright-langserver", "--stdio"],
+      "extensions": [".py"]
+    },
+    "lua": {
+      "command": ["lua-language-server"],
+      "extensions": [".lua"]
+    },
+    "bash": {
+      "command": ["bash-language-server", "start"],
+      "extensions": [".sh", ".bash", ".zsh"]
+    }
+  },
   "skills": {
     "paths": [
       "/home/namik/Documents/code/dotfiles/configs/opencode/skills",
@@ -121,19 +139,102 @@
     ]
   },
   "agent": {
+    "build": {
+      "model": "llamacpp/qwen3-8b",
+      "temperature": 0.1,
+      "topP": 0.95,
+      "prompt": "{file:~/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md}\n\nYou also have:\n- Local RAG via MCP (rag server, context7 for lib docs)\n- 15 skills in ~/Documents/code/dotfiles/configs/opencode/skills/\n- Multi-provider routing: prefer local (llamacpp); cloud (cerebras, minimax) for higher-stakes work\n- 4 specialist subagents you can delegate to (reviewer, test-writer, docs, debug)\n\nRules:\n- Cite file paths in every answer\n- Run checks before reporting done\n- Minimum diff; no scope creep\n- If unsure, ask or run a small experiment\n- For commit messages: always use conventional commit format with detailed body explaining the WHY"
+    },
+    "plan": {
+      "model": "llamacpp/qwen3-8b",
+      "temperature": 0.3,
+      "topP": 0.95
+    },
+    "reviewer-subagent": {
+      "description": "Read-only code review. Returns structured findings (correctness, scope, tests, risks). Never edits files.",
+      "mode": "subagent",
+      "model": "minmax/MiniMax-M3",
+      "temperature": 0.0,
+      "topP": 1.0,
+      "prompt": "You are a read-only code reviewer. Inspect the diff. Output JSON: { summary, risks[], missing_tests[], scope_creep, suggested_fixes[] }. Do not edit files. Do not run commands that change state."
+    },
+    "test-writer-subagent": {
+      "description": "Adds tests for changed code. Matches existing test style. No scope creep into production code.",
+      "mode": "subagent",
+      "model": "llamacpp/qwen3-8b",
+      "temperature": 0.1,
+      "topP": 0.95,
+      "prompt": "Add or update tests for the changed code. Match existing test style. Do not modify production code. Run the test suite and report pass/fail."
+    },
+    "docs-subagent": {
+      "description": "Updates README, JSDoc, and code comments for the change. Verifies each line against current source.",
+      "mode": "subagent",
+      "model": "llamacpp/qwen3-4b",
+      "temperature": 0.1,
+      "topP": 0.95,
+      "prompt": "Update README, JSDoc, and code comments for the change. Verify each line against the current source — never invent APIs."
+    },
+    "debug-subagent": {
+      "description": "Reproduces a bug, isolates the cause, returns a hypothesis + minimal repro.",
+      "mode": "subagent",
+      "model": "llamacpp/qwen3-8b",
+      "temperature": 0.2,
+      "topP": 0.95,
+      "prompt": "Reproduce the bug, isolate the cause, return { hypothesis, repro, affected_files[], minimal_fix }. No fixes — just diagnosis."
+    },
     "minmax-subagent": {
       "description": "MinMax-backed coding subagent for implementation-heavy tasks.",
       "mode": "subagent",
       "model": "minmax/MiniMax-M2.7",
+      "temperature": 0.1,
+      "topP": 0.95,
       "prompt": "You are a focused coding subagent. Inspect first, make the smallest correct change, run the most relevant checks you can, and report concrete results only."
     },
     "cerebras-backup-subagent": {
       "description": "Cerebras-backed fallback subagent for narrow coding or search tasks.",
       "mode": "subagent",
       "model": "cerebras/gpt-oss-120b",
+      "temperature": 0.1,
+      "topP": 0.95,
       "prompt": "You are a fallback coding subagent. Stay narrow, avoid speculative rewrites, and return concise evidence-backed results."
     }
   },
-  "model": "llamacpp/qwen-coder-7b",
-  "small_model": "llamacpp/gemma-3-4b"
+  "permission": {
+    "edit": "allow",
+    "read": "allow",
+    "bash": {
+      "ls": "allow",
+      "cat": "allow",
+      "head": "allow",
+      "tail": "allow",
+      "rg": "allow",
+      "fd": "allow",
+      "git status": "allow",
+      "git diff": "allow",
+      "git log": "allow",
+      "git show": "allow",
+      "git add": "ask",
+      "git commit": "ask",
+      "git push": "ask",
+      "pnpm typecheck": "allow",
+      "pnpm test": "allow",
+      "pnpm lint": "allow",
+      "pnpm format": "allow",
+      "pnpm check": "allow",
+      "biome check": "allow",
+      "biome format": "allow",
+      "biome lint": "allow",
+      "cargo build": "allow",
+      "cargo test": "allow",
+      "cargo check": "allow",
+      "cargo clippy": "allow",
+      "rustc": "allow",
+      "go build": "allow",
+      "go test": "allow",
+      "go vet": "allow",
+      "default": "ask"
+    }
+  },
+  "model": "llamacpp/qwen3-8b",
+  "small_model": "llamacpp/qwen3-4b"
 }
