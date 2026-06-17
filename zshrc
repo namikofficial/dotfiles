@@ -48,6 +48,7 @@ fi
 setopt autocd interactive_comments noclobber no_beep
 setopt hist_ignore_all_dups hist_ignore_space hist_reduce_blanks hist_save_no_dups
 setopt share_history append_history inc_append_history extended_history hist_fcntl_lock
+setopt always_last_prompt
 # Keep unmatched globs explicit to avoid accidental wildcard typos.
 setopt nomatch
 bindkey -e
@@ -112,10 +113,9 @@ zstyle ':completion:*' auto-description 'specify: %d'
 zstyle ':completion:*' completer _expand _complete _correct _approximate
 zstyle ':completion:*' format 'Completing %d'
 zstyle ':completion:*' group-name ''
-zstyle ':completion:*' list-prompt '%SAt %p: hit TAB for more%s'
 zstyle ':completion:*' list-lines 24
 zstyle ':completion:*' matcher-list '' 'm:{a-z}={A-Z}' 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=* l:|=*'
-zstyle ':completion:*' menu select=long
+zstyle ':completion:*' menu no-select
 zstyle ':completion:*' select-prompt '%SScrolling active: current selection at %p%s'
 zstyle ':completion:*' use-compctl false
 zstyle ':completion:*' verbose true
