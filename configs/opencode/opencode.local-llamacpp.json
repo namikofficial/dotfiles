@@ -17,6 +17,10 @@
           "name": "qwen3-8b",
           "tools": true
         },
+        "qwen3-router": {
+          "name": "qwen3-router",
+          "tools": true
+        },
         "qwen-coder-7b": {
           "name": "qwen-coder-7b",
           "tools": true
@@ -70,6 +74,36 @@
           "tools": true
         }
       }
+    },
+    "opencode": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "OpenCode Zen",
+      "options": {
+        "baseURL": "https://opencode.ai/zen/v1",
+        "apiKey": "{env:OPENCODE_API_KEY}"
+      },
+      "models": {
+        "big-pickle": {
+          "name": "big-pickle",
+          "tools": true
+        },
+        "deepseek-v4-flash-free": {
+          "name": "deepseek-v4-flash-free",
+          "tools": true
+        },
+        "mimo-v2.5-free": {
+          "name": "mimo-v2.5-free",
+          "tools": true
+        },
+        "nemotron-3-ultra-free": {
+          "name": "nemotron-3-ultra-free",
+          "tools": true
+        },
+        "north-mini-code-free": {
+          "name": "north-mini-code-free",
+          "tools": true
+        }
+      }
     }
   },
   "mcp": {
@@ -77,37 +111,32 @@
       "type": "local",
       "command": ["npx", "-y", "chrome-devtools-mcp"],
       "enabled": true,
-      "timeout": 8000
+      "timeout": 20000
     },
     "browser": {
       "type": "local",
       "command": ["npx", "-y", "@browsermcp/mcp"],
       "enabled": true,
-      "timeout": 8000
+      "timeout": 20000
     },
     "obsidian": {
       "type": "local",
-      "command": ["npx", "obsidian-mcp-server"],
+      "command": ["bash", "/home/namik/Documents/code/dotfiles/configs/opencode/obsidian-mcp.sh"],
       "environment": {
         "OBSIDIAN_API_KEY": "{env:OBSIDIAN_API_KEY}",
         "OBSIDIAN_BASE_URL": "{env:OBSIDIAN_BASE_URL}",
+        "OBSIDIAN_ENABLE_CACHE": "{env:OBSIDIAN_ENABLE_CACHE}",
         "OBSIDIAN_VERIFY_SSL": "{env:OBSIDIAN_VERIFY_SSL}",
-        "OBSIDIAN_ENABLE_CACHE": "{env:OBSIDIAN_ENABLE_CACHE}"
+        "NODE_EXTRA_CA_CERTS": "{env:NODE_EXTRA_CA_CERTS}"
       },
       "enabled": true,
-      "timeout": 10000
-    },
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
-      "enabled": true,
-      "timeout": 10000
+      "timeout": 60000
     },
     "rag": {
       "type": "local",
       "command": ["/home/namik/Documents/code/dotfiles/system/rag-mcp.sh"],
       "enabled": true,
-      "timeout": 8000
+      "timeout": 15000
     }
   },
   "lsp": {
@@ -138,48 +167,111 @@
       "/home/namik/.codex/skills"
     ]
   },
+  "plugin": [
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/inject-local-ai-env.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/session-log.js"
+  ],
+  "tool_output": {
+    "max_lines": 600,
+    "max_bytes": 65536
+  },
   "agent": {
     "build": {
-      "model": "llamacpp/qwen3-8b",
+      "model": "llamacpp/qwen3-router",
       "temperature": 0.1,
-      "topP": 0.95,
-      "prompt": "{file:~/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md}\n\nYou also have:\n- Local RAG via MCP (rag server, context7 for lib docs)\n- 15 skills in ~/Documents/code/dotfiles/configs/opencode/skills/\n- Multi-provider routing: prefer local (llamacpp); cloud (cerebras, minimax) for higher-stakes work\n- 4 specialist subagents you can delegate to (reviewer, test-writer, docs, debug)\n\nRules:\n- Cite file paths in every answer\n- Run checks before reporting done\n- Minimum diff; no scope creep\n- If unsure, ask or run a small experiment\n- For commit messages: always use conventional commit format with detailed body explaining the WHY"
+      "top_p": 0.95,
+      "prompt": "{file:~/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md}\n\n{file:~/Documents/code/dotfiles/configs/opencode/prompts/build.md}"
     },
     "plan": {
-      "model": "llamacpp/qwen3-8b",
+      "model": "llamacpp/qwen3-router",
       "temperature": 0.3,
-      "topP": 0.95
+      "top_p": 0.95
+    },
+    "title": {
+      "model": "opencode/big-pickle",
+      "temperature": 0.1,
+      "top_p": 0.9,
+      "prompt": "{file:~/Documents/code/dotfiles/configs/opencode/prompts/title.md}"
+    },
+    "zen-general-mimo": {
+      "description": "Free Zen general-purpose helper for broad context, attachments, and second opinions.",
+      "mode": "subagent",
+      "model": "opencode/mimo-v2.5-free",
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "prompt": "You are a free general-purpose OpenCode Zen subagent. Help with broad context, attached files, screenshots, and second opinions. Stay scoped to the assigned task. Inspect before concluding. Prefer concise findings, exact file paths, and concrete next actions. Do not make unrelated edits."
+    },
+    "zen-general-big-pickle": {
+      "description": "Free Zen general fallback for cheap brainstorming, sanity checks, and simple implementation advice.",
+      "mode": "subagent",
+      "model": "opencode/big-pickle",
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "prompt": "You are a free general-purpose OpenCode Zen fallback subagent. Use cheap reasoning for task breakdowns, sanity checks, and simple implementation advice. Keep output short, practical, and evidence-backed. Ask for missing critical context only if the assignment cannot be answered from the provided files."
+    },
+    "zen-code-reviewer": {
+      "description": "Free Zen read-only review for small diffs and implementation risks.",
+      "mode": "subagent",
+      "model": "opencode/north-mini-code-free",
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "prompt": "You are a read-only code reviewer. Review only the assigned diff or files. Return findings first, ordered by severity, with file paths and exact risks. Include missing tests and scope creep. Do not edit files."
+    },
+    "zen-deep-reviewer": {
+      "description": "Free Zen deeper review/debug helper for complex failures.",
+      "mode": "subagent",
+      "model": "opencode/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You are a deeper reasoning review and debug subagent. Trace the likely failure path, separate evidence from hypotheses, and return the smallest useful next experiment. Stay read-only unless explicitly assigned implementation."
+    },
+    "zen-long-context": {
+      "description": "Free Zen long-context synthesis for large repos, logs, and handoffs.",
+      "mode": "subagent",
+      "model": "opencode/nemotron-3-ultra-free",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You synthesize large context into an actionable engineering brief. Preserve exact file paths, commands, errors, and decisions. Remove noise. End with the next 3-7 concrete actions."
+    },
+    "zen-vision-context": {
+      "description": "Free Zen multimodal/context helper for screenshots, attachments, and UI evidence.",
+      "mode": "subagent",
+      "model": "opencode/mimo-v2.5-free",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You analyze screenshots, attachments, and UI/context evidence. Describe observable problems, likely source files, and verification steps. Do not speculate beyond the evidence without labeling it as a hypothesis."
     },
     "reviewer-subagent": {
       "description": "Read-only code review. Returns structured findings (correctness, scope, tests, risks). Never edits files.",
       "mode": "subagent",
       "model": "minmax/MiniMax-M3",
       "temperature": 0.0,
-      "topP": 1.0,
+      "top_p": 1.0,
       "prompt": "You are a read-only code reviewer. Inspect the diff. Output JSON: { summary, risks[], missing_tests[], scope_creep, suggested_fixes[] }. Do not edit files. Do not run commands that change state."
     },
     "test-writer-subagent": {
       "description": "Adds tests for changed code. Matches existing test style. No scope creep into production code.",
       "mode": "subagent",
-      "model": "llamacpp/qwen3-8b",
+      "model": "llamacpp/qwen3-router",
       "temperature": 0.1,
-      "topP": 0.95,
+      "top_p": 0.95,
       "prompt": "Add or update tests for the changed code. Match existing test style. Do not modify production code. Run the test suite and report pass/fail."
     },
     "docs-subagent": {
       "description": "Updates README, JSDoc, and code comments for the change. Verifies each line against current source.",
       "mode": "subagent",
-      "model": "llamacpp/qwen3-4b",
+      "model": "llamacpp/qwen3-router",
       "temperature": 0.1,
-      "topP": 0.95,
+      "top_p": 0.95,
       "prompt": "Update README, JSDoc, and code comments for the change. Verify each line against the current source — never invent APIs."
     },
     "debug-subagent": {
       "description": "Reproduces a bug, isolates the cause, returns a hypothesis + minimal repro.",
       "mode": "subagent",
-      "model": "llamacpp/qwen3-8b",
+      "model": "llamacpp/qwen3-router",
       "temperature": 0.2,
-      "topP": 0.95,
+      "top_p": 0.95,
       "prompt": "Reproduce the bug, isolate the cause, return { hypothesis, repro, affected_files[], minimal_fix }. No fixes — just diagnosis."
     },
     "minmax-subagent": {
@@ -187,7 +279,7 @@
       "mode": "subagent",
       "model": "minmax/MiniMax-M2.7",
       "temperature": 0.1,
-      "topP": 0.95,
+      "top_p": 0.95,
       "prompt": "You are a focused coding subagent. Inspect first, make the smallest correct change, run the most relevant checks you can, and report concrete results only."
     },
     "cerebras-backup-subagent": {
@@ -195,7 +287,7 @@
       "mode": "subagent",
       "model": "cerebras/gpt-oss-120b",
       "temperature": 0.1,
-      "topP": 0.95,
+      "top_p": 0.95,
       "prompt": "You are a fallback coding subagent. Stay narrow, avoid speculative rewrites, and return concise evidence-backed results."
     }
   },
@@ -235,6 +327,6 @@
       "default": "ask"
     }
   },
-  "model": "llamacpp/qwen3-8b",
-  "small_model": "llamacpp/qwen3-4b"
+  "model": "llamacpp/qwen3-router",
+  "small_model": "llamacpp/qwen3-router"
 }

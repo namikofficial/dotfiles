@@ -49,6 +49,9 @@ setopt autocd interactive_comments noclobber no_beep
 setopt hist_ignore_all_dups hist_ignore_space hist_reduce_blanks hist_save_no_dups
 setopt share_history append_history inc_append_history extended_history hist_fcntl_lock
 setopt always_last_prompt
+# Disable classic "do you wish to see all ... possibilities" prompts.
+# Ambiguous completion should defer to the configured completion UI instead.
+unsetopt autolist
 # Keep unmatched globs explicit to avoid accidental wildcard typos.
 setopt nomatch
 bindkey -e
@@ -76,8 +79,8 @@ fi
 mkdir -p "$HOME/.cache/zsh"
 
 # Completion list behavior:
-# - LISTMAX is the number of matches to list without asking first.
-# - Use a very high threshold so completion candidates list immediately in normal use.
+# - Keep a high LISTMAX for direct listing widgets.
+# - The classic AUTO_LIST prompt is disabled above so TAB never asks for confirmation.
 LISTMAX=999999
 
 # zsh-completions (must be in fpath before compinit)

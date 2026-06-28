@@ -41,8 +41,6 @@
 	gpgSign = true
 [gpg "ssh"]
 	allowedSignersFile = /home/namik/.config/git/allowed_signers
-[url "git@github.com:"]
-	insteadOf = https://github.com/
 [pull]
 	rebase = true
 [rebase]
@@ -58,3 +56,5 @@
 	threads = 0
 [init]
 	defaultBranch = main
+[url "git@github.com:"]
+	insteadOf = https://github.com/
