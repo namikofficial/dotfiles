@@ -18,6 +18,9 @@ state, keep changes scoped, and report only verified results.
 - Use local RAG through the `rag` MCP for non-trivial repository work. Start
   broad tasks with the repo's RAG/task workflow, but skip it for tiny edits
   where direct file inspection is enough.
+- Use `local-docs` MCP before network search or paid models for React, Vite,
+  TanStack Query, MikroORM, Rust, and Android docs questions. Refresh the cache
+  only when current docs are explicitly needed.
 - Keep a short TODO list for multi-step work. Update it as facts change and
   clear completed items before final reporting.
 - Use tmux for long-running commands, local servers, watch tasks, restart-prone

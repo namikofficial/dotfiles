@@ -1,0 +1,49 @@
+{
+  "cache_dir": "~/.cache/local-docs",
+  "sources": [
+    {
+      "id": "react",
+      "name": "React",
+      "url": "https://react.dev/llms.txt",
+      "follow_links": true,
+      "max_links": 35,
+      "include_patterns": ["/learn/", "/reference/react/"]
+    },
+    {
+      "id": "vite",
+      "name": "Vite",
+      "url": "https://vite.dev/llms-full.txt",
+      "follow_links": false
+    },
+    {
+      "id": "tanstack-query",
+      "name": "TanStack Query",
+      "url": "https://tanstack.com/query/latest/llms.txt",
+      "follow_links": true,
+      "max_links": 45,
+      "include_patterns": ["/query/latest/docs/framework/react/", "/query/latest/docs/framework/react-native/"]
+    },
+    {
+      "id": "mikro-orm",
+      "name": "MikroORM",
+      "url": "https://mikro-orm.io/docs/quick-start",
+      "follow_links": true,
+      "max_links": 35,
+      "include_patterns": ["/docs/"]
+    },
+    {
+      "id": "rust-book",
+      "name": "Rust Book",
+      "url": "https://doc.rust-lang.org/book/print.html",
+      "follow_links": false
+    },
+    {
+      "id": "android",
+      "name": "Android Developers",
+      "url": "https://developer.android.com/develop",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/develop/"]
+    }
+  ]
+}

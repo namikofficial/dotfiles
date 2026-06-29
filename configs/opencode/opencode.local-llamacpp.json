@@ -138,6 +138,12 @@
       "command": ["/home/namik/Documents/code/dotfiles/system/rag-mcp.sh"],
       "enabled": true,
       "timeout": 15000
+    },
+    "local-docs": {
+      "type": "local",
+      "command": ["/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"],
+      "enabled": true,
+      "timeout": 15000
     }
   },
   "lsp": {
@@ -360,6 +366,7 @@
       "go test": "allow",
       "go vet": "allow",
       "opencode-health": "allow",
+      "system/local-docs-cache.sh": "allow",
       "default": "ask"
     }
   },
