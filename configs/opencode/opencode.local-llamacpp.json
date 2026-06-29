@@ -71,6 +71,7 @@
         },
         "zai-glm-4.7": {
           "name": "zai-glm-4.7",
+          "reasoning": false,
           "tools": true
         }
       }
@@ -169,6 +170,8 @@
   },
   "plugin": [
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/inject-local-ai-env.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/provider-rate-limit.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/session-log.js"
   ],
@@ -193,6 +196,38 @@
       "temperature": 0.1,
       "top_p": 0.9,
       "prompt": "{file:~/Documents/code/dotfiles/configs/opencode/prompts/title.md}"
+    },
+    "local-build": {
+      "description": "Local default build agent for normal coding, planning, and low-risk edits.",
+      "mode": "subagent",
+      "model": "llamacpp/qwen3-router",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You are a local build subagent running on the workstation model. Inspect the repo first, make small scoped edits only when asked, prefer existing patterns, and run the most relevant local checks. Avoid paid/network providers and avoid broad refactors."
+    },
+    "cheap-review": {
+      "description": "Cheap read-only review agent for quick diff checks and risk spotting.",
+      "mode": "subagent",
+      "model": "opencode/north-mini-code-free",
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "prompt": "You are a read-only reviewer using a cheap/free model. Review only the assigned files or diff. Return concise findings first with exact paths, risks, and missing tests. Do not edit files and do not call paid providers."
+    },
+    "long-context-summarizer": {
+      "description": "Free long-context synthesis agent for large logs, handoffs, and repo slices.",
+      "mode": "subagent",
+      "model": "opencode/nemotron-3-ultra-free",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You synthesize large context into a compact engineering brief. Preserve exact file paths, commands, errors, decisions, and unresolved risks. Remove noise and end with concrete next actions. Stay read-only unless explicitly asked otherwise."
+    },
+    "paid-heavy": {
+      "description": "Explicit paid/network fallback for hard implementation or analysis tasks.",
+      "mode": "subagent",
+      "model": "minmax/MiniMax-M3",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You are an explicit paid/network heavy-lift subagent. Use this budget carefully: inspect first, stay narrow, avoid speculative rewrites, and return only evidence-backed implementation or analysis. Run focused checks when feasible and report exact results."
     },
     "zen-general-mimo": {
       "description": "Free Zen general-purpose helper for broad context, attachments, and second opinions.",
@@ -324,6 +359,7 @@
       "go build": "allow",
       "go test": "allow",
       "go vet": "allow",
+      "opencode-health": "allow",
       "default": "ask"
     }
   },

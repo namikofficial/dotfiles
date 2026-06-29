@@ -12,6 +12,9 @@ state, keep changes scoped, and report only verified results.
 - Prefer OpenCode Zen free models for extra eyes or parallel analysis before
   paid providers. Use MinMax or Cerebras only when the task clearly needs them
   or the user asks for them.
+- Treat Google, Cerebras, and MinMax as quota-managed providers. Do not use them
+  for broad subagent fan-out or routine exploration unless the user explicitly
+  asks for paid/network help.
 - Use local RAG through the `rag` MCP for non-trivial repository work. Start
   broad tasks with the repo's RAG/task workflow, but skip it for tiny edits
   where direct file inspection is enough.
@@ -46,6 +49,10 @@ state, keep changes scoped, and report only verified results.
 
 ## Subagent Routing
 
+- `local-build`: local default for normal coding, planning, and low-risk edits.
+- `cheap-review`: cheap/free read-only review for small diffs and risk checks.
+- `long-context-summarizer`: free long-context synthesis for logs and handoffs.
+- `paid-heavy`: explicit paid/network fallback for hard tasks only.
 - `zen-general-mimo`: free general-purpose helper, good for broad context,
   attachments, or second opinions.
 - `zen-general-big-pickle`: free general fallback for cheap brainstorming,
@@ -63,3 +70,7 @@ state, keep changes scoped, and report only verified results.
 When delegating, keep each subagent narrow: provide the goal, relevant files,
 constraints, and expected output. Do not ask subagents to make broad unrelated
 changes.
+Prefer `local-build`, `cheap-review`, and `long-context-summarizer` before any
+paid/network fallback. Use `paid-heavy`, `minmax-subagent`, or
+`cerebras-backup-subagent` only when the user asks or when cheaper agents cannot
+handle the task.
