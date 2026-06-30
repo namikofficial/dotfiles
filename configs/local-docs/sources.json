@@ -6,7 +6,7 @@
       "name": "React",
       "url": "https://react.dev/llms.txt",
       "follow_links": true,
-      "max_links": 35,
+      "max_links": 30,
       "include_patterns": ["/learn/", "/reference/react/"]
     },
     {
@@ -16,26 +16,106 @@
       "follow_links": false
     },
     {
+      "id": "typescript",
+      "name": "TypeScript Handbook",
+      "url": "https://www.typescriptlang.org/docs/handbook/intro.html",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/docs/handbook/"]
+    },
+    {
+      "id": "nodejs",
+      "name": "Node.js API",
+      "url": "https://nodejs.org/api/all.html",
+      "follow_links": false
+    },
+    {
+      "id": "pnpm",
+      "name": "pnpm",
+      "url": "https://pnpm.io/motivation",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/cli/", "/settings", "/workspace", "/workspaces", "/catalogs", "/filtering", "/package_json", "/motivation", "/installation"]
+    },
+    {
+      "id": "npm",
+      "name": "npm CLI",
+      "url": "https://docs.npmjs.com/cli/v11/commands",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/cli/v11/commands/", "/cli/v11/configuring-npm/"]
+    },
+    {
+      "id": "nextjs",
+      "name": "Next.js",
+      "url": "https://nextjs.org/docs",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/docs/app/", "/docs/pages/", "/docs/api-reference/", "/docs/architecture/"]
+    },
+    {
+      "id": "tailwind",
+      "name": "Tailwind CSS",
+      "url": "https://tailwindcss.com/docs/installation/using-vite",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/docs/"]
+    },
+    {
+      "id": "shadcn-ui",
+      "name": "shadcn/ui",
+      "url": "https://ui.shadcn.com/docs",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/docs"]
+    },
+    {
+      "id": "radix-ui",
+      "name": "Radix UI Primitives",
+      "url": "https://www.radix-ui.com/primitives/docs/overview/introduction",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/primitives/docs/"]
+    },
+    {
+      "id": "playwright",
+      "name": "Playwright",
+      "url": "https://playwright.dev/docs/intro",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/docs/"]
+    },
+    {
       "id": "tanstack-query",
       "name": "TanStack Query",
       "url": "https://tanstack.com/query/latest/llms.txt",
       "follow_links": true,
-      "max_links": 45,
+      "max_links": 35,
       "include_patterns": ["/query/latest/docs/framework/react/", "/query/latest/docs/framework/react-native/"]
     },
     {
-      "id": "mikro-orm",
-      "name": "MikroORM",
-      "url": "https://mikro-orm.io/docs/quick-start",
+      "id": "mdn-web",
+      "name": "MDN Web Docs",
+      "url": "https://developer.mozilla.org/en-US/docs/Web",
       "follow_links": true,
-      "max_links": 35,
+      "max_links": 20,
+      "include_patterns": ["/en-US/docs/Web/JavaScript", "/en-US/docs/Web/API", "/en-US/docs/Web/CSS", "/en-US/docs/Web/HTML"]
+    },
+    {
+      "id": "react-native",
+      "name": "React Native",
+      "url": "https://reactnative.dev/docs/getting-started",
+      "follow_links": true,
+      "max_links": 25,
       "include_patterns": ["/docs/"]
     },
     {
-      "id": "rust-book",
-      "name": "Rust Book",
-      "url": "https://doc.rust-lang.org/book/print.html",
-      "follow_links": false
+      "id": "expo",
+      "name": "Expo",
+      "url": "https://docs.expo.dev/versions/latest/",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/versions/latest/", "/develop/", "/build/", "/router/"]
     },
     {
       "id": "android",
@@ -44,6 +124,255 @@
       "follow_links": true,
       "max_links": 25,
       "include_patterns": ["/develop/"]
+    },
+    {
+      "id": "gradle",
+      "name": "Gradle User Manual",
+      "url": "https://docs.gradle.org/current/userguide/userguide.html",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/current/userguide/"]
+    },
+    {
+      "id": "rust-book",
+      "name": "Rust Book",
+      "url": "https://doc.rust-lang.org/book/print.html",
+      "follow_links": false
+    },
+    {
+      "id": "rust-std",
+      "name": "Rust Standard Library",
+      "url": "https://doc.rust-lang.org/std/",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/std/"]
+    },
+    {
+      "id": "cargo",
+      "name": "Cargo Book",
+      "url": "https://doc.rust-lang.org/cargo/",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/cargo/"]
+    },
+    {
+      "id": "tokio",
+      "name": "Tokio",
+      "url": "https://docs.rs/tokio/latest/tokio/",
+      "follow_links": true,
+      "max_links": 15,
+      "include_patterns": ["/tokio/latest/tokio/"]
+    },
+    {
+      "id": "serde",
+      "name": "Serde",
+      "url": "https://serde.rs/",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["serde.rs/"]
+    },
+    {
+      "id": "python",
+      "name": "Python Standard Library",
+      "url": "https://docs.python.org/3/library/index.html",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/3/library/"]
+    },
+    {
+      "id": "lua",
+      "name": "Lua 5.4 Reference Manual",
+      "url": "https://www.lua.org/manual/5.4/manual.html",
+      "follow_links": false
+    },
+    {
+      "id": "neovim",
+      "name": "Neovim User Manual",
+      "url": "https://neovim.io/doc/user/",
+      "follow_links": true,
+      "max_links": 30,
+      "include_patterns": ["/doc/user/"]
+    },
+    {
+      "id": "hyprland",
+      "name": "Hyprland Wiki",
+      "url": "https://raw.githubusercontent.com/hyprwm/hyprland-wiki/main/content/Configuring/Basics/Variables.md",
+      "follow_links": true,
+      "max_links": 30,
+      "include_patterns": ["/content/Configuring/", "/content/Hypr%20Ecosystem/", "/content/Useful%20Utilities/", "/content/Getting%20Started/"]
+    },
+    {
+      "id": "kitty",
+      "name": "kitty Terminal",
+      "url": "https://sw.kovidgoyal.net/kitty/conf/",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/kitty/"]
+    },
+    {
+      "id": "zsh",
+      "name": "Zsh Manual",
+      "url": "https://zsh.sourceforge.io/Doc/Release/zsh_toc.html",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/Doc/Release/"]
+    },
+    {
+      "id": "bash",
+      "name": "Bash Manual",
+      "url": "https://www.gnu.org/software/bash/manual/bash.html",
+      "follow_links": false
+    },
+    {
+      "id": "tmux",
+      "name": "tmux Manual",
+      "url": "https://man7.org/linux/man-pages/man1/tmux.1.html",
+      "follow_links": false
+    },
+    {
+      "id": "git",
+      "name": "Git Documentation",
+      "url": "https://git-scm.com/docs",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/docs/git"]
+    },
+    {
+      "id": "docker-cli",
+      "name": "Docker CLI Reference",
+      "url": "https://docs.docker.com/reference/cli/docker/",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/reference/cli/docker/"]
+    },
+    {
+      "id": "kubectl",
+      "name": "kubectl Reference",
+      "url": "https://kubernetes.io/docs/reference/kubectl/",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/docs/reference/kubectl/"]
+    },
+    {
+      "id": "postgres",
+      "name": "PostgreSQL Documentation",
+      "url": "https://www.postgresql.org/docs/current/index.html",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/docs/current/"]
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite Documentation",
+      "url": "https://www.sqlite.org/docs.html",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["sqlite.org/"]
+    },
+    {
+      "id": "mikro-orm",
+      "name": "MikroORM",
+      "url": "https://mikro-orm.io/docs/quick-start",
+      "follow_links": true,
+      "max_links": 25,
+      "include_patterns": ["/docs/"]
+    },
+    {
+      "id": "fastify",
+      "name": "Fastify",
+      "url": "https://fastify.dev/docs/latest/",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/docs/latest/"]
+    },
+    {
+      "id": "arch-linux",
+      "name": "Arch Linux Wiki Essentials",
+      "url": "https://wiki.archlinux.org/title/General_recommendations",
+      "follow_links": true,
+      "max_links": 20,
+      "include_patterns": ["/title/"]
+    },
+    {
+      "id": "mcp",
+      "name": "Model Context Protocol",
+      "url": "https://modelcontextprotocol.io/llms-full.txt",
+      "follow_links": false
+    },
+    {
+      "id": "codex",
+      "name": "OpenAI Codex Manual",
+      "url": "https://developers.openai.com/codex/codex-manual.md",
+      "follow_links": false
+    },
+    {
+      "id": "local-manpages",
+      "name": "Local Linux and CLI Manpages",
+      "kind": "manpages",
+      "manpages": [
+        "bash",
+        "zsh",
+        "tmux",
+        "git",
+        "ssh",
+        "systemctl",
+        "journalctl",
+        "man",
+        "find",
+        "grep",
+        "sed",
+        "awk",
+        "rsync",
+        "curl",
+        "tar",
+        "chmod",
+        "chown",
+        "ln",
+        "ps",
+        "ss",
+        "ip",
+        "nmcli",
+        "hyprctl",
+        "kitty",
+        "jq",
+        "rg",
+        "fd",
+        "gh",
+        "kubectl",
+        "docker",
+        "adb",
+        "gradle"
+      ]
+    },
+    {
+      "id": "local-cli-help",
+      "name": "Local CLI Help",
+      "kind": "commands",
+      "commands": [
+        { "label": "codex help", "argv": ["codex", "--help"] },
+        { "label": "codex mcp help", "argv": ["codex", "mcp", "--help"] },
+        { "label": "git help", "argv": ["git", "--help"] },
+        { "label": "pnpm help", "argv": ["pnpm", "--help"] },
+        { "label": "npm help", "argv": ["npm", "--help"] },
+        { "label": "node help", "argv": ["node", "--help"] },
+        { "label": "cargo help", "argv": ["cargo", "--help"] },
+        { "label": "rustc help", "argv": ["rustc", "--help"] },
+        { "label": "python help", "argv": ["python", "--help"] },
+        { "label": "lua help", "argv": ["lua", "-h"] },
+        { "label": "nvim help", "argv": ["nvim", "--help"] },
+        { "label": "hyprctl help", "argv": ["hyprctl", "--help"] },
+        { "label": "kitty help", "argv": ["kitty", "--help"] },
+        { "label": "tmux help", "argv": ["tmux", "-h"] },
+        { "label": "jq help", "argv": ["jq", "--help"] },
+        { "label": "rg help", "argv": ["rg", "--help"] },
+        { "label": "fd help", "argv": ["fd", "--help"] },
+        { "label": "docker help", "argv": ["docker", "--help"] },
+        { "label": "kubectl help", "argv": ["kubectl", "--help"] },
+        { "label": "gh help", "argv": ["gh", "--help"] },
+        { "label": "adb help", "argv": ["adb", "help"] },
+        { "label": "gradle help", "argv": ["gradle", "--help"] },
+        { "label": "opencode help", "argv": ["opencode", "--help"] }
+      ]
     }
   ]
 }

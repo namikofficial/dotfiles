@@ -8,6 +8,8 @@ import html
 import importlib
 import json
 import re
+import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -73,10 +75,13 @@ class TextExtractor(HTMLParser):
 class Source:
     id: str
     name: str
-    url: str
+    kind: str = "url"
+    url: str = ""
     follow_links: bool = False
     max_links: int = 0
     include_patterns: tuple[str, ...] = ()
+    manpages: tuple[str, ...] = ()
+    commands: tuple[dict[str, Any], ...] = ()
 
 
 def load_config(path: Path = DEFAULT_CONFIG) -> tuple[Path, list[Source]]:
@@ -86,17 +91,20 @@ def load_config(path: Path = DEFAULT_CONFIG) -> tuple[Path, list[Source]]:
         Source(
             id=item["id"],
             name=item.get("name", item["id"]),
-            url=item["url"],
+            kind=item.get("kind", "url"),
+            url=item.get("url", ""),
             follow_links=bool(item.get("follow_links", False)),
             max_links=int(item.get("max_links", 0)),
             include_patterns=tuple(item.get("include_patterns", [])),
+            manpages=tuple(item.get("manpages", [])),
+            commands=tuple(item.get("commands", [])),
         )
         for item in raw.get("sources", [])
     ]
     return cache_dir, sources
 
 
-def fetch(url: str, timeout: int = 30) -> tuple[str, str]:
+def fetch(url: str, timeout: int = 12) -> tuple[str, str]:
     request = urllib.request.Request(url, headers={"User-Agent": "local-docs-cache/1.0"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         content_type = response.headers.get("content-type", "")
@@ -116,9 +124,25 @@ def markdown_links(content: str, base_url: str, patterns: tuple[str, ...]) -> li
     seen: set[str] = set()
     links: list[str] = []
     base_host = urllib.parse.urlparse(base_url).netloc
-    for match in re.finditer(r"\[[^\]]+\]\((https?://[^)]+)\)", content):
-        url = match.group(1).split("#", 1)[0]
-        if urllib.parse.urlparse(url).netloc != base_host:
+
+    def usable(url: str) -> bool:
+        if any(char in url for char in "{}()\n\r\t "):
+            return False
+        try:
+            url.encode("ascii")
+        except UnicodeEncodeError:
+            return False
+        parsed = urllib.parse.urlparse(url)
+        if parsed.netloc == "raw.githubusercontent.com" and parsed.path.endswith("/"):
+            return False
+        return parsed.scheme in {"http", "https"} and parsed.netloc == base_host
+
+    for match in re.finditer(r"\[[^\]]+\]\(([^)]+)\)", content):
+        href = match.group(1).strip()
+        if href.startswith("#"):
+            continue
+        url = urllib.parse.urljoin(base_url, href).split("#", 1)[0]
+        if not usable(url):
             continue
         if patterns and not any(pattern in url for pattern in patterns):
             continue
@@ -129,9 +153,7 @@ def markdown_links(content: str, base_url: str, patterns: tuple[str, ...]) -> li
         for double_quoted, single_quoted, bare in re.findall(r"""href=(?:"([^"]+)"|'([^']+)'|([^'" >]+))""", content):
             href = double_quoted or single_quoted or bare
             url = urllib.parse.urljoin(base_url, href).split("#", 1)[0]
-            if not url.startswith(("http://", "https://")):
-                continue
-            if urllib.parse.urlparse(url).netloc != base_host:
+            if not usable(url):
                 continue
             if patterns and not any(pattern in url for pattern in patterns):
                 continue
@@ -139,6 +161,73 @@ def markdown_links(content: str, base_url: str, patterns: tuple[str, ...]) -> li
                 seen.add(url)
                 links.append(url)
     return links
+
+
+def clean_terminal_text(text: str) -> str:
+    text = re.sub(r".\x08", "", text)
+    text = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", text)
+    text = re.sub(r"\r", "", text)
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    return re.sub(r"\n{4,}", "\n\n\n", text).strip()
+
+
+def run_command(argv: list[str], timeout: int = 20) -> tuple[str, str | None]:
+    if not argv:
+        return "", "empty argv"
+    executable = shutil.which(argv[0])
+    if executable is None:
+        return "", f"{argv[0]} not found on PATH"
+    try:
+        completed = subprocess.run(
+            [executable, *argv[1:]],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return "", str(exc)
+    output = "\n".join(part for part in (completed.stdout, completed.stderr) if part)
+    if completed.returncode not in {0, 1, 2} and not output:
+        return "", f"exit {completed.returncode}"
+    return clean_terminal_text(output), None
+
+
+def read_manpage(page: str) -> tuple[str, str | None]:
+    man = shutil.which("man")
+    if man is None:
+        return "", "man not found on PATH"
+    env = {"MANPAGER": "cat", "PAGER": "cat", "MANWIDTH": "100"}
+    try:
+        completed = subprocess.run(
+            [man, page],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            env={**env, **dict(PATH="/usr/local/bin:/usr/bin:/bin")},
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return "", str(exc)
+    output = completed.stdout or completed.stderr
+    col = shutil.which("col")
+    if col and output:
+        try:
+            filtered = subprocess.run(
+                [col, "-bx"],
+                input=output,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if filtered.stdout:
+                output = filtered.stdout
+        except (OSError, subprocess.SubprocessError):
+            pass
+    if completed.returncode != 0 and not output:
+        return "", f"exit {completed.returncode}"
+    return clean_terminal_text(output), None
 
 
 def doc_path(cache_dir: Path, source_id: str) -> Path:
@@ -161,19 +250,45 @@ def write_manifest(cache_dir: Path, manifest: dict[str, Any]) -> None:
 
 
 def refresh_source(cache_dir: Path, source: Source) -> dict[str, Any]:
-    content, content_type = fetch(source.url)
-    sections = [f"# {source.name}\n\nSource: {source.url}\n\n{normalize_text(content, content_type, source.url)}"]
-    fetched_urls = [source.url]
     errors: list[str] = []
+    fetched_urls: list[str] = []
+    sections: list[str] = [f"# {source.name}\n\n"]
 
-    if source.follow_links:
-        for url in markdown_links(content, source.url, source.include_patterns)[: source.max_links]:
-            try:
-                linked, linked_type = fetch(url)
-                sections.append(f"\n\n---\n\n## {url}\n\n{normalize_text(linked, linked_type, url)}")
-                fetched_urls.append(url)
-            except (OSError, urllib.error.URLError, TimeoutError) as exc:
-                errors.append(f"{url}: {exc}")
+    if source.kind == "url":
+        if not source.url:
+            raise ValueError(f"{source.id}: url source requires url")
+        content, content_type = fetch(source.url)
+        sections.append(f"Source: {source.url}\n\n{normalize_text(content, content_type, source.url)}")
+        fetched_urls.append(source.url)
+
+        if source.follow_links:
+            for url in markdown_links(content, source.url, source.include_patterns)[: source.max_links]:
+                try:
+                    linked, linked_type = fetch(url)
+                    sections.append(f"\n\n---\n\n## {url}\n\n{normalize_text(linked, linked_type, url)}")
+                    fetched_urls.append(url)
+                except Exception as exc:
+                    errors.append(f"{url}: {exc}")
+    elif source.kind == "manpages":
+        for page in source.manpages:
+            text, error = read_manpage(page)
+            if error:
+                errors.append(f"{page}: {error}")
+            if text:
+                sections.append(f"\n\n---\n\n## man {page}\n\n{text}")
+        fetched_urls.append("local:manpages")
+    elif source.kind == "commands":
+        for command in source.commands:
+            label = str(command.get("label") or " ".join(command.get("argv", [])))
+            argv = [str(part) for part in command.get("argv", [])]
+            text, error = run_command(argv, int(command.get("timeout", 20)))
+            if error:
+                errors.append(f"{label}: {error}")
+            if text:
+                sections.append(f"\n\n---\n\n## {label}\n\nCommand: {' '.join(argv)}\n\n{text}")
+        fetched_urls.append("local:commands")
+    else:
+        raise ValueError(f"{source.id}: unknown source kind {source.kind}")
 
     output = "\n".join(sections).strip() + "\n"
     path = doc_path(cache_dir, source.id)
@@ -182,7 +297,8 @@ def refresh_source(cache_dir: Path, source: Source) -> dict[str, Any]:
     return {
         "id": source.id,
         "name": source.name,
-        "url": source.url,
+        "kind": source.kind,
+        "url": source.url or f"local:{source.kind}",
         "path": str(path),
         "bytes": len(output.encode("utf-8")),
         "fetched_urls": fetched_urls,
@@ -200,7 +316,23 @@ def refresh(stack: str | None = None) -> dict[str, Any]:
     manifest = read_manifest(cache_dir)
     manifest.setdefault("docs", {})
     for source in selected:
-        manifest["docs"][source.id] = refresh_source(cache_dir, source)
+        print(f"refreshing {source.id}...", file=sys.stderr)
+        try:
+            manifest["docs"][source.id] = refresh_source(cache_dir, source)
+        except (OSError, urllib.error.URLError, TimeoutError, ValueError) as exc:
+            manifest["docs"][source.id] = {
+                "id": source.id,
+                "name": source.name,
+                "kind": source.kind,
+                "url": source.url or f"local:{source.kind}",
+                "path": str(doc_path(cache_dir, source.id)),
+                "bytes": 0,
+                "fetched_urls": [],
+                "errors": [str(exc)],
+                "updated_at": int(time.time()),
+            }
+        manifest["updated_at"] = int(time.time())
+        write_manifest(cache_dir, manifest)
     manifest["updated_at"] = int(time.time())
     write_manifest(cache_dir, manifest)
     return manifest
