@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 ROOT_DIR="$(cd "$(dirname "$SCRIPT_PATH")/../../.." && pwd)"
 LUA_CONF="$ROOT_DIR/hypr/hyprland.lua"
+DOCS_CHECK="$ROOT_DIR/setup/check-keybinds.sh"
 
 lua_bin=""
 for candidate in lua luajit; do
@@ -130,6 +131,17 @@ if [[ -z "$keys" ]]; then
 fi
 
 dupes="$(printf '%s\n' "$keys" | sort | uniq -d || true)"
+fail=0
 if [[ -n "$dupes" ]]; then
   printf '%s\n' "$dupes" | sed 's/^/DUPLICATE: /'
+  fail=1
 fi
+
+if [[ -x "$DOCS_CHECK" ]]; then
+  "$DOCS_CHECK" || fail=1
+else
+  echo "hypr keycheck: docs parity check missing: $DOCS_CHECK" >&2
+  exit 1
+fi
+
+exit "$fail"

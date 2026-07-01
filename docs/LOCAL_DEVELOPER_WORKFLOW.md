@@ -62,6 +62,7 @@ project-profile edit noxcrm
 project-profile tmux noxcrm
 project-profile launch noxcrm
 project-profile check dotfiles
+project-resume
 ```
 
 Short alias:
@@ -72,6 +73,8 @@ ppr launch dotfiles
 ```
 
 The profile command is intentionally conservative. `launch` opens the editor and a project-rooted tmux shell; it does not start backend/mobile stacks automatically.
+
+`project-resume` is the opposite path: it uses the focused repo to restore the current project session, reopen the editor, and bring back Sidecar or related scratchpads.
 
 ## Local AI Routing Policy
 

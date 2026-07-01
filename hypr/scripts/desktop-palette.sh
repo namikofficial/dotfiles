@@ -1,38 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow"
-pid_file="${state_dir}/rofi-actions.pid"
-other_pid_file="${state_dir}/rofi-launcher.pid"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/lib/common.sh"
+
+state_dir="$(noxflow_state_dir)"
+pid_file="$state_dir/rofi-actions.pid"
+other_pid_file="$state_dir/rofi-launcher.pid"
 mkdir -p "$state_dir"
-
-stop_if_running() {
-  local file="$1"
-  [ -f "$file" ] || return 1
-  local pid
-  pid="$(cat "$file" 2>/dev/null || true)"
-  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-    kill "$pid" >/dev/null 2>&1 || true
-    rm -f "$file"
-    return 0
-  fi
-  rm -f "$file"
-  return 1
-}
-
-focused_cwd() {
-  local pid
-  pid="$(hyprctl -j activewindow 2>/dev/null | jq -r '.pid // empty' 2>/dev/null || true)"
-  [ -n "$pid" ] || {
-    echo "$HOME"
-    return 0
-  }
-  readlink "/proc/${pid}/cwd" 2>/dev/null || echo "$HOME"
-}
-
-git_root() {
-  git -C "$1" rev-parse --show-toplevel 2>/dev/null || echo "$1"
-}
 
 choose_action() {
   cat <<'EOF' | rofi -dmenu -i -no-show-icons -p 'Command Palette' \
@@ -42,6 +18,7 @@ choose_action() {
 Apps
 Frequent Apps
 Context Actions
+Control Center
 Notes / Clipboard
 History Search
 Window / Focus
@@ -49,16 +26,16 @@ Tools / Scratchpads
 EOF
 }
 
-if stop_if_running "$pid_file"; then
+if noxflow_stop_if_running "$pid_file"; then
   exit 0
 fi
-stop_if_running "$other_pid_file" || true
+noxflow_stop_if_running "$other_pid_file" || true
 
 action="$(choose_action || true)"
 [ -n "${action:-}" ] || exit 0
 
-cwd="$(focused_cwd)"
-root="$(git_root "$cwd")"
+cwd="$(noxflow_focused_cwd)"
+root="$(noxflow_git_root "$cwd")"
 
 case "$action" in
   Apps)
@@ -111,6 +88,9 @@ EOF
         exec kitty --title "postgres logs" -e bash -lc 'journalctl -u postgresql -f --no-pager'
         ;;
     esac
+    ;;
+  "Control Center")
+    exec "$HOME/.config/hypr/scripts/control-center.sh"
     ;;
   "Notes / Clipboard")
     exec "$HOME/.config/hypr/scripts/notes-palette.sh"

@@ -15,6 +15,9 @@ section "shell scripts (shellcheck + shfmt)"
 section "stale references"
 "$SCRIPT_DIR/check-stale-references.sh"
 
+section "keybind docs parity"
+"$SCRIPT_DIR/check-keybinds.sh"
+
 section "hyprland config syntax"
 if command -v Hyprland >/dev/null 2>&1; then
   Hyprland --verify-config -c "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua"

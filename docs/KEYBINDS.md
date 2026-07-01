@@ -26,6 +26,7 @@ flowchart LR
 | `Super + .` | Fullscreen dev cheatsheet overlay (searchable tabs) | `dev-cheatsheet.sh` |
 | `Super + F1` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + A` or `Super + /` | Desktop command palette | `desktop-palette.sh` |
+| `Super + D` | Desktop command palette | `desktop-palette.sh` |
 | `Super + Ctrl + /` | Keybind cheat sheet overlay | `hypr-binds.sh` |
 | `Super + Y` | Workspace hub (primary path) | `workspace-overview.sh` |
 | `Super + W` | Workspace overview (direct Rofi path) | `workspace-overview.sh` |
@@ -47,7 +48,6 @@ flowchart LR
 | `Super + Ctrl + N` | Copy notification/status summary | `notification-summary.sh copy` |
 | `Super + Shift + N` | Open notes folder | `open-notes.sh` |
 | `Super + Alt + E` | Open notes folder | `open-notes.sh` |
-| `Super + D` | Desktop command palette | `desktop-palette.sh` |
 | `Super + ,` | Open Settings Hub | `settings-hub.sh` |
 | `Super + Shift + ,` | Restore last minimized window | `minimize-window.sh restore` |
 | `Super + Ctrl + ,` | Quick settings toggle (notification sounds) | `settings-hub.sh quick` |

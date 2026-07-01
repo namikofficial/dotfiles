@@ -313,14 +313,15 @@ PY
 }
 
 tracked_address() {
-  hyprctl -j clients 2>/dev/null | python3 - "$state_file" <<'PY'
+  clients_json="$(hyprctl -j clients 2>/dev/null || printf '[]')"
+  python3 - "$state_file" "$clients_json" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
 try:
-    clients = json.load(sys.stdin)
+    clients = json.loads(sys.argv[2])
 except Exception:
     clients = []
 live = {
@@ -431,13 +432,14 @@ toggle_sidecar() {
 
 restore_all() {
   target_ws="$(normal_current_workspace)"
-  hyprctl -j clients 2>/dev/null | python3 - "$state_file" <<'PY' | while IFS= read -r address; do
+  clients_json="$(hyprctl -j clients 2>/dev/null || printf '[]')"
+  python3 - "$state_file" "$clients_json" <<'PY' | while IFS= read -r address; do
 import json
 import sys
 from pathlib import Path
 path = Path(sys.argv[1])
 try:
-    clients = json.load(sys.stdin)
+    clients = json.loads(sys.argv[2])
 except Exception:
     clients = []
 live = {

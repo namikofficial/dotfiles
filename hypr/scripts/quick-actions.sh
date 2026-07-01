@@ -1,88 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow"
-pid_file="${state_dir}/rofi-actions.pid"
-other_pid_file="${state_dir}/rofi-launcher.pid"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/lib/common.sh"
+# shellcheck disable=SC1091
+. "$SCRIPT_DIR/lib/quick-actions.sh"
+
+state_dir="$(noxflow_state_dir)"
+pid_file="$state_dir/rofi-actions.pid"
+other_pid_file="$state_dir/rofi-launcher.pid"
 mkdir -p "$state_dir"
 
-stop_if_running() {
-  local file="$1"
-  [ -f "$file" ] || return 1
-  local pid
-  pid="$(cat "$file" 2>/dev/null || true)"
-  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-    kill "$pid" >/dev/null 2>&1 || true
-    rm -f "$file"
-    return 0
-  fi
-  rm -f "$file"
-  return 1
-}
-
-# Same shortcut closes this menu.
-if stop_if_running "$pid_file"; then
+if noxflow_stop_if_running "$pid_file"; then
   exit 0
 fi
+noxflow_stop_if_running "$other_pid_file" || true
 
-# If launcher is open, close it first.
-stop_if_running "$other_pid_file" || true
-
-actions=(
-  "Toggle Wi-Fi"
-  "Toggle Network Applet"
-  "Toggle Bluetooth"
-  "Workspace Overview"
-  "Audio Mixer"
-  "Bluetooth Manager"
-  "Network Manager"
-  "Toggle Mic Mute"
-  "AI Helper Menu"
-  "AI Shell Command"
-  "AI Clipboard Summary"
-  "System Update"
-  "Next Wallpaper"
-  "Screenshot Area"
-  "Screenshot Full"
-  "OCR Area -> Clipboard"
-  "Toggle Screen Record"
-  "Toggle Layout (Master/Dwindle)"
-  "Toggle Focused Window Floating"
-  "Switch Panel to Wayle"
-  "Toggle Panel Engine"
-  "Hide Panel"
-  "Toggle Panel Visibility"
-  "Show/Restore Panel"
-  "Copy Notification Summary"
-  "Show Keybind Cheat Sheet"
-  "Apply Theme Pass"
-  "Pick Color"
-  "Toggle Night Light"
-  "Toggle Notification Center"
-  "Toggle Notification DND"
-  "Clear Notifications"
-  "Power Saver Profile"
-  "Performance Profile"
-  "System Monitor"
-  "Lock Screen"
-  "Cycle Layout (Dwindle/Master/Monocle)"
-  "Logs Workspace (9)"
-  "Logs Workspace Stack"
-  "Toggle Sidecar"
-  "Move Window -> Sidecar"
-  "Open LocalSend"
-  "Open Syncthing UI"
-  "Syncthing Control Menu"
-  "Open Obsidian"
-  "Open Terminal"
-  "Open Notes"
-  "Open Wayle Notification Panel"
-  "Open Settings Hub"
-  "Monitor Control"
-  "Run Dev Health"
-  "Recover Desktop"
-  "Project Profiles"
-)
+mapfile -t actions < <(noxflow_quick_action_labels)
 
 hint_for_index() {
   case "$1" in
@@ -148,73 +83,6 @@ rm -f "$pid_file"
 [ -n "$choice_index" ] || exit 0
 [[ "$choice_index" =~ ^[0-9]+$ ]] || exit 0
 
-case "$choice_index" in
-  0)
-    state="$(nmcli radio wifi)"
-    if [ "$state" = "enabled" ]; then
-      nmcli radio wifi off
-    else
-      nmcli radio wifi on
-    fi
-    ;;
-  1) ~/.config/hypr/scripts/nm-applet-toggle.sh ;;
-  2)
-    state="$(bluetoothctl show | awk '/Powered:/ {print $2}')"
-    if [ "$state" = "yes" ]; then
-      bluetoothctl power off
-    else
-      bluetoothctl power on
-    fi
-    ;;
-  3) ~/.config/hypr/scripts/workspace-overview-toggle.sh ;;
-  4) pavucontrol ;;
-  5) blueman-manager ;;
-  6) nm-connection-editor ;;
-  7) ~/.config/hypr/scripts/volume-control.sh mic-mute ;;
-  8) ~/.config/hypr/scripts/ai-helper.sh menu ;;
-  9) ~/.config/hypr/scripts/ai-helper.sh shell ;;
-  10) ~/.config/hypr/scripts/ai-helper.sh clip ;;
-  11) ~/.config/hypr/scripts/system-update.sh ;;
-  12) ~/.config/hypr/scripts/set-wallpaper.sh --next ;;
-  13) ~/.config/hypr/scripts/screenshot.sh area ;;
-  14) ~/.config/hypr/scripts/screenshot.sh full ;;
-  15) ~/.config/hypr/scripts/ocr-capture.sh ;;
-  16) ~/.config/hypr/scripts/screen-record-toggle.sh ;;
-  17) ~/.config/hypr/scripts/layout-switcher.sh toggle ;;
-  18) ~/.config/hypr/scripts/layout-switcher.sh allfloat ;;
-  19) ~/.config/hypr/scripts/panel-switch.sh wayle ;;
-  20) ~/.config/hypr/scripts/panel-switch.sh toggle ;;
-  21) ~/.config/hypr/scripts/panel-switch.sh hide ;;
-  22) ~/.config/hypr/scripts/panel-switch.sh toggle-view ;;
-  23) ~/.config/hypr/scripts/panel-switch.sh show ;;
-  24) ~/.config/hypr/scripts/notification-summary.sh copy ;;
-  25) ~/.config/hypr/scripts/hypr-binds.sh ;;
-  26) ~/.config/hypr/scripts/theme-pass.sh ;;
-  27) hyprpicker -a ;;
-  28) ~/.config/hypr/scripts/night-light-toggle.sh ;;
-  29) ~/.config/hypr/scripts/notif-center-toggle.sh ;;
-  30) ~/.config/hypr/scripts/notif-dnd-toggle.sh ;;
-  31) ~/.config/hypr/scripts/notif-clear.sh ;;
-  32) powerprofilesctl set power-saver ;;
-  33) powerprofilesctl set performance ;;
-  34) kitty -e btop ;;
-  35) ~/.config/hypr/scripts/lock.sh ;;
-  36) ~/.config/hypr/scripts/layout-switcher.sh cycle ;;
-  37) ~/.config/hypr/scripts/logs-workspace.sh open ;;
-  38) ~/.config/hypr/scripts/logs-workspace.sh stack ;;
-  39) ~/.config/hypr/scripts/sidepanel.sh toggle ;;
-  40) ~/.config/hypr/scripts/sidepanel.sh send ;;
-  41) flatpak run org.localsend.localsend_app >/dev/null 2>&1 & ;;
-  42) ~/.config/hypr/scripts/open-syncthing.sh ;;
-  43) ~/.config/hypr/scripts/syncthing-control.sh menu ;;
-  44) obsidian >/dev/null 2>&1 & ;;
-  45) kitty >/dev/null 2>&1 & ;;
-  46) ~/.config/hypr/scripts/open-notes.sh ;;
-  47) ~/.config/hypr/scripts/notif-center-toggle.sh ;;
-  48) ~/.config/hypr/scripts/settings-hub.sh ;;
-  49) ~/.config/hypr/scripts/monitor-control.sh menu ;;
-  50) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/dev-health.sh; read -r -p 'Press enter to close'" ;;
-  51) ~/.config/hypr/scripts/desktop-recovery.sh menu ;;
-  52) kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/project-profile.sh status; read -r -p 'Press enter to close'" ;;
-  *) exit 0 ;;
-esac
+choice="${actions[$choice_index]:-}"
+[ -n "$choice" ] || exit 0
+noxflow_quick_action_run "$choice"
