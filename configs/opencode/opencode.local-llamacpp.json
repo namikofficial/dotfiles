@@ -110,15 +110,23 @@
   "mcp": {
     "chrome-devtools": {
       "type": "local",
-      "command": ["npx", "-y", "chrome-devtools-mcp"],
+      "command": ["/home/namik/Documents/code/dotfiles/private/scripts/bin/opencode-chrome-devtools-mcp"],
       "enabled": true,
       "timeout": 20000
     },
     "browser": {
       "type": "local",
-      "command": ["npx", "-y", "@browsermcp/mcp"],
+      "command": [
+        "/home/namik/.config/nvm/versions/node/v24.16.0/bin/playwright-mcp",
+        "--browser",
+        "chrome",
+        "--viewport-size",
+        "1440x1000",
+        "--output-dir",
+        "/home/namik/.cache/opencode/playwright-mcp"
+      ],
       "enabled": true,
-      "timeout": 20000
+      "timeout": 120000
     },
     "obsidian": {
       "type": "local",
