@@ -134,7 +134,7 @@ PY
     stamp="$(date +%Y%m%d-%H%M%S)"
     cp -p "$CONFIG_FILE" "${CONFIG_FILE}.bak.${stamp}"
   fi
-  mv "$tmp" "$CONFIG_FILE"
+  mv -f "$tmp" "$CONFIG_FILE"
 }
 
 validate_config() {
@@ -215,9 +215,9 @@ switch_model() {
     exit 1
   }
   case "$requested" in
-    local | qwen3 | qwen3-8b)
+    qwen3 | qwen3-8b)
       model="qwen3-8b"
-      alias="local"
+      alias="qwen3-8b"
       ;;
     qwen-coder | qwen-coder-7b)
       model="qwen-coder-7b"
@@ -243,9 +243,9 @@ switch_model() {
       model="qwen3-4b"
       alias="qwen3-4b"
       ;;
-    router | qwen3-router | qwen3-1b)
+    local | router | qwen3-router | qwen3-1b)
       model="qwen3-router"
-      alias="router"
+      alias="local"
       ;;
     *)
       echo "unknown model alias: $requested" >&2

@@ -8,70 +8,172 @@
         "baseURL": "http://127.0.0.1:8080/v1",
         "apiKey": "local"
       },
-"models": {
-         "local": {
-           "name": "local",
-           "tools": true
-         },
-         "qwen3-8b": {
-           "name": "qwen3-8b",
-           "tools": true
-         },
-         "qwen-coder-7b": {
-           "name": "qwen-coder-7b",
-           "tools": true
-         },
-         "gemma-3-4b": {
-           "name": "gemma-3-4b",
-           "tools": true
-         },
-         "deepseek-r1-7b": {
-           "name": "deepseek-r1-7b",
-           "tools": false
-         },
-         "phi-4-mini": {
-           "name": "phi-4-mini",
-           "tools": true
-         }
-       }
+      "models": {
+        "qwen3-4b": {
+          "name": "qwen3-4b",
+          "tools": true
+        },
+        "qwen3-8b": {
+          "name": "qwen3-8b",
+          "tools": true
+        },
+        "qwen3-router": {
+          "name": "qwen3-router",
+          "tools": true
+        },
+        "qwen-coder-7b": {
+          "name": "qwen-coder-7b",
+          "tools": true
+        },
+        "gemma-3-4b": {
+          "name": "gemma-3-4b",
+          "tools": true
+        },
+        "phi-4-mini": {
+          "name": "phi-4-mini",
+          "tools": true
+        }
+      }
+    },
+    "minmax": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "MinMax",
+      "options": {
+        "baseURL": "https://api.minimax.io/v1",
+        "apiKey": "{file:~/.config/opencode/keys/minmax.key}"
+      },
+      "models": {
+        "MiniMax-M2.7": {
+          "name": "MiniMax-M2.7",
+          "tools": true
+        },
+        "MiniMax-M2.7-highspeed": {
+          "name": "MiniMax-M2.7-highspeed",
+          "tools": true
+        },
+        "MiniMax-M3": {
+          "name": "MiniMax-M3",
+          "tools": true
+        }
+      }
+    },
+    "cerebras": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Cerebras",
+      "options": {
+        "baseURL": "https://api.cerebras.ai/v1",
+        "apiKey": "{file:~/.config/opencode/keys/cerebras.key}"
+      },
+      "models": {
+        "gpt-oss-120b": {
+          "name": "gpt-oss-120b",
+          "tools": true
+        },
+        "zai-glm-4.7": {
+          "name": "zai-glm-4.7",
+          "reasoning": false,
+          "tools": true
+        }
+      }
+    },
+    "opencode": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "OpenCode Zen",
+      "options": {
+        "baseURL": "https://opencode.ai/zen/v1",
+        "apiKey": "{env:OPENCODE_API_KEY}"
+      },
+      "models": {
+        "big-pickle": {
+          "name": "big-pickle",
+          "tools": true
+        },
+        "deepseek-v4-flash-free": {
+          "name": "deepseek-v4-flash-free",
+          "tools": true
+        },
+        "mimo-v2.5-free": {
+          "name": "mimo-v2.5-free",
+          "tools": true
+        },
+        "nemotron-3-ultra-free": {
+          "name": "nemotron-3-ultra-free",
+          "tools": true
+        },
+        "north-mini-code-free": {
+          "name": "north-mini-code-free",
+          "tools": true
+        }
+      }
     }
   },
   "mcp": {
     "chrome-devtools": {
       "type": "local",
-      "command": ["npx", "-y", "chrome-devtools-mcp"],
+      "command": ["/home/namik/Documents/code/dotfiles/private/scripts/bin/opencode-chrome-devtools-mcp"],
       "enabled": true,
-      "timeout": 8000
+      "timeout": 20000
     },
     "browser": {
       "type": "local",
-      "command": ["npx", "-y", "@browsermcp/mcp"],
+      "command": [
+        "/home/namik/.config/nvm/versions/node/v24.16.0/bin/playwright-mcp",
+        "--browser",
+        "chrome",
+        "--viewport-size",
+        "1440x1000",
+        "--output-dir",
+        "/home/namik/.cache/opencode/playwright-mcp"
+      ],
       "enabled": true,
-      "timeout": 8000
+      "timeout": 120000
     },
     "obsidian": {
       "type": "local",
-      "command": ["npx", "obsidian-mcp-server"],
+      "command": ["bash", "/home/namik/Documents/code/dotfiles/configs/opencode/obsidian-mcp.sh"],
       "environment": {
         "OBSIDIAN_API_KEY": "{env:OBSIDIAN_API_KEY}",
         "OBSIDIAN_BASE_URL": "{env:OBSIDIAN_BASE_URL}",
+        "OBSIDIAN_ENABLE_CACHE": "{env:OBSIDIAN_ENABLE_CACHE}",
         "OBSIDIAN_VERIFY_SSL": "{env:OBSIDIAN_VERIFY_SSL}",
-        "OBSIDIAN_ENABLE_CACHE": "{env:OBSIDIAN_ENABLE_CACHE}"
+        "NODE_EXTRA_CA_CERTS": "{env:NODE_EXTRA_CA_CERTS}"
       },
-      "enabled": false,
-      "timeout": 10000
-    },
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp",
       "enabled": true,
-      "timeout": 10000
+      "timeout": 60000
     },
     "rag": {
       "type": "local",
-      "command": ["rag-mcp"],
+      "command": ["/home/namik/Documents/code/dotfiles/system/rag-mcp.sh"],
       "enabled": true,
-      "timeout": 8000
+      "timeout": 15000
+    },
+    "local-docs": {
+      "type": "local",
+      "command": ["/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"],
+      "enabled": true,
+      "timeout": 15000
+    }
+  },
+  "lsp": {
+    "typescript": {
+      "command": ["typescript-language-server", "--stdio"],
+      "extensions": [".ts", ".tsx", ".mts", ".cts"]
+    },
+    "rust": {
+      "command": ["rust-analyzer"],
+      "extensions": [".rs"]
+    },
+    "python": {
+      "command": ["pyright-langserver", "--stdio"],
+      "extensions": [".py"]
+    },
+    "lua": {
+      "command": ["lua-language-server"],
+      "extensions": [".lua"]
+    },
+    "bash": {
+      "command": ["bash-language-server", "start"],
+      "extensions": [".sh", ".bash", ".zsh"]
     }
   },
   "skills": {
@@ -80,6 +182,202 @@
       "/home/namik/.codex/skills"
     ]
   },
-  "model": "llamacpp/qwen-coder-7b",
-  "small_model": "llamacpp/gemma-3-4b"
+  "plugin": [
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/inject-local-ai-env.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/provider-rate-limit.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/session-log.js"
+  ],
+  "tool_output": {
+    "max_lines": 600,
+    "max_bytes": 65536
+  },
+  "agent": {
+    "build": {
+      "model": "llamacpp/qwen3-router",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "{file:~/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md}\n\n{file:~/Documents/code/dotfiles/configs/opencode/prompts/build.md}"
+    },
+    "plan": {
+      "model": "llamacpp/qwen3-router",
+      "temperature": 0.3,
+      "top_p": 0.95
+    },
+    "title": {
+      "model": "opencode/big-pickle",
+      "temperature": 0.1,
+      "top_p": 0.9,
+      "prompt": "{file:~/Documents/code/dotfiles/configs/opencode/prompts/title.md}"
+    },
+    "local-build": {
+      "description": "Local default build agent for normal coding, planning, and low-risk edits.",
+      "mode": "subagent",
+      "model": "llamacpp/qwen3-router",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You are a local build subagent running on the workstation model. Inspect the repo first, make small scoped edits only when asked, prefer existing patterns, and run the most relevant local checks. Avoid paid/network providers and avoid broad refactors."
+    },
+    "cheap-review": {
+      "description": "Cheap read-only review agent for quick diff checks and risk spotting.",
+      "mode": "subagent",
+      "model": "opencode/north-mini-code-free",
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "prompt": "You are a read-only reviewer using a cheap/free model. Review only the assigned files or diff. Return concise findings first with exact paths, risks, and missing tests. Do not edit files and do not call paid providers."
+    },
+    "long-context-summarizer": {
+      "description": "Free long-context synthesis agent for large logs, handoffs, and repo slices.",
+      "mode": "subagent",
+      "model": "opencode/nemotron-3-ultra-free",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You synthesize large context into a compact engineering brief. Preserve exact file paths, commands, errors, decisions, and unresolved risks. Remove noise and end with concrete next actions. Stay read-only unless explicitly asked otherwise."
+    },
+    "paid-heavy": {
+      "description": "Explicit paid/network fallback for hard implementation or analysis tasks.",
+      "mode": "subagent",
+      "model": "minmax/MiniMax-M3",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You are an explicit paid/network heavy-lift subagent. Use this budget carefully: inspect first, stay narrow, avoid speculative rewrites, and return only evidence-backed implementation or analysis. Run focused checks when feasible and report exact results."
+    },
+    "zen-general-mimo": {
+      "description": "Free Zen general-purpose helper for broad context, attachments, and second opinions.",
+      "mode": "subagent",
+      "model": "opencode/mimo-v2.5-free",
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "prompt": "You are a free general-purpose OpenCode Zen subagent. Help with broad context, attached files, screenshots, and second opinions. Stay scoped to the assigned task. Inspect before concluding. Prefer concise findings, exact file paths, and concrete next actions. Do not make unrelated edits."
+    },
+    "zen-general-big-pickle": {
+      "description": "Free Zen general fallback for cheap brainstorming, sanity checks, and simple implementation advice.",
+      "mode": "subagent",
+      "model": "opencode/big-pickle",
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "prompt": "You are a free general-purpose OpenCode Zen fallback subagent. Use cheap reasoning for task breakdowns, sanity checks, and simple implementation advice. Keep output short, practical, and evidence-backed. Ask for missing critical context only if the assignment cannot be answered from the provided files."
+    },
+    "zen-code-reviewer": {
+      "description": "Free Zen read-only review for small diffs and implementation risks.",
+      "mode": "subagent",
+      "model": "opencode/north-mini-code-free",
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "prompt": "You are a read-only code reviewer. Review only the assigned diff or files. Return findings first, ordered by severity, with file paths and exact risks. Include missing tests and scope creep. Do not edit files."
+    },
+    "zen-deep-reviewer": {
+      "description": "Free Zen deeper review/debug helper for complex failures.",
+      "mode": "subagent",
+      "model": "opencode/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You are a deeper reasoning review and debug subagent. Trace the likely failure path, separate evidence from hypotheses, and return the smallest useful next experiment. Stay read-only unless explicitly assigned implementation."
+    },
+    "zen-long-context": {
+      "description": "Free Zen long-context synthesis for large repos, logs, and handoffs.",
+      "mode": "subagent",
+      "model": "opencode/nemotron-3-ultra-free",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You synthesize large context into an actionable engineering brief. Preserve exact file paths, commands, errors, and decisions. Remove noise. End with the next 3-7 concrete actions."
+    },
+    "zen-vision-context": {
+      "description": "Free Zen multimodal/context helper for screenshots, attachments, and UI evidence.",
+      "mode": "subagent",
+      "model": "opencode/mimo-v2.5-free",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You analyze screenshots, attachments, and UI/context evidence. Describe observable problems, likely source files, and verification steps. Do not speculate beyond the evidence without labeling it as a hypothesis."
+    },
+    "reviewer-subagent": {
+      "description": "Read-only code review. Returns structured findings (correctness, scope, tests, risks). Never edits files.",
+      "mode": "subagent",
+      "model": "minmax/MiniMax-M3",
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "prompt": "You are a read-only code reviewer. Inspect the diff. Output JSON: { summary, risks[], missing_tests[], scope_creep, suggested_fixes[] }. Do not edit files. Do not run commands that change state."
+    },
+    "test-writer-subagent": {
+      "description": "Adds tests for changed code. Matches existing test style. No scope creep into production code.",
+      "mode": "subagent",
+      "model": "llamacpp/qwen3-router",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "Add or update tests for the changed code. Match existing test style. Do not modify production code. Run the test suite and report pass/fail."
+    },
+    "docs-subagent": {
+      "description": "Updates README, JSDoc, and code comments for the change. Verifies each line against current source.",
+      "mode": "subagent",
+      "model": "llamacpp/qwen3-router",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "Update README, JSDoc, and code comments for the change. Verify each line against the current source — never invent APIs."
+    },
+    "debug-subagent": {
+      "description": "Reproduces a bug, isolates the cause, returns a hypothesis + minimal repro.",
+      "mode": "subagent",
+      "model": "llamacpp/qwen3-router",
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "prompt": "Reproduce the bug, isolate the cause, return { hypothesis, repro, affected_files[], minimal_fix }. No fixes — just diagnosis."
+    },
+    "minmax-subagent": {
+      "description": "MinMax-backed coding subagent for implementation-heavy tasks.",
+      "mode": "subagent",
+      "model": "minmax/MiniMax-M2.7",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You are a focused coding subagent. Inspect first, make the smallest correct change, run the most relevant checks you can, and report concrete results only."
+    },
+    "cerebras-backup-subagent": {
+      "description": "Cerebras-backed fallback subagent for narrow coding or search tasks.",
+      "mode": "subagent",
+      "model": "cerebras/gpt-oss-120b",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "prompt": "You are a fallback coding subagent. Stay narrow, avoid speculative rewrites, and return concise evidence-backed results."
+    }
+  },
+  "permission": {
+    "edit": "allow",
+    "read": "allow",
+    "bash": {
+      "ls": "allow",
+      "cat": "allow",
+      "head": "allow",
+      "tail": "allow",
+      "rg": "allow",
+      "fd": "allow",
+      "git status": "allow",
+      "git diff": "allow",
+      "git log": "allow",
+      "git show": "allow",
+      "git add": "ask",
+      "git commit": "ask",
+      "git push": "ask",
+      "pnpm typecheck": "allow",
+      "pnpm test": "allow",
+      "pnpm lint": "allow",
+      "pnpm format": "allow",
+      "pnpm check": "allow",
+      "biome check": "allow",
+      "biome format": "allow",
+      "biome lint": "allow",
+      "cargo build": "allow",
+      "cargo test": "allow",
+      "cargo check": "allow",
+      "cargo clippy": "allow",
+      "rustc": "allow",
+      "go build": "allow",
+      "go test": "allow",
+      "go vet": "allow",
+      "opencode-health": "allow",
+      "system/local-docs-cache.sh": "allow",
+      "default": "ask"
+    }
+  },
+  "model": "llamacpp/qwen3-router",
+  "small_model": "llamacpp/qwen3-router"
 }

@@ -16,3 +16,8 @@ settings/export/
 .agent/context.md
 .agent/handoff.md
 .agent/outcomes.jsonl
+
+# OpenCode runtime state; keep durable config under configs/opencode tracked.
+.opencode-cache/
+.opencode-share/
+.opencode-state/

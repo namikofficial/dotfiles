@@ -2,16 +2,13 @@
 set -eu
 
 mode="${1:-start}"
-script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-ipc="$script_dir/cliphist-ipc.py"
-ui="$script_dir/cliphist-ui.py"
 
 is_ready() {
-  python3 "$ipc" ping >/dev/null 2>&1
+    systemctl --user is-active author-clipboard-daemon >/dev/null 2>&1
 }
 
 start_daemon() {
-  python3 "$ui" --daemon >/dev/null 2>&1 &
+    systemctl --user start author-clipboard-daemon
 }
 
 case "$mode" in
@@ -31,10 +28,16 @@ case "$mode" in
     exit 1
     ;;
   stop)
-    python3 "$ipc" quit >/dev/null 2>&1 || true
+    systemctl --user stop author-clipboard-daemon
+    ;;
+  restart)
+    systemctl --user restart author-clipboard-daemon
+    ;;
+  status)
+    systemctl --user status author-clipboard-daemon
     ;;
   *)
-    echo "usage: $0 [start|ensure|stop]" >&2
+    echo "usage: $0 [start|ensure|stop|restart|status]" >&2
     exit 1
     ;;
 esac

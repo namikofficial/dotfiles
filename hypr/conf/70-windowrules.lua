@@ -25,6 +25,16 @@ rule({
 })
 
 rule({
+  name = "author-clipboard-picker-float",
+  match = { class = "^(com.namikofficial.author-clipboard.popup)$" },
+  float = true,
+  size = "54% 58%",
+  center = true,
+  rounding = 18,
+  animation = "popin 90%",
+})
+
+rule({
   name = "rofi-motion",
   match = { class = "^(rofi)$" },
   animation = "popin 88%",

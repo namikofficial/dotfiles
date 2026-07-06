@@ -60,6 +60,12 @@ Current runtime behavior:
 - enabled MCP servers: `chrome-devtools`, `browser`, `context7`
 - `obsidian` is configured but left disabled by default until the local REST bridge is healthy
 
+Open WebUI:
+- install with `./setup/install-open-webui-stack.sh`
+- start with `docker compose --env-file .env up -d` from `~/.config/open-webui`
+- point it at `http://127.0.0.1:8080/v1`
+- keep `rag-mcp` attached to OpenCode; do not replace that path with the browser UI
+
 OpenCode docs used:
 
 - providers: <https://opencode.ai/docs/providers/>

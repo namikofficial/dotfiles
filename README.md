@@ -119,9 +119,11 @@ project-profile status
 ```
 
 - `dev-health` checks repo state, required tools, settings links, desktop services, local AI/RAG status, project profile state, and disk pressure.
+- `dev-health --json` emits a machine-readable summary for menus and dashboards.
 - `dev-health --full` also runs the deeper weekly health log.
 - `dotfiles-stale-check` blocks stale retired-stack references from creeping back into docs/scripts.
 - `project-profile` lists and launches common workspaces from one source of truth.
+- `project-resume` restores the current project session, editor, and sidecar state from the focused repo.
 
 If package install fails with `db.lck`, clear stale lock and retry:
 
@@ -146,6 +148,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + F1`: open keybind helper overlay (`hypr-binds.sh`)
 - `Super + Ctrl + /`: open keybind helper overlay
 - `Super + A` / `Super + /`: desktop command palette (press again to close)
+- `Super + D`: desktop command palette alternate path
 - `Ctrl + 1..0` in launcher/actions: quick-select top 10 rows
 - `Enter` in launcher/actions: open/run selected row
 - opener key again (`Super+Space` / `Super+A`): close launcher/actions
@@ -155,7 +158,6 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Ctrl + \`: toggle the project runner terminal rooted in the focused repo
 - `Super + Ctrl + Alt + \`: toggle the database scratchpad
 - `Super + B`: open Google Chrome
-- `Super + D`: quick actions (duplicate utility key)
 - `Super + ,`: open Settings Hub
 - `Super + Shift + ,`: restore last minimized window
 - `Super + Ctrl + ,`: quick settings toggle (notification sounds)
@@ -243,6 +245,7 @@ Normalize existing copied files to symlinks:
 - Kitty shows a dashboard banner on startup and has dedicated tabs for scratch, logs, repo, AI, and clipboard history
 - Tmux prefix is `Ctrl + Space`; pane navigation is `Prefix + h/j/k/l`
 - Neovim config is in `nvim/` and bootstraps plugins with `lazy.nvim`
+- `dotfiles-center`: one-stop control center for health, settings, project resume, launcher, and AI entrypoints
 
 Notification panel now routes through the Wayle-first shell path with sticky System Hub controls for GPU/media/network/panel status, copy summary, widget toggles, and quick controls.
 

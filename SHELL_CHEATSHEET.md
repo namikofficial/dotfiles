@@ -1,4 +1,4 @@
-# Shell Cheatsheet
+# Shell + Tmux Cheatsheet
 
 ## Reload / Edit
 - Reload shell: `source ~/.zshrc` or `reload`
@@ -19,16 +19,33 @@
 - Fuzzy file/command search: `fzf` and `<TAB>` with `fzf-tab`
 - History search: type part of command, then `Up`/`Down`
 - Atuin interactive search: `hs`
-- Atuin sync/status/login: `hstatus`, `hlogin`, `hsync`
-- Weekly/monthly stats: `hweek`, `hmonth`
+- Atuin sync status/login/sync: `hstatus`, `hlogin`, `hsync`
+- Atuin learning loop:
+  - Weekly top commands: `hweek`
+  - Monthly top commands: `hmonth`
+  - Full top commands: `hstats`
 
 ## Modern Replacements
-- `ls` → `eza`
-- `ll` → detailed `eza` with git info
-- `lli` → tree view + git summary
-- `cat` → `bat`/`batcat`
-- `grep` → `rg`
-- `helpcmd` → `tldr`
+- `ls` -> `eza`
+- `ll` -> detailed `eza` with git info
+- `lli` -> tree view + full details (`eza` tree)
+- `cat` -> `bat`/`batcat`
+- `grep` -> `rg`
+- `vim` -> `nvim`
+- `helpcmd` -> `tldr` examples
+
+## Neovim Battle Station
+- Launch Neovim: `v` (alias to `nvim`)
+- Plugin UI: `<leader>pl` (or `:Lazy`)
+- Mason UI: `<leader>pm` (or `:Mason`)
+- Health check: `<leader>pc` (or `:checkhealth`)
+- Quick open files: `<C-p>`
+- Explorer toggle: `<C-b>`
+- AI chat toggle: `<leader>aa`
+- Run nearest test: `<leader>tn`
+- Run task runner: `<leader>or`
+- Open lazygit from Neovim terminal: `<leader>gg`
+- Main config: `~/Documents/code/dotfiles/nvim/init.lua`
 
 ## Handy Aliases
 - Disk usage in current dir: `duh`
@@ -39,203 +56,87 @@
 - System monitor: `sysmon` (`btop`)
 - Disk overview: `disks` (`duf`)
 - LazyGit: `lg`
-- Process explorer: `pps`, CPU sort `ppsc`, memory sort `ppsm`
-- Disk analyzer: `dsz`, shallow depth `dsz2`
-- Benchmarks: `bench 'cmd1' 'cmd2'`
+- Process explorer (`procs`): `pps`, CPU sort `ppsc`, memory sort `ppsm`
+- Disk analyzer (`dust`): `dsz`, shallow depth `dsz2`
+- Command benchmark (`hyperfine`): `bench 'cmd1' 'cmd2'`
 - GitHub CLI: `ghs`, `ghpr`, `ghpv`
 - Pipx: `pxl`, `pxi`
 - Clipboard helpers: `echo "text" | clipcopy`, `clippaste`, `jclip`
-- JSON helpers: `je`, `jj`, `jc`, `jk`, `jl`, `jp`, `jf`, `jv`, `jh`
-- Devlink helpers: `dl`, `dld`, `dlp`, `dlh`, `dlm`
-- Alc commands: `ff`, `frg`, `fkill`, `tnotes`, `doctor`, `pkillport`
-- Local readiness: `dev-health`, `dev-health --full`, `dotfiles-stale-check`
-- Project profiles: `project-profile status`, `project-profile launch noxcrm`, `ppr tmux dotfiles`
+- JSON helpers:
+  - Main helper: `je`
+  - Pretty print: `jj file.json`
+  - Keys: `jk file.json`
+  - Custom filter: `jp '.items[].id' file.json`
+  - Find key recursively: `jf id file.json`
+  - Validate JSON: `jv file.json`
+- Devlink helpers:
+  - Main helper: `dl`
+  - Show devices: `dld`
+  - Show ports: `dlp`
+  - Show health: `dlh`
+  - Monitor events: `dlm`
+- FZF open file in editor: `ff`
+- FZF search by ripgrep + preview: `frg <pattern>`
+- FZF pick and kill process: `fkill`
+- Open quick notes file: `tnotes`
+- Run environment checks: `doctor`
+- Kill app by listening port: `pkillport 3000`
 
-## Power / Graphics
-- Current power profile: `powerprofilesctl get`
-- Set balanced mode: `powerprofilesctl set balanced`
-- Set performance mode: `powerprofilesctl set performance`
-- Set power-saver mode: `powerprofilesctl set power-saver`
-- Battery summary: `batt`
-- Wayle status/media data is built into the shell; no separate legacy panel GPU polling flow.
+## Power / Graphics (COSMIC + Pop!_OS)
+- Full status (power profile + graphics mode): `pstatus`
+- Power profile:
+  - Show current: `pp status`
+  - Battery saver: `pp battery` or `ppb`
+  - Balanced: `pp balanced` or `ppd`
+  - Performance: `pp performance` or `ppp`
+- Graphics mode:
+  - Show current: `gfx status`
+  - Integrated: `gfx integrated` or `gfxi`
+  - Hybrid: `gfx hybrid` or `gfxh`
+  - NVIDIA: `gfx nvidia` or `gfxn`
+  - Compute: `gfx compute` or `gfxc`
+- Battery details summary (via `upower`): `batt`
 
 ## Git
 - Status short: `gss`
 - Graph log: `glg`
-- Commit: `gcm`, `gcam`
-- Undo last commit: `gundo`
-- Delete merged branches safely: `gclean`
+- Commit all tracked changes: `gcam`
+- Undo last commit keep changes: `gundo`
+- Delete merged local branches safely: `gclean`
+- Worktree list: `gwtl`
+- Create ticket branch worktree: `gwtn PROJ-123 short summary`
+- Create + auto-enter new ticket worktree: `gwtnc PROJ-123 short summary`
+- Jump to worktree by branch/path: `gwtc feat/my-task`
+- Resolve worktree absolute path: `gwtp feat/my-task`
+- Cleanup stale worktrees:
+  - Preview: `wtprune --dry-run`
+  - Apply without prompt: `wtprune --yes`
 
 ## Docker / K8s
-- Docker ps table: `dps`
+- Docker table ps: `dps`
 - Docker prune: `dprune`
-- Docker compose logs: `dclg`
+- Docker compose logs tail: `dclg`
 - Docker compose build: `dcb`
-- Kubernetes get all: `kga`
-- Kubernetes current context: `kctx`
-- Kubernetes namespace switch: `kns my-namespace`
+- K8s get all: `kga`
+- K8s context: `kctx`
+- Set namespace: `kns my-namespace`
 
-## Safety Defaults
-- `noclobber` protects overwrites
-- `cp`, `mv`, `rm` prompt before destructive actions
-
-## Command Fixer
-- After a failed command, run: `fuck`
-- `pay-respects` teaches a better command
-
-## Included Scripts
-- `bin/dev-doctor`, `bin/jq-easy`, `bin/devlink-easy`, `bin/klogs-fzf`, etc., live in `~/Documents/code/dotfiles/private/scripts/bin` when the private scripts submodule is present.
-
-## Hyprland Quick Keys
-- `Super + Return`: terminal (`kitty`)
-- `Super + Space`: desktop command palette
-- `Super + Shift + Space`: fast app launcher
-- In launcher: Tab A = top 5 frequent, Tab B = all apps, `Ctrl + Tab` switches tabs
-- `Super + .`: fullscreen dev cheatsheet overlay
-- `Super + F1`: keybind helper overlay
-- `Super + A` or `Super + /`: desktop command palette (press again to close)
-- `Super + Ctrl + /`: keybind helper overlay
-- In launcher/actions: `Ctrl + 1..0` quick-select, `Enter` run/open
-- `Super + W`: workspace overview picker (Rofi)
-- `Super + Tab`: overview toggle (`hyprexpo` if loaded, otherwise Rofi overview)
-- `Super + Shift + Tab`: direct Rofi overview
-- `Super + F`: toggle floating for active window
-- `Super + M`: maximize / unmaximize active window
-- `Super + G`: cycle layout state (`dwindle/master/monocle`)
-- `Super + Alt + G`: toggle `dwindle` / `master` layout
-- `Alt + Tab` / `Alt + Shift + Tab`: cycle workspace windows
-- ``Super + ` ``: toggle full spatial scratch scene
-- `Super + \\`: toggle side panel special workspace
-- `Super + Shift + \\`: move current window into side panel + open it
-- `Super + Ctrl + 9`: open logs workspace terminal (workspace 9)
-- `Super + Ctrl + 0`: open/focus telemetry dashboard on workspace `0` key slot (`Hyprland workspace 10`)
-- `Super + Ctrl + Shift + 0`: reset the telemetry tmux session and reopen it
-- `Super + D`: desktop command palette
-- `Super + O`: wallpaper picker
-- `Super + Shift + O`: next wallpaper
-- `Super + N`: toggle notification panel
-- `Super + Ctrl + Space`: window/workspace search
-- `Super + Alt + N`: toggle DND
-- `Super + Ctrl + N`: copy notification/status summary
-- `Super + Shift + N`: open notes folder
-- `Super + S`: spatial scratchpad dashboard
-- `Super + Alt + E`: open notes folder in editor
-- `Super + I`: pick a color (`hyprpicker -a`)
-- `Super + Shift + I`: toggle night light
-- `Super + Shift + T`: OCR selected area to clipboard
-- `Super + Ctrl + R`: toggle screen recording
-- `Super + Y`: workspace overview
-- `Super + Ctrl + Y`: switch panel to Wayle when installed
-- `Super + Shift + Y`: toggle panel visibility only
-- `Super + Ctrl + Alt + Y`: toggle the current panel shell
-- `Fn + 2/3/4/5`: AI helper (`ask`/`clipboard`/`shell`/`debug`) with local aliases/tools/project context
-- `Super + Alt + 2`: freeform AI prompt with no preset base prompt
-- `Super + Alt + 3/4/5`: fallback AI helper (`clipboard`/`shell`/`debug`)
-- `Super + Ctrl + Arrow`: move active floating window
-- `Super + Ctrl + Shift + Arrow`: resize active floating window
-- `Super + [` / `Super + ]`: previous / next workspace
-
-## Kitty Keymaps
-- Dashboard start screen: shown automatically in Kitty windows
-- Open dashboard tab: `Ctrl + Shift + D`
-- Scratch shell: `Ctrl + Shift + 1`
-- Live logs tab: `Ctrl + Shift + 2`
-- Repo tab: `Ctrl + Shift + 3`
-- AI tab: `Ctrl + Shift + 4`
-- Clipboard history picker: `Ctrl + Shift + Y`
-- New tab (same cwd): `Ctrl + Shift + T`
-- Close split/window: `Ctrl + Shift + Q`
-- Close tab: `Ctrl + Shift + W`
-- Previous / next tab: `Ctrl + Shift + [` / `Ctrl + Shift + ]`
-- New window (same cwd): `Ctrl + Shift + Enter`
-- Split horizontal / vertical: `Ctrl + Shift + O` / `Ctrl + Shift + E`
-- Smart split (layout decides best side): `Ctrl + Shift + S`
-- Focus left/right/up/down split: `Ctrl + Shift + H/J/K/L`
-- Resize split: `Ctrl + Shift + Alt + H/J/K/L`
-- Rotate current split tree (vertical <-> horizontal): `Ctrl + Shift + R`
-- Zoom/unzoom current pane (stack layout toggle): `Ctrl + Shift + X`
-- Reload kitty config: `Ctrl + Shift + F5`
-- Reload theme + Kitty + Hyprland + panel: `Super + Ctrl + Shift + Y`
-- Next wallpaper: `Super + Shift + O`
-- Clipboard: selecting text copies automatically (`copy_on_select`)
-
-## Tmux Quickstart
-- Start/attach `main` session: `tnew` or `tn`
-- Attach named session: `ta mysession`
+## Tmux Basics
+- Attach or create `main`: `ta`
+- New/attach named session: `tns work`
+- Sessionizer picker: `tms`
 - List sessions: `tls`
-- Prefix key: `Ctrl + Space`
-- New window: `Prefix + c`
-- Split horizontal / vertical: `Prefix + -` / `Prefix + |`
-- Move panes: `Prefix + h/j/k/l`
-- Resize panes: `Prefix + H/J/K/L`
-- Reload tmux config: `Prefix + r` or `treload`
-- Copy in copy-mode: `Prefix + [` then `v` select, `y` copy (uses `wl-copy`)
-- Install/update TPM plugins: `~/Documents/code/dotfiles/setup/install-tmux-plugins.sh`
+- Reload tmux config from `~/Documents/code/dotfiles/tmux/tmux.conf`: `tr`
+- Kill session: `tk work`
+- Kill tmux server: `tka`
 
-## Neovim Quickstart
-- Open editor: `nvim`
-- Leader key: `Space`
-- AI autocomplete: `:Copilot auth` once, then Copilot suggestions appear inside `nvim-cmp`
-- Save like VS Code: `<C-s>`
-- Find files like VS Code: `<C-p>`
-- Find files: `<leader>ff`
-- Live grep: `<leader>fg`
-- File explorer: `-`
-- Float terminal: `<leader>tt` or `<C-\>`
-- LazyGit UI: `<leader>gg`
-- LSP rename: `<leader>rn`
-- VS Code rename: `<F2>`
-- Go to definition: `<F12>`
-- Code actions: `<leader>ca`
-- Format buffer: `<leader>bf`
-- Line diagnostics: `<leader>cd`
-- Workspace symbols: `<leader>ws`
-- Debug continue / breakpoint / step: `<F5>` / `<F9>` / `<F10>` / `<F11>`
-- Debug UI / stop: `<leader>du` / `<leader>dx`
-- Terminal normal mode: `<Esc><Esc>`
-- NoxFlow apps picker: `<leader>na`
-- NoxFlow packages picker: `<leader>np`
-- NoxFlow repo search: `<leader>ns`
-- NoxFlow repo test/lint/type-check/format: `<leader>nt` / `<leader>nl` / `<leader>nc` / `<leader>nF`
-- NoxFlow nearest package test/lint/type-check/dev: `<leader>npt` / `<leader>npl` / `<leader>npc` / `<leader>npd`
-
-## Session Repair
-- Reload shell config: `exec zsh`
-- Reload Hyprland config when the live provider is Lua: `~/.config/hypr/scripts/hypr-reload-safe.sh`
-- Restart portal services: `systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk`
-- Restore preferred panel: `~/.config/hypr/scripts/panel-switch.sh show`
-- Toggle NetworkManager tray applet: `~/.config/hypr/scripts/nm-applet-toggle.sh`
-
-## Reboot Runbook (3 commands)
-- `sudo ~/Documents/code/dotfiles/setup/pre-reboot-apply.sh`
-- `sudo reboot`
-- `~/Documents/code/dotfiles/setup/post-reboot-verify.sh`
-
-## Timeshift Auto Snapshots
-- Configure daily snapshots + keep latest 5: `sudo ~/Documents/code/dotfiles/setup/configure-timeshift.sh`
-- Check timer status: `systemctl status noxflow-timeshift-auto.timer`
-- Read latest setup log: `cat ~/Documents/code/dotfiles/logs/timeshift-setup-latest.log`
-
-## Login Screen (SDDM)
-- Apply improved SDDM theme/background: `sudo ~/Documents/code/dotfiles/setup/configure-sddm.sh`
-
-## Weekly Health Check
-
-- Fast developer readiness: `dev-health`
-- Deep health log: `dev-health --full`
-- Run now: `~/Documents/code/dotfiles/setup/weekly-health-check.sh`
-- Enable weekly timer: `~/Documents/code/dotfiles/setup/configure-weekly-healthcheck.sh`
-- Latest log: `cat ~/Documents/code/dotfiles/logs/health-latest.log`
-- Auto-open failures in editor: `HEALTHCHECK_OPEN_ON_FAIL=1 ~/Documents/code/dotfiles/setup/weekly-health-check.sh`
-
-## Default Editor
-- Configure MIME defaults (VS Code preferred): `~/Documents/code/dotfiles/setup/configure-default-editor.sh`
-
-## LocalSend
-- Install via Flatpak: `flatpak install -y flathub org.localsend.localsend_app`
-- Launch: `flatpak run org.localsend.localsend_app`
-
-## Shell Navigation UX
-- `Ctrl + R`: Atuin fuzzy history UI
-- `Alt + C`: fuzzy jump into a zoxide directory
-- `Esc`: enter `zsh-vi-mode` normal mode (if plugin installed)
+## Tmux In-Session Keys
+- Prefix is `Ctrl-Space`
+- Detach session: `Ctrl-Space d`
+- Split vertical: `Ctrl-Space -`
+- Split horizontal: `Ctrl-Space |`
+- Move pane: `Ctrl-Space h/j/k/l`
+- Resize pane: `Ctrl-Space H/J/K/L`
+- Zoom pane: `Ctrl-Space z`
+- Help hint: `Ctrl-Space ?`
+- Install/update plugins: `Ctrl-Space I`

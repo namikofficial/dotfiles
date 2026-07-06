@@ -23,7 +23,6 @@ models:
       --parallel 1
       --jinja
     aliases:
-      - local
       - qwen3
       - qwen3-8b
 
@@ -131,6 +130,7 @@ models:
       --parallel 1
       --jinja
     aliases:
+      - local
       - router
       - qwen3-router
       - qwen3-1b

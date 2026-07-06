@@ -13,7 +13,7 @@ This repository now includes a schema-driven settings layer.
 - `hypr/scripts/settings-hub.sh`: Rofi Settings Hub.
 - `hypr/scripts/settings/apply.sh`: apply engine.
 - `hypr/scripts/settings/doctor.sh`: drift checks.
-- `hypr/scripts/settings/keybind-check.sh`: duplicate keybind detector.
+- `hypr/scripts/settings/keybind-check.sh`: duplicate keybind detector plus keybind-doc parity check.
 - `setup/apply-system-profile.sh`: root-level system profile apply.
 
 ## Commands

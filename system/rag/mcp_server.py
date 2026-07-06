@@ -829,7 +829,12 @@ async def _call_tool(name: str, arguments: dict[str, Any]) -> list[TextContentLi
             if not rows:
                 return _text("No memory status")
             lines = [
-                f"- {row['repo']}: memory={'yes' if row['has_memory'] else 'no'}, summaries={row['summary_count']}, chunks={row['chunk_count']}"
+                (
+                    f"- {row['repo']}: status={row['status']}, "
+                    f"memory={'yes' if row['memory_updated_at'] else 'no'}, "
+                    f"freshness={row['freshness_score']}, chunks={row['chunk_count']}, "
+                    f"detail={'; '.join(row['reasons']) if row['reasons'] else 'ok'}"
+                )
                 for row in rows
             ]
             return _text("\n".join(lines))

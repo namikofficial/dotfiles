@@ -296,15 +296,21 @@ for agent in \
   fi
 done
 
-# Clipboard history daemon
-wlpaste_bin="$(resolve_cmd wl-paste || true)"
-cliphist_bin="$(resolve_cmd cliphist || true)"
-if [ -n "$wlpaste_bin" ] && [ -n "$cliphist_bin" ]; then
-  log "starting clipboard history watchers"
-  pkill -f 'wl-paste --type text --watch .*cliphist store' >/dev/null 2>&1 || true
-  pkill -f 'wl-paste --type image --watch .*cliphist store' >/dev/null 2>&1 || true
-  "$wlpaste_bin" --type text --watch "$cliphist_bin" store >/dev/null 2>&1 &
-  "$wlpaste_bin" --type image --watch "$cliphist_bin" store >/dev/null 2>&1 &
+# Use cliphist only as a fallback when Author Clipboard is not installed.
+author_clipboard_bin="$(resolve_cmd author-clipboard-daemon || true)"
+if [ -z "$author_clipboard_bin" ] && [ -x "$HOME/.local/bin/author-clipboard-daemon" ]; then
+  author_clipboard_bin="$HOME/.local/bin/author-clipboard-daemon"
+fi
+if [ -z "$author_clipboard_bin" ]; then
+  wlpaste_bin="$(resolve_cmd wl-paste || true)"
+  cliphist_bin="$(resolve_cmd cliphist || true)"
+  if [ -n "$wlpaste_bin" ] && [ -n "$cliphist_bin" ]; then
+    log "starting fallback clipboard history watchers"
+    pkill -f 'wl-paste --type text --watch .*cliphist store' >/dev/null 2>&1 || true
+    pkill -f 'wl-paste --type image --watch .*cliphist store' >/dev/null 2>&1 || true
+    "$wlpaste_bin" --type text --watch "$cliphist_bin" store >/dev/null 2>&1 &
+    "$wlpaste_bin" --type image --watch "$cliphist_bin" store >/dev/null 2>&1 &
+  fi
 fi
 
 # Start kage project watch daemon

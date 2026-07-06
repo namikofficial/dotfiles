@@ -174,7 +174,7 @@ PY
     return 1
   }
   backup_if_exists "$LLAMA_SWAP_LIVE"
-  run mv "$tmp" "$LLAMA_SWAP_LIVE"
+  run mv -f "$tmp" "$LLAMA_SWAP_LIVE"
 }
 
 validate_llama_swap_config() {
@@ -204,7 +204,7 @@ install_runtime() {
   link_bin "$REPO_DIR/system/local-ai-runtime.sh" "$BIN_DIR/local-ai-runtime"
   link_bin "$REPO_DIR/system/llama-swap-manager.sh" "$BIN_DIR/llama-swap-manager"
   link_bin "$REPO_DIR/system/rag.sh" "$BIN_DIR/rag"
-  write_if_missing "$CONFIG_DIR/current-model.env" $'CURRENT_MODEL=qwen3-8b\nCURRENT_ALIAS=local\nLOCAL_AI_ENDPOINT=http://127.0.0.1:8080/v1\nMODEL_ROOT='"$MODEL_ROOT"$'\n'
+  write_if_missing "$CONFIG_DIR/current-model.env" $'CURRENT_MODEL=qwen3-router\nCURRENT_ALIAS=local\nLOCAL_AI_ENDPOINT=http://127.0.0.1:8080/v1\nMODEL_ROOT='"$MODEL_ROOT"$'\n'
   write_if_missing "$CONFIG_DIR/rag.json" '{
   "endpoint": "http://127.0.0.1:8080/v1",
   "model": "local",

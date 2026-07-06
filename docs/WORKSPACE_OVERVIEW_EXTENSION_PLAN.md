@@ -88,7 +88,7 @@ This document started as a planning artifact and now also tracks implementation 
 From current `zshrc`:
 - Auto-`ls` after directory changes is already enabled via `chpwd` hook.
 - Auto-`ls` cap now defaults to `AUTO_LS_MAX_ENTRIES=30`.
-- Completion behavior is tuned with `LISTMAX=0` and compact completion list sizing.
+- Completion behavior is tuned with a high `LISTMAX` threshold and compact completion list sizing.
 
 ---
 
@@ -628,7 +628,7 @@ Consistent compact shell UX with clear overflow messaging.
 Execution checklist:
 - [x] `AUTO_LS_MAX_ENTRIES` default lowered to target value
 - [x] truncated auto-`ls` always prints `... and N more`
-- [x] completion behavior tuned (`LISTMAX=0` + compact list-lines)
+- [x] completion behavior tuned (high `LISTMAX` + compact list-lines)
 - [x] full explicit listing commands (`ll`, `la`) stay unchanged
 
 ---

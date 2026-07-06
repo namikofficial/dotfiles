@@ -7,9 +7,17 @@ autoload -Uz colors && colors
 zmodload zsh/datetime
 
 # Centralize repo locations so we can source shared configs from here.
-if [[ -z "${DOTFILES_HOME:-}" ]]; then
-  zshrc_source="${(%):-%N}"
-  DOTFILES_HOME="${zshrc_source:A:h}"
+zshrc_source="${(%):-%N}"
+if command -v readlink >/dev/null 2>&1; then
+  zshrc_source="$(readlink -f -- "$zshrc_source" 2>/dev/null || print -r -- "${zshrc_source:A}")"
+else
+  zshrc_source="${zshrc_source:A}"
+fi
+zshrc_dir="${zshrc_source:h}"
+if [[ -f "$zshrc_dir/aliases.zsh" ]]; then
+  DOTFILES_HOME="$zshrc_dir"
+elif [[ -z "${DOTFILES_HOME:-}" ]]; then
+  DOTFILES_HOME="${zshrc_source:h}"
 fi
 
 if [[ -z "${SCRIPTS_HOME:-}" ]]; then
@@ -28,7 +36,7 @@ fi
 SCRIPTS_HOME="${SCRIPTS_HOME:-$DOTFILES_HOME/private/scripts}"
 SCRIPTS_BIN="${SCRIPTS_BIN:-$SCRIPTS_HOME/bin}"
 export DOTFILES_HOME SCRIPTS_HOME SCRIPTS_BIN
-unset zshrc_source scripts_candidate
+unset zshrc_source zshrc_dir scripts_candidate
 
 # Optional startup profiler.
 if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
@@ -40,6 +48,10 @@ fi
 setopt autocd interactive_comments noclobber no_beep
 setopt hist_ignore_all_dups hist_ignore_space hist_reduce_blanks hist_save_no_dups
 setopt share_history append_history inc_append_history extended_history hist_fcntl_lock
+setopt always_last_prompt
+# Disable classic "do you wish to see all ... possibilities" prompts.
+# Ambiguous completion should defer to the configured completion UI instead.
+unsetopt autolist
 # Keep unmatched globs explicit to avoid accidental wildcard typos.
 setopt nomatch
 bindkey -e
@@ -67,9 +79,9 @@ fi
 mkdir -p "$HOME/.cache/zsh"
 
 # Completion list behavior:
-# - LISTMAX=0 disables the "do you wish to see all ... possibilities" confirmation.
-# - This makes completion candidates list immediately when there are many matches.
-LISTMAX=0
+# - Keep a high LISTMAX for direct listing widgets.
+# - The classic AUTO_LIST prompt is disabled above so TAB never asks for confirmation.
+LISTMAX=999999
 
 # zsh-completions (must be in fpath before compinit)
 if [ -d "$HOME/.local/share/zsh/site-functions" ]; then
@@ -104,10 +116,9 @@ zstyle ':completion:*' auto-description 'specify: %d'
 zstyle ':completion:*' completer _expand _complete _correct _approximate
 zstyle ':completion:*' format 'Completing %d'
 zstyle ':completion:*' group-name ''
-zstyle ':completion:*' list-prompt '%SAt %p: hit TAB for more%s'
 zstyle ':completion:*' list-lines 24
 zstyle ':completion:*' matcher-list '' 'm:{a-z}={A-Z}' 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=* l:|=*'
-zstyle ':completion:*' menu select=long
+zstyle ':completion:*' menu no-select
 zstyle ':completion:*' select-prompt '%SScrolling active: current selection at %p%s'
 zstyle ':completion:*' use-compctl false
 zstyle ':completion:*' verbose true
@@ -119,60 +130,10 @@ if command -v dircolors >/dev/null 2>&1; then
   zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS}
 fi
 
-# Warn once per day when commonly expected tools are missing.
-warn_missing_tools_once() {
-  emulate -L zsh
-  [[ -o interactive ]] || return 0
-
-  local cache_dir="$HOME/.cache/zsh"
-  local stamp_file="${cache_dir}/.missing-tools-warned-$(date +%Y%m%d)"
-  mkdir -p "$cache_dir"
-  [ -f "$stamp_file" ] && return 0
-
-  local -a expected_tools=(fzf rg eza zoxide)
-  local -a missing_tools=()
-  local tool
-  for tool in "${expected_tools[@]}"; do
-    command -v "$tool" >/dev/null 2>&1 || missing_tools+=("$tool")
-  done
-
-  if (( ${#missing_tools[@]} > 0 )); then
-    print -P "%F{yellow}zsh:%f missing optional tools: ${missing_tools[*]}"
-    print -P "%F{yellow}zsh:%f run 'dev-doctor' and see docs/setup.md for install guidance"
-  fi
-
-  : >| "$stamp_file"
-}
-warn_missing_tools_once
-
-# Run a lightweight weekly environment health check.
-run_weekly_dev_doctor_check() {
-  emulate -L zsh
-  [[ -o interactive ]] || return 0
-
-  local doctor_bin=""
-  if [ -x "${SCRIPTS_BIN:-}/dev-doctor" ]; then
-    doctor_bin="${SCRIPTS_BIN}/dev-doctor"
-  elif command -v dev-doctor >/dev/null 2>&1; then
-    doctor_bin="$(command -v dev-doctor)"
-  else
-    return 0
-  fi
-
-  local cache_dir="$HOME/.cache/zsh"
-  local stamp_file="${cache_dir}/.dev-doctor-weekly-$(date +%G%V)"
-  mkdir -p "$cache_dir"
-  [ -f "$stamp_file" ] && return 0
-
-  if command -v timeout >/dev/null 2>&1; then
-    timeout 12s "$doctor_bin" >/dev/null 2>&1 || print -P "%F{yellow}zsh:%f weekly dev-doctor found issues (run: dev-doctor)"
-  else
-    "$doctor_bin" >/dev/null 2>&1 || print -P "%F{yellow}zsh:%f weekly dev-doctor found issues (run: dev-doctor)"
-  fi
-
-  : >| "$stamp_file"
-}
-run_weekly_dev_doctor_check
+# Startup checks live in a small sourced fragment so this entrypoint stays focused.
+if [ -f "$DOTFILES_HOME/zsh/startup.zsh" ]; then
+  source "$DOTFILES_HOME/zsh/startup.zsh"
+fi
 
 # Small TTL cache for expensive shell lookups.
 zsh_cache_run() {
@@ -381,12 +342,14 @@ alias kage="$HOME/.config/hypr/scripts/kage"
 
 find_codex_bin_dir() {
   emulate -L zsh
-  typeset -a latest_node_dirs
-  latest_node_dirs=("$NVM_DIR"/versions/node/*(N/om[1]))
-  if [ -n "${latest_node_dirs[1]}" ] && [ -x "${latest_node_dirs[1]}/bin/codex" ]; then
-    print -r -- "${latest_node_dirs[1]}/bin"
+  typeset -a node_dirs
+  node_dirs=("$NVM_DIR"/versions/node/*(/Nom))
+  local dir
+  for dir in "${node_dirs[@]}"; do
+    [ -x "$dir/bin/codex" ] || continue
+    print -r -- "$dir/bin"
     return 0
-  fi
+  done
   for codex_bin in "$HOME"/.vscode/extensions/openai.chatgpt-*-linux-x64/bin/linux-x86_64/codex(N); do
     [ -x "$codex_bin" ] || continue
     print -r -- "${codex_bin:h}"
@@ -617,6 +580,26 @@ bindkey -M viins '^I' smart_tab_complete 2>/dev/null || true
 bindkey '^[[Z' reverse-menu-complete
 bindkey -M emacs '^[[Z' reverse-menu-complete 2>/dev/null || true
 bindkey -M viins '^[[Z' reverse-menu-complete 2>/dev/null || true
+
+# Make Kitty-style word-motion keys behave consistently in both emacs and vi insert mode.
+bindkey '^[b' backward-word
+bindkey '^[f' forward-word
+bindkey '^[[1;5D' backward-word
+bindkey '^[[1;5C' forward-word
+bindkey '^[^?' backward-kill-word
+bindkey '^[\b' backward-kill-word
+bindkey -M emacs '^[b' backward-word 2>/dev/null || true
+bindkey -M emacs '^[f' forward-word 2>/dev/null || true
+bindkey -M emacs '^[[1;5D' backward-word 2>/dev/null || true
+bindkey -M emacs '^[[1;5C' forward-word 2>/dev/null || true
+bindkey -M emacs '^[^?' backward-kill-word 2>/dev/null || true
+bindkey -M emacs '^[\b' backward-kill-word 2>/dev/null || true
+bindkey -M viins '^[b' backward-word 2>/dev/null || true
+bindkey -M viins '^[f' forward-word 2>/dev/null || true
+bindkey -M viins '^[[1;5D' backward-word 2>/dev/null || true
+bindkey -M viins '^[[1;5C' forward-word 2>/dev/null || true
+bindkey -M viins '^[^?' backward-kill-word 2>/dev/null || true
+bindkey -M viins '^[\b' backward-kill-word 2>/dev/null || true
 
 # Completion menu navigation keys (when menu selection is active).
 bindkey -M menuselect '^[[A' up-line-or-history 2>/dev/null || true
@@ -856,7 +839,7 @@ fix-time() {
 # Starship prompt (should be last)
 eval "$(starship init zsh)"
 
-kitty_dashboard_maybe_show
+(( ${+functions[kitty_dashboard_maybe_show]} )) && kitty_dashboard_maybe_show
 
 if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
   startup_elapsed_ms=$(( (EPOCHREALTIME - __ZSH_STARTUP_BEGIN_MS) * 1000 ))
@@ -868,3 +851,19 @@ fi
 alias llama-gemma="llama-start gemma"
 alias llama-code="llama-start code"
 alias llama-status="curl -s http://127.0.0.1:8000/v1/models | jq '.data[0].id' 2>/dev/null || echo 'Server not running'"
+
+
+# Added by Antigravity CLI installer
+export PATH="/home/namik/.local/bin:$PATH"
+
+# OpenClaw completion
+[ -f "$HOME/.openclaw/completions/openclaw.zsh" ] && source "$HOME/.openclaw/completions/openclaw.zsh"
+
+# Quiet completion policy for sessions where live autocomplete is disabled.
+# When zsh-autocomplete is enabled, let the plugin own live listing behavior.
+if [[ "$ENABLE_ZSH_AUTOCOMPLETE" != "1" ]]; then
+  unsetopt autolist
+  unsetopt automenu
+  unsetopt listambiguous
+  LISTMAX=999999
+fi

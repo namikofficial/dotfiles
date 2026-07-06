@@ -2,13 +2,21 @@
 set -eu
 
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-daemon_ctl="$script_dir/cliphist-daemon.sh"
-ipc="$script_dir/cliphist-ipc.py"
+dotfiles_dir="$(cd -- "$script_dir/../.." && pwd)"
 
-if python3 "$ipc" toggle >/dev/null 2>&1; then
-  exit 0
+daemon_ctl="$dotfiles_dir/hypr/scripts/cliphist-daemon.sh"
+
+$daemon_ctl start >/dev/null 2>&1 || true
+
+picker="$HOME/.local/bin/author-clipboard-hypr-picker"
+if [ ! -x "$picker" ]; then
+  picker="$(command -v author-clipboard-hypr-picker || true)"
 fi
 
-[ -x "$daemon_ctl" ] || exit 0
-"$daemon_ctl" start >/dev/null 2>&1 || exit 0
-python3 "$ipc" toggle >/dev/null 2>&1 || true
+if [ -z "$picker" ] || [ ! -x "$picker" ]; then
+  notify-send -a "Author Clipboard" "Clipboard picker unavailable" \
+    "Install author-clipboard-hypr-picker in ~/.local/bin."
+  exit 1
+fi
+
+exec "$picker"

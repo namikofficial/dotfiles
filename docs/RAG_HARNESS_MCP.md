@@ -23,3 +23,8 @@ Start with `filesystem`, `git`, `sqlite`, `context7`, and `rag`. Enable `postgre
 
 ## OpenCode integration
 Use `ai/mcp/opencode-mcp.example.json` as the baseline OpenCode config. Keep local RAG enabled and point filesystem/git at the active workspace.
+
+## Open WebUI integration
+- Keep `rag-mcp` as the canonical stdio server for OpenCode.
+- Use `mcpo` as the HTTP bridge for Open WebUI. The compose stack mounts `~/Documents/code/dotfiles` and `~/ai-rag` into the bridge container and exposes the generated OpenAPI endpoint on host port `8088`.
+- The web UI should consume the local inference endpoint separately from the RAG tool surface.

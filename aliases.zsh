@@ -203,6 +203,14 @@ alias gpropen="$SCRIPTS_BIN/git-pr-open"
 alias wtprune="$SCRIPTS_BIN/prune-worktrees"
 alias chlog="$SCRIPTS_BIN/changelog-since"
 
+# Local AI git helpers (use llama-swap on :8080, qwen3-4b by default)
+alias gai='kage ai'                          # kage ai menu
+alias gaicm='kage ai commit-msg'             # generate commit message, copy to clipboard
+alias gaicmc='kage ai commit-msg --commit'   # generate AND commit immediately
+alias gairv='kage ai review'                 # review last commit
+alias gaiex='kage ai explain'                # explain clipboard contents pedagogically
+alias gaicmf='kage ai commit-msg --type feat'  # hint type
+
 # Enhanced gcm: interactive or with argument
 gcm() {
   local msg="$*"
@@ -283,7 +291,10 @@ alias pnew="$SCRIPTS_BIN/project-new"
 alias zshprofile="$SCRIPTS_BIN/zsh-startup-profile"
 alias zshbench="$SCRIPTS_BIN/zsh-startup-profile --runs 20"
 alias dev-health="$DOTFILES_HOME/setup/dev-health.sh"
+alias dev-health-json="$DOTFILES_HOME/setup/dev-health.sh --json"
 alias dotfiles-stale-check="$DOTFILES_HOME/setup/check-stale-references.sh"
+alias dotfiles-center="$DOTFILES_HOME/hypr/scripts/control-center.sh"
+alias project-resume="$DOTFILES_HOME/hypr/scripts/project-resume.sh"
 project-profile() {
   "$DOTFILES_HOME/setup/project-profile.sh" "$@"
 }

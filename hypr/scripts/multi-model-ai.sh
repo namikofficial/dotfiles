@@ -114,6 +114,7 @@ load_opencode_mcp_env() {
       export OBSIDIAN_VERIFY_SSL="${OBSIDIAN_VERIFY_SSL:-false}"
     fi
     export OBSIDIAN_ENABLE_CACHE="${OBSIDIAN_ENABLE_CACHE:-false}"
+    export OBSIDIAN_VAULT_PATH="${OBSIDIAN_VAULT_PATH:-$HOME/Documents/notes/namikBrain}"
   fi
 
   [ -f "$mcp_file" ] || return 0
@@ -174,6 +175,7 @@ ensure_opencode_config || {
 load_opencode_mcp_env
 export LLM_CHAT_MODEL="$model"
 export OPENCODE_MODEL="${OPENCODE_MODEL:-llamacpp/$model}"
+export OPENCODE_DEFAULT_MODEL="${OPENCODE_DEFAULT_MODEL:-llamacpp/qwen3-router}"
 export NOXFLOW_AI_CONTEXT="$context_dir"
 
 if command -v ai_remote_models >/dev/null 2>&1; then
