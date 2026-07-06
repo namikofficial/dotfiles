@@ -539,9 +539,9 @@ if [[ "$ZSH_ENABLE_EXTRA_PLUGINS" == "1" ]]; then
 fi
 
 # Optional plugins (if installed)
-# Keep live autocomplete opt-in: it can ask zsh to list huge completion sets
-# while typing short prefixes like "c" in every open terminal.
-ENABLE_ZSH_AUTOCOMPLETE="${ENABLE_ZSH_AUTOCOMPLETE:-0}"
+# Enable zsh-autocomplete by default for live completion menus while typing.
+# Set ENABLE_ZSH_AUTOCOMPLETE=0 to disable it for a given session.
+ENABLE_ZSH_AUTOCOMPLETE="${ENABLE_ZSH_AUTOCOMPLETE:-1}"
 if [[ "$ENABLE_ZSH_AUTOCOMPLETE" == "1" ]]; then
   for plugin in \
     "$HOME/.local/share/zsh/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh" \
@@ -859,9 +859,11 @@ export PATH="/home/namik/.local/bin:$PATH"
 # OpenClaw completion
 [ -f "$HOME/.openclaw/completions/openclaw.zsh" ] && source "$HOME/.openclaw/completions/openclaw.zsh"
 
-# Final completion policy guard. Some completion/plugin files set options after
-# the main completion block, so enforce this at the very end of startup too.
-unsetopt autolist
-unsetopt automenu
-unsetopt listambiguous
-LISTMAX=999999
+# Quiet completion policy for sessions where live autocomplete is disabled.
+# When zsh-autocomplete is enabled, let the plugin own live listing behavior.
+if [[ "$ENABLE_ZSH_AUTOCOMPLETE" != "1" ]]; then
+  unsetopt autolist
+  unsetopt automenu
+  unsetopt listambiguous
+  LISTMAX=999999
+fi
