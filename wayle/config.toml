@@ -130,7 +130,7 @@ icon-bg-color = "auto"
 label-color = "fg-default"
 button-bg-color = "transparent"
 
-[modules.notification]
+[modules.notifications]
 left-click = "dropdown:notification"
 right-click = "wayle notify dnd"
 popup-position = "top-right"
