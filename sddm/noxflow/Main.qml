@@ -6,21 +6,21 @@ Rectangle {
     id: root
     width: Screen.width
     height: Screen.height
-    color: "#090c13"
+    color: "#080b12"
 
     LayoutMirroring.enabled: Qt.locale().textDirection == Qt.RightToLeft
     LayoutMirroring.childrenInherit: true
 
-    property color accent: "#7aa2f7"
-    property color accentSoft: "#2b7aa2f7"
-    property color panelBg: "#d0121724"
-    property color panelBgAlt: "#e0161c2c"
-    property color panelBorder: "#447aa2f7"
+    property color accent: "#00e5ff"
+    property color accentSoft: "#2b00e5ff"
+    property color panelBg: "#dc080b12"
+    property color panelBgAlt: "#e0111522"
+    property color panelBorder: "#6600e5ff"
     property color panelBorderSoft: "#2bffffff"
-    property color textPrimary: "#e4ecff"
-    property color textMuted: "#a0abc9"
-    property color okColor: "#4fd6be"
-    property color badColor: "#ff7b8d"
+    property color textPrimary: "#edf7ff"
+    property color textMuted: "#9aa9bd"
+    property color okColor: "#59ffa1"
+    property color badColor: "#ff3c78"
     property string statusMessage: textConstants.prompt
     property color statusColor: textMuted
     property bool compactLayout: width < 1080 || height < 780
@@ -85,8 +85,8 @@ Rectangle {
         radius: width
         opacity: 0.24
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#223d5df7" }
-            GradientStop { position: 0.55; color: "#0f3d5df7" }
+            GradientStop { position: 0.0; color: "#3300e5ff" }
+            GradientStop { position: 0.55; color: "#1400e5ff" }
             GradientStop { position: 1.0; color: "#00000000" }
         }
     }
@@ -99,8 +99,8 @@ Rectangle {
         radius: width
         opacity: 0.2
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#337aa2f7" }
-            GradientStop { position: 0.45; color: "#167aa2f7" }
+            GradientStop { position: 0.0; color: "#44ff3cac" }
+            GradientStop { position: 0.45; color: "#18ff3cac" }
             GradientStop { position: 1.0; color: "#00000000" }
         }
     }

@@ -153,6 +153,11 @@ copy_path() {
     exit 1
   fi
 
+  if [ -f "$source" ] && [ -f "$target" ] && cmp -s "$source" "$target"; then
+    echo "ok   $target"
+    return 0
+  fi
+
   mkdir -p "$(dirname "$target")"
 
   backup_if_needed "$target"
@@ -200,6 +205,7 @@ link_path "$REPO_DIR/tmux/tmux-sessions" "$HOME/.local/bin/tmux-sessions"
 link_path "$REPO_DIR/setup/dev-health.sh" "$HOME/.local/bin/dev-health"
 link_path "$REPO_DIR/setup/check-stale-references.sh" "$HOME/.local/bin/dotfiles-stale-check"
 link_path "$REPO_DIR/setup/project-profile.sh" "$HOME/.local/bin/project-profile"
+link_path "$REPO_DIR/setup/workstationctl" "$HOME/.local/bin/workstationctl"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
 link_path "$REPO_DIR/nvim" "$HOME/.config/nvim"
@@ -207,8 +213,21 @@ link_path "$REPO_DIR/uwsm/default-id" "$HOME/.config/uwsm/default-id"
 link_path "$REPO_DIR/uwsm/env" "$HOME/.config/uwsm/env"
 link_path "$REPO_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
 link_path "$REPO_DIR/settings/features.env" "$HOME/.config/dotfiles/features.env"
-link_path "$REPO_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
+link_path "$REPO_DIR/settings/machine.env" "$HOME/.config/dotfiles/machine.env"
+link_path "$REPO_DIR/android/android-env.sh" "$HOME/.config/environment.d/60-android.conf"
 link_path "$REPO_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
+link_path "$REPO_DIR/systemd/user/noxflow-session-optional.service" "$HOME/.config/systemd/user/noxflow-session-optional.service"
+
+# Remove the obsolete managed drop-in that discarded the GPU selected by
+# env-hyprland. Unrelated local overrides are deliberately left alone.
+legacy_gpu_override="$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
+if [ -L "$legacy_gpu_override" ]; then
+  if ((DRY_RUN)); then
+    echo "[dry-run] rm '$legacy_gpu_override'"
+  else
+    rm -f "$legacy_gpu_override"
+  fi
+fi
 
 mkdir -p "$HOME/.config/hypr" "$HOME/.config/kitty"
 link_path "$REPO_DIR/hypr/hyprland.lua" "$HOME/.config/hypr/hyprland.lua"
@@ -218,6 +237,7 @@ link_path "$REPO_DIR/hypr/monitor-layout.json" "$HOME/.config/hypr/monitor-layou
 link_path "$REPO_DIR/hypr/hypridle.conf" "$HOME/.config/hypr/hypridle.conf"
 link_path "$REPO_DIR/hypr/hyprlock.conf" "$HOME/.config/hypr/hyprlock.conf"
 link_path "$REPO_DIR/hypr/hyprpaper.conf" "$HOME/.config/hypr/hyprpaper.conf"
+link_path "$REPO_DIR/hypr/recovery.conf" "$HOME/.config/hypr/recovery.conf"
 link_path "$REPO_DIR/hypr/scripts" "$HOME/.config/hypr/scripts"
 link_path "$REPO_DIR/wayle/config.toml" "$HOME/.config/wayle/config.toml"
 link_path "$REPO_DIR/hypr/rofi" "$HOME/.config/rofi"
@@ -231,6 +251,10 @@ link_path "$REPO_DIR/theme/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings
 
 if ((!DRY_RUN)) && command -v luac >/dev/null 2>&1; then
   "$REPO_DIR/hypr/scripts/hypr-validate.sh" "$REPO_DIR/hypr/hyprland.lua"
+fi
+
+if ((!DRY_RUN)) && command -v systemctl >/dev/null 2>&1; then
+  systemctl --user daemon-reload 2>/dev/null || true
 fi
 
 if ((DRY_RUN)); then

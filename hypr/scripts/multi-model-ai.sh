@@ -175,7 +175,7 @@ ensure_opencode_config || {
 load_opencode_mcp_env
 export LLM_CHAT_MODEL="$model"
 export OPENCODE_MODEL="${OPENCODE_MODEL:-llamacpp/$model}"
-export OPENCODE_DEFAULT_MODEL="${OPENCODE_DEFAULT_MODEL:-llamacpp/qwen3-router}"
+export OPENCODE_DEFAULT_MODEL="${OPENCODE_DEFAULT_MODEL:-llamacpp/qwen3-4b-local}"
 export NOXFLOW_AI_CONTEXT="$context_dir"
 
 if command -v ai_remote_models >/dev/null 2>&1; then

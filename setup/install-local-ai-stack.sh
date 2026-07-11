@@ -198,13 +198,26 @@ validate_llama_swap_config() {
   return 1
 }
 
+# The canonical renderer lives in llama-swap-manager.sh. Keep this installer
+# as the orchestration entry point, but do not maintain a second model-path
+# catalog here.
+render_llama_swap_config() {
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf '[dry-run] render nested GGUF llama-swap config\n'
+    return 0
+  fi
+  LLAMA_MODEL_ROOT="$MODEL_ROOT" \
+  LLAMA_SWAP_TEMPLATE="$LLAMA_SWAP_TEMPLATE" \
+  "$REPO_DIR/system/llama-swap-manager.sh" render-config
+}
+
 install_runtime() {
   ensure_dir "$BIN_DIR"
   ensure_dir "$CONFIG_DIR"
   link_bin "$REPO_DIR/system/local-ai-runtime.sh" "$BIN_DIR/local-ai-runtime"
   link_bin "$REPO_DIR/system/llama-swap-manager.sh" "$BIN_DIR/llama-swap-manager"
   link_bin "$REPO_DIR/system/rag.sh" "$BIN_DIR/rag"
-  write_if_missing "$CONFIG_DIR/current-model.env" $'CURRENT_MODEL=qwen3-router\nCURRENT_ALIAS=local\nLOCAL_AI_ENDPOINT=http://127.0.0.1:8080/v1\nMODEL_ROOT='"$MODEL_ROOT"$'\n'
+  write_if_missing "$CONFIG_DIR/current-model.env" $'CURRENT_MODEL=qwen3-4b-local\nCURRENT_ALIAS=local\nLOCAL_AI_ENDPOINT=http://127.0.0.1:8080/v1\nEMBEDDING_ENDPOINT=http://127.0.0.1:8081/v1\nMODEL_ROOT='"$MODEL_ROOT"$'\n'
   write_if_missing "$CONFIG_DIR/rag.json" '{
   "endpoint": "http://127.0.0.1:8080/v1",
   "model": "local",
@@ -224,29 +237,11 @@ install_rag() {
 }
 
 install_models() {
-  ensure_dir "$MODEL_ROOT"
-  python - "$MANIFEST" <<'PY' | while IFS='|' read -r model_id repo filename; do
-import json
-import sys
-manifest = json.load(open(sys.argv[1]))
-for model in manifest['models']:
-    if model.get('experimental') or not model.get('autoload'):
-        continue
-    print(f"{model['id']}|{model['hf_repo']}|{model['filename']}")
-PY
-    [ -n "$model_id" ] || continue
-    if [ -f "$MODEL_ROOT/$filename" ]; then
-      log "model present: $filename"
-      continue
-    fi
-    case "$model_id" in
-      qwen3-8b)
-        repo='Qwen/Qwen3-8B-GGUF'
-        filename='Qwen3-8B-Q4_K_M.gguf'
-        ;;
-    esac
-    run "$HF_BIN" download "$repo" --include "$filename" --local-dir "$MODEL_ROOT"
-  done
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf '[dry-run] bash %s\n' "$REPO_DIR/setup/download-local-models.sh"
+    return 0
+  fi
+  LLAMA_MODEL_ROOT="$MODEL_ROOT" HF_BIN="$HF_BIN" bash "$REPO_DIR/setup/download-local-models.sh"
 }
 
 doctor() {

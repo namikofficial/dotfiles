@@ -27,7 +27,7 @@ ai_select_model() {
     done
   fi
 
-  for preferred in gemma-3-4b local gemma-2-2b llama-3-8b; do
+  for preferred in local qwen3-4b-local granite-agent; do
     for model in "${available[@]}"; do
       [ "$model" = "$preferred" ] && printf '%s\n' "$model" && return 0
     done

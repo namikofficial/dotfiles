@@ -74,14 +74,9 @@ llama_server = sys.argv[4]
 gpu_layers = os.environ.get("LLAMA_N_GPU_LAYERS", "").strip()
 gpu_layers_arg = f"--n-gpu-layers {gpu_layers}" if gpu_layers else ""
 specs = {
-    'qwen3-8b': 'Qwen3-8B-Q4_K_M.gguf',
-    'qwen-coder-7b': 'qwen2.5-coder-7b-instruct-q4_k_m.gguf',
-    'gemma-3-4b': 'google_gemma-3-4b-it-Q4_K_M.gguf',
-    'phi-4-mini': 'Phi-4-Mini-Instruct-Q4_K_M.gguf',
-    'deepseek-r1-7b': 'DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf',
-    'llama-3b': 'Llama-3.2-3B-Instruct-Q4_K_M.gguf',
-    'qwen3-4b': 'Qwen_Qwen3-4B-Q4_K_M.gguf',
-    'qwen3-router': 'Qwen_Qwen3-1.7B-Q5_K_M.gguf',
+    'qwen3-4b-local': ('chat/qwen3-4b-instruct-2507', 'qwen3'),
+    'granite-agent': ('chat/granite-4-h-tiny', 'granite'),
+    'qwen3-coder-heavy': ('coder/qwen3-coder-30b-a3b', 'heavy'),
 }
 
 def valid_gguf(path: Path) -> bool:
@@ -90,13 +85,36 @@ def valid_gguf(path: Path) -> bool:
     except OSError:
         return False
 
-available = {name for name, filename in specs.items() if valid_gguf(model_root / filename)}
+def find_model(relative_dir: str, label: str, required: bool = False) -> str | None:
+    directory = model_root / relative_dir
+    candidates = sorted(path for path in directory.rglob('*.gguf') if valid_gguf(path)) if directory.exists() else []
+    if len(candidates) > 1:
+        print(f'warning: {label} has multiple GGUF files; using {candidates[0]}', file=sys.stderr)
+    if not candidates and required:
+        print(f'missing required {label} GGUF under {directory}', file=sys.stderr)
+    return str(candidates[0]) if candidates else None
+
+qwen3_model = find_model(*specs['qwen3-4b-local'], required=True)
+granite_model = find_model(*specs['granite-agent'], required=False)
+heavy_model = find_model(*specs['qwen3-coder-heavy'], required=False)
+paths = {
+    'qwen3-4b-local': qwen3_model,
+    'granite-agent': granite_model,
+    'qwen3-coder-heavy': heavy_model,
+}
+if not qwen3_model:
+    raise SystemExit('main model is required: download Qwen3-4B into chat/qwen3-4b-instruct-2507')
 rendered = (
     template.read_text()
-    .replace('__MODEL_ROOT__', str(model_root))
     .replace('__LLAMA_SERVER__', llama_server)
     .replace('__GPU_LAYERS_ARG__', gpu_layers_arg)
 )
+for name, path in paths.items():
+    rendered = rendered.replace({
+        'qwen3-4b-local': '__QWEN3_MODEL__',
+        'granite-agent': '__GRANITE_MODEL__',
+        'qwen3-coder-heavy': '__QWEN3_CODER_HEAVY_MODEL__',
+    }[name], path or '/invalid/missing-model.gguf')
 lines = rendered.splitlines()
 out = []
 i = 0
@@ -119,7 +137,7 @@ while i < len(lines):
     while i < len(lines) and lines[i].strip() != 'groups:' and not re.match(r'^  [A-Za-z0-9._-]+:\s*$', lines[i]):
         block.append(lines[i])
         i += 1
-    if name in available:
+    if paths.get(name):
         out.extend(block)
         out.append('')
 content = '\n'.join(out).rstrip() + '\n'
@@ -162,7 +180,7 @@ start() {
     exit 0
   fi
   tmux new-session -d -s "$TMUX_SESSION" \
-    "PORT=$PORT '$LLAMA_SWAP_BIN' --config '$CONFIG_FILE' 2>&1 | tee -a '$LOG_FILE'"
+    "PORT=$PORT '$LLAMA_SWAP_BIN' --listen 127.0.0.1:$PORT --config '$CONFIG_FILE' 2>&1 | tee -a '$LOG_FILE'"
   sleep 3
   status
 }
@@ -215,37 +233,17 @@ switch_model() {
     exit 1
   }
   case "$requested" in
-    qwen3 | qwen3-8b)
-      model="qwen3-8b"
-      alias="qwen3-8b"
-      ;;
-    qwen-coder | qwen-coder-7b)
-      model="qwen-coder-7b"
-      alias="qwen-coder-7b"
-      ;;
-    gemma | gemma4 | gemma-3-4b)
-      model="gemma-3-4b"
-      alias="gemma-3-4b"
-      ;;
-    phi4 | phi-4-mini)
-      model="phi-4-mini"
-      alias="phi-4-mini"
-      ;;
-    deepseek | deepseek-r1 | r1-7b | deepseek-r1-7b)
-      model="deepseek-r1-7b"
-      alias="deepseek-r1"
-      ;;
-    llama3b | llama-3b)
-      model="llama-3b"
-      alias="llama3b"
-      ;;
-    qwen3-4b | qwen4)
-      model="qwen3-4b"
-      alias="qwen3-4b"
-      ;;
-    local | router | qwen3-router | qwen3-1b)
-      model="qwen3-router"
+    local | qwen3 | qwen3-4b | qwen3-4b-local)
+      model="qwen3-4b-local"
       alias="local"
+      ;;
+    granite | granite-agent)
+      model="granite-agent"
+      alias="granite-agent"
+      ;;
+    heavy | qwen3-coder-heavy | qwen3-coder-30b)
+      model="qwen3-coder-heavy"
+      alias="qwen3-coder-heavy"
       ;;
     *)
       echo "unknown model alias: $requested" >&2

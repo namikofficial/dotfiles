@@ -12,6 +12,7 @@ Bluetooth Manager
 Network Manager
 Toggle Mic Mute
 AI Helper Menu
+Open AI Workbench
 AI Shell Command
 AI Clipboard Summary
 System Update
@@ -89,6 +90,7 @@ noxflow_quick_action_run() {
     "Network Manager") nm-connection-editor ;;
     "Toggle Mic Mute") ~/.config/hypr/scripts/volume-control.sh mic-mute ;;
     "AI Helper Menu") ~/.config/hypr/scripts/ai-helper.sh menu ;;
+    "Open AI Workbench") ~/.config/hypr/scripts/open-ai-workbench.sh ;;
     "AI Shell Command") ~/.config/hypr/scripts/ai-helper.sh shell ;;
     "AI Clipboard Summary") ~/.config/hypr/scripts/ai-helper.sh clip ;;
     "System Update") ~/.config/hypr/scripts/system-update.sh ;;
@@ -141,4 +143,3 @@ noxflow_quick_action_run() {
       ;;
   esac
 }
-

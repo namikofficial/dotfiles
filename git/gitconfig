@@ -23,6 +23,7 @@
 	untrackedCache = true
 	preloadIndex = true
 	hooksPath = /home/namik/.config/git/hooks
+	sshCommand = ssh -F /dev/null -i /home/namik/.ssh/id_ed25519
 [credential "https://github.com"]
 	helper = 
 	helper = !/usr/bin/gh auth git-credential
@@ -38,7 +39,7 @@
 [commit]
 	gpgsign = true
 [tag]
-	gpgSign = true
+	gpgsign = true
 [gpg "ssh"]
 	allowedSignersFile = /home/namik/.config/git/allowed_signers
 [pull]

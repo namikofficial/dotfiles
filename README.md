@@ -157,6 +157,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Alt + \`: toggle the AI scratchpad rooted in the focused repo; it starts the local runtime when needed and opens a project shell prepared for OpenCode/local models, falling back to the local chat scratchpad if the runtime is unavailable
 - `Super + Ctrl + \`: toggle the project runner terminal rooted in the focused repo
 - `Super + Ctrl + Alt + \`: toggle the database scratchpad
+- `Super + Alt + S`: open the AI Workbench browser cockpit and report when its API is not ready
 - `Super + B`: open Google Chrome
 - `Super + ,`: open Settings Hub
 - `Super + Shift + ,`: restore last minimized window
@@ -362,6 +363,38 @@ sudo ./setup/configure-sddm.sh
 
 This installs the repo theme profile (`noxflow`) and syncs login background from your current wallpaper cache.
 
+## Workstation reliability and virtualization
+
+The canonical workstation controller replaces the older NVIDIA/login recovery
+scripts. Apply user links first, inspect the health report, then apply the
+root-owned profile:
+
+```sh
+workstationctl apply-user
+workstationctl verify all
+sudo ./setup/workstationctl apply-system
+sudo reboot
+```
+
+The system stage keeps SDDM, launches the normal session through UWSM exactly
+once, uses Intel for the compositor and NVIDIA for PRIME offload, makes
+NetworkManager the sole network owner, installs the independent **Hyprland
+Recovery (Intel, minimal)** session, and configures QEMU/KVM/libvirt. It creates
+a rollback snapshot under `/var/lib/noxflow-workstation/backups`; restore it
+with `sudo ./setup/workstationctl rollback`.
+
+For a failed login, select the recovery session in SDDM or use a TTY and run:
+
+```sh
+workstationctl diagnose login
+journalctl -b -u sddm --no-pager
+```
+
+Android shortcuts are `Super+Ctrl+I` for the emulator/ADB menu,
+`Super+Ctrl+Shift+I` for Android Studio, and `Super+Alt+I` for Logcat. VS Code
+is `Super+I`; the scratch terminal, logs, clipboard, browser, and AI-assisted
+Git bindings remain available through the existing developer palette.
+
 ## LocalSend (AirDrop-style sharing)
 
 If `localsend` is not in pacman/AUR on your mirror state, use Flatpak:
@@ -381,28 +414,28 @@ Or use repo automation:
 - If `modinfo -F license nvidia` prints `Dual MIT/GPL`, you are running NVIDIA open kernel modules (`nvidia-open-dkms`).
 - If `modinfo -F license nvidia` prints `NVIDIA`, you are running proprietary modules.
 - On current Arch repos (since the March 3, 2026 NVIDIA 570+ packaging change), `nvidia-dkms` is not provided and `nvidia-open-dkms` is the official kernel-module package.
-- On this setup, forcing `nvidia_drm` modeset can trigger login/shutdown hangs on some hybrid laptops.
-- The included safe profile keeps boot stable by blacklisting `nvidia_drm` during compositor startup.
+- The normal profile keeps NVIDIA DRM KMS enabled but does not open the NVIDIA
+  card in Hyprland. On this firmware/driver combination NVIDIA DRM KMS is
+  blacklisted because it blocks compositor initialization; CUDA/compute can use
+  the base NVIDIA module, while graphical work and Android Emulator use Intel.
+  The explicit iGPU-safe boot entry remains the kernel-level fallback.
 - Wayle plus tray applets now own panel status, and `nm-applet` plus `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls.
   Set `HYPR_ENABLE_NM_APPLET=0` or `HYPR_ENABLE_BLUEMAN_APPLET=0` if you want the panel-only workflow instead.
 
-If login freezes and `nvidia-persistenced` times out, run:
+If login freezes, collect evidence before changing the driver policy:
 
 ```sh
-sudo ./setup/fix-nvidia-proprietary-hybrid.sh
-sudo reboot
+workstationctl diagnose login
 ```
 
-If Hyprland crashes at login with `CBackend::create() failed`, check `AQ_DRM_DEVICES` in `~/.config/uwsm/env-hyprland`. Do not use `/dev/dri/by-path/pci-0000:...` there because `AQ_DRM_DEVICES` is colon-separated; use `/dev/dri/cardN` instead.
+If Hyprland reports `CBackend::create() failed`, use the recovery session and
+run `workstationctl verify login`; DRM device selection is hardware-derived and
+must not be replaced with a hard-coded card number.
 
 If external HDMI/DP hotplug stops working on hybrid Intel + nouveau laptops, install `modprobe.d/nouveau-runtimepm.conf` into `/etc/modprobe.d/` and rebuild initramfs. That disables nouveau runtime PM so the dGPU keeps reporting external connectors after unplug/replug.
 
-If your system hard-freezes during login with kernel messages about `kworker`, `nv_drm_dev_load`, or `nvidia-persiste`, use:
-
-```sh
-sudo ./setup/emergency-hypr-login-fix.sh
-sudo reboot
-```
+Do not stack the deprecated emergency scripts: they now delegate to the same
+atomic `workstationctl apply-system` implementation.
 
 ## Hypr plugin setup
 

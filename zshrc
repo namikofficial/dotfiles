@@ -2,6 +2,11 @@
 # Keep this at the top so it applies even if the plugin is sourced early.
 typeset -g ZSH_HIGHLIGHT_WARNINGS=0
 
+# Android belongs to the workstation environment, not one project's config.
+if [ -r "$HOME/.config/environment.d/60-android.conf" ]; then
+  source "$HOME/.config/environment.d/60-android.conf"
+fi
+
 # Color support for prompt/completion
 autoload -Uz colors && colors
 zmodload zsh/datetime

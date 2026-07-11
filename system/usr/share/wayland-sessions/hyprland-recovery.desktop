@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Hyprland Recovery (Intel, minimal)
+Comment=Independent minimal session for repairing the normal desktop
+Exec=/usr/local/bin/noxflow-hypr-recovery
+TryExec=/usr/local/bin/noxflow-hypr-recovery
+Type=Application

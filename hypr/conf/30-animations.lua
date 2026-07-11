@@ -1,4 +1,4 @@
-local ctx = assert(NOX_HYPR, "NOX_HYPR context missing")
+assert(NOX_HYPR, "NOX_HYPR context missing")
 
 hl.curve("enter", { type = "bezier", points = { { 0.18, 0.96 }, { 0.14, 1.0 } } })
 hl.curve("exit", { type = "bezier", points = { { 0.36, 0.04 }, { 0.22, 1.0 } } })
@@ -14,6 +14,8 @@ hl.animation({ leaf = "workspaces", enabled = true, speed = 5, bezier = "workspa
 hl.animation({ leaf = "specialWorkspace", enabled = true, speed = 6, bezier = "enter", style = "slidefadevert 10%" })
 
 hl.on("hyprland.start", function()
-  hl.exec_cmd("uwsm finalize")
-  hl.exec_cmd(ctx.home .. "/.config/hypr/scripts/startup.sh")
+  hl.exec_cmd(string.format(
+    "sh -lc %q",
+    'nohup "$HOME/.config/hypr/scripts/session-critical.sh" >/dev/null 2>&1 &'
+  ))
 end)
