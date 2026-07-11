@@ -10,10 +10,10 @@ hl.config({
     layout = "dwindle",
     col = {
       active_border = {
-        colors = { "rgba(6f94c9ff)", "rgba(66c2b8ff)" },
+        colors = { "rgba(00e5ffff)", "rgba(ff3cacff)" },
         angle = 45,
       },
-      inactive_border = "rgba(3f465fcc)",
+      inactive_border = "rgba(40205fcc)",
     },
   },
   decoration = {
@@ -33,7 +33,7 @@ hl.config({
       enabled = true,
       size = 8,
       passes = 2,
-      vibrancy = 0.12,
+      vibrancy = 0.18,
     },
   },
   dwindle = {

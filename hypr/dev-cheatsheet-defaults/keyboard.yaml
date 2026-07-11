@@ -11,6 +11,26 @@ entries:
     copy: ~/.config/hypr/scripts/desktop-palette.sh
     source: ~/.config/hypr/hyprland.lua
     tags: [daily]
+  - key: Super+I
+    description: Open VS Code
+    copy: code
+    source: ~/.config/hypr/conf/40-binds-launch.lua
+    tags: [daily, ide]
+  - key: Super+Ctrl+Shift+I
+    description: Open Android Studio
+    copy: android-studio
+    source: ~/.config/hypr/conf/40-binds-launch.lua
+    tags: [android, ide]
+  - key: Super+Ctrl+I
+    description: Android emulator and ADB menu
+    copy: ~/.config/hypr/scripts/android-dev.sh menu
+    source: ~/.config/hypr/conf/40-binds-launch.lua
+    tags: [android, ide]
+  - key: Super+Alt+I
+    description: Open Android Logcat terminal
+    copy: ~/.config/hypr/scripts/android-dev.sh logcat
+    source: ~/.config/hypr/conf/40-binds-launch.lua
+    tags: [android, logs]
   - key: Super+Shift+Space
     description: Fast app launcher
     copy: ~/.config/hypr/scripts/launcher.sh --fast

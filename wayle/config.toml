@@ -68,16 +68,16 @@ theme-provider = "wayle"
 theming-monitor = ""
 
 [styling.palette]
-bg = "#10131a"
-surface = "#171b24"
-elevated = "#202632"
-fg = "#e6e8ee"
-fg-muted = "#9aa3b2"
-primary = "#6f94c9"
-red = "#e46870"
-yellow = "#e0b870"
-green = "#68c898"
-blue = "#78a0e0"
+bg = "#080b12"
+surface = "#111522"
+elevated = "#191f31"
+fg = "#edf7ff"
+fg-muted = "#9aa9bd"
+primary = "#00e5ff"
+red = "#ff3c78"
+yellow = "#ffd166"
+green = "#59ffa1"
+blue = "#7c6cff"
 
 [modules.hyprland-workspaces]
 monitor-specific = true

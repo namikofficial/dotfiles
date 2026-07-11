@@ -14,9 +14,8 @@ hl.animation({ leaf = "workspaces", enabled = true, speed = 5, bezier = "workspa
 hl.animation({ leaf = "specialWorkspace", enabled = true, speed = 6, bezier = "enter", style = "slidefadevert 10%" })
 
 hl.on("hyprland.start", function()
-  hl.exec_cmd("uwsm finalize")
   hl.exec_cmd(string.format(
     "sh -lc %q",
-    'nohup "$HOME/.config/hypr/scripts/startup.sh" >/dev/null 2>&1 &'
+    'nohup "$HOME/.config/hypr/scripts/session-critical.sh" >/dev/null 2>&1 &'
   ))
 end)

@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+set -eu
+
+config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/recovery.conf"
+if [ ! -r "$config" ]; then
+  printf 'Recovery config is missing: %s\n' "$config" >&2
+  exit 1
+fi
+
+for vendor in /sys/class/drm/card*/device/vendor; do
+  [ -r "$vendor" ] || continue
+  if [ "$(cat "$vendor")" = "0x8086" ]; then
+    card="${vendor%/device/vendor}"
+    export AQ_DRM_DEVICES="/dev/dri/${card##*/}"
+    break
+  fi
+done
+
+export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_SESSION_DESKTOP=Hyprland-Recovery
+exec Hyprland --config "$config"

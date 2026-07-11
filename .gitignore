@@ -6,6 +6,7 @@ __pycache__/
 *.pyc
 settings/state.local.json
 settings/export/
+*.bak.*
 
 # RAG runtime artifacts (keep durable notes like .agent/memory.md tracked if desired)
 .agent/archive/
