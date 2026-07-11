@@ -180,7 +180,7 @@ start() {
     exit 0
   fi
   tmux new-session -d -s "$TMUX_SESSION" \
-    "PORT=$PORT '$LLAMA_SWAP_BIN' --config '$CONFIG_FILE' 2>&1 | tee -a '$LOG_FILE'"
+    "PORT=$PORT '$LLAMA_SWAP_BIN' --listen 127.0.0.1:$PORT --config '$CONFIG_FILE' 2>&1 | tee -a '$LOG_FILE'"
   sleep 3
   status
 }
