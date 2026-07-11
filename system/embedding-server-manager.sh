@@ -27,7 +27,8 @@ start() {
     echo "embedding server already running"
     return 0
   fi
-  tmux new-session -d -s "$SESSION" +    "exec '$SERVER' -m '$model' --host 127.0.0.1 --port $PORT --embeddings --n-gpu-layers ${LLAMA_N_GPU_LAYERS:-999} 2>&1 | tee -a '$LOG_FILE'"
+  tmux new-session -d -s "$SESSION" \
+    "exec '$SERVER' -m '$model' --host 127.0.0.1 --port $PORT --embeddings --n-gpu-layers ${LLAMA_N_GPU_LAYERS:-999} 2>&1 | tee -a '$LOG_FILE'"
   sleep 2
   status
 }
