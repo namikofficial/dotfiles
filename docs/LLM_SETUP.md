@@ -1,44 +1,29 @@
-# Local LLM Setup
+# Local LLM setup
 
-## Quick start
-1. Run `setup/install-local-ai-stack.sh --install-runtime --doctor`.
-2. Start the router with `llama-swap-manager start`.
-3. Check the endpoint with `curl http://127.0.0.1:8080/v1/models`.
-4. Switch models with `llama-swap-manager switch <model>` when needed.
+Use llama.cpp and llama-swap directly. Ollama is not part of this workstation stack.
 
-## Model roles
-| Model | Alias | Role | Default ctx |
-| --- | --- | --- | --- |
-| Qwen3 8B | `local`, `qwen3` | Primary chat/code/RAG | 32768 |
-| Qwen2.5 Coder 7B | `qwen-coder-7b` | Coding sessions | 32768 |
-| Gemma 3 4B | `gemma-3-4b` | Fast fallback | 32768 |
-| Phi-4 Mini | `phi-4-mini` | Compact reasoning | 16384 |
-| DeepSeek R1 Distill Qwen 7B | `deepseek-r1` | Debugging/reasoning | 32768 |
-| Llama 3.2 3B | `llama3b` | Small fallback | 65536 |
-| Qwen3 4B | `qwen3-4b` | Fast chat | 65536 |
-| Qwen3 1.7B | `router` | Routing/query rewrite | 65536 |
+## Roles
 
-## llama-swap usage
-- Status: `llama-swap-manager status`
-- Start: `llama-swap-manager start`
-- Stop: `llama-swap-manager stop`
-- Logs: `llama-swap-manager logs`
-- Test chat: `llama-swap-manager test`
+| Role | Alias | Endpoint |
+|---|---|---|
+| Daily chat/coding | local / qwen3-4b-local | 127.0.0.1:8080 |
+| Tool/MCP agent | granite-agent | 127.0.0.1:8080 |
+| Text/code embeddings | nomic models | 127.0.0.1:8081 |
+| Heavy coding experiment | qwen3-coder-heavy | 127.0.0.1:8080 |
 
-## Switching models
-- Primary alias: `local` → `qwen3-8b`
-- Coding model: `qwen-coder-7b`
-- Fast fallback: `gemma-3-4b`
-- Example: `llama-swap-manager switch qwen-coder-7b`
+Model root: /home/namik/llama-models. See LOCAL_LLM_CUDA_SWAP_SETUP.md for download commands.
 
-## OOM recovery
-1. Stop the router: `llama-swap-manager stop`
-2. Switch to `gemma-3-4b`, `qwen3-4b`, or `llama3b`
-3. Reduce concurrent work and retry
-4. Lower context size before restarting if needed
+## Commands
 
-## Context window guide
-- 7B/8B Q4_K_M models: `32768`
-- 3B/4B models: `65536`
-- 1.7B router models: `65536`
-- Embedding/reranker models: `8192`
+~~~bash
+llama-swap-manager render-config
+llama-swap-manager start
+llama-swap-manager status
+llama-swap-manager test
+llama-swap-manager switch granite-agent
+embedding-server-manager start
+local-ai-runtime status
+local-ai-runtime stop
+~~~
+
+The heavy coder is never the default on the 6GB RTX 4050.

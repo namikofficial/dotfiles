@@ -13,7 +13,8 @@ QDRANT_IMAGE="${RAG_QDRANT_IMAGE:-qdrant/qdrant}"
 QDRANT_STORAGE_DIR="${RAG_QDRANT_STORAGE_DIR:-$RAG_HOME/qdrant_storage}"
 DEFAULT_QDRANT_URL="${RAG_QDRANT_URL:-http://127.0.0.1:6333}"
 DEFAULT_ANSWER_URL="${RAG_ANSWER_URL:-http://127.0.0.1:8080/v1/chat/completions}"
-DEFAULT_ANSWER_MODEL="${RAG_ANSWER_MODEL:-qwen3-8b}"
+DEFAULT_ANSWER_MODEL="${RAG_ANSWER_MODEL:-qwen3-4b-local}"
+DEFAULT_EMBEDDING_URL="${RAG_EMBEDDING_URL:-http://127.0.0.1:8081/v1}"
 
 mkdir -p "$RUNTIME_DIR" "$QDRANT_STORAGE_DIR"
 
@@ -249,6 +250,19 @@ ensure_llm() {
   with_lock llama-swap ensure_llm_locked
 }
 
+ensure_embedding() {
+  if curl -fsS --max-time 1 "${DEFAULT_EMBEDDING_URL}/models" >/dev/null 2>&1; then
+    return 0
+  fi
+  if command -v embedding-server-manager >/dev/null 2>&1; then
+    embedding-server-manager start >/dev/null
+    wait_for_http "${DEFAULT_EMBEDDING_URL}/models" 60
+  else
+    printf 'embedding-server-manager is unavailable; start the embedding endpoint manually.\n' >&2
+    return 1
+  fi
+}
+
 stop_qdrant() {
   if ! command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1; then
     return 0
@@ -265,6 +279,10 @@ stop_llm() {
   local manager
   manager="$(llama_swap_manager_path)" || return 0
   "$manager" stop >/dev/null 2>&1 || true
+}
+
+stop_embedding() {
+  command -v embedding-server-manager >/dev/null 2>&1 && embedding-server-manager stop >/dev/null 2>&1 || true
 }
 
 status_qdrant() {
@@ -297,14 +315,21 @@ case "${1:-status}" in
   start)
     ensure_qdrant
     ensure_llm
+    ensure_embedding
     ;;
   stop)
     stop_llm
+    stop_embedding
     stop_qdrant
     ;;
   status)
     status_qdrant
     status_llm
+    if curl -fsS --max-time 1 "${DEFAULT_EMBEDDING_URL}/models" >/dev/null 2>&1; then
+      printf 'embedding: running (%s)\n' "$DEFAULT_EMBEDDING_URL"
+    else
+      printf 'embedding: stopped (%s)\n' "$DEFAULT_EMBEDDING_URL"
+    fi
     ;;
   *)
     printf 'usage: %s {ensure-qdrant|ensure-llm|start|stop|status}\n' "$0" >&2

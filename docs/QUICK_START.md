@@ -7,7 +7,7 @@ The active local AI workflow is:
 - **router:** `llama-swap-manager`
 - **endpoint:** `http://127.0.0.1:8080/v1`
 - **model alias:** `local`
-- **current model:** `qwen3-8b`
+- **current model:** `qwen3-4b-local`
 
 ## 5-minute setup
 

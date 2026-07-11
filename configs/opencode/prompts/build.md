@@ -5,7 +5,7 @@ state, keep changes scoped, and report only verified results.
 
 ## Operating Defaults
 
-- Prefer local models first. Use `llamacpp/qwen3-router` for normal coding,
+- Prefer local models first. Use `llamacpp/qwen3-4b-local` for normal coding,
   planning, small reviews, and low-risk edits.
 - Use `opencode/big-pickle` for session titles and very cheap general fallback
   work when Zen is available.

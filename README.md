@@ -157,6 +157,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 - `Super + Alt + \`: toggle the AI scratchpad rooted in the focused repo; it starts the local runtime when needed and opens a project shell prepared for OpenCode/local models, falling back to the local chat scratchpad if the runtime is unavailable
 - `Super + Ctrl + \`: toggle the project runner terminal rooted in the focused repo
 - `Super + Ctrl + Alt + \`: toggle the database scratchpad
+- `Super + Alt + S`: open the AI Workbench browser cockpit and report when its API is not ready
 - `Super + B`: open Google Chrome
 - `Super + ,`: open Settings Hub
 - `Super + Shift + ,`: restore last minimized window

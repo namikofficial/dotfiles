@@ -1,97 +1,95 @@
-# Local LLM CUDA + llama-swap setup
+# Local GGUF runtime: llama.cpp + llama-swap
 
-## Install
+Ollama is intentionally not used. GGUF files live under:
 
-```bash
-cd ~/Documents/code/dotfiles
+~~~text
+/home/namik/llama-models/
+├── chat/qwen3-4b-instruct-2507/
+├── chat/granite-4-h-tiny/
+├── coder/qwen3-coder-30b-a3b/       # optional; not a 6GB default
+├── embed/nomic-embed-text-v2-moe/
+└── embed/nomic-embed-code/
+~~~
+
+## Install binaries
+
+~~~bash
+cd /home/namik/Documents/code/dotfiles
+./setup/bootstrap.sh --install-packages --with-aur
 ./setup/install-local-llm-stack.sh
-```
+~~~
 
-If AUR prompts for sudo during install, allow it and finish the transaction.
+This installs CUDA-enabled llama.cpp, llama-swap, OpenCode links, the chat manager, and the embedding manager. It does not install Ollama.
 
-## Required model files
+## Download models
 
-The default model root is `~/llama-models` because this machine already keeps the local GGUF files there.
+~~~bash
+mkdir -p /home/namik/llama-models/{chat,coder,embed}
+uv tool install "huggingface_hub[cli]" 2>/dev/null || pipx install "huggingface_hub[cli]"
+hf auth login
 
-Required:
+hf download unsloth/Qwen3-4B-Instruct-2507-GGUF --include "*UD-Q4_K_XL*" --local-dir /home/namik/llama-models/chat/qwen3-4b-instruct-2507
 
-- `~/llama-models/qwen2.5-coder-7b-instruct-q4_k_m.gguf` (primary `local` alias)
+hf download ibm-granite/granite-4.0-h-tiny-GGUF --include "*Q4_K_M*" --local-dir /home/namik/llama-models/chat/granite-4-h-tiny
 
-Optional fallback:
+hf download nomic-ai/nomic-embed-text-v2-moe-GGUF --include "*Q4_K_M*" --local-dir /home/namik/llama-models/embed/nomic-embed-text-v2-moe
 
-- `~/llama-models/google_gemma-3-4b-it-Q4_K_M.gguf`
+hf download nomic-ai/nomic-embed-code-GGUF --include "nomic-embed-code.Q4_K_S.gguf" --local-dir /home/namik/llama-models/embed/nomic-embed-code
+~~~
 
-Override with `LLAMA_MODEL_ROOT=/path/to/models` if needed.
+Optional heavy model:
 
-## Start router
+~~~bash
+hf download unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF +  --include "*UD-Q4_K_XL*" +  --local-dir /home/namik/llama-models/coder/qwen3-coder-30b-a3b
+~~~
 
-```bash
+Verify files:
+
+~~~bash
+find /home/namik/llama-models -type f -name '*.gguf' -print
+find /home/namik/llama-models -type f -name '*.gguf' -size +0c -exec sh -c +  'head -c 4 "$1" | grep -q GGUF || echo "invalid GGUF: $1"' sh {} \;
+~~~
+
+## Start services
+
+~~~bash
+llama-swap-manager render-config
 llama-swap-manager start
 llama-swap-manager status
 llama-swap-manager test
-```
+embedding-server-manager start
+embedding-server-manager status
+~~~
 
-Endpoint for all tools:
+Endpoints:
 
-- Base URL: `http://127.0.0.1:8080/v1`
-- API Key: `local`
-- Model: `local` (alias to `qwen3-8b`)
-- Alternate model names: `qwen3`, `qwen3-8b`
-- Fallback model: `gemma-3-4b`
+- Chat/agent router: http://127.0.0.1:8080/v1
+- Text embeddings: http://127.0.0.1:8081/v1
+- Default alias: local -> qwen3-4b-local
+- Agent alias: granite-agent
+- Optional heavy alias: qwen3-coder-heavy
 
-## OpenCode config
+The main router loads one chat model at a time. Embeddings run separately with llama.cpp --embeddings.
 
-Template file:
+## Switch models
 
-- `configs/opencode/opencode.local-llamacpp.json`
+~~~bash
+llama-swap-manager switch local
+llama-swap-manager switch granite-agent
+llama-swap-manager switch qwen3-coder-heavy
+~~~
 
-Runtime path expected by OpenCode:
+Do not use the heavy coder as the default on a 6GB RTX 4050.
 
-- `~/.config/opencode/opencode.json`
+## Stop and diagnose
 
-The install script links that runtime file back to `configs/opencode/opencode.local-llamacpp.json`.
-
-Current runtime behavior:
-
-- the AI scratchpad opens a project-rooted shell and checks the local runtime on demand
-- from that shell, run `opencode` when you want to start the local AI agent
-- the runtime config now also carries OpenCode MCP setup, extra skill paths, and local plugins
-- if the runtime cannot come up, the scratchpad falls back to the local chat helper
-- enabled MCP servers: `chrome-devtools`, `browser`, `context7`
-- `obsidian` is configured but left disabled by default until the local REST bridge is healthy
-
-Open WebUI:
-- install with `./setup/install-open-webui-stack.sh`
-- start with `docker compose --env-file .env up -d` from `~/.config/open-webui`
-- point it at `http://127.0.0.1:8080/v1`
-- keep `rag-mcp` attached to OpenCode; do not replace that path with the browser UI
-
-OpenCode docs used:
-
-- providers: <https://opencode.ai/docs/providers/>
-- config: <https://opencode.ai/docs/config/>
-
-## Codex CLI config
-
-Template file:
-
-- `configs/codex/config.local-llamacpp.toml`
-
-Runtime path:
-
-- `~/.codex/config.toml`
-
-Codex docs used:
-
-- config reference: <https://developers.openai.com/codex/config-reference>
-
-Important: Codex custom providers currently support only `wire_api = "responses"`. If your local server/proxy does not support `/v1/responses`, Codex local-provider mode will not work reliably.
-
-## GPU verification
-
-```bash
+~~~bash
+local-ai-runtime status
+local-ai-runtime stop
+llama-swap-manager logs
+embedding-server-manager logs
 llama-server --list-devices
 nvidia-smi
-```
+~~~
 
-`llama-swap-manager start` fails fast when CUDA/NVIDIA is not detected in `llama-server --list-devices`.
+If the main model is missing, render-config fails with the exact directory expected. Optional models are omitted until their GGUF exists.

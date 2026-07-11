@@ -50,16 +50,16 @@ Hyprland / launcher / CLI / OpenCode / browser
 
 ### Gaps found
 
-- [ ] Model docs, aliases, and GGUF filenames disagree. Some docs describe Qwen2.5-Coder or `local`; the llama-swap template defines several Qwen3/Gemma/Phi/DeepSeek filenames and aliases.
-- [ ] Install scripts install binaries but do not reliably download and verify every referenced model.
+- [x] Model catalog now targets Qwen3-4B, Granite agent, Nomic embeddings, and optional heavy coder paths under `/home/namik/llama-models`.
+- [x] Added `setup/download-local-models.sh` with direct Hugging Face GGUF downloads and an optional heavy-model switch.
 - [ ] Missing GGUF files are filtered from generated config, which can hide the real cause of a routing failure.
 - [ ] Runtime startup is tmux/shell based rather than a supervised user service.
-- [ ] Workbench `.env.example` suggests a chat model as an embedding model; embedding ownership and dimensions must be explicit.
+- [x] Workbench defaults now separate chat port 8080 from llama.cpp embedding port 8081 and use Nomic embedding configuration.
 - [ ] Watcher mode, Tree-sitter path, MCP host mode, terminal mode, and a separate Prompt Lab surface are incomplete or not fully exposed.
-- [ ] Hyprland still launches the old local chat/RAG workflow instead of the Workbench.
-- [ ] There is no single health command covering API, worker, database, Qdrant, models, embeddings, MCP, and index freshness.
+- [x] Hyprland now has a Workbench launcher action and `Super+Alt+S`; legacy scratchpad cutover remains.
+- [x] Workbench has `/health/deep`, worker heartbeat reporting, and a Home readiness cockpit; MCP/index freshness checks remain to be expanded.
 - [ ] There is no one-command project onboarding flow.
-- [ ] The web UI has useful pages but needs task-first information architecture, recovery states, keyboard navigation, responsive layout, and clearer status semantics.
+- [x] The web UI now has grouped navigation, searchable command palette, functional refresh/palette actions, and a Home readiness cockpit; flagship Ask/Dev polish remains.
 - [ ] Backup/restore and runtime-secret policy need to be explicit.
 
 ## 2. Ownership and data boundaries
@@ -170,10 +170,9 @@ hf auth login
 
 Download a specific GGUF into `~/llama-models` only after accepting its license. Never put HF tokens in tracked files.
 
-- [ ] Select one fast model, one coding model, one deep/reasoning model, and one embedding provider.
-- [ ] Make every filename in `system/llama-swap/config.template.yaml` match a real file, or remove that model block.
-- [ ] Make `local` explicitly point to the daily fast model.
-- [ ] Make `qwen-coder-7b` the coding/editing profile if available.
+- [x] Chosen Qwen3-4B for daily use, Granite for tool routing, Nomic text embeddings for RAG, and Nomic code embeddings for code search.
+- [x] Model blocks now resolve nested GGUF directories and optional models are omitted when absent.
+- [x] Make `local` explicitly point to Qwen3-4B and keep the heavy coder opt-in.
 - [ ] Add a catalog check comparing Workbench profile id, llama-swap alias, GGUF filename, exposed `/v1/models` id, and task role.
 
 ### 4.3 Start and test inference
@@ -662,4 +661,3 @@ pnpm cli -- ask "How should the local AI workflow be launched from Hyprland?" --
 - [ ] OpenCode/MCP, CLI, web, and desktop share one API/data model.
 - [ ] Backup, restore, rollback, and recovery are tested.
 - [ ] Python RAG can be stopped without breaking normal work.
-

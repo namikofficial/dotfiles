@@ -78,18 +78,20 @@ The profile command is intentionally conservative. `launch` opens the editor and
 
 ## Local AI Routing Policy
 
+The TypeScript AI Workbench at `~/Documents/code/ai` is the canonical application for project indexing, retrieval, sessions, plans, dev runs, memory, and MCP. Dotfiles owns the desktop launchers and local model runtime. The legacy Python RAG remains a migration fallback only.
+
 Use one local router path unless explicitly testing something else:
 
 - router: `llama-swap-manager`
 - endpoint: `http://127.0.0.1:8080/v1`
 - model alias: `local`
-- default model: `qwen3-8b`
+- default model: `qwen3-4b-local`
 
 Routing rules:
 
-- Primary daily model: `qwen3-8b` via the `local` alias.
-- Fast fallback: `gemma-3-4b`.
-- Coding-focused sessions: `qwen-coder-7b`.
+- Primary daily model: `qwen3-4b-local` via the `local` alias.
+- Agent/tool sessions: `granite-agent`.
+- Embeddings: separate nomic llama.cpp server on port 8081.
 - Use local helper scripts for shell explanations, commit messages, short reviews, and clipboard summaries.
 - Use `rag quick` / `rag deep` when repo-grounded context matters.
 - Use OpenCode from the AI scratchpad when you want an interactive local-agent loop.
@@ -101,6 +103,13 @@ Status commands:
 local-ai-runtime status
 llama-swap-manager status
 rag doctor
+```
+
+Workbench status:
+
+```sh
+cd ~/Documents/code/ai
+pnpm cli -- health --deep
 ```
 
 ## Scratchpad Roles
