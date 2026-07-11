@@ -23,47 +23,6 @@
         }
       }
     },
-    "minmax": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "MinMax",
-      "options": {
-        "baseURL": "https://api.minimax.io/v1",
-        "apiKey": "{file:~/.config/opencode/keys/minmax.key}"
-      },
-      "models": {
-        "MiniMax-M2.7": {
-          "name": "MiniMax-M2.7",
-          "tools": true
-        },
-        "MiniMax-M2.7-highspeed": {
-          "name": "MiniMax-M2.7-highspeed",
-          "tools": true
-        },
-        "MiniMax-M3": {
-          "name": "MiniMax-M3",
-          "tools": true
-        }
-      }
-    },
-    "cerebras": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Cerebras",
-      "options": {
-        "baseURL": "https://api.cerebras.ai/v1",
-        "apiKey": "{file:~/.config/opencode/keys/cerebras.key}"
-      },
-      "models": {
-        "gpt-oss-120b": {
-          "name": "gpt-oss-120b",
-          "tools": true
-        },
-        "zai-glm-4.7": {
-          "name": "zai-glm-4.7",
-          "reasoning": false,
-          "tools": true
-        }
-      }
-    },
     "opencode": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "OpenCode Zen",
@@ -109,7 +68,7 @@
         "--browser",
         "chrome",
         "--viewport-size",
-        "1440x1000",
+        "1920x1080",
         "--output-dir",
         "/home/namik/.cache/opencode/playwright-mcp"
       ],
