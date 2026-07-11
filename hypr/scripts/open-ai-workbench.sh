@@ -2,7 +2,9 @@
 set -euo pipefail
 
 url="${AI_WORKBENCH_URL:-http://127.0.0.1:3000}"
-health="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4242}/health/deep"
+health="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4242}/health"
+root="${AI_WORKBENCH_ROOT:-$HOME/Documents/code/ai}"
+session="${AI_WORKBENCH_TMUX_SESSION:-ai-workbench}"
 
 notify() {
   command -v notify-send >/dev/null 2>&1 || return 0
@@ -10,7 +12,25 @@ notify() {
 }
 
 if command -v curl >/dev/null 2>&1 && ! curl -fsS --max-time 1 "$health" >/dev/null 2>&1; then
-  notify "AI Workbench is not ready" "Start it with: cd ~/Documents/code/ai && pnpm dev"
+  if [[ ! -d "$root" ]]; then
+    notify "AI Workbench repository not found" "$root"
+    exit 1
+  fi
+  if ! command -v tmux >/dev/null 2>&1; then
+    notify "Unable to start AI Workbench" "tmux is required; run: cd $root && pnpm dev"
+    exit 1
+  fi
+  if ! tmux has-session -t "$session" 2>/dev/null; then
+    tmux new-session -d -s "$session" "cd $(printf '%q' "$root") && exec pnpm dev"
+  fi
+  for _ in {1..30}; do
+    curl -fsS --max-time 1 "$health" >/dev/null 2>&1 && break
+    sleep 1
+  done
+  if ! curl -fsS --max-time 1 "$health" >/dev/null 2>&1; then
+    notify "AI Workbench did not become ready" "Inspect with: tmux attach -t $session"
+    exit 1
+  fi
 fi
 
 if command -v xdg-open >/dev/null 2>&1; then
