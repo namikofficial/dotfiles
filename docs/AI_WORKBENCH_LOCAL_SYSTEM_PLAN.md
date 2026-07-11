@@ -649,6 +649,8 @@ pnpm cli -- ask "How should the local AI workflow be launched from Hyprland?" --
 
 ## 14. Definition of regular-workflow ready
 
+Knowledge-stack extension plan: see the Workbench [knowledge stack plan](/home/namik/Documents/code/ai/docs/KNOWLEDGE_STACK_PLAN.md) for Repomix, project-native rules, optional Sourcebot/Serena, temporal memory adapters, reranking, DeepWiki boundaries, and declarative workflows.
+
 - [ ] One command reports whether the system is healthy.
 - [ ] One cockpit shows project, model, retrieval, run, and check state.
 - [ ] CLI works when browser is unavailable.
