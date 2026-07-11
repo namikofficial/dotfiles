@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-url="${AI_WORKBENCH_URL:-http://127.0.0.1:3000}"
-health="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4242}/health"
+url="${AI_WORKBENCH_URL:-http://127.0.0.1:4317}"
+health="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4417}/health"
 root="${AI_WORKBENCH_ROOT:-$HOME/Documents/code/ai}"
 session="${AI_WORKBENCH_TMUX_SESSION:-ai-workbench}"
 
