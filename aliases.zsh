@@ -293,6 +293,7 @@ alias zshbench="$SCRIPTS_BIN/zsh-startup-profile --runs 20"
 alias dev-health="$DOTFILES_HOME/setup/dev-health.sh"
 alias dev-health-json="$DOTFILES_HOME/setup/dev-health.sh --json"
 alias dotfiles-stale-check="$DOTFILES_HOME/setup/check-stale-references.sh"
+alias client-backup="$DOTFILES_HOME/setup/client-backup.sh"
 alias dotfiles-center="$DOTFILES_HOME/hypr/scripts/control-center.sh"
 alias project-resume="$DOTFILES_HOME/hypr/scripts/project-resume.sh"
 project-profile() {

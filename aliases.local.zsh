@@ -35,6 +35,10 @@ nox-billings-log() {
   :
 }
 
+nox-billings-emulator() {
+  "${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/hypr/scripts/android-dev.sh" start Noxflow_API_36 "$@"
+}
+
 # Use Kitty's SSH kitten to auto-bootstrap remote terminal capabilities.
 if command -v kitten >/dev/null 2>&1; then
   alias ssh='kitten ssh'

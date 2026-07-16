@@ -60,6 +60,7 @@ Useful actions:
 project-profile path noxcrm
 project-profile edit noxcrm
 project-profile tmux noxcrm
+project-profile dev nox-billings
 project-profile launch noxcrm
 project-profile check dotfiles
 project-resume
@@ -72,7 +73,29 @@ ppr status
 ppr launch dotfiles
 ```
 
-The profile command is intentionally conservative. `launch` opens the editor and a project-rooted tmux shell; it does not start backend/mobile stacks automatically.
+`project-profile dev <profile>` creates or attaches to the project's named tmux layout: API, web, mobile, and logs. `tmux` and `launch` use that same layout for NoxCRM, Nox Billings, and TrackMe.
+
+Nox Billings helpers:
+
+```sh
+nox-billings
+nox-billings-edit
+nox-billings-emulator
+```
+
+## Client Backups
+
+Client source repositories and remote staging/production database dumps are encrypted with Restic before being synchronized from `~/syncthing/client-backups`. Configure the backup-only SSH hosts and Restic password outside Git, then enable the timer:
+
+```sh
+sudo pacman -S restic
+client-backup init-config
+$EDITOR ~/.config/nox-backup/client-backup.conf
+setup/configure-client-backup.sh
+client-backup verify
+```
+
+The timer runs nightly, retains 30 daily snapshots, and does not dump local development databases. `client-backup status` shows the latest snapshot. Restore only into a new non-production database.
 
 `project-resume` is the opposite path: it uses the focused repo to restore the current project session, reopen the editor, and bring back Sidecar or related scratchpads.
 

@@ -128,6 +128,7 @@ papirus-icon-theme
 fastfetch
 timeshift
 syncthing
+restic
 
 # Performance and diagnostics
 btop

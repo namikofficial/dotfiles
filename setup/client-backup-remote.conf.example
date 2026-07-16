@@ -1,0 +1,11 @@
+# Root-owned configuration for /usr/local/libexec/client-db-backup-dump.
+# Install only the entries served by this host as /etc/nox-backup/targets.conf
+# with mode 600. Commands must write a PostgreSQL custom-format dump to stdout.
+declare -A BACKUP_DUMP_COMMANDS=(
+  ["nox-billings:staging"]='cd /home/apps/nox-billings/staging/repo && docker compose -f deploy/server/compose.api.yml --env-file /home/apps/nox-billings/staging/.env exec -T postgres sh -lc '\''pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" -Fc'\'''
+  ["nox-billings:production"]='cd /home/apps/nox-billings/prod/repo && docker compose -f deploy/server/compose.api.yml --env-file /home/apps/nox-billings/prod/.env exec -T postgres sh -lc '\''pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" -Fc'\'''
+  ["noxcrm:staging"]='cd /home/apps/noxcrm/staging/repo && docker compose -f deploy/server/compose.api.yml --env-file /home/apps/noxcrm/staging/.env exec -T postgres sh -lc '\''pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" -Fc'\'''
+  ["noxcrm:production"]='cd /home/apps/noxcrm/prod/repo && docker compose -f deploy/server/compose.api.yml --env-file /home/apps/noxcrm/prod/.env exec -T postgres sh -lc '\''pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" -Fc'\'''
+  ["trackme:staging"]='set -a; . /home/apps/trackMe/staging/.env; set +a; PGPASSWORD="$DB_PASS" pg_dump -h "${DB_HOST:-127.0.0.1}" -p "${DB_PORT:-5432}" -U "$DB_USER" -Fc "$DB_NAME"'
+  ["trackme:production"]='set -a; . /home/apps/trackMe/prod/.env; set +a; PGPASSWORD="$DB_PASS" pg_dump -h "${DB_HOST:-127.0.0.1}" -p "${DB_PORT:-5432}" -U "$DB_USER" -Fc "$DB_NAME"'
+)

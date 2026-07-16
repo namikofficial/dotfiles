@@ -27,6 +27,25 @@ check_cmd_for() {
   esac
 }
 
+dev_cmd_for() {
+  local profile="$1" pane="$2"
+  case "$profile:$pane" in
+    nox-billings:api) printf '%s\n' 'just api' ;;
+    nox-billings:web) printf '%s\n' 'just web' ;;
+    nox-billings:mobile) printf '%s\n' 'just mobile' ;;
+    nox-billings:logs) printf '%s\n' 'just logs' ;;
+    noxcrm:api) printf '%s\n' 'just up' ;;
+    noxcrm:web) printf '%s\n' 'just web-dev' ;;
+    noxcrm:mobile) printf '%s\n' 'just mobile-dev' ;;
+    noxcrm:logs) printf '%s\n' 'just logs' ;;
+    trackme:api) printf '%s\n' 'just api' ;;
+    trackme:web) printf '%s\n' 'just web' ;;
+    trackme:mobile) printf '%s\n' 'just mobile' ;;
+    trackme:logs) printf '%s\n' 'just logs' ;;
+    *) return 1 ;;
+  esac
+}
+
 usage() {
   cat <<USAGE
 Usage: project-profile <command> [profile]
@@ -39,9 +58,57 @@ Commands:
   edit <profile>       Open the profile in VS Code
   shell <profile>      Open a project-rooted Kitty shell
   tmux <profile>       Attach/create a project tmux session
+  dev <profile>        Attach/create the project's API, web, mobile, and logs layout
   check <profile>      Run the profile's default verification command
   launch <profile>     Open editor and project tmux shell
 USAGE
+}
+
+ensure_dev_layout() {
+  local profile="$1" path="$2" session window pane command
+  session="$profile"
+  window="dev"
+
+  if ! dev_cmd_for "$profile" api >/dev/null; then
+    echo "no development layout for profile: $profile" >&2
+    return 2
+  fi
+
+  if ! tmux has-session -t "$session" 2>/dev/null; then
+    tmux new-session -d -s "$session" -n "$window" -c "$path"
+  elif ! tmux list-windows -t "$session" -F '#W' | grep -Fxq "$window"; then
+    tmux new-window -d -t "$session" -n "$window" -c "$path"
+  else
+    return 0
+  fi
+
+  tmux split-window -d -h -t "$session:$window" -c "$path"
+  tmux split-window -d -v -t "$session:$window.0" -c "$path"
+  tmux split-window -d -v -t "$session:$window.2" -c "$path"
+  tmux select-layout -t "$session:$window" tiled
+
+  for pane in api web mobile logs; do
+    case "$pane" in
+      api) target=0 ;;
+      web) target=1 ;;
+      mobile) target=2 ;;
+      logs) target=3 ;;
+    esac
+    command="$(dev_cmd_for "$profile" "$pane")"
+    tmux select-pane -t "$session:$window.$target" -T "$pane"
+    tmux send-keys -t "$session:$window.$target" "cd $(printf '%q' "$path") && $command" Enter
+  done
+}
+
+open_tmux() {
+  local session="$1" window="${2:-}"
+  if [ -n "$window" ]; then
+    tmux select-window -t "$session:$window"
+  fi
+  if [ -n "${TMUX:-}" ]; then
+    exec tmux switch-client -t "$session${window:+:$window}"
+  fi
+  exec tmux attach-session -t "$session${window:+:$window}"
 }
 
 require_profile() {
@@ -108,7 +175,18 @@ case "$cmd" in
     ;;
   tmux)
     require_profile "$profile"
-    exec tmux new-session -A -s "$profile" -c "$(path_for "$profile")"
+    path="$(path_for "$profile")"
+    if dev_cmd_for "$profile" api >/dev/null; then
+      ensure_dev_layout "$profile" "$path"
+      open_tmux "$profile" dev
+    fi
+    exec tmux new-session -A -s "$profile" -c "$path"
+    ;;
+  dev)
+    require_profile "$profile"
+    path="$(path_for "$profile")"
+    ensure_dev_layout "$profile" "$path"
+    open_tmux "$profile" dev
     ;;
   check)
     require_profile "$profile"
@@ -121,6 +199,10 @@ case "$cmd" in
     require_profile "$profile"
     path="$(path_for "$profile")"
     code "$path" >/dev/null 2>&1 &
+    if dev_cmd_for "$profile" api >/dev/null; then
+      ensure_dev_layout "$profile" "$path"
+      exec kitty --title "$profile" -e tmux attach-session -t "$profile:dev"
+    fi
     exec kitty --title "$profile" -e tmux new-session -A -s "$profile" -c "$path"
     ;;
   -h | --help | help)

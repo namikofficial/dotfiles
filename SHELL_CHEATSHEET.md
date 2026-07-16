@@ -129,6 +129,15 @@
 - Reload tmux config from `~/Documents/code/dotfiles/tmux/tmux.conf`: `tr`
 - Kill session: `tk work`
 - Kill tmux server: `tka`
+- Start the four-pane project layout: `project-profile dev nox-billings`
+- Open Nox Billings on the Android emulator: `nox-billings-emulator`
+
+## Client Backups
+
+- Initialize private backup configuration: `client-backup init-config`
+- Validate backup connectivity: `client-backup verify`
+- Run an encrypted snapshot now: `client-backup run`
+- Show latest snapshot: `client-backup status`
 
 ## Tmux In-Session Keys
 - Prefix is `Ctrl-Space`
