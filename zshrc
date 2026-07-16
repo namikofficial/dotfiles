@@ -872,3 +872,4 @@ if [[ "$ENABLE_ZSH_AUTOCOMPLETE" != "1" ]]; then
   unsetopt listambiguous
   LISTMAX=999999
 fi
+export PATH=$PATH:$HOME/.maestro/bin
