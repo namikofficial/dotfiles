@@ -9,6 +9,7 @@
 
 # Local project shortcuts.
 alias noxcrm='cd /home/namik/Documents/code/workspace'
+alias nox-billings='cd /home/namik/Documents/code/nox-billings'
 alias nox-tickets='cd /home/namik/Documents/code/nox-tickets'
 alias wellvantage='cd ~/Documents/code/WellVantage'
 alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
@@ -18,11 +19,19 @@ noxcrm-edit() {
   code /home/namik/Documents/code/workspace "$@"
 }
 
+nox-billings-edit() {
+  code /home/namik/Documents/code/nox-billings "$@"
+}
+
 nox-tickets-edit() {
   code /home/namik/Documents/code/nox-tickets "$@"
 }
 
 noxcrm-log() {
+  :
+}
+
+nox-billings-log() {
   :
 }
 

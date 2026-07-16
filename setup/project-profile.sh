@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-profiles=(dotfiles noxcrm nox-tickets wellvantage trackme)
+profiles=(dotfiles noxcrm nox-billings nox-tickets wellvantage trackme)
 
 path_for() {
   case "$1" in
     dotfiles) printf '%s\n' "$HOME/Documents/code/dotfiles" ;;
     noxcrm) printf '%s\n' "$HOME/Documents/code/workspace" ;;
+    nox-billings) printf '%s\n' "$HOME/Documents/code/nox-billings" ;;
     nox-tickets) printf '%s\n' "$HOME/Documents/code/nox-tickets" ;;
     wellvantage) printf '%s\n' "$HOME/Documents/code/WellVantage" ;;
     trackme) printf '%s\n' "$HOME/Documents/code/trackMe" ;;
@@ -18,6 +19,7 @@ check_cmd_for() {
   case "$1" in
     dotfiles) printf '%s\n' 'setup/dev-health.sh' ;;
     noxcrm) printf '%s\n' 'just lint' ;;
+    nox-billings) printf '%s\n' 'pnpm verify' ;;
     nox-tickets) printf '%s\n' 'pnpm lint && pnpm typecheck' ;;
     wellvantage) printf '%s\n' 'pnpm lint && pnpm build' ;;
     trackme) printf '%s\n' 'pnpm typecheck' ;;
