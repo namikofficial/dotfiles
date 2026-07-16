@@ -8,14 +8,14 @@
 # alias myvpn='~/scripts/connect-vpn'
 
 # Local project shortcuts.
-alias noxcrm='cd /home/namik/Documents/code/noxcrm/workspace'
+alias noxcrm='cd /home/namik/Documents/code/workspace'
 alias nox-tickets='cd /home/namik/Documents/code/nox-tickets'
 alias wellvantage='cd ~/Documents/code/WellVantage'
 alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
 
 noxcrm-edit() {
-  code /home/namik/Documents/code/noxcrm/workspace "$@"
+  code /home/namik/Documents/code/workspace "$@"
 }
 
 nox-tickets-edit() {
