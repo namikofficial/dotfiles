@@ -47,6 +47,7 @@ prepare_runtime_css() {
   src="$1"
   dst="$2"
   cp "$src" "$dst"
+  sed -i "s|__WLOGOUT_DIR__|$HOME/.config/wlogout|g" "$dst"
 
   bg="$(theme_hex bg "#1a1b1f")"
   bg_soft="$(theme_hex bg_soft "#242529")"
@@ -58,6 +59,7 @@ prepare_runtime_css() {
   bg_rgb="$(hex_to_rgb "$bg")"
   bg_soft_rgb="$(hex_to_rgb "$bg_soft")"
   surface_rgb="$(hex_to_rgb "$surface")"
+  accent_rgb="$(hex_to_rgb "$accent")"
   danger_rgb="$(hex_to_rgb "$danger")"
 
   sed -i \
@@ -67,10 +69,16 @@ prepare_runtime_css() {
     -e "s/rgba(26, 27, 31, 0.82)/rgba(${bg_rgb}, 0.82)/g" \
     -e "s/rgba(26, 27, 31, 0.86)/rgba(${bg_rgb}, 0.86)/g" \
     -e "s/rgba(36, 37, 41, 0.9)/rgba(${bg_soft_rgb}, 0.9)/g" \
+    -e "s/rgba(56, 57, 60, 0.6)/rgba(${surface_rgb}, 0.6)/g" \
     -e "s/rgba(56, 57, 60, 0.75)/rgba(${surface_rgb}, 0.75)/g" \
     -e "s/rgba(56, 57, 60, 0.82)/rgba(${surface_rgb}, 0.82)/g" \
+    -e "s/rgba(174, 119, 91, 0.18)/rgba(${accent_rgb}, 0.18)/g" \
+    -e "s/rgba(174, 119, 91, 0.3)/rgba(${accent_rgb}, 0.3)/g" \
+    -e "s/rgba(255, 117, 127, 0.26)/rgba(${danger_rgb}, 0.26)/g" \
     -e "s/rgba(255, 117, 127, 0.28)/rgba(${danger_rgb}, 0.28)/g" \
+    -e "s/rgba(255, 117, 127, 0.29)/rgba(${danger_rgb}, 0.29)/g" \
     -e "s/rgba(255, 117, 127, 0.3)/rgba(${danger_rgb}, 0.3)/g" \
+    -e "s/rgba(255, 117, 127, 0.38)/rgba(${danger_rgb}, 0.38)/g" \
     -e "s/rgba(255, 117, 127, 0.4)/rgba(${danger_rgb}, 0.4)/g" \
     -e "s/rgba(255, 117, 127, 0.42)/rgba(${danger_rgb}, 0.42)/g" \
     "$dst"
@@ -82,9 +90,10 @@ show_compact_menu() {
       "󰌾  Lock" \
       "󰤄  Sleep" \
       "󰒲  Hibernate" \
-      "󰍃  Logout" \
+      "󰩬  Firmware" \
       "󰜉  Reboot" \
       "󰐥  Shutdown" \
+      "󰍃  Logout" \
       "󰑐  Restore Panel" \
     | rofi -dmenu -i -p "Power" -theme "$HOME/.config/rofi/actions.rasi"
   )"
@@ -93,6 +102,9 @@ show_compact_menu() {
     "󰌾  Lock") ~/.config/hypr/scripts/lock.sh ;;
     "󰤄  Sleep") systemctl suspend ;;
     "󰒲  Hibernate") systemctl hibernate ;;
+    "󰩬  Firmware") systemctl reboot --firmware-setup ;;
+    "󰜉  Reboot") systemctl reboot ;;
+    "󰐥  Shutdown") systemctl poweroff ;;
     "󰍃  Logout")
       if command -v uwsm >/dev/null 2>&1; then
         uwsm stop
@@ -100,8 +112,6 @@ show_compact_menu() {
         hyprctl dispatch exit
       fi
       ;;
-    "󰜉  Reboot") systemctl reboot ;;
-    "󰐥  Shutdown") systemctl poweroff ;;
     "󰑐  Restore Panel") ~/.config/hypr/scripts/panel-switch.sh show ;;
     *) exit 0 ;;
   esac
@@ -126,9 +136,10 @@ if command -v wlogout >/dev/null 2>&1; then
   exec wlogout \
     --layout "$HOME/.config/wlogout/layout" \
     --css "$runtime_css" \
-    --buttons-per-row 3 \
-    --column-spacing 8 \
-    --row-spacing 8
+    --buttons-per-row 7 \
+    --column-spacing 4 \
+    --row-spacing 4 \
+    --show-binds
 fi
 
 show_compact_menu

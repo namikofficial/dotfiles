@@ -43,6 +43,7 @@ rule({
 rule({
   name = "wlogout-motion",
   match = { class = "^(wlogout)$" },
+  center = true,
   animation = "popin 92%",
 })
 

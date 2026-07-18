@@ -1,36 +1,42 @@
 {
     "label": "lock",
     "action": "~/.config/hypr/scripts/lock.sh",
-    "text": "",
+    "text": "Lock",
     "keybind": "l"
 }
 {
     "label": "suspend",
-    "action": "systemctl suspend",
-    "text": "",
+    "action": "sh -c 'systemctl suspend &'",
+    "text": "Sleep",
     "keybind": "u"
 }
 {
     "label": "hibernate",
-    "action": "systemctl hibernate",
-    "text": "",
+    "action": "sh -c 'systemctl hibernate &'",
+    "text": "Hibernate",
     "keybind": "h"
 }
 {
-    "label": "logout",
-    "action": "sh -lc 'command -v uwsm >/dev/null 2>&1 && uwsm stop || hyprctl dispatch exit'",
-    "text": "",
-    "keybind": "e"
+    "label": "firmware",
+    "action": "sh -c 'systemctl reboot --firmware-setup &'",
+    "text": "Firmware",
+    "keybind": "f"
 }
 {
     "label": "reboot",
-    "action": "systemctl reboot",
-    "text": "",
+    "action": "sh -c 'systemctl reboot &'",
+    "text": "Reboot",
     "keybind": "r"
 }
 {
     "label": "shutdown",
-    "action": "systemctl poweroff",
-    "text": "",
+    "action": "sh -c 'systemctl poweroff &'",
+    "text": "Shutdown",
     "keybind": "s"
+}
+{
+    "label": "logout",
+    "action": "sh -c 'command -v uwsm >/dev/null 2>&1 && uwsm stop || hyprctl dispatch exit &'",
+    "text": "Logout",
+    "keybind": "e"
 }
