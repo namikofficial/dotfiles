@@ -82,4 +82,7 @@ runtime_values="$(env -u AI_WORKBENCH_API_URL -u AI_WORKBENCH_URL -u LLM_BASE_UR
 [ "$runtime_values" = 'http://127.0.0.1:5517|http://127.0.0.1:5317|http://127.0.0.1:9080/v1' ]
 grep -Fx 'EnvironmentFile=-%h/.config/ai-workbench/runtime.env' \
 	"$repo_dir/systemd/user/ai-workbench-desktop-observer.service" >/dev/null
+grep -Fx 'EnvironmentFile=-%h/.config/ai-workbench/runtime.env' \
+	"$repo_dir/systemd/user/ai-workbench-notification-bridge.service" >/dev/null
+grep -F 'ai-workbench-notification-bridge.service' "$repo_dir/setup/bootstrap.sh" >/dev/null
 printf 'workbench desktop adapters: ok\n'

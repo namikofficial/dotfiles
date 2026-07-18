@@ -1,0 +1,21 @@
+[Unit]
+Description=AI Workbench desktop notification bridge
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+EnvironmentFile=-%h/.config/ai-workbench/runtime.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/.config/hypr/scripts/ai-workbench-notification-bridge.py
+Restart=on-failure
+RestartSec=2
+TimeoutStartSec=10
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target

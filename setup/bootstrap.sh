@@ -219,6 +219,7 @@ link_path "$REPO_DIR/android/android-env.sh" "$HOME/.config/environment.d/60-and
 link_path "$REPO_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
 link_path "$REPO_DIR/systemd/user/noxflow-session-optional.service" "$HOME/.config/systemd/user/noxflow-session-optional.service"
 link_path "$REPO_DIR/systemd/user/ai-workbench-desktop-observer.service" "$HOME/.config/systemd/user/ai-workbench-desktop-observer.service"
+link_path "$REPO_DIR/systemd/user/ai-workbench-notification-bridge.service" "$HOME/.config/systemd/user/ai-workbench-notification-bridge.service"
 
 # Remove the obsolete managed drop-in that discarded the GPU selected by
 # env-hyprland. Unrelated local overrides are deliberately left alone.
@@ -282,7 +283,8 @@ fi
 
 if ((INSTALL_LOCAL_AI)); then
   if ((DRY_RUN)); then
-    echo "[dry-run] mkdir -p "$HOME/.config/local-ai/templates" "$HOME/.config/local-ai/skills" "$HOME/.config/local-ai/system""
+    printf '[dry-run] mkdir -p %q %q %q\n' \
+      "$HOME/.config/local-ai/templates" "$HOME/.config/local-ai/skills" "$HOME/.config/local-ai/system"
   else
     mkdir -p "$HOME/.config/local-ai/templates" "$HOME/.config/local-ai/skills" "$HOME/.config/local-ai/system"
   fi

@@ -16,6 +16,8 @@ flowchart LR
   Cache --> Rofi[Rofi cockpit]
   Cache --> Resume[Project resume]
   Cache --> Scratch[AI / logs scratchpads]
+  API -->|normalized SSE| Notify[Notification bridge]
+  Notify --> DesktopNotify[Wayle DND + notify-send]
 ```
 
 The observer refreshes status after the resolved project changes or the cache expires. Wayle only reads the compact cache every five seconds; it does not run Git, Docker, model, or network probes.
@@ -63,6 +65,8 @@ Workbench-aware desktop scripts read `~/.config/ai-workbench/runtime.env`, the s
 
 The desktop observer unit also reads the central environment file. Install and rollback procedures live in the AI repository's `docs/RUNTIME_SUPERVISION.md`; installing services is explicit and is not performed by the dotfiles scripts.
 
+The `ai-workbench-notification-bridge` graphical-session service consumes the canonical SSE stream and keeps only a private XDG reconnect cursor. It notifies for approvals, run/check failures, run completion, manually requested indexing, blocked work and runtime loss. Routine focus, retrieval and model-call events are ignored. Wayle DND and `AI_WORKBENCH_NOTIFICATIONS_ENABLED=false` suppress display without losing the event cursor. Notification actions open canonical Workbench deep links when supported.
+
 ## Scratchpads and resume
 
 Project resume, AI helper context, and AI/log scratchpad launch now prefer the canonical cached project path. New scratchpad processes receive `AI_WORKBENCH_PROJECT_ID`, `AI_WORKBENCH_PROJECT_NAME`, `AI_WORKBENCH_TASK_ID`, `AI_WORKBENCH_RUN_ID`, and `AI_WORKBENCH_SESSION_ID` alongside the path. Their terminal title shows the visible project identity. Explicit `NOXFLOW_AI_CONTEXT` and `NOXFLOW_SCRATCH_PIN_PROJECT_PATH` remain supported.
@@ -100,6 +104,7 @@ shellcheck hypr/scripts/ai-workbench-observer hypr/scripts/kage \
 python3 -c 'import tomllib; tomllib.load(open("wayle/config.toml", "rb"))'
 wayle config schema >/dev/null
 ./setup/test-workbench-desktop.sh
+python3 setup/test-workbench-notification-bridge.py
 ```
 
 `setup/check-local.sh` currently also reports pre-existing shfmt differences across many unrelated scripts. The Workbench scripts are validated directly so that legacy formatting is not rewritten as part of this migration.
