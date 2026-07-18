@@ -14,7 +14,7 @@ models:
       --host 127.0.0.1
       --port ${PORT}
       --model __QWEN3_MODEL__
-      --ctx-size 8192
+      --ctx-size 81920
       __GPU_LAYERS_ARG__
       --threads 8
       --parallel 1
@@ -30,7 +30,7 @@ models:
       --host 127.0.0.1
       --port ${PORT}
       --model __GRANITE_MODEL__
-      --ctx-size 8192
+      --ctx-size 16384
       __GPU_LAYERS_ARG__
       --threads 8
       --parallel 1
@@ -53,3 +53,18 @@ models:
     aliases:
       - qwen3-coder-heavy
       - qwen3-coder-30b
+
+  qwen35-4b-local:
+    cmd: >
+      __LLAMA_SERVER__
+      --host 127.0.0.1
+      --port ${PORT}
+      --model __QWEN35_MODEL__
+      --ctx-size 81920
+      __GPU_LAYERS_ARG__
+      --threads 8
+      --parallel 1
+      --jinja
+    aliases:
+      - qwen35-4b-local
+      - qwen3.5-4b

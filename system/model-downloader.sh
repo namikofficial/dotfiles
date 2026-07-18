@@ -42,8 +42,18 @@ case "$MODEL" in
     echo "3. Save to: $MODELS_DIR/qwen2.5-coder-7b-instruct-q4_k_m.gguf"
     echo
     ;;
+  qwen35 | qwen3.5 | qwen35-4b | qwen3.5-4b)
+    echo "Qwen3.5 4B (Q4_K_M quantization)"
+    echo "Size: ~3.0 GB"
+    echo "Install with the current Hugging Face CLI:"
+    echo "  hf download bartowski/Qwen_Qwen3.5-4B-GGUF --include 'Qwen_Qwen3.5-4B-Q4_K_M.gguf' --local-dir $MODELS_DIR/chat/qwen3.5-4b"
+    echo "Older clients: huggingface-cli download bartowski/Qwen_Qwen3.5-4B-GGUF --include 'Qwen_Qwen3.5-4B-Q4_K_M.gguf' --local-dir $MODELS_DIR/chat/qwen3.5-4b"
+    echo
+    echo "Then: llama-swap-manager start && llama-swap-manager switch qwen35"
+    echo
+    ;;
   *)
-    echo "Usage: $0 [gemma-3-4b|qwen-coder-7b]"
+    echo "Usage: $0 [gemma-3-4b|qwen-coder-7b|qwen35-4b]"
     echo "Only llama-swap-wired models should be documented here."
     exit 1
     ;;

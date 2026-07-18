@@ -77,6 +77,7 @@ specs = {
     'qwen3-4b-local': ('chat/qwen3-4b-instruct-2507', 'qwen3'),
     'granite-agent': ('chat/granite-4-h-tiny', 'granite'),
     'qwen3-coder-heavy': ('coder/qwen3-coder-30b-a3b', 'heavy'),
+    'qwen35-4b-local': ('chat/qwen3.5-4b', 'qwen35'),
 }
 
 def valid_gguf(path: Path) -> bool:
@@ -97,10 +98,12 @@ def find_model(relative_dir: str, label: str, required: bool = False) -> str | N
 qwen3_model = find_model(*specs['qwen3-4b-local'], required=True)
 granite_model = find_model(*specs['granite-agent'], required=False)
 heavy_model = find_model(*specs['qwen3-coder-heavy'], required=False)
+qwen35_model = find_model(*specs['qwen35-4b-local'], required=False)
 paths = {
     'qwen3-4b-local': qwen3_model,
     'granite-agent': granite_model,
     'qwen3-coder-heavy': heavy_model,
+    'qwen35-4b-local': qwen35_model,
 }
 if not qwen3_model:
     raise SystemExit('main model is required: download Qwen3-4B into chat/qwen3-4b-instruct-2507')
@@ -114,6 +117,7 @@ for name, path in paths.items():
         'qwen3-4b-local': '__QWEN3_MODEL__',
         'granite-agent': '__GRANITE_MODEL__',
         'qwen3-coder-heavy': '__QWEN3_CODER_HEAVY_MODEL__',
+        'qwen35-4b-local': '__QWEN35_MODEL__',
     }[name], path or '/invalid/missing-model.gguf')
 lines = rendered.splitlines()
 out = []
@@ -244,6 +248,10 @@ switch_model() {
     heavy | qwen3-coder-heavy | qwen3-coder-30b)
       model="qwen3-coder-heavy"
       alias="qwen3-coder-heavy"
+      ;;
+    qwen35 | qwen3.5 | qwen35-4b | qwen35-4b-local)
+      model="qwen35-4b-local"
+      alias="qwen35-4b-local"
       ;;
     *)
       echo "unknown model alias: $requested" >&2

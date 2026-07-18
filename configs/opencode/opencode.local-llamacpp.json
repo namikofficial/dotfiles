@@ -6,20 +6,37 @@
       "name": "llama.cpp (local CUDA)",
       "options": {
         "baseURL": "http://127.0.0.1:8080/v1",
-        "apiKey": "local"
+        "apiKey": "local",
+        "timeout": 600000
       },
       "models": {
         "qwen3-4b-local": {
           "name": "qwen3-4b-local",
-          "tools": true
+          "tools": true,
+          "limit": {
+            "context": 65536,
+            "output": 16384
+          }
         },
         "granite-agent": {
           "name": "granite-agent",
-          "tools": true
+          "tools": true,
+          "limit": {
+            "context": 16384,
+            "output": 8192
+          }
         },
         "qwen3-coder-heavy": {
           "name": "qwen3-coder-heavy",
           "tools": true
+        },
+        "qwen35-4b-local": {
+          "name": "qwen35-4b-local",
+          "tools": true,
+          "limit": {
+            "context": 65536,
+            "output": 16384
+          }
         }
       }
     },
@@ -137,18 +154,25 @@
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/session-log.js"
   ],
   "tool_output": {
-    "max_lines": 600,
-    "max_bytes": 65536
+    "max_lines": 1000,
+    "max_bytes": 131072
+  },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 8000
   },
   "agent": {
     "build": {
       "model": "llamacpp/qwen3-4b-local",
+      "limit": { "context": 65536, "output": 16384 },
       "temperature": 0.1,
       "top_p": 0.95,
       "prompt": "{file:~/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md}\n\n{file:~/Documents/code/dotfiles/configs/opencode/prompts/build.md}"
     },
     "plan": {
       "model": "llamacpp/qwen3-4b-local",
+      "limit": { "context": 65536, "output": 16384 },
       "temperature": 0.3,
       "top_p": 0.95
     },
@@ -162,9 +186,19 @@
       "description": "Local default build agent for normal coding, planning, and low-risk edits.",
       "mode": "subagent",
       "model": "llamacpp/qwen3-4b-local",
+      "limit": { "context": 65536, "output": 16384 },
       "temperature": 0.1,
       "top_p": 0.95,
       "prompt": "You are a local build subagent running on the workstation model. Inspect the repo first, make small scoped edits only when asked, prefer existing patterns, and run the most relevant local checks. Avoid paid/network providers and avoid broad refactors."
+    },
+    "local-qwen35-coder": {
+      "description": "Local Qwen3.5 4B coding agent for tool use, debugging, and normal implementation tasks.",
+      "mode": "subagent",
+      "model": "llamacpp/qwen35-4b-local",
+      "limit": { "context": 65536, "output": 16384 },
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "prompt": "You are a local coding agent. Inspect the repository first, use tools deliberately, make the smallest correct change, and run focused checks. Keep reasoning practical and report exact paths and results."
     },
     "cheap-review": {
       "description": "Cheap read-only review agent for quick diff checks and risk spotting.",
