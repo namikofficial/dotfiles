@@ -37,6 +37,7 @@ log_context_file="$state_dir/scratchpad-log-context"
 ai_context_file="$state_dir/scratchpad-ai-context"
 dashboard_log="$state_dir/scratchpad-dashboard.log"
 registry_cache=""
+workbench_status_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"
 
 spatial_visible() {
   hyprctl -j monitors 2>/dev/null | jq -e '
@@ -392,8 +393,22 @@ spawn_browser_devtools() {
 
 spawn_ai() {
   local context="${1:-$(context_cwd)}"
+  local project_id="" project_name task_id="" run_id="" session_id="" canonical_path=""
+  project_name="$(basename "$context")"
+  if command -v jq >/dev/null 2>&1 && [ -s "$workbench_status_cache" ]; then
+    canonical_path="$(jq -r '.status.project.path // ""' "$workbench_status_cache" 2>/dev/null || true)"
+    if [ "$canonical_path" = "$context" ]; then
+      project_id="$(jq -r '.status.project.id // ""' "$workbench_status_cache")"
+      project_name="$(jq -r '.status.project.name // ""' "$workbench_status_cache")"
+      task_id="$(jq -r '.status.activeWork.taskId // ""' "$workbench_status_cache")"
+      run_id="$(jq -r '.status.activeWork.runId // ""' "$workbench_status_cache")"
+      session_id="$(jq -r '.status.activeWork.sessionId // ""' "$workbench_status_cache")"
+    fi
+  fi
   printf '%s\n' "$context" > "$ai_context_file"
-  kitty --class noxflow-scratch-ai --title "AI" -e env NOXFLOW_AI_CONTEXT="$context" zsh -lic '
+  kitty --class noxflow-scratch-ai --title "AI — $project_name" -e env \
+    NOXFLOW_AI_CONTEXT="$context" AI_WORKBENCH_PROJECT_ID="$project_id" AI_WORKBENCH_PROJECT_NAME="$project_name" \
+    AI_WORKBENCH_TASK_ID="$task_id" AI_WORKBENCH_RUN_ID="$run_id" AI_WORKBENCH_SESSION_ID="$session_id" zsh -lic '
     cd "$NOXFLOW_AI_CONTEXT" 2>/dev/null || cd "$HOME/Documents/code" 2>/dev/null || cd "$HOME"
     exec "$HOME/.config/hypr/scripts/multi-model-ai.sh"
   ' >/dev/null 2>&1 &
@@ -401,8 +416,22 @@ spawn_ai() {
 
 spawn_logs() {
   local context="${1:-$(context_cwd)}"
+  local project_id="" project_name task_id="" run_id="" session_id="" canonical_path=""
+  project_name="$(basename "$context")"
+  if command -v jq >/dev/null 2>&1 && [ -s "$workbench_status_cache" ]; then
+    canonical_path="$(jq -r '.status.project.path // ""' "$workbench_status_cache" 2>/dev/null || true)"
+    if [ "$canonical_path" = "$context" ]; then
+      project_id="$(jq -r '.status.project.id // ""' "$workbench_status_cache")"
+      project_name="$(jq -r '.status.project.name // ""' "$workbench_status_cache")"
+      task_id="$(jq -r '.status.activeWork.taskId // ""' "$workbench_status_cache")"
+      run_id="$(jq -r '.status.activeWork.runId // ""' "$workbench_status_cache")"
+      session_id="$(jq -r '.status.activeWork.sessionId // ""' "$workbench_status_cache")"
+    fi
+  fi
   printf '%s\n' "$context" > "$log_context_file"
-  kitty --class noxflow-scratch-logs --title "Project Runner" -e env NOXFLOW_LOG_CONTEXT="$context" zsh -lic '
+  kitty --class noxflow-scratch-logs --title "Runner — $project_name" -e env \
+    NOXFLOW_LOG_CONTEXT="$context" AI_WORKBENCH_PROJECT_ID="$project_id" AI_WORKBENCH_PROJECT_NAME="$project_name" \
+    AI_WORKBENCH_TASK_ID="$task_id" AI_WORKBENCH_RUN_ID="$run_id" AI_WORKBENCH_SESSION_ID="$session_id" zsh -lic '
     cd "$NOXFLOW_LOG_CONTEXT" 2>/dev/null || cd "$HOME"
     exec "$HOME/.config/hypr/scripts/empty-terminal.sh"
   ' >/dev/null 2>&1 &
@@ -484,6 +513,17 @@ PY
 
 context_cwd() {
   local pid cwd
+  if [ -n "${NOXFLOW_SCRATCH_PIN_PROJECT_PATH:-}" ] && [ -d "${NOXFLOW_SCRATCH_PIN_PROJECT_PATH}" ]; then
+    printf '%s\n' "$NOXFLOW_SCRATCH_PIN_PROJECT_PATH"
+    return 0
+  fi
+  if command -v jq >/dev/null 2>&1 && [ -s "$workbench_status_cache" ]; then
+    cwd="$(jq -r '.status.project.path // ""' "$workbench_status_cache" 2>/dev/null || true)"
+    if [ -n "$cwd" ] && [ -d "$cwd" ]; then
+      printf '%s\n' "$cwd"
+      return 0
+    fi
+  fi
   pid="$(context_window_json | jq -r '.pid // empty' 2>/dev/null || true)"
   if [ -n "$pid" ]; then
     cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
@@ -527,7 +567,9 @@ launch_overlay_pad() {
     fi
     address="$(client_address "$class_name" || true)"
     if [ -n "$address" ] && [ "$current_context" != "$context" ]; then
-      forget_client "$address"
+      command -v notify-send >/dev/null 2>&1 && notify-send -a "Scratchpad" \
+        "Scratchpad kept on $(basename "$current_context")" \
+        "Close and reopen it to follow $(basename "$context"), or set NOXFLOW_SCRATCH_PIN_PROJECT_PATH." >/dev/null 2>&1 || true
     fi
   fi
 
@@ -634,10 +676,10 @@ scene_enter() {
   logs_address="$(client_address "$logs_class" || true)"
 
   if [ -n "$ai_address" ] && [ "$current_ai" != "$context" ]; then
-    forget_client "$ai_address"
+    command -v notify-send >/dev/null 2>&1 && notify-send -a "Scratchpad" "AI scratchpad kept on $(basename "$current_ai")" >/dev/null 2>&1 || true
   fi
   if [ -n "$logs_address" ] && [ "$current_logs" != "$context" ]; then
-    forget_client "$logs_address"
+    command -v notify-send >/dev/null 2>&1 && notify-send -a "Scratchpad" "Logs scratchpad kept on $(basename "$current_logs")" >/dev/null 2>&1 || true
   fi
 
   window_exists "$ai_class" || NOXFLOW_AI_CONTEXT="$context" spawn_pad_process ai

@@ -56,8 +56,7 @@ center = [
 right = [
   { name = "controls", modules = ["custom-brightness", "volume", "custom-syncthing", "custom-logs"] },
   { name = "status", modules = ["battery", "bluetooth", "network"] },
-  { name = "llm", modules = ["custom-llm"] },
-  { name = "project", modules = ["custom-project"] },
+  { name = "work", modules = ["custom-work-project", "custom-work-git", "custom-work-task", "custom-work-ai"] },
   { name = "alerts", modules = ["notifications"] },
 ]
 
@@ -238,33 +237,62 @@ label-color = "fg-default"
 left-click = "/home/namik/.config/hypr/scripts/quick-actions.sh"
 
 [[modules.custom]]
-id = "project"
-command = "/home/namik/.config/hypr/scripts/kage project current --wayle"
+id = "work-project"
+command = "/home/namik/.config/hypr/scripts/workbench-wayle-status project"
 mode = "poll"
 interval-ms = 5000
 format = "{{ text }}"
 icon-show = false
 label-show = true
-label-max-length = 40
-button-bg-color = "transparent"
+label-max-length = 20
+button-bg-color = "bg-surface-elevated"
 icon-bg-color = "auto"
 label-color = "fg-default"
 left-click = "/home/namik/.config/hypr/scripts/kage-project-rofi.sh"
-on-action = "/home/namik/.config/hypr/scripts/kage project refresh"
+right-click = "/home/namik/.config/hypr/scripts/workbench-project-switcher"
 
 [[modules.custom]]
-id = "llm"
-command = "/home/namik/Documents/code/dotfiles/system/wayle-llm-module.sh"
+id = "work-git"
+command = "/home/namik/.config/hypr/scripts/workbench-wayle-status git"
 mode = "poll"
 interval-ms = 5000
 format = "{{ text }}"
 icon-show = false
 label-show = true
-button-bg-color = "transparent"
+label-max-length = 24
+button-bg-color = "bg-surface-elevated"
+icon-bg-color = "auto"
+label-color = "fg-muted"
+left-click = "/home/namik/.config/hypr/scripts/kage-project-rofi.sh"
+
+[[modules.custom]]
+id = "work-task"
+command = "/home/namik/.config/hypr/scripts/workbench-wayle-status work"
+mode = "poll"
+interval-ms = 5000
+format = "{{ text }}"
+icon-show = false
+label-show = true
+label-max-length = 28
+button-bg-color = "bg-surface-elevated"
+icon-bg-color = "auto"
+label-color = "fg-default"
+left-click = "/home/namik/.config/hypr/scripts/open-ai-workbench.sh work"
+
+[[modules.custom]]
+id = "work-ai"
+command = "/home/namik/.config/hypr/scripts/workbench-wayle-status ai"
+mode = "poll"
+interval-ms = 5000
+format = "{{ text }}"
+icon-show = false
+label-show = true
+label-max-length = 14
+button-bg-color = "bg-surface-elevated"
 icon-bg-color = "auto"
 label-color = "fg-muted"
 left-click = "/home/namik/.config/hypr/scripts/scratchpad-manager.sh launch ai"
-on-action = "kitty -e zsh -lc 'llama-swap-manager status; read -r -p \"Press enter to close\"'"
+right-click = "/home/namik/.config/hypr/scripts/open-ai-workbench.sh ask"
 
 [modules.battery]
 left-click = "dropdown:battery"

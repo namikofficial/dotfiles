@@ -4,7 +4,8 @@ set -euo pipefail
 action="${1:-prompt}"
 mode="${2:-ask}"
 
-project_cache="${HOME}/.cache/kage/project-current.json"
+project_cache="${XDG_CACHE_HOME:-$HOME/.cache}/kage/project-current.json"
+workbench_status_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"
 project_context_script="${HOME}/.config/hypr/scripts/get-project-context.sh"
 llm_base_url="${LLM_BASE_URL:-http://127.0.0.1:8080/v1}"
 llm_model_alias="${LLM_CHAT_MODEL:-local}"
@@ -84,9 +85,30 @@ load_project_from_cache() {
   return 0
 }
 
+load_project_from_workbench() {
+  command -v jq >/dev/null 2>&1 || return 1
+  [ -s "$workbench_status_cache" ] || return 1
+  jq -e '.schemaVersion == 1 and (.status.project.path // "") != ""' "$workbench_status_cache" >/dev/null 2>&1 || return 1
+
+  project_path="$(jq -r '.status.project.path // ""' "$workbench_status_cache")"
+  [ -d "$project_path" ] || return 1
+  project_name="$(jq -r '.status.project.name // ""' "$workbench_status_cache")"
+  project_branch="$(jq -r '.status.git.branch // ""' "$workbench_status_cache")"
+  project_framework="workbench"
+  project_modified="$(jq -r '(.status.git.modified // 0) + (.status.git.deleted // 0) + (.status.git.renamed // 0) + (.status.git.untracked // 0)' "$workbench_status_cache")"
+  project_staged="$(jq -r '.status.git.staged // 0' "$workbench_status_cache")"
+  project_dirty="$(jq -r '.status.git.dirty // false' "$workbench_status_cache")"
+  [ -n "$project_name" ] || project_name="$(basename "$project_path")"
+  return 0
+}
+
 load_project_context() {
   if [ -n "${NOXFLOW_AI_CONTEXT:-}" ] && [ -d "${NOXFLOW_AI_CONTEXT}" ]; then
     load_project_from_dir "${NOXFLOW_AI_CONTEXT}" || true
+  fi
+
+  if [ -z "$project_path" ]; then
+    load_project_from_workbench || true
   fi
 
   if [ -z "$project_path" ]; then

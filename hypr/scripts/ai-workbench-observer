@@ -4,6 +4,7 @@ set -euo pipefail
 API_URL="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4417}"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench"
 OBSERVATION_CACHE="${CACHE_DIR}/desktop-observation-v1.json"
+STATUS_CACHE="${CACHE_DIR}/project-status-v1.json"
 HYPR_SOCKET="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr/${HYPRLAND_INSTANCE_SIGNATURE:-}/.socket2.sock"
 
 mkdir -p "$CACHE_DIR"
@@ -98,7 +99,7 @@ PY
 }
 
 observe_once() {
-  local window pid class_name title role workspace address cwd terminal transient tmux_json process_json now observation_id
+  local window pid class_name title role workspace address cwd terminal transient tmux_json process_json now observation_id response project_id cached_project stale_after now_epoch stale_epoch
   window="$(hyprctl -j activewindow 2>/dev/null || printf '{}')"
   pid="$(jq -r '.pid // 0' <<<"$window")"
   class_name="$(jq -r '.class // ""' <<<"$window")"
@@ -126,9 +127,20 @@ observe_once() {
     --argjson pid "${pid:-0}" --argjson terminal "$terminal" --argjson transient "$transient" --argjson tmux "$tmux_json" --argjson process "$process_json" \
     '{schemaVersion:1,id:$id,createdAt:$now,updatedAt:$now,origin:{source:"desktop",instanceId:$instance,legacyRef:null},capabilities:["focused-window","process-cwd","tmux-correlation"],observedAt:$now,state:"ready",compositor:"hyprland",workspaceId:($workspace|if length>0 then . else null end),window:{address:($address|if length>0 then . else null end),pid:(if $pid>0 then $pid else null end),className:($className|if length>0 then . else null end),title:($title|if length>0 then . else null end),role:($role|if length>0 then . else null end)},process:$process,editor:null,terminal:(if $terminal then {cwd:($cwd|if length>0 then . else null end),shell:($process.command // null)} else null end),tmux:$tmux,browser:null,explicitProjectId:null,transientWindow:$transient}' >"$OBSERVATION_CACHE.tmp"
   mv "$OBSERVATION_CACHE.tmp" "$OBSERVATION_CACHE"
-  curl --silent --show-error --fail --max-time 1 \
+  response="$(curl --silent --show-error --fail --max-time 1 \
     -H 'content-type: application/json' -H 'accept: application/json' \
-    --data-binary "@$OBSERVATION_CACHE" "$API_URL/desktop/observations" >/dev/null 2>&1 || true
+    --data-binary "@$OBSERVATION_CACHE" "$API_URL/desktop/observations" 2>/dev/null || true)"
+  [ -n "$response" ] || return 0
+
+  project_id="$(jq -r '.data.project.id // ""' <<<"$response" 2>/dev/null || true)"
+  cached_project="$(jq -r '.status.project.id // ""' "$STATUS_CACHE" 2>/dev/null || true)"
+  stale_after="$(jq -r '.status.staleAfter // ""' "$STATUS_CACHE" 2>/dev/null || true)"
+  now_epoch="$(date +%s)"
+  stale_epoch="$(date -d "$stale_after" +%s 2>/dev/null || printf '0')"
+  if [ -n "$project_id" ] && { [ "$project_id" != "$cached_project" ] || [ "$stale_epoch" -le "$now_epoch" ]; }; then
+    curl --silent --fail --max-time 10 -H 'accept: application/json' \
+      "$API_URL/project-status/compact" >/dev/null 2>&1 || true
+  fi
 }
 
 if [[ "${1:-}" == "--once" ]]; then

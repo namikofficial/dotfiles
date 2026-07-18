@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+api_url="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4417}"
+theme="${HOME}/.config/rofi/actions.rasi"
+theme_args=()
+[ -f "$theme" ] && theme_args=(-theme "$theme")
+
+notify() {
+	command -v notify-send >/dev/null 2>&1 || return 0
+	notify-send -a "AI Workbench" "$1" "${2:-}"
+}
+
+command -v curl >/dev/null 2>&1 || {
+	notify "Project switcher unavailable" "curl is required"
+	exit 1
+}
+command -v jq >/dev/null 2>&1 || {
+	notify "Project switcher unavailable" "jq is required"
+	exit 1
+}
+command -v rofi >/dev/null 2>&1 || {
+	notify "Project switcher unavailable" "rofi is required"
+	exit 1
+}
+
+registry="$(curl --silent --show-error --fail --max-time 2 -H 'accept: application/json' "$api_url/registry" 2>/dev/null || true)"
+if ! jq -e '.status == "ok" and (.data.manifests | type == "array")' <<<"$registry" >/dev/null 2>&1; then
+	notify "Workbench offline" "Canonical project selection is unavailable"
+	exit 1
+fi
+
+menu="$(jq -r '.data.manifests[] | [.name, .id, .path] | @tsv' <<<"$registry")"
+[ -n "$menu" ] || {
+	notify "No registered projects" "Import or register a project in Workbench"
+	exit 0
+}
+choice="$(printf '%s\n' "$menu" | rofi -dmenu -i -display-columns 1 -p 'Project' "${theme_args[@]}" 2>/dev/null || true)"
+[ -n "$choice" ] || exit 0
+project_id="$(printf '%s' "$choice" | cut -f2)"
+[ -n "$project_id" ] || exit 1
+
+payload="$(jq -cn --arg projectId "$project_id" '{projectId:$projectId,source:"desktop",pinScope:null}')"
+if curl --silent --show-error --fail --max-time 2 -H 'accept: application/json' -H 'content-type: application/json' \
+	--data-binary "$payload" "$api_url/context/selection" >/dev/null; then
+	curl --silent --fail --max-time 10 -H 'accept: application/json' "$api_url/project-status/compact" >/dev/null 2>&1 || true
+	notify "Project selected" "$(printf '%s' "$choice" | cut -f1)"
+else
+	notify "Project selection failed" "Workbench did not accept the canonical mutation"
+	exit 1
+fi
