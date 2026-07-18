@@ -110,6 +110,7 @@ build_menu() {
     [ "$stale" = "true" ] && printf '  Reindex project\n'
     printf '  Open Lazygit\n'
     printf '  Ask AI about project\n'
+    printf '  Explain retrieval context\n'
     printf '  Open Workbench\n'
     printf '  Switch project\n'
     jq -r '.status.recommendedActions[]? | if .disabledReason then "[Unavailable] \(.label) — \(.disabledReason)" elif .approvalRequired then "[Request] \(.label)" else "[Run] \(.label)" end' \
@@ -238,6 +239,9 @@ case "$CHOICE_CLEAN" in
     ;;
   "Ask AI about project")
     "$HOME/.config/hypr/scripts/open-ai-workbench.sh" ask
+    ;;
+  "Explain retrieval context")
+    "$HOME/.config/hypr/scripts/open-ai-workbench.sh" retrieval
     ;;
   "Open Lazygit")
     _path="$(project_path)"

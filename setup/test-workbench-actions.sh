@@ -138,6 +138,21 @@ done
 grep -Fx 'http://127.0.0.1:5317/approvals/approval%20active' "$open_file" >/dev/null
 
 : >"$open_file"
+mkdir -p "$test_dir/home/.config/hypr/scripts"
+cat >"$test_dir/home/.config/hypr/scripts/open-ai-workbench.sh" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$1" >"$WORKBENCH_ACTION_OPEN_FILE"
+MOCK
+chmod +x "$test_dir/home/.config/hypr/scripts/open-ai-workbench.sh"
+WORKBENCH_TEST_ROFI_CHOICE='Explain retrieval context' \
+  PATH="$mock_bin:$PATH" HOME="$test_dir/home" XDG_CACHE_HOME="$cache_dir" \
+  AI_WORKBENCH_API_URL="http://127.0.0.1:5517" AI_WORKBENCH_URL="http://127.0.0.1:5317" \
+  WORKBENCH_ACTION_REQUEST_FILE="$request_file" WORKBENCH_ACTION_OPEN_FILE="$open_file" \
+  WORKBENCH_ACTION_LAUNCH_FILE="$launch_file" WORKBENCH_ACTION_NOTIFICATION_FILE="$notification_file" \
+  "$repo_dir/hypr/scripts/kage-project-rofi.sh"
+grep -Fx 'retrieval' "$open_file" >/dev/null
+
+: >"$open_file"
 WORKBENCH_TEST_ROFI_CHOICE='Review isolated diff and cleanup' \
   PATH="$mock_bin:$PATH" HOME="$test_dir/home" XDG_CACHE_HOME="$cache_dir" \
   AI_WORKBENCH_API_URL="http://127.0.0.1:5517" AI_WORKBENCH_URL="http://127.0.0.1:5317" \

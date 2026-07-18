@@ -68,6 +68,15 @@ for _ in {1..20}; do
 done
 grep -Fx 'http://127.0.0.1:4317/projects/project-id/work' "$opened_url" >/dev/null
 
+: >"$opened_url"
+PATH="$mock_bin:$PATH" XDG_CACHE_HOME="$cache_dir" WORKBENCH_TEST_OPENED_URL="$opened_url" \
+  AI_WORKBENCH_URL="http://127.0.0.1:4317" "$repo_dir/hypr/scripts/open-ai-workbench.sh" retrieval
+for _ in {1..20}; do
+  [ -s "$opened_url" ] && break
+  sleep 0.01
+done
+grep -Fx 'http://127.0.0.1:4317/projects/project-id/retrieval' "$opened_url" >/dev/null
+
 runtime_env="$test_dir/runtime.env"
 printf '%s\n' \
   'AI_API_PORT=5517' \

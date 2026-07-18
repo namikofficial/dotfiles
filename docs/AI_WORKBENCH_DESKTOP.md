@@ -36,6 +36,8 @@ The right side of the bar contains one grouped cluster:
 - AI shows the model role and normalized runtime state. Unknown is shown honestly until model supervision is connected.
 
 Workbench launch actions use project-aware deep links: project overview, Work, Ask, Planner, and Checks inherit the cached canonical project ID.
+The Rofi cockpit also exposes `Explain retrieval context`, which opens the active project’s retrieval explanation
+surface. Handoff, Dev, and Retrieval are supported project-aware launcher views rather than generic root-page links.
 
 All four chips are rendered by `hypr/scripts/workbench-wayle-status`. Tooltips are human text, not raw JSON. Offline fallback is read-only and visibly stale/unavailable.
 

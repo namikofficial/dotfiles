@@ -53,7 +53,7 @@ if command -v jq >/dev/null 2>&1 && [ -s "$status_cache" ]; then
   if [ -n "$project_id" ]; then
     encoded_id="$(jq -rn --arg value "$project_id" '$value | @uri')"
     case "$view" in
-      work | ask | planner | checks) url="${url%/}/projects/${encoded_id}/${view}" ;;
+      work | ask | planner | handoff | checks | dev | retrieval) url="${url%/}/projects/${encoded_id}/${view}" ;;
       *) url="${url%/}/projects/${encoded_id}" ;;
     esac
   fi
