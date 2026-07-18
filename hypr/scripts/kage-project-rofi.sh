@@ -20,7 +20,7 @@ project_id() {
 }
 
 run_workflow() {
-  local workflow_id="$1" label="$2" project session task payload response message
+  local workflow_id="$1" label="$2" project session task payload response message deep_link
   project="$(project_id)"
   session="$(jq -r '.status.activeWork.sessionId // ""' "$WORKBENCH_CACHE" 2>/dev/null || true)"
   task="$(jq -r '.status.activeWork.taskId // ""' "$WORKBENCH_CACHE" 2>/dev/null || true)"
@@ -41,6 +41,10 @@ run_workflow() {
   }
   message="$(jq -r '.data.execution.state // "completed"' <<<"$response" 2>/dev/null || printf 'completed')"
   notify "Workflow $message" "$label"
+  deep_link="$(jq -r '.data.deepLink // empty' <<<"$response" 2>/dev/null || true)"
+  if [ "$message" = "waiting" ] && [ -n "$deep_link" ]; then
+    xdg-open "${AI_WORKBENCH_URL%/}${deep_link}" >/dev/null 2>&1 &
+  fi
 }
 
 workbench_available() {
@@ -70,7 +74,7 @@ build_menu() {
     printf '  Ask AI about project\n'
     printf '  Open Workbench\n'
     printf '  Switch project\n'
-    jq -r '.status.recommendedActions[]? | if .disabledReason then "[Unavailable] \(.label) — \(.disabledReason)" else "[Run] \(.label)" end' \
+    jq -r '.status.recommendedActions[]? | if .disabledReason then "[Unavailable] \(.label) — \(.disabledReason)" elif .approvalRequired then "[Request] \(.label)" else "[Run] \(.label)" end' \
       "$WORKBENCH_CACHE" 2>/dev/null || true
   elif [ -s "${LEGACY_CACHE}" ]; then
     # Project actions from cache
@@ -115,8 +119,9 @@ CHOICE="$(printf '%s\n' "${MENU}" |
 CHOICE_CLEAN="$(printf '%s' "$CHOICE" | sed 's/^[[:space:]]*[⚡ ]*[[:space:]]*//')"
 
 case "$CHOICE_CLEAN" in
-  "[Run] "*)
+  "[Run] "* | "[Request] "*)
     action_label="${CHOICE_CLEAN#"[Run] "}"
+    action_label="${action_label#"[Request] "}"
     workflow_id="$(jq -r --arg label "$action_label" '.status.recommendedActions[]? | select(.label == $label and .disabledReason == null) | .workflowId' \
       "$WORKBENCH_CACHE" 2>/dev/null | head -n1)"
     if [ -n "$workflow_id" ] && [ "$workflow_id" != "null" ]; then
