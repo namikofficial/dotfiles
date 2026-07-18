@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-api_url="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4417}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/workbench-runtime-env.sh"
+
+api_url="$AI_WORKBENCH_API_URL"
 theme="${HOME}/.config/rofi/actions.rasi"
 theme_args=()
 [ -f "$theme" ] && theme_args=(-theme "$theme")

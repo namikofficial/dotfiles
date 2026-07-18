@@ -67,4 +67,19 @@ for _ in {1..20}; do
 	sleep 0.01
 done
 grep -Fx 'http://127.0.0.1:4317/projects/project-id/work' "$opened_url" >/dev/null
+
+runtime_env="$test_dir/runtime.env"
+printf '%s\n' \
+	'AI_API_PORT=5517' \
+	'AI_WEB_PORT=5317' \
+	'AI_LOCAL_BASE_URL=http://127.0.0.1:9080/v1' >"$runtime_env"
+# shellcheck disable=SC2016
+runtime_values="$(env -u AI_WORKBENCH_API_URL -u AI_WORKBENCH_URL -u LLM_BASE_URL \
+	AI_WORKBENCH_RUNTIME_ENV="$runtime_env" bash -c '
+  source "$1"
+  printf "%s|%s|%s" "$AI_WORKBENCH_API_URL" "$AI_WORKBENCH_URL" "$LLM_BASE_URL"
+' _ "$repo_dir/hypr/scripts/workbench-runtime-env.sh")"
+[ "$runtime_values" = 'http://127.0.0.1:5517|http://127.0.0.1:5317|http://127.0.0.1:9080/v1' ]
+grep -Fx 'EnvironmentFile=-%h/.config/ai-workbench/runtime.env' \
+	"$repo_dir/systemd/user/ai-workbench-desktop-observer.service" >/dev/null
 printf 'workbench desktop adapters: ok\n'

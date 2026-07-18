@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-AI_LLM_BASE_URL="${LLM_BASE_URL:-http://127.0.0.1:8080/v1}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/workbench-runtime-env.sh"
+
+AI_LLM_BASE_URL="$LLM_BASE_URL"
 AI_HEALTH_ENDPOINT="${LLM_HEALTH_ENDPOINT:-${AI_LLM_BASE_URL}/models}"
 AI_DEFAULT_MODEL="${LLM_CHAT_MODEL:-local}"
 

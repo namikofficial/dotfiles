@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_URL="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4417}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/workbench-runtime-env.sh"
+
+API_URL="$AI_WORKBENCH_API_URL"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench"
 OBSERVATION_CACHE="${CACHE_DIR}/desktop-observation-v1.json"
 STATUS_CACHE="${CACHE_DIR}/project-status-v1.json"

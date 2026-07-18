@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/workbench-runtime-env.sh"
+
 action="${1:-prompt}"
 mode="${2:-ask}"
 
 project_cache="${XDG_CACHE_HOME:-$HOME/.cache}/kage/project-current.json"
 workbench_status_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"
 project_context_script="${HOME}/.config/hypr/scripts/get-project-context.sh"
-llm_base_url="${LLM_BASE_URL:-http://127.0.0.1:8080/v1}"
+# shellcheck disable=SC2153
+llm_base_url="$LLM_BASE_URL"
 llm_model_alias="${LLM_CHAT_MODEL:-local}"
 
 project_path=""
@@ -113,7 +118,7 @@ load_project_context() {
 
   if [ -z "$project_path" ]; then
     case "$(pwd -P)" in
-      "$HOME"|/)
+      "$HOME" | /)
         ;;
       *)
         load_project_from_dir "$(pwd -P)" || true

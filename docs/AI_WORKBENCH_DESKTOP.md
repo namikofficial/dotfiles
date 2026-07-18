@@ -55,6 +55,14 @@ workbench-project-switcher
 
 The project switcher fails closed if Workbench is offline. It never writes a local selection; it sends the chosen registered project ID to `/context/selection` and then refreshes the compact cache.
 
+## Runtime configuration and startup
+
+Workbench-aware desktop scripts read `~/.config/ai-workbench/runtime.env`, the same central configuration consumed by the Workbench systemd user units. `workbench-runtime-env.sh` supplies local-first defaults when the file is absent. Kage, the observer, Rofi switcher, Workbench launcher, and AI context helpers no longer need separate Workbench/model port ownership.
+
+`open-ai-workbench.sh` probes the core `/ready` endpoint and starts `ai-workbench.target` when the user units are installed. If systemd startup is unavailable or fails, it preserves the existing `ai-workbench` tmux fallback. Optional model and vector services do not prevent the project control plane from opening.
+
+The desktop observer unit also reads the central environment file. Install and rollback procedures live in the AI repository's `docs/RUNTIME_SUPERVISION.md`; installing services is explicit and is not performed by the dotfiles scripts.
+
 ## Scratchpads and resume
 
 Project resume, AI helper context, and AI/log scratchpad launch now prefer the canonical cached project path. New scratchpad processes receive `AI_WORKBENCH_PROJECT_ID`, `AI_WORKBENCH_PROJECT_NAME`, `AI_WORKBENCH_TASK_ID`, `AI_WORKBENCH_RUN_ID`, and `AI_WORKBENCH_SESSION_ID` alongside the path. Their terminal title shows the visible project identity. Explicit `NOXFLOW_AI_CONTEXT` and `NOXFLOW_SCRATCH_PIN_PROJECT_PATH` remain supported.
@@ -79,11 +87,13 @@ When Workbench is unavailable:
 
 ```bash
 bash -n hypr/scripts/ai-workbench-observer hypr/scripts/kage \
+  hypr/scripts/workbench-runtime-env.sh hypr/scripts/open-ai-workbench.sh \
   hypr/scripts/workbench-wayle-status hypr/scripts/workbench-project-switcher \
   hypr/scripts/kage-project-rofi.sh hypr/scripts/project-resume.sh \
   hypr/scripts/scratchpad-manager.sh hypr/scripts/ai-helper-context.sh
 
 shellcheck hypr/scripts/ai-workbench-observer hypr/scripts/kage \
+  hypr/scripts/workbench-runtime-env.sh hypr/scripts/open-ai-workbench.sh \
   hypr/scripts/workbench-wayle-status hypr/scripts/workbench-project-switcher \
   hypr/scripts/kage-project-rofi.sh hypr/scripts/project-resume.sh
 

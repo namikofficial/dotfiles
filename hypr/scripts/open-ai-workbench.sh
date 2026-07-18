@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-url="${AI_WORKBENCH_URL:-http://127.0.0.1:4317}"
-health="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4417}/health"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/workbench-runtime-env.sh"
+
+url="$AI_WORKBENCH_URL"
+health="${AI_WORKBENCH_API_URL%/}/ready"
 root="${AI_WORKBENCH_ROOT:-$HOME/Documents/code/ai}"
 session="${AI_WORKBENCH_TMUX_SESSION:-ai-workbench}"
 view="${1:-overview}"
@@ -18,19 +22,28 @@ if command -v curl >/dev/null 2>&1 && ! curl -fsS --max-time 1 "$health" >/dev/n
 		notify "AI Workbench repository not found" "$root"
 		exit 1
 	fi
-	if ! command -v tmux >/dev/null 2>&1; then
-		notify "Unable to start AI Workbench" "tmux is required; run: cd $root && pnpm dev"
-		exit 1
+	started_with_systemd=false
+	if command -v systemctl >/dev/null 2>&1 && systemctl --user start ai-workbench.target >/dev/null 2>&1; then
+		started_with_systemd=true
 	fi
-	if ! tmux has-session -t "$session" 2>/dev/null; then
-		tmux new-session -d -s "$session" "cd $(printf '%q' "$root") && exec pnpm dev"
+	if [[ "$started_with_systemd" == false ]]; then
+		if ! command -v tmux >/dev/null 2>&1; then
+			notify "Unable to start AI Workbench" "Install the user service or run: cd $root && pnpm dev"
+			exit 1
+		fi
+		if command -v systemctl >/dev/null 2>&1; then
+			systemctl --user stop ai-workbench.target >/dev/null 2>&1 || true
+		fi
+		if ! tmux has-session -t "$session" 2>/dev/null; then
+			tmux new-session -d -s "$session" "cd $(printf '%q' "$root") && exec pnpm dev"
+		fi
 	fi
 	for _ in {1..30}; do
 		curl -fsS --max-time 1 "$health" >/dev/null 2>&1 && break
 		sleep 1
 	done
 	if ! curl -fsS --max-time 1 "$health" >/dev/null 2>&1; then
-		notify "AI Workbench did not become ready" "Inspect with: tmux attach -t $session"
+		notify "AI Workbench did not become ready" "Inspect with: systemctl --user status ai-workbench.target or tmux attach -t $session"
 		exit 1
 	fi
 fi
