@@ -26,6 +26,7 @@ NOTIFICATION_TYPES = {
     "task.blocked",
     "task.failed",
     "runtime.degraded",
+    "workflow.launch_ready",
 }
 
 
@@ -161,6 +162,7 @@ def notification_text(event: dict[str, Any]) -> tuple[str, str, str]:
         "task.blocked": "Task needs input",
         "task.failed": "Task failed",
         "runtime.degraded": "AI Workbench runtime degraded",
+        "workflow.launch_ready": "Workflow ready to launch",
     }
     summary = event.get("summary")
     body = summary.strip() if isinstance(summary, str) and summary.strip() else event_type.replace(".", " ")
@@ -181,6 +183,27 @@ def open_link(url: str) -> None:
         log_event("notification.action_failed", "warning", error_code="xdg_open_missing")
 
 
+def launch_workflow(execution_id: str) -> None:
+    helper = Path(__file__).with_name("workbench-workflow-launch.py")
+    try:
+        subprocess.Popen(
+            [str(helper), execution_id],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except (FileNotFoundError, PermissionError):
+        log_event("notification.action_failed", "warning", error_code="workflow_launcher_missing")
+
+
+def notification_action_args(event: dict[str, Any]) -> list[str]:
+    if event.get("type") == "workflow.launch_ready":
+        payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+        if isinstance(payload.get("executionId"), str):
+            return ["--action=launch=Launch", "--action=open=Open"]
+    return ["--action=open=Open"]
+
+
 def send_notification(event: dict[str, Any], web_url: str) -> bool:
     if dnd_enabled():
         log_event("notification.suppressed", source=event, metadata={"reason": "dnd_or_disabled", "type": event.get("type")})
@@ -195,7 +218,7 @@ def send_notification(event: dict[str, Any], web_url: str) -> bool:
                     "notify-send",
                     "--app-name=AI Workbench",
                     f"--urgency={urgency}",
-                    "--action=open=Open",
+                    *notification_action_args(event),
                     "--wait",
                     title,
                     body,
@@ -216,6 +239,11 @@ def send_notification(event: dict[str, Any], web_url: str) -> bool:
                 return
             if result.stdout.strip() == "open":
                 open_link(link)
+            elif result.stdout.strip() == "launch":
+                payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+                execution_id = payload.get("executionId")
+                if isinstance(execution_id, str):
+                    launch_workflow(execution_id)
         except FileNotFoundError:
             log_event("notification.failed", "warning", source=event, error_code="notify_send_missing")
         except subprocess.TimeoutExpired:

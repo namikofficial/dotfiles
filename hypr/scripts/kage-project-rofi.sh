@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/workbench-runtime-env.sh"
 
 KAGE="${HOME}/.config/hypr/scripts/kage"
+WORKFLOW_LAUNCHER="${HOME}/.config/hypr/scripts/workbench-workflow-launch.py"
 LEGACY_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/kage/project-current.json"
 WORKBENCH_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"
 ROFI_THEME="${HOME}/.config/rofi/actions.rasi"
@@ -20,7 +21,7 @@ project_id() {
 }
 
 run_workflow() {
-  local workflow_id="$1" label="$2" project session task payload response message deep_link
+  local workflow_id="$1" label="$2" project session task payload response message deep_link execution_id
   project="$(project_id)"
   session="$(jq -r '.status.activeWork.sessionId // ""' "$WORKBENCH_CACHE" 2>/dev/null || true)"
   task="$(jq -r '.status.activeWork.taskId // ""' "$WORKBENCH_CACHE" 2>/dev/null || true)"
@@ -44,6 +45,10 @@ run_workflow() {
   deep_link="$(jq -r '.data.deepLink // empty' <<<"$response" 2>/dev/null || true)"
   if [ "$message" = "waiting" ] && [ -n "$deep_link" ]; then
     xdg-open "${AI_WORKBENCH_URL%/}${deep_link}" >/dev/null 2>&1 &
+  fi
+  execution_id="$(jq -r '.data.launch.executionId // empty' <<<"$response" 2>/dev/null || true)"
+  if [ "$message" = "ready" ] && [ -n "$execution_id" ] && [ -x "$WORKFLOW_LAUNCHER" ]; then
+    "$WORKFLOW_LAUNCHER" "$execution_id" >/dev/null 2>&1 &
   fi
 }
 

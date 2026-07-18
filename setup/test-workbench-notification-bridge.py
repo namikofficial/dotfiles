@@ -20,6 +20,7 @@ SPEC.loader.exec_module(bridge)
 class NotificationBridgeTests(unittest.TestCase):
     def test_filters_only_meaningful_events(self):
         self.assertTrue(bridge.should_notify({"type": "approval.required", "payload": {}}))
+        self.assertTrue(bridge.should_notify({"type": "workflow.launch_ready", "payload": {}}))
         self.assertTrue(
             bridge.should_notify({"type": "index.completed", "payload": {"manualRequest": True}})
         )
@@ -73,6 +74,14 @@ class NotificationBridgeTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"AI_WORKBENCH_NOTIFICATIONS_ENABLED": "true"}):
             with mock.patch.object(bridge.subprocess, "run", return_value=status):
                 self.assertTrue(bridge.dnd_enabled())
+
+    def test_launch_ready_notification_has_explicit_launch_action(self):
+        event = {"type": "workflow.launch_ready", "payload": {"executionId": "execution-1"}}
+        self.assertEqual(
+            bridge.notification_action_args(event),
+            ["--action=launch=Launch", "--action=open=Open"],
+        )
+        self.assertEqual(bridge.notification_action_args({"type": "run.failed"}), ["--action=open=Open"])
 
 
 if __name__ == "__main__":
