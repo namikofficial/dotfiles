@@ -60,18 +60,19 @@ window_exists() {
 
 load_registry_cache() {
   [ -n "$registry_cache" ] && return 0
-  registry_cache="$(python3 - "$registry_file" <<'PY'
+  registry_cache="$(
+    python3 - "$registry_file" <<'PY'
 import json, sys, tomllib
 from pathlib import Path
 data = tomllib.loads(Path(sys.argv[1]).read_text())
 print(json.dumps(data))
 PY
-)"
+  )"
 }
 
 registry_jq() {
   local query="${*: -1}"
-  local args=("${@:1:$(($#-1))}")
+  local args=("${@:1:$(($# - 1))}")
   load_registry_cache
   jq -r "${args[@]}" "$query" <<<"$registry_cache" 2>/dev/null || true
 }
@@ -172,7 +173,7 @@ active_workspace_id() {
   local id
   id="$(hyprctl -j activeworkspace 2>/dev/null | jq -r '.id // 1' 2>/dev/null || printf '1')"
   case "$id" in
-    ''|*[!0-9-]*) id=1 ;;
+    '' | *[!0-9-]*) id=1 ;;
   esac
   if [ "$id" -gt 0 ]; then
     printf '%s\n' "$id"
@@ -405,7 +406,7 @@ spawn_ai() {
       session_id="$(jq -r '.status.activeWork.sessionId // ""' "$workbench_status_cache")"
     fi
   fi
-  printf '%s\n' "$context" > "$ai_context_file"
+  printf '%s\n' "$context" >"$ai_context_file"
   kitty --class noxflow-scratch-ai --title "AI — $project_name" -e env \
     NOXFLOW_AI_CONTEXT="$context" AI_WORKBENCH_PROJECT_ID="$project_id" AI_WORKBENCH_PROJECT_NAME="$project_name" \
     AI_WORKBENCH_TASK_ID="$task_id" AI_WORKBENCH_RUN_ID="$run_id" AI_WORKBENCH_SESSION_ID="$session_id" zsh -lic '
@@ -428,7 +429,7 @@ spawn_logs() {
       session_id="$(jq -r '.status.activeWork.sessionId // ""' "$workbench_status_cache")"
     fi
   fi
-  printf '%s\n' "$context" > "$log_context_file"
+  printf '%s\n' "$context" >"$log_context_file"
   kitty --class noxflow-scratch-logs --title "Runner — $project_name" -e env \
     NOXFLOW_LOG_CONTEXT="$context" AI_WORKBENCH_PROJECT_ID="$project_id" AI_WORKBENCH_PROJECT_NAME="$project_name" \
     AI_WORKBENCH_TASK_ID="$task_id" AI_WORKBENCH_RUN_ID="$run_id" AI_WORKBENCH_SESSION_ID="$session_id" zsh -lic '
@@ -713,7 +714,8 @@ scene_exit() {
   local main x y w h floating restore_main_tiled=0
   main="$(scene_main_address || true)"
   if [ -n "$main" ] && [ -s "$scene_state" ]; then
-    read -r x y w h floating < <(python3 - "$scene_state" <<'PY'
+    read -r x y w h floating < <(
+      python3 - "$scene_state" <<'PY'
 import json, sys
 from pathlib import Path
 state = json.loads(Path(sys.argv[1]).read_text())

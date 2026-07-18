@@ -18,17 +18,35 @@ model="${KAGE_AI_COMMIT_MODEL:-qwen3-4b}"
 auto_commit=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --type)    hint_type="$2"; shift 2 ;;
-    --model)   model="$2"; shift 2 ;;
-    --commit)  auto_commit=1; shift ;;
-    -h|--help) sed -n '2,12p' "$0" | sed 's/^# *//'; exit 0 ;;
-    *) echo "unknown arg: $1" >&2; exit 1 ;;
+    --type)
+      hint_type="$2"
+      shift 2
+      ;;
+    --model)
+      model="$2"
+      shift 2
+      ;;
+    --commit)
+      auto_commit=1
+      shift
+      ;;
+    -h | --help)
+      sed -n '2,12p' "$0" | sed 's/^# *//'
+      exit 0
+      ;;
+    *)
+      echo "unknown arg: $1" >&2
+      exit 1
+      ;;
   esac
 done
 
 # ── Resolve diff ──────────────────────────────────────────────────────────────
 diff_text="$(git diff --cached 2>/dev/null || true)"
-[ -n "$diff_text" ] || { notify-send "kage-ai" "No staged changes — run 'git add' first" 2>/dev/null || true; exit 1; }
+[ -n "$diff_text" ] || {
+  notify-send "kage-ai" "No staged changes — run 'git add' first" 2>/dev/null || true
+  exit 1
+}
 
 # Truncate huge diffs so the prompt fits the context window
 diff_max=6000
@@ -53,7 +71,10 @@ ensure_local_ai() {
   elif [ -x "$SCRIPT_DIR/../../system/local-ai-runtime.sh" ]; then
     runtime="$SCRIPT_DIR/../../system/local-ai-runtime.sh"
   fi
-  [ -n "$runtime" ] || { notify-send "kage-ai" "Local AI not running" "Start: local-ai-runtime start" 2>/dev/null || true; return 1; }
+  [ -n "$runtime" ] || {
+    notify-send "kage-ai" "Local AI not running" "Start: local-ai-runtime start" 2>/dev/null || true
+    return 1
+  }
   "$runtime" ensure-llm || return 1
 }
 
@@ -62,16 +83,23 @@ resolve_model_id() {
   # The runtime might expose the model under a different name. Ask the server.
   local available
   available="$(curl -fsS --max-time 2 "$HEALTH_ENDPOINT" | jq -r '.data[].id // empty' 2>/dev/null || true)"
-  [ -n "$available" ] || { echo "$model"; return; }
+  [ -n "$available" ] || {
+    echo "$model"
+    return
+  }
 
   # Direct match?
-  if printf '%s\n' "$available" | grep -qx "$model"; then echo "$model"; return; fi
+  if printf '%s\n' "$available" | grep -qx "$model"; then
+    echo "$model"
+    return
+  fi
 
   # Fallback chain
   local fallback
   for fallback in qwen3-4b qwen-coder-7b local; do
     if printf '%s\n' "$available" | grep -qx "$fallback"; then
-      echo "$fallback"; return
+      echo "$fallback"
+      return
     fi
   done
 
@@ -126,10 +154,16 @@ response="$(curl -fsS --max-time 60 "http://127.0.0.1:8080/v1/chat/completions" 
     --arg usr "$user_prompt" \
     '{model:$model,messages:[{role:"system",content:$sys},{role:"user",content:$usr}],temperature:0.2,stream:false,max_tokens:400}')" 2>/dev/null || true)"
 
-[ -n "$response" ] || { notify-send "kage-ai" "❌ Local AI request failed" "Check llama-swap status" 2>/dev/null || true; exit 1; }
+[ -n "$response" ] || {
+  notify-send "kage-ai" "❌ Local AI request failed" "Check llama-swap status" 2>/dev/null || true
+  exit 1
+}
 
 msg="$(jq -r '.choices[0].message.content // empty' <<<"$response" 2>/dev/null || true)"
-[ -n "$msg" ] || { notify-send "kage-ai" "❌ AI returned no message" "" 2>/dev/null || true; exit 1; }
+[ -n "$msg" ] || {
+  notify-send "kage-ai" "❌ AI returned no message" "" 2>/dev/null || true
+  exit 1
+}
 
 # Strip leading/trailing whitespace
 msg="$(printf '%s' "$msg" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
@@ -143,7 +177,7 @@ rofi_theme_arg=()
 [ -f "$ROFI_THEME" ] && rofi_theme_arg=(-theme "$ROFI_THEME")
 
 if command -v rofi >/dev/null 2>&1; then
-  choice="$(printf '%s\n\n— — — — — — — —\n[Enter] Copy to clipboard   [C-Enter] Commit now' "$msg" | \
+  choice="$(printf '%s\n\n— — — — — — — —\n[Enter] Copy to clipboard   [C-Enter] Commit now' "$msg" |
     rofi -dmenu -i -p "Commit msg" "${rofi_theme_arg[@]}" -mesg "Type: $hint_type  Model: $actual_model" 2>/dev/null || true)"
 
   # If user picked the help line, treat as cancel

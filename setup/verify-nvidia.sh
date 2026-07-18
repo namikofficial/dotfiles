@@ -36,6 +36,6 @@ nvidia-smi -L 2>/dev/null || echo "nvidia-smi: unable to talk to driver"
 echo
 
 echo "[recent kernel warnings]"
-journalctl -b -k --no-pager \
-  | rg -i 'blocked for more|task .*blocked|nv_drm_dev_load|nvidia-persiste|watchdog did not stop' \
-  | tail -n 20 || true
+journalctl -b -k --no-pager |
+  rg -i 'blocked for more|task .*blocked|nv_drm_dev_load|nvidia-persiste|watchdog did not stop' |
+  tail -n 20 || true

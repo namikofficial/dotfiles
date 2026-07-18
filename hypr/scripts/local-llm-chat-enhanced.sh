@@ -86,19 +86,19 @@ get_project_context() {
 format_context_system_prompt() {
   local ctx_json="$1"
   local dir branch file uncommitted
-  
+
   dir=$(echo "$ctx_json" | jq -r '.directory // "."' 2>/dev/null || echo ".")
   branch=$(echo "$ctx_json" | jq -r '.git.branch // ""' 2>/dev/null || echo "")
   file=$(echo "$ctx_json" | jq -r '.file // ""' 2>/dev/null || echo "")
   uncommitted=$(echo "$ctx_json" | jq -r '.git.uncommitted_files // 0' 2>/dev/null || echo "0")
-  
+
   local context_str="You are a concise local coding assistant running inside a Hyprland scratchpad."
   context_str+=" Repository: $(basename "$dir")"
   [ -n "$branch" ] && context_str+=" (branch: $branch)"
   [ "$uncommitted" -gt 0 ] && context_str+=" [$uncommitted uncommitted files]"
   [ -n "$file" ] && context_str+=" Current file: $file"
   context_str+=" Be direct, practical, and format code in markdown blocks when needed."
-  
+
   printf '%s\n' "$context_str"
 }
 
@@ -191,9 +191,9 @@ history="[$(jq -n --arg content "$context_prompt" '{role:"system",content:$conte
 while :; do
   printf '%s%s>%s ' "$C_CYAN" "local" "$C_RESET"
   IFS= read -r prompt || break
-  
+
   case "$prompt" in
-    /exit|exit|quit)
+    /exit | exit | quit)
       printf '%s← Goodbye%s\n' "$C_DIM" "$C_RESET"
       break
       ;;
@@ -203,7 +203,7 @@ while :; do
       printf '%s✓ Context cleared%s\n' "$C_GREEN" "$C_RESET"
       continue
       ;;
-    /context|/ctx)
+    /context | /ctx)
       refresh_context
       printf '%s%s%s\n' "$C_BOLD" "$context_summary" "$C_RESET"
       continue

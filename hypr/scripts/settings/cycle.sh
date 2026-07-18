@@ -14,7 +14,7 @@ section="${3:-all}"
   exit 1
 }
 
-IFS=',' read -r -a opts <<< "$opts_csv"
+IFS=',' read -r -a opts <<<"$opts_csv"
 current="$($SETTINGSCTL get "$path")"
 idx=-1
 for i in "${!opts[@]}"; do
@@ -27,7 +27,7 @@ done
 if [[ "$idx" -lt 0 ]]; then
   next="${opts[0]}"
 else
-  next_idx=$(( (idx + 1) % ${#opts[@]} ))
+  next_idx=$(((idx + 1) % ${#opts[@]}))
   next="${opts[$next_idx]}"
 fi
 

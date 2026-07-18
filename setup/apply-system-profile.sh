@@ -35,7 +35,7 @@ for template in "$SYS_DIR"/boot/loader/entries/*.conf; do
   name="$(basename "$template")"
   dst="/boot/loader/entries/$name"
   backup "$dst"
-  sed "s/REPLACE_PARTUUID/$PARTUUID/g" "$template" > "$dst"
+  sed "s/REPLACE_PARTUUID/$PARTUUID/g" "$template" >"$dst"
   chmod 644 "$dst"
 done
 

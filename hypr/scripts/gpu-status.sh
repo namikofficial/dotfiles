@@ -6,14 +6,14 @@ interval=2
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -w|--watch)
+    -w | --watch)
       watch_mode=1
       if [[ $# -gt 1 && "$2" =~ ^[0-9]+$ ]]; then
         interval="$2"
         shift
       fi
       ;;
-    -h|--help)
+    -h | --help)
       cat <<'EOF'
 Usage: gpu-status [--watch [seconds]]
 

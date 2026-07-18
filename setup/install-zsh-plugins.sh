@@ -7,7 +7,7 @@ PLUGIN_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/zsh/plugins"
 while (($#)); do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
-    -h|--help)
+    -h | --help)
       cat <<'USAGE'
 Usage: install-zsh-plugins.sh [--dry-run]
 Installs/updates optional zsh plugins under ~/.local/share/zsh/plugins.
@@ -23,7 +23,7 @@ USAGE
 done
 
 run() {
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] $*"
   else
     "$@"

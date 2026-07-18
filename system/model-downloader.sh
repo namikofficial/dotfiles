@@ -12,7 +12,7 @@ echo "╚═══════════════════════�
 echo
 
 case "$MODEL" in
-  gemma|gemma-3-4b)
+  gemma | gemma-3-4b)
     echo "Gemma 3 4B Instruct (Q4_K_M quantization)"
     echo "Size: ~3.3 GB"
     echo "Current local alias: model=local via llama-swap"
@@ -27,7 +27,7 @@ case "$MODEL" in
     echo "3. Save to: $MODELS_DIR/google_gemma-3-4b-it-Q4_K_M.gguf"
     echo
     ;;
-  qwen|coder|qwen-coder|qwen-coder-7b|qwen2.5-coder-7b)
+  qwen | coder | qwen-coder | qwen-coder-7b | qwen2.5-coder-7b)
     echo "Qwen2.5-Coder-7B Instruct (Q4_K_M quantization)"
     echo "Size: ~4.7 GB"
     echo "Current local alias: model=local via llama-swap (after config update)"

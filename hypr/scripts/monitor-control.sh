@@ -9,7 +9,7 @@ LOG_LIB="$HOME/.config/hypr/scripts/lib/log.sh"
 ensure_state() {
   mkdir -p "$(dirname "$STATE_FILE")"
   if [[ ! -s "$STATE_FILE" ]]; then
-    cat > "$STATE_FILE" <<'EOF'
+    cat >"$STATE_FILE" <<'EOF'
 {"layout":"dynamic-up","external_mode":"preferred","external_scale":"1","internal_scale":"1","external_name":""}
 EOF
   else
@@ -22,7 +22,7 @@ EOF
       | .internal_scale = (.internal_scale // "1")
       | .external_name = (.external_name // "")
       | del(.external_desc)
-    ' "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+    ' "$STATE_FILE" >"$tmp" && mv "$tmp" "$STATE_FILE"
   fi
 }
 
@@ -36,7 +36,7 @@ state_set() {
   local value="$2"
   local tmp
   tmp="$(mktemp)"
-  jq --arg key "$key" --arg value "$value" '.[$key] = $value' "$STATE_FILE" > "$tmp"
+  jq --arg key "$key" --arg value "$value" '.[$key] = $value' "$STATE_FILE" >"$tmp"
   mv "$tmp" "$STATE_FILE"
 }
 
@@ -58,15 +58,15 @@ emit_event() {
 
 detect_external_name() {
   command -v hyprctl >/dev/null 2>&1 || return 0
-  hyprctl monitors -j 2>/dev/null \
-    | jq -r --arg internal "$INTERNAL_MONITOR" '
+  hyprctl monitors -j 2>/dev/null |
+    jq -r --arg internal "$INTERNAL_MONITOR" '
         [
           .[]
           | select(.name != $internal)
           | .name
         ] | sort | .[0] // empty
-      ' \
-    | sed -e '/^$/d'
+      ' |
+    sed -e '/^$/d'
 }
 
 resolve_external_name() {
@@ -87,22 +87,22 @@ resolve_external_name() {
 }
 
 all_connected_monitors() {
-  hyprctl monitors -j 2>/dev/null \
-    | jq -r '.[].name' \
-    | sed -e '/^$/d' \
-    | sort
+  hyprctl monitors -j 2>/dev/null |
+    jq -r '.[].name' |
+    sed -e '/^$/d' |
+    sort
 }
 
 first_connected_external() {
-  hyprctl monitors -j 2>/dev/null \
-    | jq -r --arg internal "$INTERNAL_MONITOR" '
+  hyprctl monitors -j 2>/dev/null |
+    jq -r --arg internal "$INTERNAL_MONITOR" '
         [
           .[]
           | select(.name != $internal)
           | .name
         ] | sort | .[0] // empty
-      ' \
-    | sed -e '/^$/d'
+      ' |
+    sed -e '/^$/d'
 }
 
 apply_workspace_routing() {
@@ -167,7 +167,7 @@ position_row_no_overlap() {
       scale="$external_scale"
     fi
 
-    hyprctl keyword monitor "$mon,$mode,${x}x0,$scale" >/dev/null || \
+    hyprctl keyword monitor "$mon,$mode,${x}x0,$scale" >/dev/null ||
       hyprctl keyword monitor "$mon,preferred,${x}x0,$scale" >/dev/null || true
 
     width="$(hyprctl monitors -j 2>/dev/null | jq -r --arg mon "$mon" '.[] | select(.name == $mon) | .width // 1920' | head -n1)"
@@ -221,7 +221,7 @@ position_stack_up_no_overlap() {
       step="$(awk -v h="${height:-1080}" -v s="${scale:-1}" 'BEGIN { if (s <= 0) s = 1; v = int((h / s) + 0.5); if (v < 480) v = 480; print v }')"
       y=$((y - step))
 
-      hyprctl keyword monitor "$mon,$mode,0x${y},$scale" >/dev/null || \
+      hyprctl keyword monitor "$mon,$mode,0x${y},$scale" >/dev/null ||
         hyprctl keyword monitor "$mon,preferred,0x${y},$scale" >/dev/null || true
     done
     return 0
@@ -232,7 +232,7 @@ position_stack_up_no_overlap() {
   for mon in "${ordered[@]}"; do
     mode="$external_mode"
     scale="$external_scale"
-    hyprctl keyword monitor "$mon,$mode,0x${y},$scale" >/dev/null || \
+    hyprctl keyword monitor "$mon,$mode,0x${y},$scale" >/dev/null ||
       hyprctl keyword monitor "$mon,preferred,0x${y},$scale" >/dev/null || true
 
     height="$(hyprctl monitors -j 2>/dev/null | jq -r --arg mon "$mon" '.[] | select(.name == $mon) | .height // 1080' | head -n1)"
@@ -338,15 +338,15 @@ show_menu() {
     cat <<EOF | rofi -dmenu -i -p "Monitor Control" -theme "$ROFI_THEME" || true
 Recover displays|recover
 External: ${current_external}|noop
-Dynamic auto layout up (recommended)$( [[ "$current_layout" == "dynamic-up" ]] && printf ' (Current)' )|layout:dynamic-up
-Dynamic auto layout (recommended)$( [[ "$current_layout" == "dynamic-right" ]] && printf ' (Current)' )|layout:dynamic-right
-External above laptop$( [[ "$current_layout" == "external-up" ]] && printf ' (Current)' )|layout:external-up
-External right of laptop$( [[ "$current_layout" == "external-right" ]] && printf ' (Current)' )|layout:external-right
-External left of laptop$( [[ "$current_layout" == "external-left" ]] && printf ' (Current)' )|layout:external-left
-External below laptop$( [[ "$current_layout" == "external-down" ]] && printf ' (Current)' )|layout:external-down
-External mode: preferred$( [[ "$current_mode" == "preferred" ]] && printf ' (Current)' )|mode:preferred
-External mode: 1920x1080@143.98$( [[ "$current_mode" == "1920x1080@143.98" ]] && printf ' (Current)' )|mode:1920x1080@143.98
-External mode: 3840x2160@60$( [[ "$current_mode" == "3840x2160@60" ]] && printf ' (Current)' )|mode:3840x2160@60
+Dynamic auto layout up (recommended)$([[ "$current_layout" == "dynamic-up" ]] && printf ' (Current)')|layout:dynamic-up
+Dynamic auto layout (recommended)$([[ "$current_layout" == "dynamic-right" ]] && printf ' (Current)')|layout:dynamic-right
+External above laptop$([[ "$current_layout" == "external-up" ]] && printf ' (Current)')|layout:external-up
+External right of laptop$([[ "$current_layout" == "external-right" ]] && printf ' (Current)')|layout:external-right
+External left of laptop$([[ "$current_layout" == "external-left" ]] && printf ' (Current)')|layout:external-left
+External below laptop$([[ "$current_layout" == "external-down" ]] && printf ' (Current)')|layout:external-down
+External mode: preferred$([[ "$current_mode" == "preferred" ]] && printf ' (Current)')|mode:preferred
+External mode: 1920x1080@143.98$([[ "$current_mode" == "1920x1080@143.98" ]] && printf ' (Current)')|mode:1920x1080@143.98
+External mode: 3840x2160@60$([[ "$current_mode" == "3840x2160@60" ]] && printf ' (Current)')|mode:3840x2160@60
 Reset monitor state file|reset
 EOF
   )"

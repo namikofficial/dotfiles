@@ -28,7 +28,10 @@ ensure_local_ai() {
 
 # Get last commit diff
 diff_text="$(git diff HEAD~1..HEAD 2>/dev/null || git diff HEAD 2>/dev/null || echo "")"
-[ -n "$diff_text" ] || { notify "❌ No commits" "Need at least 2 commits"; exit 1; }
+[ -n "$diff_text" ] || {
+  notify "❌ No commits" "Need at least 2 commits"
+  exit 1
+}
 
 notify "⏳ Analyzing code..." "Checking for security & logic issues..."
 
@@ -70,7 +73,10 @@ fi
 # Extract message from response
 review_text="$(jq -r '.choices[0].message.content // empty' <<<"$review_output" 2>/dev/null || true)"
 
-[ -n "$review_text" ] || { notify "❌ AI failed"; exit 1; }
+[ -n "$review_text" ] || {
+  notify "❌ AI failed"
+  exit 1
+}
 
 notify "✓ Review complete" "Opening in floating window..."
 
@@ -86,7 +92,7 @@ fi
 tmpfile="$(mktemp /tmp/kage-review.XXXXXX.md)"
 trap "rm -f '$tmpfile'" EXIT
 
-cat > "$tmpfile" << REVIEW
+cat >"$tmpfile" <<REVIEW
 # Code Review (HEAD~1..HEAD)
 
 ## AI Analysis

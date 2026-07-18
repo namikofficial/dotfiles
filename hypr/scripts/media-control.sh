@@ -9,7 +9,7 @@ notify_missing() {
 }
 
 case "$action" in
-  play-pause|next|previous|pause|play|stop) ;;
+  play-pause | next | previous | pause | play | stop) ;;
   *)
     echo "usage: $0 [play-pause|next|previous|pause|play|stop]" >&2
     exit 2

@@ -82,8 +82,8 @@ while :; do
   rx_rate=0
   tx_rate=0
   if [ "$interval" -gt 0 ]; then
-    rx_rate=$(( (rx_now - rx_prev) / interval ))
-    tx_rate=$(( (tx_now - tx_prev) / interval ))
+    rx_rate=$(((rx_now - rx_prev) / interval))
+    tx_rate=$(((tx_now - tx_prev) / interval))
   fi
 
   if [ "$rx_rate" -lt 0 ]; then

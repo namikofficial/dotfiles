@@ -33,14 +33,14 @@ maybe_reload() {
 }
 
 prev="$(snapshot_connectors)"
-printf '%s\n' "$prev" > "$STATE_FILE"
+printf '%s\n' "$prev" >"$STATE_FILE"
 
 while :; do
   sleep 2
   current="$(snapshot_connectors)"
   [ "$current" = "$prev" ] && continue
 
-  printf '%s\n' "$current" > "$STATE_FILE"
+  printf '%s\n' "$current" >"$STATE_FILE"
   prev="$current"
   maybe_reload "$current"
 done

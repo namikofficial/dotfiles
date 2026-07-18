@@ -94,8 +94,8 @@ show_compact_menu() {
       "󰜉  Reboot" \
       "󰐥  Shutdown" \
       "󰍃  Logout" \
-      "󰑐  Restore Panel" \
-    | rofi -dmenu -i -p "Power" -theme "$HOME/.config/rofi/actions.rasi"
+      "󰑐  Restore Panel" |
+      rofi -dmenu -i -p "Power" -theme "$HOME/.config/rofi/actions.rasi"
   )"
 
   case "$choice" in

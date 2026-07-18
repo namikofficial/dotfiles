@@ -10,7 +10,7 @@ while (($#)); do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
     --system) SYSTEM_INSTALL=1 ;;
-    -h|--help)
+    -h | --help)
       cat <<'USAGE'
 Usage: install-flatpak-apps.sh [--system] [--dry-run]
   --system   Install apps to system scope
@@ -36,7 +36,7 @@ read_apps() {
 }
 
 scope_flag="--user"
-if (( SYSTEM_INSTALL )); then
+if ((SYSTEM_INSTALL)); then
   scope_flag="--system"
 fi
 
@@ -49,7 +49,7 @@ while IFS= read -r app; do
   fi
 done < <(read_apps)
 
-if (( all_installed )); then
+if ((all_installed)); then
   while IFS= read -r app; do
     [ -n "$app" ] || continue
     echo "already installed: $app"
@@ -63,7 +63,7 @@ remote_exists_in_scope() {
 }
 
 run() {
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] $*"
   else
     "$@"

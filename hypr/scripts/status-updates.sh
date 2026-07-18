@@ -49,7 +49,7 @@ if [[ "${pac_count:-0}" = 0 && "${aur_count:-0}" = 0 ]]; then
   fi
 fi
 
-if (( count > 0 )); then
+if ((count > 0)); then
   text="$count"
   tooltip="$count updates available"
 else

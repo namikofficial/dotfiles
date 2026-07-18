@@ -44,28 +44,46 @@ load_config() {
   fi
   RESTIC_REPOSITORY="${RESTIC_REPOSITORY:-$DEFAULT_REPOSITORY}"
   : "${RESTIC_PASSWORD_FILE:?RESTIC_PASSWORD_FILE must point to a mode-600 password file}"
-  [ -r "$RESTIC_PASSWORD_FILE" ] || { echo "unreadable RESTIC_PASSWORD_FILE" >&2; exit 2; }
+  [ -r "$RESTIC_PASSWORD_FILE" ] || {
+    echo "unreadable RESTIC_PASSWORD_FILE" >&2
+    exit 2
+  }
   case "$(stat -c '%a' "$RESTIC_PASSWORD_FILE")" in
-    400|600) ;;
-    *) echo "RESTIC_PASSWORD_FILE must have mode 600 (or 400 when supplied by systemd)" >&2; exit 2 ;;
+    400 | 600) ;;
+    *)
+      echo "RESTIC_PASSWORD_FILE must have mode 600 (or 400 when supplied by systemd)" >&2
+      exit 2
+      ;;
   esac
   : "${BACKUP_TARGETS:?BACKUP_TARGETS must contain project:environment:ssh-host entries}"
 }
 
 require_command() {
-  command -v "$1" >/dev/null 2>&1 || { echo "required command not found: $1" >&2; exit 2; }
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "required command not found: $1" >&2
+    exit 2
+  }
 }
 
 verify() {
   load_config
   require_command restic
   require_command ssh
-  [ -d "${RESTIC_REPOSITORY%/*}" ] || { echo "backup parent is missing: ${RESTIC_REPOSITORY%/*}" >&2; exit 1; }
-  for repo in "${REPOSITORIES[@]}"; do [ -d "$repo/.git" ] || { echo "not a git repository: $repo" >&2; exit 1; }; done
+  [ -d "${RESTIC_REPOSITORY%/*}" ] || {
+    echo "backup parent is missing: ${RESTIC_REPOSITORY%/*}" >&2
+    exit 1
+  }
+  for repo in "${REPOSITORIES[@]}"; do [ -d "$repo/.git" ] || {
+    echo "not a git repository: $repo" >&2
+    exit 1
+  }; done
   local target project environment host
   for target in "${BACKUP_TARGETS[@]}"; do
     IFS=: read -r project environment host <<<"$target"
-    [ -n "$project" ] && [ -n "$environment" ] && [ -n "$host" ] || { echo "invalid target: $target" >&2; exit 2; }
+    [ -n "$project" ] && [ -n "$environment" ] && [ -n "$host" ] || {
+      echo "invalid target: $target" >&2
+      exit 2
+    }
     ssh -o BatchMode=yes -o ConnectTimeout=10 "$host" /usr/local/libexec/client-db-backup-dump --check "$project" "$environment"
   done
   echo "backup configuration is ready"
@@ -83,7 +101,10 @@ run() {
     IFS=: read -r project environment host <<<"$target"
     dump="$temp/$project-$environment.dump"
     ssh -o BatchMode=yes "$host" /usr/local/libexec/client-db-backup-dump "$project" "$environment" >"$dump"
-    [ -s "$dump" ] || { echo "empty remote dump: $target" >&2; exit 1; }
+    [ -s "$dump" ] || {
+      echo "empty remote dump: $target" >&2
+      exit 1
+    }
   done
   export RESTIC_REPOSITORY RESTIC_PASSWORD_FILE
   if ! restic snapshots >/dev/null 2>&1; then restic init; fi
@@ -105,6 +126,9 @@ case "${1:-}" in
   verify) verify ;;
   status) status ;;
   init-config) init_config ;;
-  -h|--help|help|'') usage ;;
-  *) usage >&2; exit 2 ;;
+  -h | --help | help | '') usage ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
 esac

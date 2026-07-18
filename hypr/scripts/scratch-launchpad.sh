@@ -42,23 +42,23 @@ float_small() {
 
 entries() {
   printf '%s\0info\x1f%s\n' \
-    "󰌠  terminal scratchpad  Drop-down dev terminal"   "scratch-terminal" \
-    "󰏚  ai workspace         Project AI shell"         "scratch-ai" \
-    "󰍹  notes scratchpad     Notes and clipboard"      "scratch-notes" \
-    "󰇬  db scratchpad        SQL console"              "scratch-db" \
+    "󰌠  terminal scratchpad  Drop-down dev terminal" "scratch-terminal" \
+    "󰏚  ai workspace         Project AI shell" "scratch-ai" \
+    "󰍹  notes scratchpad     Notes and clipboard" "scratch-notes" \
+    "󰇬  db scratchpad        SQL console" "scratch-db" \
     "󰠩  browser devtools     Chrome/Chromium devtools" "scratch-browser" \
-    "󰓫  sidecar              Window shelf actions"     "sidecar" \
-    "󰁯  restore sidecar      Pull shelf windows here"  "sidecar-restore" \
-    "󰍛  btop                System monitor"           "btop"       \
-    "󰚩  lazygit             Visual git client"        "lazygit"    \
-    "󰆩  qalc                Calculator"               "qalc"       \
-    "  Clipboard           Browse & paste history"    "clipboard"  \
-    "  System logs         journalctl (live)"         "logs"       \
-    "󰻠  fastfetch           System information"        "fastfetch"  \
-    "  Python REPL         Interactive Python shell"  "python"     \
-    "  JSON viewer         Explore JSON (python)"     "json"       \
-    "󰌌  Hash / encode       md5, sha256, base64"       "hash"       \
-    "  Inspect cwd         Full directory listing"     "inspect"
+    "󰓫  sidecar              Window shelf actions" "sidecar" \
+    "󰁯  restore sidecar      Pull shelf windows here" "sidecar-restore" \
+    "󰍛  btop                System monitor" "btop" \
+    "󰚩  lazygit             Visual git client" "lazygit" \
+    "󰆩  qalc                Calculator" "qalc" \
+    "  Clipboard           Browse & paste history" "clipboard" \
+    "  System logs         journalctl (live)" "logs" \
+    "󰻠  fastfetch           System information" "fastfetch" \
+    "  Python REPL         Interactive Python shell" "python" \
+    "  JSON viewer         Explore JSON (python)" "json" \
+    "󰌌  Hash / encode       md5, sha256, base64" "hash" \
+    "  Inspect cwd         Full directory listing" "inspect"
 }
 
 # ── Rofi ─────────────────────────────────────────────────────────────────────

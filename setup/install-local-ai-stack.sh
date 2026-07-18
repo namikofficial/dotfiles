@@ -207,8 +207,8 @@ render_llama_swap_config() {
     return 0
   fi
   LLAMA_MODEL_ROOT="$MODEL_ROOT" \
-  LLAMA_SWAP_TEMPLATE="$LLAMA_SWAP_TEMPLATE" \
-  "$REPO_DIR/system/llama-swap-manager.sh" render-config
+    LLAMA_SWAP_TEMPLATE="$LLAMA_SWAP_TEMPLATE" \
+    "$REPO_DIR/system/llama-swap-manager.sh" render-config
 }
 
 install_runtime() {

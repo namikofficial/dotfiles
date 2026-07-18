@@ -16,7 +16,7 @@ conf_file="$HOME/.config/btop/btop.conf"
 
 mkdir -p "$theme_dir"
 
-cat > "$theme_file" <<EOF2
+cat >"$theme_file" <<EOF2
 theme[Noxflow Dynamic]
 
 main_bg="${THEME_BG}"
@@ -65,13 +65,13 @@ EOF2
 
 mkdir -p "$(dirname "$conf_file")"
 if [ ! -f "$conf_file" ]; then
-  cat > "$conf_file" <<EOF2
+  cat >"$conf_file" <<EOF2
 color_theme = "NoxflowDynamic"
 EOF2
 elif grep -q '^color_theme *=.*' "$conf_file"; then
   sed -i 's/^color_theme *=.*/color_theme = "NoxflowDynamic"/' "$conf_file" || true
 else
-  printf '\ncolor_theme = "NoxflowDynamic"\n' >> "$conf_file"
+  printf '\ncolor_theme = "NoxflowDynamic"\n' >>"$conf_file"
 fi
 
-printf '%s\n' "$theme_file" > "$cache_dir/current-btop-theme"
+printf '%s\n' "$theme_file" >"$cache_dir/current-btop-theme"

@@ -83,8 +83,8 @@ menu() {
       "Toggle Syncthing Service" \
       "Restart Syncthing Service" \
       "Show Syncthing Service Status" \
-      "Open Syncthing Config XML" \
-    | rofi -dmenu -i -p 'Syncthing' -theme "$HOME/.config/rofi/actions.rasi"
+      "Open Syncthing Config XML" |
+      rofi -dmenu -i -p 'Syncthing' -theme "$HOME/.config/rofi/actions.rasi"
   )"
 
   case "${choice:-}" in

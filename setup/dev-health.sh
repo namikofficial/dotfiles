@@ -52,7 +52,7 @@ fails=0
 
 record_json() {
   [ "$JSON_MODE" -eq 1 ] || return 0
-  printf '%s\t%s\n' "$1" "$2" >> "$JSON_FILE"
+  printf '%s\t%s\n' "$1" "$2" >>"$JSON_FILE"
 }
 
 json_print() {

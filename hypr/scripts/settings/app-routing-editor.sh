@@ -7,7 +7,7 @@ STATE_FILE="$ROOT_DIR/settings/state.json"
 SETTINGSCTL="$ROOT_DIR/hypr/scripts/settingsctl"
 
 ensure_state() {
-  [[ -f "$STATE_FILE" ]] || printf '{}\n' > "$STATE_FILE"
+  [[ -f "$STATE_FILE" ]] || printf '{}\n' >"$STATE_FILE"
 }
 
 pick() {
@@ -34,7 +34,7 @@ while true; do
       tmp="$(mktemp)"
       jq --arg app "$app" --arg priority "$priority" --arg route "$route" --arg sound "$sound" --arg sink "$sink" --arg ws "$ws" '
         .app_routing.rules = ((.app_routing.rules // []) + [{app:$app,priority:$priority,route:$route,sound:$sound,audio_sink:$sink,workspace:$ws}])
-      ' "$STATE_FILE" > "$tmp"
+      ' "$STATE_FILE" >"$tmp"
       mv "$tmp" "$STATE_FILE"
       "$SETTINGSCTL" apply app-routing
       ;;
@@ -45,7 +45,7 @@ while true; do
       [[ -n "$selected" ]] || continue
       idx="${selected%%|*}"
       tmp="$(mktemp)"
-      jq --argjson idx "$idx" '.app_routing.rules |= (to_entries | map(select(.key != $idx)) | map(.value))' "$STATE_FILE" > "$tmp"
+      jq --argjson idx "$idx" '.app_routing.rules |= (to_entries | map(select(.key != $idx)) | map(.value))' "$STATE_FILE" >"$tmp"
       mv "$tmp" "$STATE_FILE"
       "$SETTINGSCTL" apply app-routing
       ;;

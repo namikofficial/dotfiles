@@ -16,11 +16,20 @@ need_cmd curl
 need_cmd docker
 need_cmd jq
 
-[ -f "$ENV_FILE" ] || { printf 'Missing env file: %s\n' "$ENV_FILE" >&2; exit 1; }
-[ -f "$COMPOSE_FILE" ] || { printf 'Missing compose file: %s\n' "$COMPOSE_FILE" >&2; exit 1; }
+[ -f "$ENV_FILE" ] || {
+  printf 'Missing env file: %s\n' "$ENV_FILE" >&2
+  exit 1
+}
+[ -f "$COMPOSE_FILE" ] || {
+  printf 'Missing compose file: %s\n' "$COMPOSE_FILE" >&2
+  exit 1
+}
 
 mcpo_key="$(awk -F= '/^MCPO_API_KEY=/{print $2}' "$ENV_FILE")"
-[ -n "$mcpo_key" ] || { printf 'MCPO_API_KEY is missing in %s\n' "$ENV_FILE" >&2; exit 1; }
+[ -n "$mcpo_key" ] || {
+  printf 'MCPO_API_KEY is missing in %s\n' "$ENV_FILE" >&2
+  exit 1
+}
 
 printf '[open-webui] health: '
 curl -fsS --max-time 10 http://127.0.0.1:3080/health | jq -e '.status == true' >/dev/null

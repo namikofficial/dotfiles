@@ -77,7 +77,7 @@ last_mode() {
   if [ -f "$state_file" ]; then
     mode_saved="$(cat "$state_file" 2>/dev/null || true)"
     case "$mode_saved" in
-      dwindle|master|monocle|floating|pseudo)
+      dwindle | master | monocle | floating | pseudo)
         printf '%s\n' "$mode_saved"
         return 0
         ;;
@@ -85,7 +85,7 @@ last_mode() {
   fi
   layout_now="$(active_layout 2>/dev/null || true)"
   case "$layout_now" in
-    dwindle|master)
+    dwindle | master)
       printf '%s\n' "$layout_now"
       ;;
     *)
@@ -131,7 +131,7 @@ apply_current_window_mode() {
     floating) toggle_current_float ;;
     pseudo) toggle_current_pseudo ;;
     *) false ;;
-  esac; then
+  esac then
     remember_mode "$target"
     emit_event info "Layout toggled" "$label"
     notify "Layout" "$label"
@@ -156,7 +156,7 @@ status_text() {
 
   layout_now="$(active_layout 2>/dev/null || true)"
   case "$layout_now" in
-    dwindle|master)
+    dwindle | master)
       printf '%s\n' "$layout_now"
       ;;
     *)

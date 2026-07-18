@@ -2,7 +2,7 @@
 set -eu
 
 # Minimal safe startup for debugging session crashes.
-command -v dbus-update-activation-environment >/dev/null 2>&1 && \
+command -v dbus-update-activation-environment >/dev/null 2>&1 &&
   dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP >/dev/null 2>&1 || true
 
 for app in wayle nm-applet blueman-applet; do

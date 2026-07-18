@@ -32,7 +32,7 @@ echo ""
 
 # Download Gemma 3 4B
 echo "📦 Gemma 3 4B (current local alias)..."
-~/.local/share/pipx/venvs/huggingface-hub/bin/python3 << 'PY1'
+~/.local/share/pipx/venvs/huggingface-hub/bin/python3 <<'PY1'
 from huggingface_hub import hf_hub_download
 import os
 

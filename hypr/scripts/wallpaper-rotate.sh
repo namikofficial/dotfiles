@@ -14,7 +14,7 @@ sanitize_interval() {
   val="$1"
   fallback="$2"
   case "$val" in
-    ''|*[!0-9]*)
+    '' | *[!0-9]*)
       printf '%s\n' "$fallback"
       return 0
       ;;
@@ -42,15 +42,15 @@ run_daily_mode() {
 
     if [ -z "$last" ]; then
       # First run: initialize state without forcing an immediate rotation.
-      printf '%s\n' "$today" > "$state_file"
+      printf '%s\n' "$today" >"$state_file"
     elif [ "$last" != "$today" ]; then
       if [ "$first_cycle" = "1" ]; then
         # Session just started and init wallpaper already ran; avoid a second
         # immediate change/notification at cold boot.
-        printf '%s\n' "$today" > "$state_file"
+        printf '%s\n' "$today" >"$state_file"
       else
         rotate_next
-        printf '%s\n' "$today" > "$state_file"
+        printf '%s\n' "$today" >"$state_file"
       fi
     fi
 

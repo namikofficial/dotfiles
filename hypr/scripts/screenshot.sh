@@ -47,7 +47,7 @@ if [ "$annotated" -eq 0 ]; then
 fi
 
 if command -v wl-copy >/dev/null 2>&1; then
-  wl-copy < "$file"
+  wl-copy <"$file"
 fi
 
 if command -v notify-send >/dev/null 2>&1; then

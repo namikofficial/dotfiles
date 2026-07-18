@@ -34,7 +34,7 @@ clone_or_update "minimalistic-collection" "https://github.com/DenverCoder1/minim
 clone_or_update "hyprland-wallpaper-bank" "https://github.com/JaKooLit/Wallpaper-Bank.git"
 clone_or_update "mylinuxforwork-wallpaper" "https://github.com/mylinuxforwork/wallpaper.git"
 
-cat > "$root/WEB_SOURCES.txt" <<'SOURCES'
+cat >"$root/WEB_SOURCES.txt" <<'SOURCES'
 Non-git wallpaper sources to browse manually:
 - https://wall.alphacoders.com
 - https://reddit.com/r/unixporn

@@ -9,9 +9,9 @@ LOG_DIR="${NOXFLOW_LOG_DIR:-$HOME/Documents/code/dotfiles/logs/hypr}"
 
 notif_init() {
   mkdir -p "$NOTIF_DIR" "$LOG_DIR"
-  [ -f "$EVENTS_FILE" ] || : > "$EVENTS_FILE"
+  [ -f "$EVENTS_FILE" ] || : >"$EVENTS_FILE"
   if [ ! -s "$STATE_FILE" ]; then
-    cat > "$STATE_FILE" <<JSON
+    cat >"$STATE_FILE" <<JSON
 {"mode":"custom","dnd":false,"last_id":"","updated_at":"","selected_index":0,"selected_id":"","events":[]}
 JSON
   fi
@@ -22,7 +22,7 @@ _log_line() {
   local now file
   now="$(date -Iseconds)"
   file="$LOG_DIR/${component}-$(date +%Y%m%d).log"
-  printf '%s level=%s pid=%s component=%s msg=%s\n' "$now" "$level" "$$" "$component" "$message" >> "$file"
+  printf '%s level=%s pid=%s component=%s msg=%s\n' "$now" "$level" "$$" "$component" "$message" >>"$file"
 }
 
 _event_id() {
@@ -69,7 +69,7 @@ write_event() {
     --argjson actions "$actions_json" \
     '{id:$id,time:$time,severity:$severity,component:$component,title:$title,body:$body,details:$details,copiable_payload:$payload,actions:$actions}')"
 
-  printf '%s\n' "$event" >> "$EVENTS_FILE"
+  printf '%s\n' "$event" >>"$EVENTS_FILE"
 
   tmp="$(mktemp)"
   _state_json | jq --argjson ev "$event" --argjson max "$MAX_EVENTS" '
@@ -80,7 +80,7 @@ write_event() {
     | .selected_id = $ev.id
     | .last_id = $ev.id
     | .updated_at = $ev.time
-  ' > "$tmp"
+  ' >"$tmp"
   mv "$tmp" "$STATE_FILE"
 
   _log_line "$severity" "$component" "$title $body"

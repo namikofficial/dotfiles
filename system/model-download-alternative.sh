@@ -19,7 +19,7 @@ echo ""
 echo "⬇️  Downloading models to $MODEL_DIR"
 echo ""
 
-~/.local/share/pipx/venvs/huggingface-hub/bin/python3 << 'DLPY'
+~/.local/share/pipx/venvs/huggingface-hub/bin/python3 <<'DLPY'
 from huggingface_hub import hf_hub_download
 import os
 

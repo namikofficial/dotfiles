@@ -14,7 +14,10 @@ find_model() {
 }
 
 start() {
-  [ -x "$SERVER" ] || { echo "llama-server not found; install llama.cpp first" >&2; exit 1; }
+  [ -x "$SERVER" ] || {
+    echo "llama-server not found; install llama.cpp first" >&2
+    exit 1
+  }
   local model
   model="$(find_model)"
   [ -n "$model" ] || {
@@ -48,8 +51,14 @@ status() {
 case "${1:-status}" in
   start) start ;;
   stop) stop ;;
-  restart) stop; start ;;
+  restart)
+    stop
+    start
+    ;;
   status) status ;;
   logs) tail -n 80 "$LOG_FILE" ;;
-  *) echo "usage: $(basename "$0") <start|stop|restart|status|logs>" >&2; exit 2 ;;
+  *)
+    echo "usage: $(basename "$0") <start|stop|restart|status|logs>" >&2
+    exit 2
+    ;;
 esac

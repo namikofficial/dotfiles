@@ -64,27 +64,91 @@ EOF
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --repo) TARGET_REPO="$2"; shift 2 ;;
-    --path) TARGET_PATH="$2"; shift 2 ;;
-    --runs) RUNS="$2"; shift 2 ;;
-    --warmup) WARMUP="$2"; shift 2 ;;
-    --timeout) BENCH_TIMEOUT="$2"; shift 2 ;;
-    --reindex) REINDEX_FIRST=1; shift ;;
-    --full-index) FULL_INDEX=1; shift ;;
-    --skip-tests) SKIP_TESTS=1; shift ;;
-    --skip-model-tps) SKIP_MODEL_TPS=1; shift ;;
-    --no-start-runtime) START_RUNTIME=0; shift ;;
-    --search-query) SEARCH_QUERY="$2"; shift 2 ;;
-    --graph-query) GRAPH_QUERY="$2"; shift 2 ;;
-    --why-query) WHY_QUERY="$2"; shift 2 ;;
-    --why-path) WHY_PATH="$2"; shift 2 ;;
-    --quick-query) QUICK_QUERY="$2"; shift 2 ;;
-    --deep-query) DEEP_QUERY="$2"; shift 2 ;;
-    --plan-query) PLAN_QUERY="$2"; shift 2 ;;
-    --context-query) CONTEXT_QUERY="$2"; shift 2 ;;
-    --tps-query) TPS_QUERY="$2"; shift 2 ;;
-    --help|-h) usage; exit 0 ;;
-    *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
+    --repo)
+      TARGET_REPO="$2"
+      shift 2
+      ;;
+    --path)
+      TARGET_PATH="$2"
+      shift 2
+      ;;
+    --runs)
+      RUNS="$2"
+      shift 2
+      ;;
+    --warmup)
+      WARMUP="$2"
+      shift 2
+      ;;
+    --timeout)
+      BENCH_TIMEOUT="$2"
+      shift 2
+      ;;
+    --reindex)
+      REINDEX_FIRST=1
+      shift
+      ;;
+    --full-index)
+      FULL_INDEX=1
+      shift
+      ;;
+    --skip-tests)
+      SKIP_TESTS=1
+      shift
+      ;;
+    --skip-model-tps)
+      SKIP_MODEL_TPS=1
+      shift
+      ;;
+    --no-start-runtime)
+      START_RUNTIME=0
+      shift
+      ;;
+    --search-query)
+      SEARCH_QUERY="$2"
+      shift 2
+      ;;
+    --graph-query)
+      GRAPH_QUERY="$2"
+      shift 2
+      ;;
+    --why-query)
+      WHY_QUERY="$2"
+      shift 2
+      ;;
+    --why-path)
+      WHY_PATH="$2"
+      shift 2
+      ;;
+    --quick-query)
+      QUICK_QUERY="$2"
+      shift 2
+      ;;
+    --deep-query)
+      DEEP_QUERY="$2"
+      shift 2
+      ;;
+    --plan-query)
+      PLAN_QUERY="$2"
+      shift 2
+      ;;
+    --context-query)
+      CONTEXT_QUERY="$2"
+      shift 2
+      ;;
+    --tps-query)
+      TPS_QUERY="$2"
+      shift 2
+      ;;
+    --help | -h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
   esac
 done
 

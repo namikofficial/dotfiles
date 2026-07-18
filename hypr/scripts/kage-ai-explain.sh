@@ -28,7 +28,10 @@ ensure_local_ai() {
 
 # Get text from clipboard
 text_to_explain="$(wl-paste 2>/dev/null || xclip -o 2>/dev/null || echo "")"
-[ -n "$text_to_explain" ] || { notify "❌ Clipboard empty" "Copy error/code/log first"; exit 1; }
+[ -n "$text_to_explain" ] || {
+  notify "❌ Clipboard empty" "Copy error/code/log first"
+  exit 1
+}
 
 notify "⏳ Explaining..." "Analyzing your text..."
 
@@ -68,7 +71,10 @@ fi
 # Extract response
 explanation_text="$(jq -r '.choices[0].message.content // empty' <<<"$explanation" 2>/dev/null || true)"
 
-[ -n "$explanation_text" ] || { notify "❌ AI failed"; exit 1; }
+[ -n "$explanation_text" ] || {
+  notify "❌ AI failed"
+  exit 1
+}
 
 notify "✓ Explanation ready" "Opening in rofi..."
 
@@ -82,8 +88,7 @@ rofi_theme_arg=()
 formatted="$(printf '%s' "$explanation_text" | sed 's/^/  /')"
 
 # Show in rofi (scrollable)
-printf '%s\n' "$formatted" | \
+printf '%s\n' "$formatted" |
   rofi -dmenu -i -p "Explanation" "${rofi_theme_arg[@]}" >/dev/null 2>&1 || true
 
 notify "✓ Done" ""
-
