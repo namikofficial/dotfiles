@@ -1,0 +1,14 @@
+[Unit]
+Description=AI Workbench desktop observation bridge
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.config/hypr/scripts/ai-workbench-observer
+Restart=on-failure
+RestartSec=2
+TimeoutStartSec=10
+
+[Install]
+WantedBy=graphical-session.target

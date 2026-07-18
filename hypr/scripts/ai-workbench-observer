@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+API_URL="${AI_WORKBENCH_API_URL:-http://127.0.0.1:4417}"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench"
+OBSERVATION_CACHE="${CACHE_DIR}/desktop-observation-v1.json"
+HYPR_SOCKET="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr/${HYPRLAND_INSTANCE_SIGNATURE:-}/.socket2.sock"
+
+mkdir -p "$CACHE_DIR"
+
+is_descendant() {
+  local candidate="$1" root="$2" parent steps=0
+  while [[ "$candidate" =~ ^[0-9]+$ ]] && (( candidate > 1 && steps < 64 )); do
+    [[ "$candidate" == "$root" ]] && return 0
+    parent="$(awk '/^PPid:/ { print $2; exit }' "/proc/$candidate/status" 2>/dev/null || true)"
+    [[ -n "$parent" && "$parent" != "$candidate" ]] || break
+    candidate="$parent"
+    ((steps += 1))
+  done
+  return 1
+}
+
+tmux_for_window() {
+  local window_pid="$1" client_pid session pane_line pane_id pane_cwd
+  command -v tmux >/dev/null 2>&1 || { printf 'null'; return; }
+  while IFS=$'\t' read -r client_pid session; do
+    [[ -n "$client_pid" && -n "$session" ]] || continue
+    is_descendant "$client_pid" "$window_pid" || continue
+    pane_line="$(tmux list-panes -t "$session" -f '#{pane_active}' -F '#{pane_id}\t#{pane_current_path}' 2>/dev/null | head -n1 || true)"
+    IFS=$'\t' read -r pane_id pane_cwd <<<"$pane_line"
+    jq -cn \
+      --argjson clientPid "$client_pid" \
+      --arg session "$session" \
+      --arg paneId "$pane_id" \
+      --arg cwd "$pane_cwd" \
+      '{clientPid:$clientPid,session:$session,paneId:($paneId|if length>0 then . else null end),cwd:($cwd|if length>0 then . else null end),associationVerified:true}'
+    return
+  done < <(tmux list-clients -F '#{client_pid}\t#{client_session}' 2>/dev/null || true)
+  printf 'null'
+}
+
+process_for_window() {
+  local window_pid="$1" terminal="$2"
+  if [[ "$terminal" == true ]] && command -v python3 >/dev/null 2>&1; then
+    AI_WORKBENCH_WINDOW_PID="$window_pid" python3 - <<'PY'
+import json
+import os
+
+root = int(os.environ["AI_WORKBENCH_WINDOW_PID"])
+shells = {"bash", "dash", "fish", "nu", "sh", "zsh"}
+
+def read_text(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            return handle.read().strip()
+    except OSError:
+        return ""
+
+def parent(pid):
+    for line in read_text(f"/proc/{pid}/status").splitlines():
+        if line.startswith("PPid:"):
+            return int(line.split()[1])
+    return 0
+
+children = {}
+for entry in os.listdir("/proc"):
+    if entry.isdigit():
+        pid = int(entry)
+        children.setdefault(parent(pid), []).append(pid)
+
+stack = [(root, 0)]
+descendants = []
+while stack:
+    pid, depth = stack.pop()
+    descendants.append((pid, depth))
+    stack.extend((child, depth + 1) for child in children.get(pid, []))
+
+selected = max(
+    descendants,
+    key=lambda item: (read_text(f"/proc/{item[0]}/comm") in shells, item[1]),
+)
+pid, _depth = selected
+try:
+    cwd = os.readlink(f"/proc/{pid}/cwd")
+except OSError:
+    cwd = None
+print(json.dumps({"pid": pid, "parentPid": parent(pid) or None, "cwd": cwd, "command": read_text(f"/proc/{pid}/comm") or None}))
+PY
+    return
+  fi
+  local cwd command_name parent_pid
+  cwd="$(readlink -f "/proc/$window_pid/cwd" 2>/dev/null || true)"
+  command_name="$(tr -d '\n' <"/proc/$window_pid/comm" 2>/dev/null || true)"
+  parent_pid="$(awk '/^PPid:/ { print $2; exit }' "/proc/$window_pid/status" 2>/dev/null || true)"
+  parent_pid="${parent_pid:-0}"
+  jq -cn --argjson pid "$window_pid" --argjson parentPid "$parent_pid" --arg cwd "$cwd" --arg command "$command_name" \
+    '{pid:$pid,parentPid:(if $parentPid>0 then $parentPid else null end),cwd:($cwd|if length>0 then . else null end),command:($command|if length>0 then . else null end)}'
+}
+
+observe_once() {
+  local window pid class_name title role workspace address cwd terminal transient tmux_json process_json now observation_id
+  window="$(hyprctl -j activewindow 2>/dev/null || printf '{}')"
+  pid="$(jq -r '.pid // 0' <<<"$window")"
+  class_name="$(jq -r '.class // ""' <<<"$window")"
+  title="$(jq -r '.title // ""' <<<"$window")"
+  role="$(jq -r '.initialClass // ""' <<<"$window")"
+  workspace="$(jq -r '.workspace.id // empty' <<<"$window")"
+  address="$(jq -r '.address // ""' <<<"$window")"
+  terminal=false
+  [[ "$class_name" =~ ^(kitty|Alacritty|foot|org\.wezfurlong\.wezterm)$ ]] && terminal=true
+  process_json="null"
+  if [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )); then
+    process_json="$(process_for_window "$pid" "$terminal")"
+  fi
+  cwd="$(jq -r '.cwd // ""' <<<"$process_json")"
+  tmux_json="$(tmux_for_window "$pid")"
+  transient=false
+  [[ "$class_name" =~ (Rofi|rofi|notification|polkit|xdg-desktop-portal) ]] && transient=true
+  now="$(date --iso-8601=milliseconds)"
+  observation_id="desktop_$(date +%s%N)"
+
+  jq -cn \
+    --arg id "$observation_id" --arg now "$now" --arg instance "${HYPRLAND_INSTANCE_SIGNATURE:-unknown}" \
+    --arg address "$address" --arg className "$class_name" --arg title "$title" --arg role "$role" \
+    --arg workspace "$workspace" --arg cwd "$cwd" \
+    --argjson pid "${pid:-0}" --argjson terminal "$terminal" --argjson transient "$transient" --argjson tmux "$tmux_json" --argjson process "$process_json" \
+    '{schemaVersion:1,id:$id,createdAt:$now,updatedAt:$now,origin:{source:"desktop",instanceId:$instance,legacyRef:null},capabilities:["focused-window","process-cwd","tmux-correlation"],observedAt:$now,state:"ready",compositor:"hyprland",workspaceId:($workspace|if length>0 then . else null end),window:{address:($address|if length>0 then . else null end),pid:(if $pid>0 then $pid else null end),className:($className|if length>0 then . else null end),title:($title|if length>0 then . else null end),role:($role|if length>0 then . else null end)},process:$process,editor:null,terminal:(if $terminal then {cwd:($cwd|if length>0 then . else null end),shell:($process.command // null)} else null end),tmux:$tmux,browser:null,explicitProjectId:null,transientWindow:$transient}' >"$OBSERVATION_CACHE.tmp"
+  mv "$OBSERVATION_CACHE.tmp" "$OBSERVATION_CACHE"
+  curl --silent --show-error --fail --max-time 1 \
+    -H 'content-type: application/json' -H 'accept: application/json' \
+    --data-binary "@$OBSERVATION_CACHE" "$API_URL/desktop/observations" >/dev/null 2>&1 || true
+}
+
+if [[ "${1:-}" == "--once" ]]; then
+  observe_once
+  exit 0
+fi
+
+command -v hyprctl >/dev/null 2>&1 || { echo "hyprctl is required" >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo "jq is required" >&2; exit 1; }
+command -v socat >/dev/null 2>&1 || { echo "socat is required" >&2; exit 1; }
+
+observe_once
+while true; do
+  while IFS= read -r event; do
+    case "$event" in
+      activewindow\>\>*|activewindowv2\>\>*|workspace\>\>*) observe_once ;;
+    esac
+  done < <(socat -u "UNIX-CONNECT:$HYPR_SOCKET" - 2>/dev/null || true)
+  sleep 1
+done

@@ -218,6 +218,7 @@ link_path "$REPO_DIR/settings/machine.env" "$HOME/.config/dotfiles/machine.env"
 link_path "$REPO_DIR/android/android-env.sh" "$HOME/.config/environment.d/60-android.conf"
 link_path "$REPO_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
 link_path "$REPO_DIR/systemd/user/noxflow-session-optional.service" "$HOME/.config/systemd/user/noxflow-session-optional.service"
+link_path "$REPO_DIR/systemd/user/ai-workbench-desktop-observer.service" "$HOME/.config/systemd/user/ai-workbench-desktop-observer.service"
 
 # Remove the obsolete managed drop-in that discarded the GPU selected by
 # env-hyprland. Unrelated local overrides are deliberately left alone.
