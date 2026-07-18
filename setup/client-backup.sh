@@ -5,8 +5,8 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nox-backup"
 CONFIG_FILE="$CONFIG_DIR/client-backup.conf"
 DEFAULT_REPOSITORY="$HOME/syncthing/client-backups/restic"
 REPOSITORIES=(
-  "$HOME/Documents/code/nox-billings"
-  "$HOME/Documents/code/workspace"
+  "$HOME/Documents/code/noxorigin/nox-billings"
+  "$HOME/Documents/code/noxorigin/workspace"
   "$HOME/Documents/code/trackMe"
 )
 

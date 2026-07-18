@@ -64,7 +64,7 @@ EOF
         exec kitty --title "git commit" -e bash -lc "cd '$root' && git status --short && git add -A && git commit"
         ;;
       "open noxcrm backend")
-        exec xdg-open "$HOME/Documents/code/workspace/backend"
+        exec xdg-open "$HOME/Documents/code/noxorigin/workspace/backend"
         ;;
       "switch to dev mode")
         exec "$HOME/.config/hypr/scripts/settingsctl" profile apply performance

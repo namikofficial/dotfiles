@@ -8,23 +8,28 @@
 # alias myvpn='~/scripts/connect-vpn'
 
 # Local project shortcuts.
-alias noxcrm='cd /home/namik/Documents/code/workspace'
-alias nox-billings='cd /home/namik/Documents/code/nox-billings'
-alias nox-tickets='cd /home/namik/Documents/code/nox-tickets'
+alias noxcrm='cd /home/namik/Documents/code/noxorigin/workspace'
+alias nox-billings='cd /home/namik/Documents/code/noxorigin/nox-billings'
+alias nox-tickets='cd /home/namik/Documents/code/noxorigin/nox-tickets'
+alias noxorigin='cd /home/namik/Documents/code/noxorigin'
 alias wellvantage='cd ~/Documents/code/WellVantage'
 alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
 
 noxcrm-edit() {
-  code /home/namik/Documents/code/workspace "$@"
+  code /home/namik/Documents/code/noxorigin/workspace "$@"
 }
 
 nox-billings-edit() {
-  code /home/namik/Documents/code/nox-billings "$@"
+  code /home/namik/Documents/code/noxorigin/nox-billings "$@"
 }
 
 nox-tickets-edit() {
-  code /home/namik/Documents/code/nox-tickets "$@"
+  code /home/namik/Documents/code/noxorigin/nox-tickets "$@"
+}
+
+noxorigin-edit() {
+  code /home/namik/Documents/code/noxorigin "$@"
 }
 
 noxcrm-log() {
