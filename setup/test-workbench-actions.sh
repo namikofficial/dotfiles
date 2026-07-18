@@ -138,6 +138,19 @@ done
 grep -Fx 'http://127.0.0.1:5317/approvals/approval%20active' "$open_file" >/dev/null
 
 : >"$open_file"
+WORKBENCH_TEST_ROFI_CHOICE='Review isolated diff and cleanup' \
+  PATH="$mock_bin:$PATH" HOME="$test_dir/home" XDG_CACHE_HOME="$cache_dir" \
+  AI_WORKBENCH_API_URL="http://127.0.0.1:5517" AI_WORKBENCH_URL="http://127.0.0.1:5317" \
+  WORKBENCH_ACTION_REQUEST_FILE="$request_file" WORKBENCH_ACTION_OPEN_FILE="$open_file" \
+  WORKBENCH_ACTION_LAUNCH_FILE="$launch_file" WORKBENCH_ACTION_NOTIFICATION_FILE="$notification_file" \
+  "$repo_dir/hypr/scripts/kage-project-rofi.sh"
+for _attempt in $(seq 1 50); do
+  grep -q 'execution%20active' "$open_file" 2>/dev/null && break
+  sleep 0.01
+done
+grep -Fx 'http://127.0.0.1:5317/workflow-executions/execution%20active' "$open_file" >/dev/null
+
+: >"$open_file"
 WORKBENCH_TEST_ROFI_CHOICE='[Recover] show-failures' \
   PATH="$mock_bin:$PATH" HOME="$test_dir/home" XDG_CACHE_HOME="$cache_dir" \
   AI_WORKBENCH_API_URL="http://127.0.0.1:5517" AI_WORKBENCH_URL="http://127.0.0.1:5317" \

@@ -26,6 +26,7 @@ def launch_payload(mode="terminal"):
             "state": "ready",
             "command": {"executable": "git", "arguments": ["--version"], "workingDirectory": "/tmp"},
             "environment": {"AI_WORKBENCH_PROJECT_ID": "project-1"},
+            "environmentRefs": [],
             "tmuxSession": "project-session" if mode == "tmux" else None,
         },
         "token": "secret-launch-token",
@@ -91,6 +92,60 @@ class WorkflowLauncherTests(unittest.TestCase):
             self.assertEqual(popen.call_args.kwargs["env"]["AI_WORKBENCH_PROJECT_ID"], "project-1")
             self.assertEqual(request.call_args_list[0].args[1]["pid"], 12345)
             self.assertEqual(request.call_args_list[1].args[1]["exitCode"], 0)
+
+    def test_execute_resolves_only_approved_names_without_persisting_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            secret_value = "desktop-secret-value-never-in-capability-or-api"
+            provider = Path(directory) / "secrets.env"
+            provider.write_text(f"WORKBENCH_DESKTOP_TOKEN={secret_value}\nUNUSED_TOKEN=not-delivered\n")
+            provider.chmod(0o600)
+            payload = launch_payload()
+            payload["launch"]["environmentRefs"] = ["WORKBENCH_DESKTOP_TOKEN"]
+            capability = Path(directory) / "capability.json"
+            capability.write_text(
+                json.dumps(
+                    {
+                        "apiUrl": "http://127.0.0.1:4417",
+                        "executionId": "execution-1",
+                        **payload,
+                    }
+                )
+            )
+            capability.chmod(0o600)
+            self.assertNotIn(secret_value, capability.read_text())
+            child = SimpleNamespace(pid=12345, wait=mock.Mock(return_value=0))
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "AI_WORKBENCH_SECRET_FILE": str(provider),
+                    "UNRELATED_AMBIENT_SECRET": "must-not-reach-child",
+                },
+                clear=False,
+            ):
+                with mock.patch.object(launcher.subprocess, "Popen", return_value=child) as popen:
+                    with mock.patch.object(launcher, "request", return_value={}) as request:
+                        self.assertEqual(launcher.execute_capability(str(capability)), 0)
+            child_env = popen.call_args.kwargs["env"]
+            self.assertEqual(child_env["WORKBENCH_DESKTOP_TOKEN"], secret_value)
+            self.assertNotIn("UNUSED_TOKEN", child_env)
+            self.assertNotIn("UNRELATED_AMBIENT_SECRET", child_env)
+            self.assertNotIn("AI_WORKBENCH_SECRET_FILE", child_env)
+            self.assertNotIn(secret_value, json.dumps([call.args for call in request.call_args_list]))
+
+    def test_secret_provider_permissions_and_symlinks_fail_before_launch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            provider = Path(directory) / "secrets.env"
+            provider.write_text("WORKBENCH_DESKTOP_TOKEN=value\n")
+            provider.chmod(0o644)
+            with mock.patch.dict(os.environ, {"AI_WORKBENCH_SECRET_FILE": str(provider)}, clear=False):
+                with self.assertRaisesRegex(RuntimeError, "mode 0600"):
+                    launcher.resolve_secret_environment(["WORKBENCH_DESKTOP_TOKEN"])
+            provider.chmod(0o600)
+            linked = Path(directory) / "linked.env"
+            linked.symlink_to(provider)
+            with mock.patch.dict(os.environ, {"AI_WORKBENCH_SECRET_FILE": str(linked)}, clear=False):
+                with self.assertRaisesRegex(RuntimeError, "without symlinks"):
+                    launcher.resolve_secret_environment(["WORKBENCH_DESKTOP_TOKEN"])
 
 
 if __name__ == "__main__":

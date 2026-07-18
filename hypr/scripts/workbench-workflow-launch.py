@@ -8,6 +8,7 @@ import os
 import re
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,40 @@ import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any
+
+SECRET_NAME = re.compile(r"^[A-Z_][A-Z0-9_]*$")
+SAFE_AMBIENT_ENVIRONMENT = (
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "PATH",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TERM",
+    "COLORTERM",
+    "TMPDIR",
+    "XDG_RUNTIME_DIR",
+    "WAYLAND_DISPLAY",
+    "DISPLAY",
+    "DBUS_SESSION_BUS_ADDRESS",
+    "SSH_AUTH_SOCK",
+)
+PROTECTED_ENVIRONMENT_NAMES = {
+    "HOME",
+    "LOGNAME",
+    "PATH",
+    "SHELL",
+    "USER",
+    "XDG_RUNTIME_DIR",
+    "AI_WORKBENCH_API_URL",
+    "AI_WORKBENCH_EXECUTION_ID",
+    "AI_WORKBENCH_PROJECT_ID",
+    "AI_WORKBENCH_SECRET_FILE",
+    "AI_WORKBENCH_SESSION_ID",
+    "AI_WORKBENCH_TASK_ID",
+}
 
 
 def api_url() -> str:
@@ -71,7 +106,71 @@ def validate_launch(data: Any) -> tuple[dict[str, Any], str]:
         isinstance(key, str) and isinstance(value, str) for key, value in environment.items()
     ):
         raise RuntimeError("workflow launch environment is invalid")
+    environment_refs = launch.get("environmentRefs", [])
+    if not isinstance(environment_refs, list) or not all(
+        isinstance(name, str) and SECRET_NAME.fullmatch(name) for name in environment_refs
+    ):
+        raise RuntimeError("workflow launch secret references are invalid")
+    if len(environment_refs) != len(set(environment_refs)):
+        raise RuntimeError("workflow launch secret references contain duplicates")
+    if any(name in PROTECTED_ENVIRONMENT_NAMES for name in environment_refs):
+        raise RuntimeError("workflow launch cannot override protected environment")
     return launch, data["token"]
+
+
+def resolve_secret_environment(names: list[str]) -> dict[str, str]:
+    if not names:
+        return {}
+    configured = os.environ.get("AI_WORKBENCH_SECRET_FILE")
+    if not configured:
+        raise RuntimeError("approved secret provider is not configured")
+    provider = Path(configured)
+    if not provider.is_absolute():
+        raise RuntimeError("approved secret provider path must be absolute")
+    try:
+        info = provider.lstat()
+    except FileNotFoundError as error:
+        raise RuntimeError("approved secret provider is unavailable") from error
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise RuntimeError("approved secret provider must be a regular file without symlinks")
+    if provider.resolve(strict=True) != provider:
+        raise RuntimeError("approved secret provider path must be canonical")
+    if stat.S_IMODE(info.st_mode) & 0o077:
+        raise RuntimeError("approved secret provider must have mode 0600 or stricter")
+    if hasattr(os, "getuid") and info.st_uid != os.getuid():
+        raise RuntimeError("approved secret provider must be owned by the Workbench user")
+    if info.st_size > 1024 * 1024:
+        raise RuntimeError("approved secret provider is too large")
+
+    available: dict[str, str] = {}
+    for index, raw_line in enumerate(provider.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, separator, value = line.partition("=")
+        name = name.strip()
+        if not separator or not SECRET_NAME.fullmatch(name):
+            raise RuntimeError(f"secret provider contains an invalid entry at line {index}")
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        if "\0" in value:
+            raise RuntimeError(f"secret provider contains an invalid value at line {index}")
+        available[name] = value
+
+    resolved: dict[str, str] = {}
+    for name in names:
+        if name not in available:
+            raise RuntimeError(f"approved secret reference is unavailable: {name}")
+        resolved[name] = available[name]
+    return resolved
+
+
+def child_environment(launch: dict[str, Any]) -> dict[str, str]:
+    environment = {name: os.environ[name] for name in SAFE_AMBIENT_ENVIRONMENT if name in os.environ}
+    environment.update(resolve_secret_environment(launch.get("environmentRefs", [])))
+    # Canonical identifiers win over manifest-provided names.
+    environment.update(launch["environment"])
+    return environment
 
 
 def write_capability(execution_id: str, launch: dict[str, Any], token: str) -> str:
@@ -159,8 +258,7 @@ def execute_capability(path: str) -> int:
     launch, token = validate_launch({"launch": data.get("launch"), "token": data.get("token")})
     execution_id = str(data["executionId"])
     command = launch["command"]
-    environment = os.environ.copy()
-    environment.update(launch["environment"])
+    environment = child_environment(launch)
     child = subprocess.Popen(
         [command["executable"], *command["arguments"]],
         cwd=command["workingDirectory"],

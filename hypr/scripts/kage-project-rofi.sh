@@ -100,6 +100,9 @@ build_menu() {
     printf '  Resume current work\n'
     [ -n "$approval_id" ] && printf '  Review pending approval\n'
     [ -n "$workflow_execution_id" ] && printf '  Review workflow execution\n'
+    if [ -n "$workflow_execution_id" ] && [[ "$workflow_state" =~ ^(completed|failed|blocked|cancelled)$ ]]; then
+      printf '  Review isolated diff and cleanup\n'
+    fi
     if [ -n "$workflow_execution_id" ] && [[ "$workflow_state" =~ ^(failed|blocked|cancelled)$ ]]; then
       jq -r '.status.activeWork.recoveryWorkflowIds[]? | "[Recover] \(.)"' "$WORKBENCH_CACHE" 2>/dev/null || true
     fi
@@ -226,7 +229,7 @@ case "$CHOICE_CLEAN" in
     approval_id="$(jq -r '.status.activeWork.approvalId // ""' "$WORKBENCH_CACHE" 2>/dev/null || true)"
     [ -n "$approval_id" ] && xdg-open "${AI_WORKBENCH_URL%/}/approvals/$(jq -rn --arg value "$approval_id" '$value|@uri')" >/dev/null 2>&1 &
     ;;
-  "Review workflow execution")
+  "Review workflow execution" | "Review isolated diff and cleanup")
     workflow_execution_id="$(jq -r '.status.activeWork.workflowExecutionId // ""' "$WORKBENCH_CACHE" 2>/dev/null || true)"
     [ -n "$workflow_execution_id" ] && xdg-open "${AI_WORKBENCH_URL%/}/workflow-executions/$(jq -rn --arg value "$workflow_execution_id" '$value|@uri')" >/dev/null 2>&1 &
     ;;
