@@ -124,6 +124,7 @@ for _attempt in $(seq 1 50); do
 done
 grep -Fx 'execution-id' "$launch_file" >/dev/null
 
+: >"$open_file"
 WORKBENCH_TEST_ROFI_CHOICE='Review pending approval' \
 	PATH="$mock_bin:$PATH" HOME="$test_dir/home" XDG_CACHE_HOME="$cache_dir" \
 	AI_WORKBENCH_API_URL="http://127.0.0.1:5517" AI_WORKBENCH_URL="http://127.0.0.1:5317" \
@@ -131,11 +132,12 @@ WORKBENCH_TEST_ROFI_CHOICE='Review pending approval' \
 	WORKBENCH_ACTION_LAUNCH_FILE="$launch_file" WORKBENCH_ACTION_NOTIFICATION_FILE="$notification_file" \
 	"$repo_dir/hypr/scripts/kage-project-rofi.sh"
 for _attempt in $(seq 1 50); do
-	[ -s "$open_file" ] && break
+	grep -q 'approval%20active' "$open_file" 2>/dev/null && break
 	sleep 0.01
 done
 grep -Fx 'http://127.0.0.1:5317/approvals/approval%20active' "$open_file" >/dev/null
 
+: >"$open_file"
 WORKBENCH_TEST_ROFI_CHOICE='[Recover] show-failures' \
 	PATH="$mock_bin:$PATH" HOME="$test_dir/home" XDG_CACHE_HOME="$cache_dir" \
 	AI_WORKBENCH_API_URL="http://127.0.0.1:5517" AI_WORKBENCH_URL="http://127.0.0.1:5317" \
