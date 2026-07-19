@@ -71,8 +71,10 @@ Workbench-aware desktop scripts read `~/.config/ai-workbench/runtime.env`, the s
 `open-ai-workbench.sh` probes the core `/ready` endpoint and starts `ai-workbench.target` when the user units are installed. If systemd startup is unavailable or fails, it preserves the existing `ai-workbench` tmux fallback. Optional model and vector services do not prevent the project control plane from opening.
 
 The desktop observer, project watcher and notification bridge units read the central environment file. Bootstrap links
-the units but does not enable or start them. Install/start and rollback procedures remain explicit in the AI
-repository's `docs/RUNTIME_SUPERVISION.md`.
+the units but does not enable or start them. For a narrow install that does not touch unrelated dotfiles, use
+`setup/install-workbench-desktop-services.sh install --enable`; its `uninstall` action stops and removes only these
+three units while preserving caches and runtime configuration. Full install/start and rollback procedures remain
+explicit in the AI repository's `docs/RUNTIME_SUPERVISION.md`.
 
 The `ai-workbench-notification-bridge` graphical-session service consumes the canonical SSE stream and keeps only a private XDG reconnect cursor. It notifies for approvals, run/check failures, run completion, manually requested indexing, blocked work and runtime loss. Routine focus, retrieval and model-call events are ignored. Wayle DND and `AI_WORKBENCH_NOTIFICATIONS_ENABLED=false` suppress display without losing the event cursor. Notification actions open canonical Workbench deep links when supported.
 
@@ -129,6 +131,7 @@ shellcheck hypr/scripts/ai-workbench-observer hypr/scripts/kage \
 python3 -c 'import tomllib; tomllib.load(open("wayle/config.toml", "rb"))'
 wayle config schema >/dev/null
 ./setup/test-workbench-desktop.sh
+./setup/test-workbench-desktop-services.sh
 ./setup/test-project-profile.sh
 python3 -m unittest setup/test-workbench-project-watch.py
 python3 setup/test-workbench-notification-bridge.py

@@ -100,4 +100,5 @@ grep -F 'ai-workbench-project-watch.service' "$repo_dir/setup/bootstrap.sh" >/de
 grep -F 'ExecStart=%h/.config/hypr/scripts/ai-workbench-project-watch.py' \
   "$repo_dir/systemd/user/ai-workbench-project-watch.service" >/dev/null
 grep -F 'ProtectHome=read-only' "$repo_dir/systemd/user/ai-workbench-project-watch.service" >/dev/null
+grep -F 'ai-workbench-project-watch.service' "$repo_dir/setup/install-workbench-desktop-services.sh" >/dev/null
 printf 'workbench desktop adapters: ok\n'
