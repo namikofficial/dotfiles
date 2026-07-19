@@ -103,6 +103,8 @@ grep -F 'ProtectHome=read-only' "$repo_dir/systemd/user/ai-workbench-project-wat
 grep -F 'ai-workbench-project-watch.service' "$repo_dir/setup/install-workbench-desktop-services.sh" >/dev/null
 grep -F 'socket.AF_UNIX' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 grep -F 'discover_hypr_signature' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
+grep -F 'activewindowv2' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
+grep -F 'last_payload' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 grep -F 'date -u +%Y-%m-%dT%H:%M:%S.%3NZ' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 if grep -F 'socat' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null; then
   printf 'observer must not depend on optional socat\n' >&2
