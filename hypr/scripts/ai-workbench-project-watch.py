@@ -57,6 +57,7 @@ EXCLUDED_DIRECTORIES = {
     "target",
     "vendor",
 }
+DEFAULT_API_URL = "http://127.0.0.1:4417"
 
 
 @dataclass(frozen=True)
@@ -234,7 +235,10 @@ def run() -> int:
             str(cache_root / "ai-workbench" / "project-status-v1.json"),
         )
     )
-    api_url = os.environ.get("AI_WORKBENCH_API_URL", "http://127.0.0.1:4318")
+    api_url = os.environ.get(
+        "AI_WORKBENCH_API_URL",
+        os.environ.get("AI_API_URL", DEFAULT_API_URL),
+    )
     if not is_loopback_api_url(api_url):
         log_event("configuration.invalid", "error", errorCode="non_loopback_api_url")
         return 2

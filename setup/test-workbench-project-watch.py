@@ -71,10 +71,13 @@ class ProjectWatchTests(unittest.TestCase):
         self.assertEqual(urlopen.call_args.kwargs["timeout"], 10.0)
 
     def test_rejects_non_loopback_api_urls(self) -> None:
-        self.assertTrue(watch.is_loopback_api_url("http://127.0.0.1:4318"))
-        self.assertTrue(watch.is_loopback_api_url("http://[::1]:4318"))
+        self.assertTrue(watch.is_loopback_api_url("http://127.0.0.1:4417"))
+        self.assertTrue(watch.is_loopback_api_url("http://[::1]:4417"))
         self.assertFalse(watch.is_loopback_api_url("https://example.com"))
         self.assertFalse(watch.is_loopback_api_url("file:///tmp/socket"))
+
+    def test_runtime_default_uses_the_canonical_api_port(self) -> None:
+        self.assertEqual(watch.DEFAULT_API_URL, "http://127.0.0.1:4417")
 
 
 if __name__ == "__main__":
