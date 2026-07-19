@@ -24,6 +24,36 @@ ln -sf /usr/bin/llama-swap "$HOME/.local/bin/llama-swap"
 ln -sf "$HOME/Documents/code/dotfiles/configs/opencode/opencode.local-llamacpp.json" "$HOME/.config/opencode/opencode.json"
 rm -f "$HOME/.local/bin/llm-manager"
 
+# Remove remembered local model IDs that are no longer routed by llama-swap.
+MODEL_STATE="$HOME/.local/state/opencode/model.json"
+if [ -f "$MODEL_STATE" ]; then
+  python - "$MODEL_STATE" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+try:
+    state = json.loads(path.read_text())
+except (OSError, ValueError):
+    raise SystemExit(0)
+
+allowed_local = {"granite-agent"}
+for key in ("recent", "favorite"):
+    values = state.get(key, [])
+    state[key] = [
+        item for item in values
+        if item.get("providerID") != "llamacpp"
+        or item.get("modelID") in allowed_local
+    ]
+state["variant"] = {
+    key: value for key, value in state.get("variant", {}).items()
+    if not key.startswith("llamacpp/") or key == "llamacpp/granite-agent"
+}
+path.write_text(json.dumps(state, separators=(",", ":")) + "\n")
+PY
+fi
+
 echo "Done. Next:"
 echo "  1) put GGUF files under: $HOME/llama-models/chat and $HOME/llama-models/embed"
 echo "  2) llama-swap-manager start       # chat/agent endpoint :8080"

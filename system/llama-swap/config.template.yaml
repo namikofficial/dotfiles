@@ -20,9 +20,9 @@ models:
       --parallel 1
       --jinja
     aliases:
-      - local
       - qwen3-4b-local
       - qwen3-4b
+      - qwen3
 
   granite-agent:
     cmd: >
@@ -30,7 +30,7 @@ models:
       --host 127.0.0.1
       --port ${PORT}
       --model __GRANITE_MODEL__
-      --ctx-size 16384
+      --ctx-size 32768
       __GPU_LAYERS_ARG__
       --threads 8
       --parallel 1
@@ -38,21 +38,6 @@ models:
     aliases:
       - granite-agent
       - granite
-
-  qwen3-coder-heavy:
-    cmd: >
-      __LLAMA_SERVER__
-      --host 127.0.0.1
-      --port ${PORT}
-      --model __QWEN3_CODER_HEAVY_MODEL__
-      --ctx-size 8192
-      __GPU_LAYERS_ARG__
-      --threads 8
-      --parallel 1
-      --jinja
-    aliases:
-      - qwen3-coder-heavy
-      - qwen3-coder-30b
 
   qwen35-4b-local:
     cmd: >
@@ -65,6 +50,9 @@ models:
       --threads 8
       --parallel 1
       --jinja
+      --reasoning on
+      --reasoning-budget -1
     aliases:
       - qwen35-4b-local
       - qwen3.5-4b
+      - qwen35

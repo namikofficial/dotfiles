@@ -72,12 +72,11 @@ config = Path(sys.argv[2])
 model_root = Path(sys.argv[3])
 llama_server = sys.argv[4]
 gpu_layers = os.environ.get("LLAMA_N_GPU_LAYERS", "").strip()
-gpu_layers_arg = f"--n-gpu-layers {gpu_layers}" if gpu_layers else ""
+gpu_layers_arg = f"--n-gpu-layers {gpu_layers}" if gpu_layers else "--n-gpu-layers -1"
 specs = {
-    'qwen3-4b-local': ('chat/qwen3-4b-instruct-2507', 'qwen3'),
     'granite-agent': ('chat/granite-4-h-tiny', 'granite'),
-    'qwen3-coder-heavy': ('coder/qwen3-coder-30b-a3b', 'heavy'),
-    'qwen35-4b-local': ('chat/qwen3.5-4b', 'qwen35'),
+    'qwen3-4b-local': ('chat/qwen3-4b-instruct-2507', 'qwen3-4b'),
+    'qwen35-4b-local': ('chat/qwen3.5-4b', 'qwen3.5-4b'),
 }
 
 def valid_gguf(path: Path) -> bool:
@@ -95,18 +94,16 @@ def find_model(relative_dir: str, label: str, required: bool = False) -> str | N
         print(f'missing required {label} GGUF under {directory}', file=sys.stderr)
     return str(candidates[0]) if candidates else None
 
-qwen3_model = find_model(*specs['qwen3-4b-local'], required=True)
-granite_model = find_model(*specs['granite-agent'], required=False)
-heavy_model = find_model(*specs['qwen3-coder-heavy'], required=False)
-qwen35_model = find_model(*specs['qwen35-4b-local'], required=False)
-paths = {
-    'qwen3-4b-local': qwen3_model,
-    'granite-agent': granite_model,
-    'qwen3-coder-heavy': heavy_model,
-    'qwen35-4b-local': qwen35_model,
+models = {
+    name: find_model(*spec, required=True)
+    for name, spec in specs.items()
 }
-if not qwen3_model:
-    raise SystemExit('main model is required: download Qwen3-4B into chat/qwen3-4b-instruct-2507')
+paths = {
+    **models,
+}
+missing = [name for name, path in paths.items() if not path]
+if missing:
+    raise SystemExit('required model GGUF missing: ' + ', '.join(missing))
 rendered = (
     template.read_text()
     .replace('__LLAMA_SERVER__', llama_server)
@@ -116,7 +113,6 @@ for name, path in paths.items():
     rendered = rendered.replace({
         'qwen3-4b-local': '__QWEN3_MODEL__',
         'granite-agent': '__GRANITE_MODEL__',
-        'qwen3-coder-heavy': '__QWEN3_CODER_HEAVY_MODEL__',
         'qwen35-4b-local': '__QWEN35_MODEL__',
     }[name], path or '/invalid/missing-model.gguf')
 lines = rendered.splitlines()
@@ -237,21 +233,17 @@ switch_model() {
     exit 1
   }
   case "$requested" in
-    local | qwen3 | qwen3-4b | qwen3-4b-local)
-      model="qwen3-4b-local"
-      alias="local"
-      ;;
     granite | granite-agent)
       model="granite-agent"
-      alias="granite-agent"
+      alias="granite"
       ;;
-    heavy | qwen3-coder-heavy | qwen3-coder-30b)
-      model="qwen3-coder-heavy"
-      alias="qwen3-coder-heavy"
+    qwen3 | qwen3-4b | qwen3-4b-local)
+      model="qwen3-4b-local"
+      alias="qwen3-4b"
       ;;
-    qwen35 | qwen3.5 | qwen35-4b | qwen35-4b-local)
+    qwen35 | qwen3.5-4b | qwen35-4b-local)
       model="qwen35-4b-local"
-      alias="qwen35-4b-local"
+      alias="qwen3.5-4b"
       ;;
     *)
       echo "unknown model alias: $requested" >&2
