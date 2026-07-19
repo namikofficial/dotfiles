@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MANAGER="$(cd "$(dirname "$0")" && pwd)/nox-gpu-manager.sh"
+if [ "${NOX_AI_DEVICE:-auto}" = cuda ] || { [ "${NOX_AI_DEVICE:-auto}" = auto ] && command -v nvidia-smi >/dev/null 2>&1; }; then
+  exec "$MANAGER" with "${NOX_AI_PYTHON:-$HOME/.local/share/nox-ai/bin/python}" -m whisper "$@" --device cuda
+fi
+exec "${NOX_AI_PYTHON:-$HOME/.local/share/nox-ai/bin/python}" -m whisper "$@" --device cpu

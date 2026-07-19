@@ -14,10 +14,15 @@ models:
       --host 127.0.0.1
       --port ${PORT}
       --model __QWEN3_MODEL__
-      --ctx-size 81920
+      --ctx-size 65536
       __GPU_LAYERS_ARG__
-      --threads 8
+      --threads 10
       --parallel 1
+      --flash-attn on
+      --cache-type-k q4_0
+      --cache-type-v q4_0
+      --batch-size 512
+      --ubatch-size 256
       --jinja
     aliases:
       - qwen3-4b-local
@@ -32,8 +37,13 @@ models:
       --model __GRANITE_MODEL__
       --ctx-size 32768
       __GPU_LAYERS_ARG__
-      --threads 8
+      --threads 10
       --parallel 1
+      --flash-attn on
+      --cache-type-k q4_0
+      --cache-type-v q4_0
+      --batch-size 512
+      --ubatch-size 256
       --jinja
     aliases:
       - granite-agent
@@ -45,10 +55,15 @@ models:
       --host 127.0.0.1
       --port ${PORT}
       --model __QWEN35_MODEL__
-      --ctx-size 81920
+      --ctx-size 65536
       __GPU_LAYERS_ARG__
-      --threads 8
+      --threads 10
       --parallel 1
+      --flash-attn on
+      --cache-type-k q4_0
+      --cache-type-v q4_0
+      --batch-size 512
+      --ubatch-size 256
       --jinja
       --reasoning on
       --reasoning-budget -1

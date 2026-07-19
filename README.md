@@ -101,6 +101,18 @@ Run shell checks locally:
 ./setup/check-dotfiles.sh --all
 ```
 
+After upgrading Kitty, scrcpy, Neovim, libvirt, or the desktop stack, run the
+read-only workstation verification pass:
+
+```sh
+upgrade-verify
+```
+
+The check reports package versions, Kitty configuration errors, Kitty terminfo,
+Neovim startup, scrcpy encoders, Android SDK availability, KVM access, and
+libvirt domains/networks/storage pools. Warnings are diagnostic and do not
+modify system or VM state.
+
 Remove legacy shell experiments after the Wayle-first shell cleanup:
 
 ```sh

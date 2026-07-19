@@ -16,6 +16,30 @@ Use the deeper path when something feels off or after a system update:
 dev-health --full
 ```
 
+After upgrading Kitty, scrcpy, Neovim, libvirt, or the desktop stack, run the
+read-only workstation verification pass:
+
+```sh
+upgrade-verify
+```
+
+For Kitty-specific checks, run the config probe and confirm the terminal identity:
+
+```sh
+kitty --config "$DOTFILES_HOME/kitty/kitty.conf" --dump-commands
+echo "$TERM"
+infocmp xterm-kitty >/dev/null && echo "kitty terminfo is installed"
+```
+
+For Android and virtualization checks:
+
+```sh
+scrcpy --list-encoders
+virsh list --all
+virsh net-list --all
+virsh pool-list --all
+```
+
 The fast check covers:
 
 - dotfiles git state
