@@ -73,7 +73,7 @@ fallback="$(
     "$repo_dir/hypr/scripts/ai-helper-context.sh" summary
 )"
 
-grep -F "Project: project at $project_dir | clean" <<<"$fallback" >/dev/null
+grep -F "Project: project at $project_dir | repository state unknown" <<<"$fallback" >/dev/null
 grep -F 'Workbench context: offline-fallback | confidence 0 | API false | cache stale' <<<"$fallback" >/dev/null
 if grep -F 'branch ' <<<"$fallback" >/dev/null; then
   printf 'offline fallback unexpectedly inferred a Git branch\n' >&2
@@ -95,7 +95,7 @@ launch="$(
     "$repo_dir/hypr/scripts/ai-helper-context.sh" summary
 )"
 
-grep -F "Pinned Scratchpad at $project_dir | id launch-id | clean" <<<"$launch" >/dev/null
+grep -F "Pinned Scratchpad at $project_dir | id launch-id | repository state unknown" <<<"$launch" >/dev/null
 grep -F 'Workbench context: scratchpad-launch | confidence 1 | API false | cache stale' <<<"$launch" >/dev/null
 grep -F 'Active task: launch-task' <<<"$launch" >/dev/null
 grep -F 'Active run: launch-run' <<<"$launch" >/dev/null

@@ -20,6 +20,7 @@ project_branch=""
 project_modified="0"
 project_staged="0"
 project_dirty="false"
+repository_status_known="false"
 current_file=""
 context_source="offline-fallback"
 context_confidence="0"
@@ -57,6 +58,7 @@ load_workbench_status() {
   project_modified="$(jq -r '(.status.git.modified // 0) + (.status.git.deleted // 0) + (.status.git.renamed // 0) + (.status.git.untracked // 0)' "$workbench_status_cache")"
   project_staged="$(jq -r '.status.git.staged // 0' "$workbench_status_cache")"
   project_dirty="$(jq -r '.status.git.dirty // false' "$workbench_status_cache")"
+  repository_status_known="$(jq -r '(.status.project.path // "") != "" and .status.git != null' "$workbench_status_cache")"
   context_source="$(jq -r '.status.context.source // "unresolved"' "$workbench_status_cache")"
   context_confidence="$(jq -r '.status.context.confidence // 0' "$workbench_status_cache")"
   current_file="$(jq -r '.status.context.activeFile // ""' "$workbench_status_cache")"
@@ -89,6 +91,7 @@ load_project_context() {
       project_modified="0"
       project_staged="0"
       project_dirty="false"
+      repository_status_known="false"
       current_file=""
       cache_stale="true"
     fi
@@ -146,8 +149,12 @@ join_available() {
 }
 
 project_line() {
-  local status="clean"
-  if [ "${project_dirty:-false}" = "true" ] || [ "${project_modified:-0}" -gt 0 ]; then
+  local status="repository state unknown"
+  if [ "$repository_status_known" = "true" ]; then
+    status="clean"
+  fi
+  if [ "$repository_status_known" = "true" ] &&
+    { [ "${project_dirty:-false}" = "true" ] || [ "${project_modified:-0}" -gt 0 ]; }; then
     status="dirty: ${project_modified} changed"
     [ "${project_staged:-0}" -gt 0 ] && status="${status}, ${project_staged} staged"
   fi

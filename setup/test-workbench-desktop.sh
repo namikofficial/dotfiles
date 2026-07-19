@@ -106,7 +106,8 @@ grep -F 'discover_hypr_signature' "$repo_dir/hypr/scripts/ai-workbench-observer"
 grep -F 'activewindowv2' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 grep -F 'last_payload' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 grep -F 'date -u +%Y-%m-%dT%H:%M:%S.%3NZ' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
-# shellcheck disable=SC2016 -- matching literal shell source in the observer
+# Match literal shell source in the observer.
+# shellcheck disable=SC2016
 grep -F '"$project_id" != "$cached_project"' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 if grep -F 'socat' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null; then
   printf 'observer must not depend on optional socat\n' >&2
