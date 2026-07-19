@@ -128,4 +128,7 @@ if grep -F '/kage/project-current.json' "$repo_dir/hypr/scripts/ai-helper-contex
   printf 'AI helper must not consume the legacy Kage project cache\n' >&2
   exit 1
 fi
+grep -F 'NOXFLOW_DB_CONTEXT="$scratch_context"' "$repo_dir/hypr/scripts/scratchpad-manager.sh" >/dev/null
+grep -F 'AI_WORKBENCH_PROJECT_PATH="$scratch_project_path"' "$repo_dir/hypr/scripts/scratchpad-manager.sh" >/dev/null
+grep -F 'AI_WORKBENCH_SESSION_ID="$scratch_session_id"' "$repo_dir/hypr/scripts/scratchpad-manager.sh" >/dev/null
 printf 'workbench desktop adapters: ok\n'

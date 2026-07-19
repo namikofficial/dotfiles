@@ -121,7 +121,12 @@ Workbench identifiers and the explicitly requested values.
 
 ## Scratchpads and resume
 
-Project resume, AI helper context, and AI/log scratchpad launch now prefer the canonical cached project path. New scratchpad processes receive `AI_WORKBENCH_PROJECT_ID`, `AI_WORKBENCH_PROJECT_NAME`, `AI_WORKBENCH_TASK_ID`, `AI_WORKBENCH_RUN_ID`, and `AI_WORKBENCH_SESSION_ID` alongside the path. Their terminal title shows the visible project identity. Explicit `NOXFLOW_AI_CONTEXT` and `NOXFLOW_SCRATCH_PIN_PROJECT_PATH` remain supported.
+Project resume, AI helper context, and AI, runner/log, and database scratchpad launch now prefer the canonical cached
+project path. New contextual scratchpad processes receive `AI_WORKBENCH_PROJECT_ID`, `AI_WORKBENCH_PROJECT_PATH`,
+`AI_WORKBENCH_PROJECT_NAME`, `AI_WORKBENCH_TASK_ID`, `AI_WORKBENCH_RUN_ID`, and `AI_WORKBENCH_SESSION_ID`. Their
+terminal title shows the visible project identity, and the database pad starts in the same canonical project without
+copying database credentials into the desktop cache. Explicit `NOXFLOW_AI_CONTEXT`, `NOXFLOW_DB_CONTEXT`, and
+`NOXFLOW_SCRATCH_PIN_PROJECT_PATH` remain supported.
 
 The standalone AI helper exports the same project, session, task and run identifiers before launching Codex.
 OpenCode inherits them through the AI scratchpad shell. Missing or stale cache data remains read-only fallback; these
