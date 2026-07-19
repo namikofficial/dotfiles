@@ -207,7 +207,9 @@ observe_once() {
   stale_after="$(jq -r '.status.staleAfter // ""' "$STATUS_CACHE" 2>/dev/null || true)"
   now_epoch="$(date +%s)"
   stale_epoch="$(date -d "$stale_after" +%s 2>/dev/null || printf '0')"
-  if [ -n "$project_id" ] && { [ "$project_id" != "$cached_project" ] || [ "$stale_epoch" -le "$now_epoch" ]; }; then
+  # A transition to no project must replace an old project cache as well; otherwise
+  # Wayle would keep displaying a project that the canonical resolver rejected.
+  if [ "$project_id" != "$cached_project" ] || [ "$stale_epoch" -le "$now_epoch" ]; then
     curl --silent --fail --max-time 10 -H 'accept: application/json' \
       "$API_URL/project-status/compact" >/dev/null 2>&1 || true
   fi
