@@ -148,7 +148,7 @@ join_available() {
 project_line() {
   local status="clean"
   if [ "${project_dirty:-false}" = "true" ] || [ "${project_modified:-0}" -gt 0 ]; then
-    status="dirty: ${project_modified} modified"
+    status="dirty: ${project_modified} changed"
     [ "${project_staged:-0}" -gt 0 ] && status="${status}, ${project_staged} staged"
   fi
 

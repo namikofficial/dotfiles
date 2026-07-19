@@ -52,7 +52,7 @@ summary="$(
     "$repo_dir/hypr/scripts/ai-helper-context.sh" summary
 )"
 
-grep -F "Canonical Project at $project_dir | id project-id | branch main | dirty: 7 modified, 2 staged" <<<"$summary" >/dev/null
+grep -F "Canonical Project at $project_dir | id project-id | branch main | dirty: 7 changed, 2 staged" <<<"$summary" >/dev/null
 grep -F "focus $project_dir/src/main.ts" <<<"$summary" >/dev/null
 grep -F 'Workbench context: focused-editor | confidence 0.96 | API true | cache fresh' <<<"$summary" >/dev/null
 grep -F 'Local AI: Coding [ready]' <<<"$summary" >/dev/null

@@ -106,9 +106,19 @@ grep -F 'discover_hypr_signature' "$repo_dir/hypr/scripts/ai-workbench-observer"
 grep -F 'activewindowv2' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 grep -F 'last_payload' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 grep -F 'date -u +%Y-%m-%dT%H:%M:%S.%3NZ' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
+# shellcheck disable=SC2016 -- matching literal shell source in the observer
 grep -F '"$project_id" != "$cached_project"' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 if grep -F 'socat' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null; then
   printf 'observer must not depend on optional socat\n' >&2
+  exit 1
+fi
+if grep -F 'get-project-context.sh' "$repo_dir/hypr/scripts/ai-helper-context.sh" \
+  "$repo_dir/hypr/scripts/local-llm-chat-enhanced.sh" >/dev/null; then
+  printf 'AI helpers must consume canonical Workbench context instead of the legacy detector\n' >&2
+  exit 1
+fi
+if grep -F '/kage/project-current.json' "$repo_dir/hypr/scripts/ai-helper-context.sh" >/dev/null; then
+  printf 'AI helper must not consume the legacy Kage project cache\n' >&2
   exit 1
 fi
 printf 'workbench desktop adapters: ok\n'

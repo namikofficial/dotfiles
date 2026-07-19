@@ -123,6 +123,12 @@ The standalone AI helper exports the same project, session, task and run identif
 OpenCode inherits them through the AI scratchpad shell. Missing or stale cache data remains read-only fallback; these
 clients never create a second session store.
 
+`ai-helper-context.sh` reads project, Git, active-file, task/run/session, model and freshness fields only from the
+versioned Workbench status cache. It does not probe Git, infer a framework, invoke the legacy focus detector, or read
+Kage's project cache. If no canonical project is available, it labels the selected working directory as an offline
+directory-only fallback and deliberately leaves repository state unknown. The enhanced local chat uses the same
+builder and applies the same conservative fallback if the builder is unavailable.
+
 An existing interactive scratchpad is preserved when project focus changes. The manager notifies that it remains pinned instead of destroying unsaved terminal work. Close and reopen a pad to follow the current project, or set `NOXFLOW_SCRATCH_PIN_PROJECT_PATH` for an intentional persistent pin.
 
 ## Offline behavior
@@ -153,6 +159,7 @@ python3 -c 'import tomllib; tomllib.load(open("wayle/config.toml", "rb"))'
 wayle config schema >/dev/null
 ./setup/test-workbench-desktop.sh
 ./setup/test-workbench-desktop-services.sh
+./setup/test-ai-helper-context.sh
 ./setup/test-project-profile.sh
 python3 -m unittest setup/test-workbench-project-watch.py
 python3 setup/test-workbench-notification-bridge.py
