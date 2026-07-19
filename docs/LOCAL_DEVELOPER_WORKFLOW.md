@@ -129,7 +129,11 @@ client-backup verify
 
 The timer runs nightly, retains 30 daily snapshots, and does not dump local development databases. `client-backup status` shows the latest snapshot. Restore only into a new non-production database.
 
-`project-resume` is the opposite path: it uses the focused repo to restore the current project session, reopen the editor, and bring back Sidecar or related scratchpads.
+`project-resume restore` is the opposite path: it resolves the canonical active/selected project, resumes its matching
+shared Workbench session, opens the manifest editor and tmux session, and restores allowlisted manifest scratchpads
+plus Sidecar. Use `project-resume launch` for editor/tmux without manifest scratchpad restoration, or
+`project-resume --fallback-path /absolute/path` for a terminal-only offline fallback. The fallback never creates a
+second task/session record or executes a legacy project command.
 
 ## Local AI Routing Policy
 

@@ -138,6 +138,17 @@ Kage's project cache. If no canonical project is available, it labels the select
 directory-only fallback and deliberately leaves repository state unknown. The enhanced local chat uses the same
 builder and applies the same conservative fallback if the builder is unavailable.
 
+`project-resume restore` resolves the cached active project or registry selection through `project-profile desktop`,
+resumes a matching resumable Workbench session through `/sessions/:id/resume`, and launches the manifest-selected
+editor and tmux session. It then restores only allowlisted manifest scratchpads with the same project/task/run/session
+launch envelope. An explicit project can never inherit active-work IDs from a different cached project. Manifest
+`desktop.scene` continues to identify a canonical development workflow (`project-profile dev`); the resume adapter
+does not translate it into shell-owned pane commands.
+
+When no registered project resolves, `project-resume` may open an editor and tmux rooted at the focused directory or
+an explicit `--fallback-path`. That fallback performs no Workbench mutation, carries no invented task/session IDs,
+and does not execute manifest or legacy project commands.
+
 An existing interactive scratchpad is preserved when project focus changes. The manager notifies that it remains pinned instead of destroying unsaved terminal work. Close and reopen a pad to follow the current project, or set `NOXFLOW_SCRATCH_PIN_PROJECT_PATH` for an intentional persistent pin.
 
 ## Offline behavior
@@ -171,6 +182,7 @@ wayle config schema >/dev/null
 ./setup/test-workbench-desktop.sh
 ./setup/test-workbench-desktop-services.sh
 ./setup/test-ai-helper-context.sh
+./setup/test-project-resume.sh
 ./setup/test-project-profile.sh
 python3 -m unittest setup/test-workbench-project-watch.py
 python3 setup/test-workbench-notification-bridge.py

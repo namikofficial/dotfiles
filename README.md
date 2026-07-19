@@ -136,7 +136,9 @@ project-profile status
 - `dotfiles-stale-check` blocks stale retired-stack references from creeping back into docs/scripts.
 - `project-profile` lists and launches Workbench-registered projects from the canonical registry/cache; mutating
   development and check actions always go through approved Workbench workflows.
-- `project-resume` restores the current project session, editor, and sidecar state from the focused repo.
+- `project-resume` resumes the canonical shared session and restores the manifest editor, tmux session, Sidecar, and
+  allowlisted scratchpad preferences. When canonical state is unavailable it opens an explicit read-only desktop
+  fallback without creating project or task state.
 
 If package install fails with `db.lck`, clear stale lock and retry:
 

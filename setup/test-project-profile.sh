@@ -76,6 +76,7 @@ chmod +x "$mock_bin/curl" "$mock_bin/tmux" "$mock_bin/nvim" "$mock_bin/kitty"
 
 run_profile() {
   env PATH="$mock_bin:$PATH" XDG_CACHE_HOME="$cache_dir" \
+    AI_WORKBENCH_RUNTIME_ENV="$test_dir/missing-runtime.env" \
     PROJECT_PROFILE_CURL_LOG="$curl_log" PROJECT_PROFILE_TMUX_LOG="$tmux_log" \
     PROJECT_PROFILE_EDITOR_LOG="$editor_log" PROJECT_PROFILE_KITTY_LOG="$kitty_log" \
     AI_WORKBENCH_API_URL="http://127.0.0.1:4317" \
@@ -100,6 +101,11 @@ run_profile desktop one | jq -e '
 run_profile edit one
 grep -Fx "$project_dir" "$editor_log" >/dev/null
 run_profile launch one
+for _attempt in $(seq 1 50); do
+  grep -F -- "--title project-one-dev-editor" "$kitty_log" >/dev/null 2>&1 && break
+  sleep 0.01
+done
+grep -F -- "--directory $project_dir --title project-one-dev-editor -e nvim $project_dir" "$kitty_log" >/dev/null
 grep -F -- "--title project-one-dev -e tmux new-session -A -s project-one-dev -c $project_dir" "$kitty_log" >/dev/null
 grep -F '/actions/full-development/run' "$curl_log" >/dev/null
 grep -F '/actions/verify/run' "$curl_log" >/dev/null

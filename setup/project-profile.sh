@@ -251,9 +251,8 @@ run_action() {
   fi
 }
 
-open_editor() {
-  local project="$1" path preferred candidate
-  path="$(project_path "$project")"
+select_editor() {
+  local project="$1" preferred candidate
   preferred="$(jq -r '.preferredEditor // ""' <<<"$project")"
   for candidate in "$preferred" code codium zed nvim hx vim emacsclient; do
     [ -n "$candidate" ] || continue
@@ -262,12 +261,36 @@ open_editor() {
       *) continue ;;
     esac
     if command -v "$candidate" >/dev/null 2>&1; then
-      "$candidate" "$path"
+      printf '%s\n' "$candidate"
       return 0
     fi
   done
   echo "no supported manifest/fallback editor is installed" >&2
   return 1
+}
+
+open_editor() {
+  local project="$1" path editor
+  path="$(project_path "$project")"
+  editor="$(select_editor "$project")" || return
+  "$editor" "$path"
+}
+
+launch_editor() {
+  local project="$1" path editor session
+  path="$(project_path "$project")"
+  editor="$(select_editor "$project")" || return
+  case "$editor" in
+    nvim | hx | vim)
+      command -v kitty >/dev/null 2>&1 || {
+        echo "terminal editor $editor requires Kitty for desktop launch" >&2
+        return 1
+      }
+      session="$(project_session "$project")"
+      kitty --directory "$path" --title "$session-editor" -e "$editor" "$path"
+      ;;
+    *) "$editor" "$path" ;;
+  esac
 }
 
 desktop_projection() {
@@ -327,7 +350,7 @@ case "$command_name" in
       dev | check) run_action "$project" "$command_name" ;;
       launch)
         path="$(project_path "$project")"
-        open_editor "$project" >/dev/null 2>&1 &
+        launch_editor "$project" >/dev/null 2>&1 &
         if command -v kitty >/dev/null 2>&1; then
           session="$(project_session "$project")"
           exec kitty --title "$session" -e tmux new-session -A -s "$session" -c "$path"

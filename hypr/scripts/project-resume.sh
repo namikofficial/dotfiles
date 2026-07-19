@@ -87,18 +87,19 @@ scratchpad_manager="${NOXFLOW_SCRATCHPAD_MANAGER:-$SCRIPT_DIR/scratchpad-manager
 sidepanel="${NOXFLOW_SIDEPANEL:-$SCRIPT_DIR/sidepanel.sh}"
 
 project_id=""
+cached_work_project_id=""
 project_name=""
 root=""
 task_id=""
 run_id=""
 session_id=""
 desktop_json=""
-canonical=0
 
 load_cached_work() {
   command -v jq >/dev/null 2>&1 || return 0
   [ -s "$workbench_cache" ] || return 0
   project_id="$(jq -r '.status.project.id // ""' "$workbench_cache" 2>/dev/null || true)"
+  cached_work_project_id="$project_id"
   project_name="$(jq -r '.status.project.name // ""' "$workbench_cache" 2>/dev/null || true)"
   root="$(jq -r '.status.project.path // ""' "$workbench_cache" 2>/dev/null || true)"
   task_id="$(jq -r '.status.activeWork.taskId // ""' "$workbench_cache" 2>/dev/null || true)"
@@ -123,8 +124,12 @@ resolve_desktop() {
   [ -d "$root" ] || return 1
   project_id="$(jq -r '.project.id' <<<"$desktop_json")"
   project_name="$(jq -r '.project.name' <<<"$desktop_json")"
+  if [ "$cached_work_project_id" != "$project_id" ]; then
+    task_id=""
+    run_id=""
+    session_id=""
+  fi
   root="$(cd "$root" 2>/dev/null && pwd -P)"
-  canonical=1
 }
 
 warn() {
@@ -150,7 +155,7 @@ resume_shared_session() {
     warn "Workbench session $session_id could not be resumed; desktop launch will continue"
     return 0
   }
-  jq -e '.status == "ok"' <<<"$response" >/dev/null 2>&1 || \
+  jq -e '.status == "ok"' <<<"$response" >/dev/null 2>&1 ||
     warn "Workbench rejected session resume for $session_id; desktop launch will continue"
 }
 
@@ -192,6 +197,7 @@ restore_manifest_scratchpads() {
   for pad in ai logs db terminal notes browser-devtools; do
     [ "${seen[$pad]:-0}" = "1" ] && launch_scratchpad "$pad"
   done
+  return 0
 }
 
 launch_canonical_desktop() {
@@ -200,6 +206,7 @@ launch_canonical_desktop() {
   "$project_profile" launch "$project_id" >/dev/null 2>&1 &
   restore_sidecar
   restore_manifest_scratchpads
+  return 0
 }
 
 load_fallback_root() {
@@ -239,7 +246,7 @@ start_fallback_tmux() {
 
 launch_offline_fallback() {
   load_fallback_root
-  warn "No canonical project resolved; opening a terminal-only desktop fallback for $root"
+  warn "No canonical project resolved; opening a read-only desktop fallback for $root"
   open_fallback_editor
   start_fallback_tmux
   restore_sidecar
@@ -247,6 +254,7 @@ launch_offline_fallback() {
     start_local_ai_runtime
     launch_scratchpad ai
   fi
+  return 0
 }
 
 load_cached_work
