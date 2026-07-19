@@ -368,7 +368,7 @@ spawn_obsidian() {
 }
 
 load_scratch_context() {
-  local context="$1" canonical_path="" canonical_context=""
+  local context="$1" canonical_path="" canonical_context="" explicit_path="" explicit_context=""
   [ -d "$context" ] || context="$HOME"
   scratch_context="$(cd "$context" 2>/dev/null && pwd -P)"
   scratch_project_id=""
@@ -377,6 +377,19 @@ load_scratch_context() {
   scratch_task_id=""
   scratch_run_id=""
   scratch_session_id=""
+  explicit_path="${AI_WORKBENCH_PROJECT_PATH:-}"
+  if [ -n "${AI_WORKBENCH_PROJECT_ID:-}" ] && [ -n "$explicit_path" ] && [ -d "$explicit_path" ]; then
+    explicit_context="$(cd "$explicit_path" 2>/dev/null && pwd -P)"
+    if [ "$explicit_context" = "$scratch_context" ]; then
+      scratch_project_id="$AI_WORKBENCH_PROJECT_ID"
+      scratch_project_path="$explicit_context"
+      scratch_project_name="${AI_WORKBENCH_PROJECT_NAME:-$(basename "$explicit_context")}"
+      scratch_task_id="${AI_WORKBENCH_TASK_ID:-}"
+      scratch_run_id="${AI_WORKBENCH_RUN_ID:-}"
+      scratch_session_id="${AI_WORKBENCH_SESSION_ID:-}"
+      return 0
+    fi
+  fi
   if command -v jq >/dev/null 2>&1 && [ -s "$workbench_status_cache" ]; then
     canonical_path="$(jq -r '.status.project.path // ""' "$workbench_status_cache" 2>/dev/null || true)"
     if [ -n "$canonical_path" ] && [ -d "$canonical_path" ]; then

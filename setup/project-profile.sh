@@ -27,6 +27,7 @@ Commands:
   edit <project>          Open the canonical project path in an editor
   shell <project>         Open a project-rooted Kitty shell
   tmux <project>          Attach/create the manifest-named tmux session
+  desktop <project>       Print the safe manifest desktop projection as JSON
   dev <project>           Run the manifest scene/development workflow
   check <project>         Run the manifest verification/check workflow
   launch <project>        Open the editor and manifest-named tmux session
@@ -65,7 +66,10 @@ load_registry() {
             id, name, path, repositoryRoot,
             aliases: (.detection.aliases // []),
             packageManager,
-            tmuxSession: (.desktop.tmuxSession // null)
+            tmuxSession: (.desktop.tmuxSession // null),
+            preferredEditor: (.desktop.preferredEditor // null),
+            scratchpads: (.desktop.scratchpads // []),
+            scene: (.desktop.scene // null)
           }
         ]
       }
@@ -248,15 +252,36 @@ run_action() {
 }
 
 open_editor() {
-  local path="$1"
-  if command -v code >/dev/null 2>&1; then
-    code "$path"
-  elif command -v nvim >/dev/null 2>&1; then
-    nvim "$path"
-  else
-    echo "no supported editor is installed" >&2
-    return 1
-  fi
+  local project="$1" path preferred candidate
+  path="$(project_path "$project")"
+  preferred="$(jq -r '.preferredEditor // ""' <<<"$project")"
+  for candidate in "$preferred" code codium zed nvim hx vim emacsclient; do
+    [ -n "$candidate" ] || continue
+    case "$candidate" in
+      code | codium | zed | nvim | hx | vim | emacsclient) ;;
+      *) continue ;;
+    esac
+    if command -v "$candidate" >/dev/null 2>&1; then
+      "$candidate" "$path"
+      return 0
+    fi
+  done
+  echo "no supported manifest/fallback editor is installed" >&2
+  return 1
+}
+
+desktop_projection() {
+  local project="$1"
+  jq -c '{
+    schemaVersion: 1,
+    project: {id, name, path},
+    desktop: {
+      tmuxSession: (.tmuxSession // null),
+      preferredEditor: (.preferredEditor // null),
+      scratchpads: (.scratchpads // []),
+      scene: (.scene // null)
+    }
+  }' <<<"$project"
 }
 
 open_tmux() {
@@ -284,24 +309,25 @@ case "$command_name" in
   current)
     jq -r '.selection.projectId // ""' <<<"$registry"
     ;;
-  path | cd | select | pin | edit | shell | tmux | dev | check | launch)
+  path | cd | select | pin | edit | shell | tmux | desktop | dev | check | launch)
     project="$(resolve_project "$selector")"
     case "$command_name" in
       path) project_path "$project" ;;
       cd) printf 'cd %q\n' "$(project_path "$project")" ;;
       select) select_project "$project" "" ;;
       pin) select_project "$project" "persistent" ;;
-      edit) open_editor "$(project_path "$project")" ;;
+      edit) open_editor "$project" ;;
       shell)
         path="$(project_path "$project")"
         session="$(project_session "$project")"
         exec kitty --title "$session" --directory "$path"
         ;;
       tmux) open_tmux "$project" ;;
+      desktop) desktop_projection "$project" ;;
       dev | check) run_action "$project" "$command_name" ;;
       launch)
         path="$(project_path "$project")"
-        open_editor "$path" >/dev/null 2>&1 &
+        open_editor "$project" >/dev/null 2>&1 &
         if command -v kitty >/dev/null 2>&1; then
           session="$(project_session "$project")"
           exec kitty --title "$session" -e tmux new-session -A -s "$session" -c "$path"

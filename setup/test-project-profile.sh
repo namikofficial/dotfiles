@@ -14,6 +14,8 @@ mock_bin="$test_dir/bin"
 project_dir="$test_dir/example"
 curl_log="$test_dir/curl.log"
 tmux_log="$test_dir/tmux.log"
+editor_log="$test_dir/editor.log"
+kitty_log="$test_dir/kitty.log"
 mkdir -p "$cache_dir/ai-workbench" "$mock_bin" "$project_dir"
 
 jq -n --arg path "$project_dir" '{
@@ -21,7 +23,7 @@ jq -n --arg path "$project_dir" '{
   generatedAt:"2026-01-01T00:00:00Z",
   selection:{projectId:"project-one",pinScope:null},
   projects:[
-    {id:"project-one",name:"Project One",path:$path,repositoryRoot:$path,aliases:["one"],packageManager:"pnpm",tmuxSession:"project-one-dev"},
+    {id:"project-one",name:"Project One",path:$path,repositoryRoot:$path,aliases:["one"],packageManager:"pnpm",tmuxSession:"project-one-dev",preferredEditor:"nvim",scratchpads:["ai","logs"],scene:"full-development"},
     {id:"project-two",name:"Project Two",path:"/missing/project-two",repositoryRoot:"/missing/project-two",aliases:[],packageManager:"npm",tmuxSession:null}
   ]
 }' >"$cache_dir/ai-workbench/project-registry-v1.json"
@@ -62,11 +64,20 @@ cat >"$mock_bin/tmux" <<'MOCK'
 printf '%s\n' "$*" >>"$PROJECT_PROFILE_TMUX_LOG"
 exit 0
 MOCK
-chmod +x "$mock_bin/curl" "$mock_bin/tmux"
+cat >"$mock_bin/nvim" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$PROJECT_PROFILE_EDITOR_LOG"
+MOCK
+cat >"$mock_bin/kitty" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$PROJECT_PROFILE_KITTY_LOG"
+MOCK
+chmod +x "$mock_bin/curl" "$mock_bin/tmux" "$mock_bin/nvim" "$mock_bin/kitty"
 
 run_profile() {
   env PATH="$mock_bin:$PATH" XDG_CACHE_HOME="$cache_dir" \
     PROJECT_PROFILE_CURL_LOG="$curl_log" PROJECT_PROFILE_TMUX_LOG="$tmux_log" \
+    PROJECT_PROFILE_EDITOR_LOG="$editor_log" PROJECT_PROFILE_KITTY_LOG="$kitty_log" \
     AI_WORKBENCH_API_URL="http://127.0.0.1:4317" \
     "$repo_dir/setup/project-profile.sh" "$@"
 }
@@ -81,6 +92,15 @@ run_profile check project-one | grep -F 'check: verify (completed)' >/dev/null
 run_profile pin one | grep -F 'pinned project-one' >/dev/null
 run_profile tmux one
 grep -F 'new-session -A -s project-one-dev' "$tmux_log" >/dev/null
+run_profile desktop one | jq -e '
+  .schemaVersion == 1 and .project.id == "project-one" and
+  .desktop.tmuxSession == "project-one-dev" and .desktop.preferredEditor == "nvim" and
+  .desktop.scratchpads == ["ai","logs"] and .desktop.scene == "full-development"
+' >/dev/null
+run_profile edit one
+grep -Fx "$project_dir" "$editor_log" >/dev/null
+run_profile launch one
+grep -F -- "--title project-one-dev -e tmux new-session -A -s project-one-dev -c $project_dir" "$kitty_log" >/dev/null
 grep -F '/actions/full-development/run' "$curl_log" >/dev/null
 grep -F '/actions/verify/run' "$curl_log" >/dev/null
 grep -F '/context/selection' "$curl_log" >/dev/null
