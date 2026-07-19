@@ -9,7 +9,29 @@ API_URL="$AI_WORKBENCH_API_URL"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench"
 OBSERVATION_CACHE="${CACHE_DIR}/desktop-observation-v1.json"
 STATUS_CACHE="${CACHE_DIR}/project-status-v1.json"
-HYPR_SOCKET="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr/${HYPRLAND_INSTANCE_SIGNATURE:-}/.socket2.sock"
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+discover_hypr_signature() {
+  local candidate latest=""
+  if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" && -S "$runtime_dir/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" ]]; then
+    return 0
+  fi
+  for candidate in "$runtime_dir"/hypr/*/.socket2.sock; do
+    [[ -S "$candidate" ]] || continue
+    if [[ -z "$latest" || "$candidate" -nt "$latest" ]]; then
+      latest="$candidate"
+    fi
+  done
+  [[ -n "$latest" ]] || return 1
+  HYPRLAND_INSTANCE_SIGNATURE="$(basename "$(dirname "$latest")")"
+  export HYPRLAND_INSTANCE_SIGNATURE
+}
+
+discover_hypr_signature || {
+  printf 'No live Hyprland event socket was found under %s/hypr\n' "$runtime_dir" >&2
+  exit 1
+}
+HYPR_SOCKET="$runtime_dir/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
 
 mkdir -p "$CACHE_DIR"
 
@@ -105,9 +127,32 @@ PY
     '{pid:$pid,parentPid:(if $parentPid>0 then $parentPid else null end),cwd:($cwd|if length>0 then . else null end),command:($command|if length>0 then . else null end)}'
 }
 
+stream_hypr_events() {
+  AI_WORKBENCH_HYPR_SOCKET="$HYPR_SOCKET" python3 - <<'PY'
+import os
+import socket
+import sys
+
+path = os.environ["AI_WORKBENCH_HYPR_SOCKET"]
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stream:
+    stream.connect(path)
+    pending = b""
+    while chunk := stream.recv(65536):
+        pending += chunk
+        while b"\n" in pending:
+            line, pending = pending.split(b"\n", 1)
+            print(line.decode("utf-8", errors="replace"), flush=True)
+    if pending:
+        print(pending.decode("utf-8", errors="replace"), flush=True)
+PY
+}
+
 observe_once() {
   local window pid class_name title role workspace address cwd terminal transient tmux_json process_json now observation_id response project_id cached_project stale_after now_epoch stale_epoch
-  window="$(hyprctl -j activewindow 2>/dev/null || printf '{}')"
+  window="$(hyprctl -j activewindow 2>/dev/null || true)"
+  if ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"$window"; then
+    window='{}'
+  fi
   pid="$(jq -r '.pid // 0' <<<"$window")"
   class_name="$(jq -r '.class // ""' <<<"$window")"
   title="$(jq -r '.title // ""' <<<"$window")"
@@ -124,7 +169,7 @@ observe_once() {
   tmux_json="$(tmux_for_window "$pid")"
   transient=false
   [[ "$class_name" =~ (Rofi|rofi|notification|polkit|xdg-desktop-portal) ]] && transient=true
-  now="$(date --iso-8601=milliseconds)"
+  now="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
   observation_id="desktop_$(date +%s%N)"
 
   jq -cn \
@@ -163,8 +208,8 @@ command -v jq >/dev/null 2>&1 || {
   echo "jq is required" >&2
   exit 1
 }
-command -v socat >/dev/null 2>&1 || {
-  echo "socat is required" >&2
+command -v python3 >/dev/null 2>&1 || {
+  echo "python3 is required" >&2
   exit 1
 }
 
@@ -174,6 +219,6 @@ while true; do
     case "$event" in
       activewindow\>\>* | activewindowv2\>\>* | workspace\>\>*) observe_once ;;
     esac
-  done < <(socat -u "UNIX-CONNECT:$HYPR_SOCKET" - 2>/dev/null || true)
+  done < <(stream_hypr_events 2>/dev/null || true)
   sleep 1
 done

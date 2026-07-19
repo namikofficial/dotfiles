@@ -227,6 +227,13 @@ def is_loopback_api_url(api_url: str) -> bool:
         return False
 
 
+def read_events_or_wait(watcher: InotifyTree | None, timeout: float) -> list[Path]:
+    if watcher is not None:
+        return watcher.read_events(timeout)
+    time.sleep(max(0.0, timeout))
+    return []
+
+
 def run() -> int:
     cache_root = Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache")))
     cache_path = Path(
@@ -267,7 +274,7 @@ def run() -> int:
             timeout = 1.0
             if refresh_at is not None:
                 timeout = min(timeout, max(0.0, refresh_at - time.monotonic()))
-            events = watcher.read_events(timeout) if watcher is not None else []
+            events = read_events_or_wait(watcher, timeout)
             if events:
                 refresh_at = time.monotonic() + debounce
             if refresh_at is not None and time.monotonic() >= refresh_at and target is not None:

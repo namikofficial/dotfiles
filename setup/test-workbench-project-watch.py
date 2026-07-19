@@ -79,6 +79,11 @@ class ProjectWatchTests(unittest.TestCase):
     def test_runtime_default_uses_the_canonical_api_port(self) -> None:
         self.assertEqual(watch.DEFAULT_API_URL, "http://127.0.0.1:4417")
 
+    def test_missing_project_waits_instead_of_spinning(self) -> None:
+        with mock.patch.object(watch.time, "sleep") as sleep:
+            self.assertEqual(watch.read_events_or_wait(None, 0.75), [])
+        sleep.assert_called_once_with(0.75)
+
 
 if __name__ == "__main__":
     unittest.main()
