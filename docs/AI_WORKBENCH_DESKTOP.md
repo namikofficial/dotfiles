@@ -130,6 +130,8 @@ python3 -m unittest setup/test-workbench-workflow-launch.py
 
 ## Remaining Phase 5 compatibility work
 
-- Replace project-specific tmux scene conventions with approved manifest scene templates.
+- Completed: `project-profile` resolves projects and tmux session names from the canonical registry cache, and routes
+  development/check commands through approved Workbench actions. No project paths, commands or pane topology remain
+  hard-coded in the adapter. Detailed multi-pane scenes can be added later as approved manifest workflow DAGs.
 - Add an event/file watcher bridge for faster Git-to-cache refresh without frequent polling.
 - Retire the old Kage watcher only after manual desktop parity and rollback validation.

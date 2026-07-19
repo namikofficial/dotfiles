@@ -134,7 +134,8 @@ project-profile status
 - `dev-health --json` emits a machine-readable summary for menus and dashboards.
 - `dev-health --full` also runs the deeper weekly health log.
 - `dotfiles-stale-check` blocks stale retired-stack references from creeping back into docs/scripts.
-- `project-profile` lists and launches common workspaces from one source of truth.
+- `project-profile` lists and launches Workbench-registered projects from the canonical registry/cache; mutating
+  development and check actions always go through approved Workbench workflows.
 - `project-resume` restores the current project session, editor, and sidecar state from the focused repo.
 
 If package install fails with `db.lck`, clear stale lock and retry:

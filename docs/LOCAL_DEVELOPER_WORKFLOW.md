@@ -81,12 +81,12 @@ project-profile status
 Useful actions:
 
 ```sh
-project-profile path noxcrm
-project-profile edit noxcrm
-project-profile tmux noxcrm
-project-profile dev nox-billings
-project-profile launch noxcrm
-project-profile check dotfiles
+project-profile path <project-id-or-alias>
+project-profile edit <project-id-or-alias>
+project-profile tmux <project-id-or-alias>
+project-profile dev <project-id-or-alias>
+project-profile launch <project-id-or-alias>
+project-profile check <project-id-or-alias>
 project-resume
 ```
 
@@ -97,7 +97,11 @@ ppr status
 ppr launch dotfiles
 ```
 
-`project-profile dev <profile>` creates or attaches to the project's named tmux layout: API, web, mobile, and logs. `tmux` and `launch` use that same layout for NoxCRM, Nox Billings, and TrackMe.
+`project-profile` no longer owns a hard-coded project list, check commands, development commands, or pane topology.
+It resolves IDs, names and aliases through the canonical Workbench registry. `tmux` and `launch` use the manifest's
+session name and remain available from the read-only XDG cache when Workbench is offline. `dev` resolves the manifest
+scene or single development workflow, while `check` resolves the canonical verification workflow; both fail clearly
+if the API is unavailable or the choice is ambiguous.
 
 Nox Billings helpers:
 
