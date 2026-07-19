@@ -89,6 +89,12 @@ runtime_values="$(env -u AI_WORKBENCH_API_URL -u AI_WORKBENCH_URL -u LLM_BASE_UR
   printf "%s|%s|%s" "$AI_WORKBENCH_API_URL" "$AI_WORKBENCH_URL" "$LLM_BASE_URL"
 ' _ "$repo_dir/hypr/scripts/workbench-runtime-env.sh")"
 [ "$runtime_values" = 'http://127.0.0.1:5517|http://127.0.0.1:5317|http://127.0.0.1:9080/v1' ]
+# An explicit process environment is a manual override and must win over the file.
+# shellcheck disable=SC2016
+runtime_override="$(AI_WORKBENCH_RUNTIME_ENV="$runtime_env" AI_WORKBENCH_API_URL='http://127.0.0.1:6617' \
+  bash -c 'source "$1"; printf "%s" "$AI_WORKBENCH_API_URL"' _ \
+  "$repo_dir/hypr/scripts/workbench-runtime-env.sh")"
+[ "$runtime_override" = 'http://127.0.0.1:6617' ]
 grep -Fx 'EnvironmentFile=-%h/.config/ai-workbench/runtime.env' \
   "$repo_dir/systemd/user/ai-workbench-desktop-observer.service" >/dev/null
 grep -Fx 'EnvironmentFile=-%h/.config/ai-workbench/runtime.env' \

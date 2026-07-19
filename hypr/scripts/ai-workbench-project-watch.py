@@ -86,9 +86,16 @@ def log_event(event: str, severity: str = "info", **metadata: object) -> None:
 def load_status_target(cache_path: Path) -> ProjectTarget | None:
     try:
         payload = json.loads(cache_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return None
         if payload.get("schemaVersion") != 1:
             return None
-        project = payload.get("status", {}).get("project", {})
+        status = payload.get("status")
+        if not isinstance(status, dict):
+            return None
+        project = status.get("project")
+        if not isinstance(project, dict):
+            return None
         project_id = project.get("id")
         raw_path = project.get("path")
         if not isinstance(project_id, str) or not project_id or not isinstance(raw_path, str):

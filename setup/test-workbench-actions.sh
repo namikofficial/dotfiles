@@ -15,6 +15,7 @@ request_file="$test_dir/request"
 notification_file="$test_dir/notifications"
 open_file="$test_dir/opened"
 launch_file="$test_dir/launched"
+kage_call_file="$test_dir/kage-called"
 mkdir -p "$cache_dir/ai-workbench" "$mock_bin" "$test_dir/home"
 
 jq -n --arg now "$(date --iso-8601=seconds)" --arg stale "$(date --iso-8601=seconds -d '+5 minutes')" '
@@ -36,6 +37,7 @@ jq -n --arg now "$(date --iso-8601=seconds)" --arg stale "$(date --iso-8601=seco
 
 cat >"$mock_bin/rofi" <<'MOCK'
 #!/usr/bin/env bash
+cat >/dev/null
 printf '%s\n' "${WORKBENCH_TEST_ROFI_CHOICE:-[Run] Verify}"
 MOCK
 cat >"$mock_bin/curl" <<'MOCK'
@@ -180,4 +182,26 @@ for _attempt in $(seq 1 50); do
 done
 grep -Fx 'http://127.0.0.1:5317/workflow-executions/recovery-id' "$open_file" >/dev/null
 grep -F 'Recovery completed show-failures' "$notification_file" >/dev/null
+
+# Offline legacy state remains display-only. A stale/forged legacy action cannot
+# execute a shell-owned command path when canonical mutation is unavailable.
+find "$cache_dir/ai-workbench" -type f -delete
+mkdir -p "$cache_dir/kage"
+jq -n '{name:"Legacy",path:"/tmp",actions:["dangerous legacy command"]}' \
+  >"$cache_dir/kage/project-current.json"
+cat >"$test_dir/home/.config/hypr/scripts/kage" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >"$WORKBENCH_ACTION_KAGE_CALL_FILE"
+MOCK
+chmod +x "$test_dir/home/.config/hypr/scripts/kage"
+WORKBENCH_TEST_ROFI_CHOICE='dangerous legacy command' \
+  PATH="$mock_bin:$PATH" HOME="$test_dir/home" XDG_CACHE_HOME="$cache_dir" \
+  AI_WORKBENCH_API_URL="http://127.0.0.1:5517" AI_WORKBENCH_URL="http://127.0.0.1:5317" \
+  WORKBENCH_ACTION_REQUEST_FILE="$request_file" WORKBENCH_ACTION_OPEN_FILE="$open_file" \
+  WORKBENCH_ACTION_LAUNCH_FILE="$launch_file" WORKBENCH_ACTION_NOTIFICATION_FILE="$notification_file" \
+  WORKBENCH_ACTION_KAGE_CALL_FILE="$kage_call_file" \
+  "$repo_dir/hypr/scripts/kage-project-rofi.sh"
+[ ! -e "$kage_call_file" ]
+grep -F 'Workbench is offline; no legacy project command was executed' "$notification_file" >/dev/null
+
 printf 'workbench canonical action adapter: ok\n'

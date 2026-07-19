@@ -36,6 +36,20 @@ class ProjectWatchTests(unittest.TestCase):
             cache.write_text('{"schemaVersion":2}', encoding="utf-8")
             self.assertIsNone(watch.load_status_target(cache))
 
+    def test_unresolved_or_malformed_status_has_no_watch_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            cache = Path(temporary) / "status.json"
+            invalid_payloads = [
+                {"schemaVersion": 1, "status": {"project": None}},
+                {"schemaVersion": 1, "status": {"project": []}},
+                {"schemaVersion": 1, "status": None},
+                [],
+            ]
+            for payload in invalid_payloads:
+                with self.subTest(payload=payload):
+                    cache.write_text(json.dumps(payload), encoding="utf-8")
+                    self.assertIsNone(watch.load_status_target(cache))
+
     def test_inotify_observes_nested_source_but_skips_dependency_trees(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

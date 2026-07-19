@@ -89,6 +89,10 @@ The project switcher fails closed if Workbench is offline. It never writes a loc
 
 Workbench-aware desktop scripts read `~/.config/ai-workbench/runtime.env`, the same central configuration consumed by the Workbench systemd user units. `workbench-runtime-env.sh` supplies local-first defaults when the file is absent. Kage, the observer, Rofi switcher, Workbench launcher, and AI context helpers no longer need separate Workbench/model port ownership.
 
+Runtime precedence is explicit process environment, then the shared `runtime.env`, then local defaults. This permits a
+one-command diagnostic or isolated test instance without the user environment file silently redirecting the client
+to another API or web port.
+
 `open-ai-workbench.sh` probes the core `/ready` endpoint and starts `ai-workbench.target` when the user units are installed. If systemd startup is unavailable or fails, it preserves the existing `ai-workbench` tmux fallback. Optional model and vector services do not prevent the project control plane from opening.
 
 The desktop observer, project watcher and notification bridge units read the central environment file. Bootstrap links
@@ -138,6 +142,8 @@ When Workbench is unavailable:
 - Wayle returns valid JSON payloads with an unavailable/stale tooltip.
 - Project and Git chips may use the existing legacy Kage cache.
 - Canonical project selection and other mutations fail clearly.
+- The Rofi cockpit may show legacy identity/status for rollback, but it never lists or executes legacy cached project
+  commands. Development and check actions require the canonical workflow API.
 - Kage’s old detector remains a rollback fallback.
 - Terminals, scratchpads and project resume continue to launch.
 

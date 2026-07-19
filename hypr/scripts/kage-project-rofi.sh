@@ -116,10 +116,9 @@ build_menu() {
     jq -r '.status.recommendedActions[]? | if .disabledReason then "[Unavailable] \(.label) — \(.disabledReason)" elif .approvalRequired then "[Request] \(.label)" else "[Run] \(.label)" end' \
       "$WORKBENCH_CACHE" 2>/dev/null || true
   elif [ -s "${LEGACY_CACHE}" ]; then
-    # Project actions from cache
-    jq -r '.actions[]? // empty' "${LEGACY_CACHE}" 2>/dev/null | while IFS= read -r act; do
-      printf '⚡  %s\n' "$act"
-    done
+    # Legacy state is read-only rollback context. Canonical mutations must fail
+    # instead of executing a second shell-owned command database.
+    printf '  Canonical actions unavailable\n'
   fi
 
   # Always-available utility actions
@@ -248,12 +247,11 @@ case "$CHOICE_CLEAN" in
     [ -n "$_path" ] && [ -d "$_path" ] && kitty --class noxflow-lazygit --title "lazygit — $(basename "$_path")" -- lazygit -p "$_path"
     ;;
   *)
-    # It's a project action (e.g. "test", "build", "logs", etc.)
     if [ -n "$CHOICE_CLEAN" ]; then
       if workbench_available; then
         notify "Action unavailable" "Refresh project status to load canonical workflows"
       else
-        "${KAGE}" project action "${CHOICE_CLEAN}" &
+        notify "Action unavailable" "Workbench is offline; no legacy project command was executed"
       fi
     fi
     ;;
