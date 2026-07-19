@@ -9,6 +9,7 @@ API_URL="$AI_WORKBENCH_API_URL"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench"
 OBSERVATION_CACHE="${CACHE_DIR}/desktop-observation-v1.json"
 STATUS_CACHE="${CACHE_DIR}/project-status-v1.json"
+REGISTRY_CACHE="${CACHE_DIR}/project-registry-v1.json"
 runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 discover_hypr_signature() {
@@ -27,13 +28,73 @@ discover_hypr_signature() {
   export HYPRLAND_INSTANCE_SIGNATURE
 }
 
-discover_hypr_signature || {
-  printf 'No live Hyprland event socket was found under %s/hypr\n' "$runtime_dir" >&2
-  exit 1
-}
-HYPR_SOCKET="$runtime_dir/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
-
 mkdir -p "$CACHE_DIR"
+
+editor_for_window() {
+  local class_name="$1" title="$2"
+  [[ "$class_name" =~ ^(code|Code|code-oss|code-url-handler|VSCodium|codium)$ ]] || {
+    printf 'null'
+    return 0
+  }
+  command -v python3 >/dev/null 2>&1 || {
+    printf 'null'
+    return 0
+  }
+  [ -s "$REGISTRY_CACHE" ] || {
+    printf 'null'
+    return 0
+  }
+  AI_WORKBENCH_EDITOR_TITLE="$title" AI_WORKBENCH_REGISTRY_CACHE="$REGISTRY_CACHE" python3 - <<'PY'
+import json
+import os
+import re
+from pathlib import Path
+
+try:
+    payload = json.loads(Path(os.environ["AI_WORKBENCH_REGISTRY_CACHE"]).read_text(encoding="utf-8"))
+except (OSError, ValueError):
+    print("null")
+    raise SystemExit(0)
+
+if not isinstance(payload, dict) or payload.get("schemaVersion") != 1:
+    print("null")
+    raise SystemExit(0)
+projects = payload.get("projects")
+if not isinstance(projects, list):
+    print("null")
+    raise SystemExit(0)
+
+segments = [segment.strip() for segment in re.split(r"\s+(?:-|—)\s+", os.environ.get("AI_WORKBENCH_EDITOR_TITLE", ""))]
+if len(segments) < 3 or "visual studio code" not in segments[-1].casefold():
+    print("null")
+    raise SystemExit(0)
+workspace_label = segments[-2].casefold()
+
+matches = []
+for project in projects:
+    if not isinstance(project, dict):
+        continue
+    project_id = project.get("id")
+    path = project.get("path")
+    name = project.get("name")
+    aliases = project.get("aliases", [])
+    if not isinstance(project_id, str) or not project_id or not isinstance(path, str) or not os.path.isabs(path):
+        continue
+    keys = {Path(path).name.casefold()}
+    if isinstance(name, str) and name:
+        keys.add(name.casefold())
+    if isinstance(aliases, list):
+        keys.update(alias.casefold() for alias in aliases if isinstance(alias, str) and alias)
+    if workspace_label in keys:
+        matches.append((project_id, path))
+
+unique = list(dict.fromkeys(matches))
+if len(unique) != 1:
+    print("null")
+else:
+    print(json.dumps({"file": None, "workspace": unique[0][1]}, separators=(",", ":")))
+PY
+}
 
 is_descendant() {
   local candidate="$1" root="$2" parent steps=0
@@ -166,7 +227,7 @@ PY
 }
 
 observe_once() {
-  local window pid class_name title role workspace address cwd terminal transient tmux_json process_json now observation_id response project_id cached_project stale_after now_epoch stale_epoch
+  local window pid class_name title role workspace address cwd terminal transient tmux_json process_json editor_json now observation_id response project_id cached_project stale_after now_epoch stale_epoch
   window="$(hyprctl -j activewindow 2>/dev/null || true)"
   if ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"$window"; then
     window='{}'
@@ -185,6 +246,7 @@ observe_once() {
   fi
   cwd="$(jq -r '.cwd // ""' <<<"$process_json")"
   tmux_json="$(tmux_for_window "$pid")"
+  editor_json="$(editor_for_window "$class_name" "$title")"
   transient=false
   [[ "$class_name" =~ (Rofi|rofi|notification|polkit|xdg-desktop-portal) ]] && transient=true
   now="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
@@ -194,8 +256,8 @@ observe_once() {
     --arg id "$observation_id" --arg now "$now" --arg instance "${HYPRLAND_INSTANCE_SIGNATURE:-unknown}" \
     --arg address "$address" --arg className "$class_name" --arg title "$title" --arg role "$role" \
     --arg workspace "$workspace" --arg cwd "$cwd" \
-    --argjson pid "${pid:-0}" --argjson terminal "$terminal" --argjson transient "$transient" --argjson tmux "$tmux_json" --argjson process "$process_json" \
-    '{schemaVersion:1,id:$id,createdAt:$now,updatedAt:$now,origin:{source:"desktop",instanceId:$instance,legacyRef:null},capabilities:["focused-window","process-cwd","tmux-correlation"],observedAt:$now,state:"ready",compositor:"hyprland",workspaceId:($workspace|if length>0 then . else null end),window:{address:($address|if length>0 then . else null end),pid:(if $pid>0 then $pid else null end),className:($className|if length>0 then . else null end),title:($title|if length>0 then . else null end),role:($role|if length>0 then . else null end)},process:$process,editor:null,terminal:(if $terminal then {cwd:($cwd|if length>0 then . else null end),shell:($process.command // null)} else null end),tmux:$tmux,browser:null,explicitProjectId:null,transientWindow:$transient}' >"$OBSERVATION_CACHE.tmp"
+    --argjson pid "${pid:-0}" --argjson terminal "$terminal" --argjson transient "$transient" --argjson tmux "$tmux_json" --argjson process "$process_json" --argjson editor "$editor_json" \
+    '{schemaVersion:1,id:$id,createdAt:$now,updatedAt:$now,origin:{source:"desktop",instanceId:$instance,legacyRef:null},capabilities:["focused-window","process-cwd","tmux-correlation","editor-workspace-hint"],observedAt:$now,state:"ready",compositor:"hyprland",workspaceId:($workspace|if length>0 then . else null end),window:{address:($address|if length>0 then . else null end),pid:(if $pid>0 then $pid else null end),className:($className|if length>0 then . else null end),title:($title|if length>0 then . else null end),role:($role|if length>0 then . else null end)},process:$process,editor:$editor,terminal:(if $terminal then {cwd:($cwd|if length>0 then . else null end),shell:($process.command // null)} else null end),tmux:$tmux,browser:null,explicitProjectId:null,transientWindow:$transient}' >"$OBSERVATION_CACHE.tmp"
   mv "$OBSERVATION_CACHE.tmp" "$OBSERVATION_CACHE"
   response="$(curl --silent --show-error --fail --max-time 1 \
     -H 'content-type: application/json' -H 'accept: application/json' \
@@ -214,6 +276,18 @@ observe_once() {
       "$API_URL/project-status/compact" >/dev/null 2>&1 || true
   fi
 }
+
+if [[ "${1:-}" == "--editor-hint" ]]; then
+  editor_for_window "${2:-}" "${3:-}"
+  printf '\n'
+  exit 0
+fi
+
+discover_hypr_signature || {
+  printf 'No live Hyprland event socket was found under %s/hypr\n' "$runtime_dir" >&2
+  exit 1
+}
+HYPR_SOCKET="$runtime_dir/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
 
 if [[ "${1:-}" == "--once" ]]; then
   observe_once

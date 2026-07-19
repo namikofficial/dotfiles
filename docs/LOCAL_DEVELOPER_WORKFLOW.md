@@ -103,6 +103,10 @@ session name and remain available from the read-only XDG cache when Workbench is
 scene or single development workflow, while `check` resolves the canonical verification workflow; both fail clearly
 if the API is unavailable or the choice is ambiguous.
 
+When VS Code exposes only a workspace name in its title, the observer resolves that name through the canonical
+registry cache and submits the matched workspace path as focused-editor evidence. The match must be exact and unique;
+the observer does not select a project from a generic editor process CWD or an ambiguous title.
+
 While the graphical observer is running, nested source changes are detected through a bounded Linux inotify tree.
 Dependency, build and index directories are pruned, bursts are debounced, and the watcher asks Workbench for one
 project-scoped status refresh. It does not execute Git or Docker itself.

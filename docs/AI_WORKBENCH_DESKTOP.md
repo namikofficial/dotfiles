@@ -27,6 +27,12 @@ watcher reads the canonical cached project path, subscribes to Linux inotify eve
 trees, and coalesces meaningful changes before requesting one project-scoped status refresh. The watcher never runs
 Git, Docker, project detection, or canonical mutations. Wayle only reads the compact cache every five seconds.
 
+For focused VS Code or VSCodium windows, the observer may publish a workspace-only editor hint. It accepts the
+workspace label only when it is an exact, unique match for a name, alias, or path basename in the canonical
+read-only registry cache. It does not infer an active file, accept an ambiguous label, or treat the editor process
+CWD as evidence. Unregistered, malformed, single-file, and ambiguous titles remain unresolved for Workbench to
+explain or for the user to pin explicitly.
+
 ## Wayle Work cluster
 
 The right side of the bar contains one grouped cluster:

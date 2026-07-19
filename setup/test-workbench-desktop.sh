@@ -44,6 +44,14 @@ jq -n --arg now "$(date --iso-8601=seconds)" --arg stale "$(date --iso-8601=seco
   }
 ' >"$cache_dir/ai-workbench/project-status-v1.json"
 
+jq -n '{
+  schemaVersion:1,generatedAt:"2026-01-01T00:00:00Z",selection:null,
+  projects:[
+    {id:"project-id",name:"Example Project",path:"/tmp/example-project",aliases:["example","shared"],tmuxSession:"example"},
+    {id:"other-id",name:"Other Project",path:"/tmp/other-project",aliases:["shared"],tmuxSession:"other"}
+  ]
+}' >"$cache_dir/ai-workbench/project-registry-v1.json"
+
 for chip in project git work ai; do
   XDG_CACHE_HOME="$cache_dir" "$repo_dir/hypr/scripts/workbench-wayle-status" "$chip" |
     jq -e '.text != "" and .tooltip != ""' >/dev/null
@@ -111,6 +119,22 @@ grep -F 'socket.AF_UNIX' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/nu
 grep -F 'discover_hypr_signature' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 grep -F 'activewindowv2' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 grep -F 'last_payload' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
+editor_hint="$(XDG_CACHE_HOME="$cache_dir" AI_WORKBENCH_RUNTIME_ENV="$test_dir/missing-runtime.env" \
+  "$repo_dir/hypr/scripts/ai-workbench-observer" --editor-hint code \
+  'main.ts - Example Project - Visual Studio Code')"
+jq -e '.file == null and .workspace == "/tmp/example-project"' <<<"$editor_hint" >/dev/null
+single_file_hint="$(XDG_CACHE_HOME="$cache_dir" AI_WORKBENCH_RUNTIME_ENV="$test_dir/missing-runtime.env" \
+  "$repo_dir/hypr/scripts/ai-workbench-observer" --editor-hint code \
+  'main.ts - Visual Studio Code')"
+[ "$single_file_hint" = 'null' ]
+ambiguous_hint="$(XDG_CACHE_HOME="$cache_dir" AI_WORKBENCH_RUNTIME_ENV="$test_dir/missing-runtime.env" \
+  "$repo_dir/hypr/scripts/ai-workbench-observer" --editor-hint code \
+  'main.ts - shared - Visual Studio Code')"
+[ "$ambiguous_hint" = 'null' ]
+non_editor_hint="$(XDG_CACHE_HOME="$cache_dir" AI_WORKBENCH_RUNTIME_ENV="$test_dir/missing-runtime.env" \
+  "$repo_dir/hypr/scripts/ai-workbench-observer" --editor-hint kitty \
+  'main.ts - Example Project - Visual Studio Code')"
+[ "$non_editor_hint" = 'null' ]
 grep -F 'date -u +%Y-%m-%dT%H:%M:%S.%3NZ' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 # Match literal shell source in the observer.
 # shellcheck disable=SC2016
