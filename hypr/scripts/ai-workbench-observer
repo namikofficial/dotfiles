@@ -130,20 +130,38 @@ PY
 stream_hypr_events() {
   AI_WORKBENCH_HYPR_SOCKET="$HYPR_SOCKET" python3 - <<'PY'
 import os
+import select
 import socket
-import sys
+import time
 
 path = os.environ["AI_WORKBENCH_HYPR_SOCKET"]
+debounce = max(0.05, float(os.environ.get("AI_WORKBENCH_OBSERVER_DEBOUNCE_MS", "150")) / 1000)
 with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stream:
     stream.connect(path)
     pending = b""
-    while chunk := stream.recv(65536):
+    deadline = None
+    last_payload = {}
+    while True:
+        timeout = None if deadline is None else max(0.0, deadline - time.monotonic())
+        readable, _, _ = select.select([stream], [], [], timeout)
+        if not readable:
+            print("refresh", flush=True)
+            deadline = None
+            continue
+        chunk = stream.recv(65536)
+        if not chunk:
+            break
         pending += chunk
         while b"\n" in pending:
             line, pending = pending.split(b"\n", 1)
-            print(line.decode("utf-8", errors="replace"), flush=True)
-    if pending:
-        print(pending.decode("utf-8", errors="replace"), flush=True)
+            event, separator, payload = line.partition(b">>")
+            event_name = event.decode("utf-8", errors="replace")
+            if not separator or event_name not in {"activewindowv2", "workspacev2"}:
+                continue
+            if last_payload.get(event_name) == payload:
+                continue
+            last_payload[event_name] = payload
+            deadline = time.monotonic() + debounce
 PY
 }
 
@@ -217,7 +235,7 @@ observe_once
 while true; do
   while IFS= read -r event; do
     case "$event" in
-      activewindow\>\>* | activewindowv2\>\>* | workspace\>\>*) observe_once ;;
+      refresh) observe_once ;;
     esac
   done < <(stream_hypr_events 2>/dev/null || true)
   sleep 1
