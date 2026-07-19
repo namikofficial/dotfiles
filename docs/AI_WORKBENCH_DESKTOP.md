@@ -38,13 +38,34 @@ The right side of the bar contains one grouped cluster:
 - Project shows selection, pin, confidence and stale state. Left click opens the project cockpit; right click switches the canonical Workbench selection.
 - Git shows branch, changed/staged counts and conflicts.
 - Work shows the active task, state and progress.
-- AI shows the model role and normalized runtime state. Unknown is shown honestly until model supervision is connected.
+- AI shows the model role and canonical model-manager state. Optional local runtime failure renders offline without
+  making the project control plane unavailable.
 
 Workbench launch actions use project-aware deep links: project overview, Work, Ask, Planner, and Checks inherit the cached canonical project ID.
 The Rofi cockpit also exposes `Explain retrieval context`, which opens the active project’s retrieval explanation
 surface. Handoff, Dev, and Retrieval are supported project-aware launcher views rather than generic root-page links.
 
 All four chips are rendered by `hypr/scripts/workbench-wayle-status`. Tooltips are human text, not raw JSON. Offline fallback is read-only and visibly stale/unavailable.
+
+## Add a Wayle status or action
+
+1. Add the durable field or state transition to a versioned Workbench contract first. Do not invent a desktop-only
+   task, project, runtime, or workflow field.
+2. Project the smallest presentation value through canonical `ProjectStatus`/`compactProjectStatus`, add TypeScript
+   validation and aggregation tests, and keep secrets, commands, prompts, and memory bodies out of the cache.
+3. Extend `workbench-wayle-status` to read only `.compact`. Always emit valid one-line JSON, a short text label, and a
+   human tooltip for ready, stale, offline, failed, and missing-field states. Never add Git, Docker, port, or network
+   probes to the Wayle command.
+4. Add or update the grouped modules in `wayle/config.toml`. Reuse the stable Project/Git/Work/AI vocabulary, respect
+   reduced motion, and keep the five-second file read inexpensive.
+5. Route actions through `kage-project-rofi.sh`, `workbench-project-switcher`, or another canonical API client. List
+   approved `/actions` and disabled reasons; never copy a manifest command into a shell `case`, and never bypass an
+   approval because an action originated from the bar.
+6. Add fixtures to `setup/test-workbench-desktop.sh`, exercise offline and stale caches, run `setup/check-local.sh`,
+   and verify the rendered chip/cockpit manually in Wayle.
+
+New deep links must derive project/task/run/session IDs from the canonical cache and use `open-ai-workbench.sh`; a
+generic in-memory browser selection is not sufficient.
 
 ## Desktop commands
 
@@ -146,6 +167,7 @@ Hyprland configuration. The focused adapter tests then exercise canonical projec
 - Completed: `project-profile` resolves projects and tmux session names from the canonical registry cache, and routes
   development/check commands through approved Workbench actions. No project paths, commands or pane topology remain
   hard-coded in the adapter. Detailed multi-pane scenes can be added later as approved manifest workflow DAGs.
-- Completed: the observer owns an inotify-based, dependency-pruned and debounced project event bridge that requests
+- Completed: the separately supervised project watcher owns an inotify-based, dependency-pruned and debounced event
+  bridge that requests
   canonical status refreshes without running desktop-side Git or Docker probes.
 - Retire the old Kage watcher only after manual desktop parity and rollback validation.
