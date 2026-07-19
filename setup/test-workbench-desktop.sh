@@ -93,5 +93,11 @@ grep -Fx 'EnvironmentFile=-%h/.config/ai-workbench/runtime.env' \
   "$repo_dir/systemd/user/ai-workbench-desktop-observer.service" >/dev/null
 grep -Fx 'EnvironmentFile=-%h/.config/ai-workbench/runtime.env' \
   "$repo_dir/systemd/user/ai-workbench-notification-bridge.service" >/dev/null
+grep -Fx 'EnvironmentFile=-%h/.config/ai-workbench/runtime.env' \
+  "$repo_dir/systemd/user/ai-workbench-project-watch.service" >/dev/null
 grep -F 'ai-workbench-notification-bridge.service' "$repo_dir/setup/bootstrap.sh" >/dev/null
+grep -F 'ai-workbench-project-watch.service' "$repo_dir/setup/bootstrap.sh" >/dev/null
+grep -F 'ExecStart=%h/.config/hypr/scripts/ai-workbench-project-watch.py' \
+  "$repo_dir/systemd/user/ai-workbench-project-watch.service" >/dev/null
+grep -F 'ProtectHome=read-only' "$repo_dir/systemd/user/ai-workbench-project-watch.service" >/dev/null
 printf 'workbench desktop adapters: ok\n'

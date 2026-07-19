@@ -15,7 +15,7 @@ mkdir -p "$CACHE_DIR"
 
 is_descendant() {
   local candidate="$1" root="$2" parent steps=0
-  while [[ "$candidate" =~ ^[0-9]+$ ]] && (( candidate > 1 && steps < 64 )); do
+  while [[ "$candidate" =~ ^[0-9]+$ ]] && ((candidate > 1 && steps < 64)); do
     [[ "$candidate" == "$root" ]] && return 0
     parent="$(awk '/^PPid:/ { print $2; exit }' "/proc/$candidate/status" 2>/dev/null || true)"
     [[ -n "$parent" && "$parent" != "$candidate" ]] || break
@@ -27,7 +27,10 @@ is_descendant() {
 
 tmux_for_window() {
   local window_pid="$1" client_pid session pane_line pane_id pane_cwd
-  command -v tmux >/dev/null 2>&1 || { printf 'null'; return; }
+  command -v tmux >/dev/null 2>&1 || {
+    printf 'null'
+    return
+  }
   while IFS=$'\t' read -r client_pid session; do
     [[ -n "$client_pid" && -n "$session" ]] || continue
     is_descendant "$client_pid" "$window_pid" || continue
@@ -114,7 +117,7 @@ observe_once() {
   terminal=false
   [[ "$class_name" =~ ^(kitty|Alacritty|foot|org\.wezfurlong\.wezterm)$ ]] && terminal=true
   process_json="null"
-  if [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )); then
+  if [[ "$pid" =~ ^[0-9]+$ ]] && ((pid > 1)); then
     process_json="$(process_for_window "$pid" "$terminal")"
   fi
   cwd="$(jq -r '.cwd // ""' <<<"$process_json")"
@@ -152,15 +155,24 @@ if [[ "${1:-}" == "--once" ]]; then
   exit 0
 fi
 
-command -v hyprctl >/dev/null 2>&1 || { echo "hyprctl is required" >&2; exit 1; }
-command -v jq >/dev/null 2>&1 || { echo "jq is required" >&2; exit 1; }
-command -v socat >/dev/null 2>&1 || { echo "socat is required" >&2; exit 1; }
+command -v hyprctl >/dev/null 2>&1 || {
+  echo "hyprctl is required" >&2
+  exit 1
+}
+command -v jq >/dev/null 2>&1 || {
+  echo "jq is required" >&2
+  exit 1
+}
+command -v socat >/dev/null 2>&1 || {
+  echo "socat is required" >&2
+  exit 1
+}
 
 observe_once
 while true; do
   while IFS= read -r event; do
     case "$event" in
-      activewindow\>\>*|activewindowv2\>\>*|workspace\>\>*) observe_once ;;
+      activewindow\>\>* | activewindowv2\>\>* | workspace\>\>*) observe_once ;;
     esac
   done < <(socat -u "UNIX-CONNECT:$HYPR_SOCKET" - 2>/dev/null || true)
   sleep 1

@@ -8,6 +8,8 @@ The TypeScript AI Workbench is the canonical owner of project selection, active 
 flowchart LR
   Hypr[Hyprland events] --> Observer[Desktop observer]
   Observer -->|DesktopObservation| API[Workbench API]
+  Cache --> FileWatch[Supervised inotify bridge]
+  FileWatch -->|Debounced status refresh| API
   API --> DB[(Workbench SQLite)]
   API --> Status[ProjectStatus aggregator]
   Status --> Cache[XDG project-status-v1 cache]
@@ -20,7 +22,10 @@ flowchart LR
   Notify --> DesktopNotify[Wayle DND + notify-send]
 ```
 
-The observer refreshes status after the resolved project changes or the cache expires. Wayle only reads the compact cache every five seconds; it does not run Git, Docker, model, or network probes.
+The observer refreshes status after the resolved project changes or the cache expires. Its supervised sibling project
+watcher reads the canonical cached project path, subscribes to Linux inotify events, excludes dependency/build/index
+trees, and coalesces meaningful changes before requesting one project-scoped status refresh. The watcher never runs
+Git, Docker, project detection, or canonical mutations. Wayle only reads the compact cache every five seconds.
 
 ## Wayle Work cluster
 
@@ -65,7 +70,9 @@ Workbench-aware desktop scripts read `~/.config/ai-workbench/runtime.env`, the s
 
 `open-ai-workbench.sh` probes the core `/ready` endpoint and starts `ai-workbench.target` when the user units are installed. If systemd startup is unavailable or fails, it preserves the existing `ai-workbench` tmux fallback. Optional model and vector services do not prevent the project control plane from opening.
 
-The desktop observer unit also reads the central environment file. Install and rollback procedures live in the AI repository's `docs/RUNTIME_SUPERVISION.md`; installing services is explicit and is not performed by the dotfiles scripts.
+The desktop observer, project watcher and notification bridge units read the central environment file. Bootstrap links
+the units but does not enable or start them. Install/start and rollback procedures remain explicit in the AI
+repository's `docs/RUNTIME_SUPERVISION.md`.
 
 The `ai-workbench-notification-bridge` graphical-session service consumes the canonical SSE stream and keeps only a private XDG reconnect cursor. It notifies for approvals, run/check failures, run completion, manually requested indexing, blocked work and runtime loss. Routine focus, retrieval and model-call events are ignored. Wayle DND and `AI_WORKBENCH_NOTIFICATIONS_ENABLED=false` suppress display without losing the event cursor. Notification actions open canonical Workbench deep links when supported.
 
@@ -122,16 +129,20 @@ shellcheck hypr/scripts/ai-workbench-observer hypr/scripts/kage \
 python3 -c 'import tomllib; tomllib.load(open("wayle/config.toml", "rb"))'
 wayle config schema >/dev/null
 ./setup/test-workbench-desktop.sh
+./setup/test-project-profile.sh
+python3 -m unittest setup/test-workbench-project-watch.py
 python3 setup/test-workbench-notification-bridge.py
 python3 -m unittest setup/test-workbench-workflow-launch.py
 ```
 
-`setup/check-local.sh` currently also reports pre-existing shfmt differences across many unrelated scripts. The Workbench scripts are validated directly so that legacy formatting is not rewritten as part of this migration.
+`setup/check-local.sh` validates the complete shell tree, stale-reference guardrails, keybind documentation and
+Hyprland configuration. The focused adapter tests then exercise canonical project/profile actions and Python bridges.
 
 ## Remaining Phase 5 compatibility work
 
 - Completed: `project-profile` resolves projects and tmux session names from the canonical registry cache, and routes
   development/check commands through approved Workbench actions. No project paths, commands or pane topology remain
   hard-coded in the adapter. Detailed multi-pane scenes can be added later as approved manifest workflow DAGs.
-- Add an event/file watcher bridge for faster Git-to-cache refresh without frequent polling.
+- Completed: the observer owns an inotify-based, dependency-pruned and debounced project event bridge that requests
+  canonical status refreshes without running desktop-side Git or Docker probes.
 - Retire the old Kage watcher only after manual desktop parity and rollback validation.

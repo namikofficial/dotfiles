@@ -103,6 +103,10 @@ session name and remain available from the read-only XDG cache when Workbench is
 scene or single development workflow, while `check` resolves the canonical verification workflow; both fail clearly
 if the API is unavailable or the choice is ambiguous.
 
+While the graphical observer is running, nested source changes are detected through a bounded Linux inotify tree.
+Dependency, build and index directories are pruned, bursts are debounced, and the watcher asks Workbench for one
+project-scoped status refresh. It does not execute Git or Docker itself.
+
 Nox Billings helpers:
 
 ```sh
