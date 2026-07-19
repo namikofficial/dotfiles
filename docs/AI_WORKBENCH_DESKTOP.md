@@ -198,6 +198,19 @@ python3 -m unittest setup/test-workbench-workflow-launch.py
 `setup/check-local.sh` validates the complete shell tree, stale-reference guardrails, keybind documentation and
 Hyprland configuration. The focused adapter tests then exercise canonical project/profile actions and Python bridges.
 
+### Live focus validation — 2026-07-20
+
+With the supervised API, worker, observer, project watcher, and notification bridge active, focusing the registered
+AI Workbench VS Code window produced a workspace-only editor observation for `/home/namik/Documents/code/ai`.
+Workbench selected that project through `focused_editor` at confidence `0.96` and rejected the shared Code process
+CWD pointing at Dotfiles as lower-precedence evidence. Restoring the original Kitty window selected Dotfiles through
+`focused_terminal` at confidence `0.92`. The test restored the original window and did not pin either project.
+
+The AI Workbench repository was onboarded through register, dry-run diff, pending proposal, explicit approval, and
+export verification. Its canonical manifest owns the `ai`, `workbench`, and `ai-workbench` aliases, structured
+read-only lint/typecheck/test workflows, retrieval roots, and desktop projection. A consistent SQLite backup was
+validated before onboarding.
+
 ## Remaining Phase 5 compatibility work
 
 - Completed: `project-profile` resolves projects and tmux session names from the canonical registry cache, and routes
