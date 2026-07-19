@@ -69,7 +69,7 @@ dashboard = { x = 3, y = 0, w = 1, h = 1, accent = "card-obsidian" }
 
 [scratchpads.db]
 name = "Database"
-description = "Persistent DB shell"
+description = "Project-aware persistent DB shell"
 icon = "database"
 class = "noxflow-scratch-db"
 mode = "overlay"
