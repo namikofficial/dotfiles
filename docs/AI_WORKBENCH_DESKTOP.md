@@ -228,6 +228,11 @@ NVM package manager. After installing the tested `~/.local/bin/pnpm` bridge, lin
 3.66 seconds, and the local-first test workflow completed 377/377 tests in 35.5 seconds. Each execution retained its
 structured command, exit status, timestamps, output, and audit history; no approval was bypassed.
 
+Focusing the AI editor after those runs projected `completed` with three passed checks into `ProjectStatus` and the
+compact cache. The real Wayle adapters rendered AI Workbench at 96% editor confidence, clean `main`, no active task,
+and the explicitly offline optional AI runtime; restoring Kitty regenerated the cache for Dotfiles at 92% terminal
+confidence.
+
 ## Remaining Phase 5 compatibility work
 
 - Completed: `project-profile` resolves projects and tmux session names from the canonical registry cache, and routes
