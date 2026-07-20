@@ -119,12 +119,14 @@ Rectangle {
         color: "#b7121724"
         border.color: "#223d5df7"
         border.width: 1
+        y: -18
         opacity: 0.0
         scale: 0.995
         clip: true
 
         Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: 420; easing.type: Easing.OutBack; overshoot: 1.12 } }
+        Behavior on y { NumberAnimation { duration: 520; easing.type: Easing.OutBack; overshoot: 1.08 } }
 
         Flow {
             id: topBarFlow
@@ -248,11 +250,13 @@ Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
         anchors.verticalCenterOffset: compactLayout ? 34 : 24
+        y: 22
         opacity: 0.0
         scale: 0.985
 
-        Behavior on opacity { NumberAnimation { duration: 360; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 360; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: 460; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: 560; easing.type: Easing.OutBack; overshoot: 1.10 } }
+        Behavior on y { NumberAnimation { duration: 680; easing.type: Easing.OutBack; overshoot: 1.06 } }
 
         Flow {
             id: contentFlow
@@ -547,8 +551,12 @@ Rectangle {
 
         topBar.opacity = 1.0
         topBar.scale = 1.0
-        contentDock.opacity = 1.0
-        contentDock.scale = 1.0
+        topBar.y = 0
+        Qt.callLater(function() {
+            contentDock.opacity = 1.0
+            contentDock.scale = 1.0
+            contentDock.y = 0
+        })
         screenReady = true
     }
 }

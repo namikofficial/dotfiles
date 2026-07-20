@@ -122,6 +122,7 @@ entry.search-box {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: 220ms cubic-bezier(0.2, 0.9, 0.18, 1);
 }
 
 .filter-chip:checked {
@@ -180,7 +181,7 @@ entry.search-box {
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid transparent;
-  transition: 160ms ease;
+  transition: 220ms cubic-bezier(0.2, 0.9, 0.18, 1);
 }
 
 .type-strip {
@@ -228,6 +229,7 @@ entry.search-box {
   padding: 0;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.05);
+  transition: 180ms cubic-bezier(0.2, 0.9, 0.18, 1);
 }
 
 .row-action:hover {
@@ -298,6 +300,7 @@ textview.editor-text {
   min-height: 36px;
   padding: 0 14px;
   border-radius: 999px;
+  transition: 220ms cubic-bezier(0.2, 0.9, 0.18, 1);
 }
 
 .action-button.suggested-action {
@@ -746,7 +749,7 @@ class ClipboardWindow(Adw.ApplicationWindow):
         self.preview_revealer = Gtk.Revealer()
         self.preview_revealer.set_reveal_child(True)
         self.preview_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_LEFT)
-        self.preview_revealer.set_transition_duration(220)
+        self.preview_revealer.set_transition_duration(320)
         self.preview_revealer.set_hexpand(True)
         self.preview_revealer.set_child(self.build_preview_panel())
         paned.set_end_child(self.preview_revealer)
