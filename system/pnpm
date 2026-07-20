@@ -21,4 +21,4 @@ elif [[ -z "${NODE_VERSION:-}" ]]; then
   fi
 fi
 
-exec "$nvm_exec" pnpm "$@"
+exec "$nvm_exec" corepack pnpm "$@"

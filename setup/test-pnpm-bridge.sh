@@ -18,16 +18,16 @@ chmod +x "$test_dir/nvm/nvm-exec"
 
 default_result="$(cd "$test_dir/no-version" && NVM_DIR="$test_dir/nvm" \
   "$repo_dir/system/pnpm" lint --no-color)"
-[[ "$default_result" == 'lts/*|pnpm lint --no-color' ]]
+[[ "$default_result" == 'lts/*|corepack pnpm lint --no-color' ]]
 
 printf 'v24\n' >"$test_dir/project/.nvmrc"
 project_result="$(cd "$test_dir/project/nested" && env -u NODE_VERSION \
   NVM_DIR="$test_dir/nvm" "$repo_dir/system/pnpm" typecheck)"
-[[ "$project_result" == '|pnpm typecheck' ]]
+[[ "$project_result" == '|corepack pnpm typecheck' ]]
 
 override_result="$(cd "$test_dir/no-version" && NVM_DIR="$test_dir/nvm" \
   AI_WORKBENCH_NODE_VERSION='v22' "$repo_dir/system/pnpm" test:fast)"
-[[ "$override_result" == 'v22|pnpm test:fast' ]]
+[[ "$override_result" == 'v22|corepack pnpm test:fast' ]]
 
 missing_error="$test_dir/missing-error"
 if NVM_DIR="$test_dir/missing" "$repo_dir/system/pnpm" lint 2>"$missing_error"; then
