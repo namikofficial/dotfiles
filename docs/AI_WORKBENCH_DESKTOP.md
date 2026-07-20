@@ -99,6 +99,11 @@ Runtime precedence is explicit process environment, then the shared `runtime.env
 one-command diagnostic or isolated test instance without the user environment file silently redirecting the client
 to another API or web port.
 
+The supervised workflow PATH includes `~/.local/bin`. Bootstrap installs a small `pnpm` bridge there so structured
+manifest workflows can use the project-native package manager without embedding an NVM version path. The bridge
+uses the nearest `.nvmrc`, then `AI_WORKBENCH_NODE_VERSION` from central runtime configuration, and finally `lts/*`.
+It fails clearly when NVM's `nvm-exec` is unavailable and does not source an interactive shell.
+
 `open-ai-workbench.sh` probes the core `/ready` endpoint and starts `ai-workbench.target` when the user units are installed. If systemd startup is unavailable or fails, it preserves the existing `ai-workbench` tmux fallback. Optional model and vector services do not prevent the project control plane from opening.
 
 The desktop observer, project watcher and notification bridge units read the central environment file. Bootstrap links
