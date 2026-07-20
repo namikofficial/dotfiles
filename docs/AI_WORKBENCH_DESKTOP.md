@@ -206,6 +206,12 @@ Workbench selected that project through `focused_editor` at confidence `0.96` an
 CWD pointing at Dotfiles as lower-precedence evidence. Restoring the original Kitty window selected Dotfiles through
 `focused_terminal` at confidence `0.92`. The test restored the original window and did not pin either project.
 
+A disposable Kitty client attached to a disposable tmux session then proved positive process-tree correlation. The
+observation included the exact client PID, session, pane ID, pane CWD, and `associationVerified: true`; Workbench used
+the correlated `/home/namik/Documents/code/ai` pane CWD for focused-terminal resolution and rejected Kitty's stale
+launcher CWD. This rehearsal exposed and fixed a literal `\\t` delimiter bug in both tmux client and pane parsing.
+The fixture window and session were removed after restoring the original terminal.
+
 The AI Workbench repository was onboarded through register, dry-run diff, pending proposal, explicit approval, and
 export verification. Its canonical manifest owns the `ai`, `workbench`, and `ai-workbench` aliases, structured
 read-only lint/typecheck/test workflows, retrieval roots, and desktop projection. A consistent SQLite backup was
