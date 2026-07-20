@@ -117,7 +117,7 @@ tmux_for_window() {
   while IFS=$'\t' read -r client_pid session; do
     [[ -n "$client_pid" && -n "$session" ]] || continue
     is_descendant "$client_pid" "$window_pid" || continue
-    pane_line="$(tmux list-panes -t "$session" -f '#{pane_active}' -F '#{pane_id}\t#{pane_current_path}' 2>/dev/null | head -n1 || true)"
+    pane_line="$(tmux list-panes -t "$session" -f '#{pane_active}' -F $'#{pane_id}\t#{pane_current_path}' 2>/dev/null | head -n1 || true)"
     IFS=$'\t' read -r pane_id pane_cwd <<<"$pane_line"
     jq -cn \
       --argjson clientPid "$client_pid" \
@@ -126,7 +126,7 @@ tmux_for_window() {
       --arg cwd "$pane_cwd" \
       '{clientPid:$clientPid,session:$session,paneId:($paneId|if length>0 then . else null end),cwd:($cwd|if length>0 then . else null end),associationVerified:true}'
     return
-  done < <(tmux list-clients -F '#{client_pid}\t#{client_session}' 2>/dev/null || true)
+  done < <(tmux list-clients -F $'#{client_pid}\t#{client_session}' 2>/dev/null || true)
   printf 'null'
 }
 
@@ -246,6 +246,11 @@ observe_once() {
   fi
   cwd="$(jq -r '.cwd // ""' <<<"$process_json")"
   tmux_json="$(tmux_for_window "$pid")"
+  if [[ "$tmux_json" != "null" ]]; then
+    # A verified client belongs to this exact focused terminal. Its active pane
+    # CWD is stronger than Kitty's long-lived launcher/helper process CWD.
+    cwd="$(jq -r '.cwd // ""' <<<"$tmux_json")"
+  fi
   editor_json="$(editor_for_window "$class_name" "$title")"
   transient=false
   [[ "$class_name" =~ (Rofi|rofi|notification|polkit|xdg-desktop-portal) ]] && transient=true
@@ -279,6 +284,12 @@ observe_once() {
 
 if [[ "${1:-}" == "--editor-hint" ]]; then
   editor_for_window "${2:-}" "${3:-}"
+  printf '\n'
+  exit 0
+fi
+
+if [[ "${1:-}" == "--tmux-for-window" ]]; then
+  tmux_for_window "${2:-0}"
   printf '\n'
   exit 0
 fi
