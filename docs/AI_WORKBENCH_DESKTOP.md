@@ -222,6 +222,12 @@ export verification. Its canonical manifest owns the `ai`, `workbench`, and `ai-
 read-only lint/typecheck/test workflows, retrieval roots, and desktop projection. A consistent SQLite backup was
 validated before onboarding.
 
+All three synchronized manifest workflows were then exercised through the canonical action API. The first lint
+attempt failed closed and persisted `spawn pnpm ENOENT`, exposing that the reduced systemd PATH could not reach the
+NVM package manager. After installing the tested `~/.local/bin/pnpm` bridge, lint completed in 713 ms, typecheck in
+3.66 seconds, and the local-first test workflow completed 377/377 tests in 35.5 seconds. Each execution retained its
+structured command, exit status, timestamps, output, and audit history; no approval was bypassed.
+
 ## Remaining Phase 5 compatibility work
 
 - Completed: `project-profile` resolves projects and tmux session names from the canonical registry cache, and routes
