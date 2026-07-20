@@ -135,6 +135,30 @@ non_editor_hint="$(XDG_CACHE_HOME="$cache_dir" AI_WORKBENCH_RUNTIME_ENV="$test_d
   "$repo_dir/hypr/scripts/ai-workbench-observer" --editor-hint kitty \
   'main.ts - Example Project - Visual Studio Code')"
 [ "$non_editor_hint" = 'null' ]
+sleep 30 &
+tmux_client_pid=$!
+cat >"$mock_bin/tmux" <<'MOCK'
+#!/usr/bin/env bash
+case "${1:-}" in
+  list-clients)
+    printf '%s\tfixture-session\n' "$WORKBENCH_TEST_TMUX_CLIENT_PID"
+    ;;
+  list-panes)
+    printf '%%1\t/tmp/example-project\n'
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+MOCK
+chmod +x "$mock_bin/tmux"
+tmux_hint="$(PATH="$mock_bin:$PATH" WORKBENCH_TEST_TMUX_CLIENT_PID="$tmux_client_pid" \
+  XDG_CACHE_HOME="$cache_dir" AI_WORKBENCH_RUNTIME_ENV="$test_dir/missing-runtime.env" \
+  "$repo_dir/hypr/scripts/ai-workbench-observer" --tmux-for-window "$$")"
+kill "$tmux_client_pid" 2>/dev/null || true
+wait "$tmux_client_pid" 2>/dev/null || true
+jq -e '.clientPid > 1 and .session == "fixture-session" and .paneId == "%1" and
+  .cwd == "/tmp/example-project" and .associationVerified == true' <<<"$tmux_hint" >/dev/null
 grep -F 'date -u +%Y-%m-%dT%H:%M:%S.%3NZ' "$repo_dir/hypr/scripts/ai-workbench-observer" >/dev/null
 # Match literal shell source in the observer.
 # shellcheck disable=SC2016
