@@ -103,8 +103,8 @@ show_compact_menu() {
     "󰤄  Sleep") systemctl suspend ;;
     "󰒲  Hibernate") systemctl hibernate ;;
     "󰩬  Firmware") systemctl reboot --firmware-setup ;;
-    "󰜉  Reboot") systemctl reboot ;;
-    "󰐥  Shutdown") systemctl poweroff ;;
+    "󰜉  Reboot") systemctl --no-block reboot ;;
+    "󰐥  Shutdown") systemctl --no-block poweroff ;;
     "󰍃  Logout")
       if command -v uwsm >/dev/null 2>&1; then
         uwsm stop

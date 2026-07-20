@@ -6,37 +6,37 @@
 }
 {
     "label": "suspend",
-    "action": "sh -c 'systemctl suspend &'",
+    "action": "systemctl suspend",
     "text": "Sleep",
     "keybind": "u"
 }
 {
     "label": "hibernate",
-    "action": "sh -c 'systemctl hibernate &'",
+    "action": "systemctl hibernate",
     "text": "Hibernate",
     "keybind": "h"
 }
 {
     "label": "firmware",
-    "action": "sh -c 'systemctl reboot --firmware-setup &'",
+    "action": "systemctl reboot --firmware-setup",
     "text": "Firmware",
     "keybind": "f"
 }
 {
     "label": "reboot",
-    "action": "sh -c 'systemctl reboot &'",
+    "action": "systemctl --no-block reboot",
     "text": "Reboot",
     "keybind": "r"
 }
 {
     "label": "shutdown",
-    "action": "sh -c 'systemctl poweroff &'",
+    "action": "systemctl --no-block poweroff",
     "text": "Shutdown",
     "keybind": "s"
 }
 {
     "label": "logout",
-    "action": "sh -c 'command -v uwsm >/dev/null 2>&1 && uwsm stop || hyprctl dispatch exit &'",
+    "action": "sh -c 'command -v uwsm >/dev/null 2>&1 && uwsm stop || hyprctl dispatch exit'",
     "text": "Logout",
     "keybind": "e"
 }
