@@ -52,14 +52,20 @@ prepare_runtime_css() {
   bg="$(theme_hex bg "#1a1b1f")"
   bg_soft="$(theme_hex bg_soft "#242529")"
   surface="$(theme_hex surface "#38393c")"
+  surface_alt="$(theme_hex surface_alt "$surface")"
   text="$(theme_hex text "#e8eefc")"
   accent="$(theme_hex accent "#ae775b")"
+  accent_soft="$(theme_hex accent_soft "$accent")"
+  success="$(theme_hex success "$accent")"
   danger="$(theme_hex danger "#ff757f")"
 
   bg_rgb="$(hex_to_rgb "$bg")"
   bg_soft_rgb="$(hex_to_rgb "$bg_soft")"
   surface_rgb="$(hex_to_rgb "$surface")"
+  surface_alt_rgb="$(hex_to_rgb "$surface_alt")"
   accent_rgb="$(hex_to_rgb "$accent")"
+  accent_soft_rgb="$(hex_to_rgb "$accent_soft")"
+  success_rgb="$(hex_to_rgb "$success")"
   danger_rgb="$(hex_to_rgb "$danger")"
 
   sed -i \
@@ -82,6 +88,32 @@ prepare_runtime_css() {
     -e "s/rgba(255, 117, 127, 0.4)/rgba(${danger_rgb}, 0.4)/g" \
     -e "s/rgba(255, 117, 127, 0.42)/rgba(${danger_rgb}, 0.42)/g" \
     "$dst"
+
+  cat >>"$dst" <<EOF2
+
+/* Generated palette overrides. */
+window {
+  background-color: rgba(${bg_rgb}, 0.90);
+}
+
+button {
+  color: $text;
+  background-color: rgba(${surface_alt_rgb}, 0.94);
+  border-color: rgba(${accent_soft_rgb}, 0.66);
+}
+
+button:hover,
+button:focus,
+button:active {
+  background-color: rgba(${surface_rgb}, 0.98);
+  border-color: $accent;
+}
+
+#firmware {
+  background-color: rgba(${success_rgb}, 0.20);
+  border-color: rgba(${success_rgb}, 0.70);
+}
+EOF2
 }
 
 show_compact_menu() {

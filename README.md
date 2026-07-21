@@ -232,6 +232,15 @@ Launcher performance note:
 - fast mode (`launcher.sh --fast`) skips icon rendering for near-instant open
 
 Full keybind tables: `docs/KEYBINDS.md`
+
+Regenerate and verify the Hyprland keybind tables after changing the Lua
+bindings:
+
+```sh
+./setup/generate-keybind-docs.py
+./setup/check-keybind-docs.sh
+```
+
 Wallpaper/theming pipeline: `docs/WALLPAPER_THEMING.md`
 
 ## Settings Control Plane

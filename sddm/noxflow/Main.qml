@@ -1,26 +1,27 @@
 import QtQuick 2.0
 import QtQuick.Window 2.0
 import SddmComponents 2.0
+import "palette.js" as Palette
 
 Rectangle {
     id: root
     width: Screen.width
     height: Screen.height
-    color: "#080b12"
+    color: Palette.bg
 
     LayoutMirroring.enabled: Qt.locale().textDirection == Qt.RightToLeft
     LayoutMirroring.childrenInherit: true
 
-    property color accent: "#00e5ff"
-    property color accentSoft: "#2b00e5ff"
-    property color panelBg: "#dc080b12"
-    property color panelBgAlt: "#e0111522"
-    property color panelBorder: "#6600e5ff"
-    property color panelBorderSoft: "#2bffffff"
-    property color textPrimary: "#edf7ff"
-    property color textMuted: "#9aa9bd"
-    property color okColor: "#59ffa1"
-    property color badColor: "#ff3c78"
+    property color accent: Palette.accent
+    property color accentSoft: Palette.accentSoft
+    property color panelBg: Palette.bg
+    property color panelBgAlt: Palette.surface
+    property color panelBorder: Palette.accent
+    property color panelBorderSoft: Palette.surfaceAlt
+    property color textPrimary: Palette.text
+    property color textMuted: Palette.muted
+    property color okColor: Palette.success
+    property color badColor: Palette.danger
     property string statusMessage: textConstants.prompt
     property color statusColor: textMuted
     property bool compactLayout: width < 1080 || height < 780

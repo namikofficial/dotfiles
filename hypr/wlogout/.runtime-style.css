@@ -65,3 +65,26 @@ button:hover {
 #logout {
   background-image: url("/usr/share/wlogout/icons/logout.png");
 }
+
+/* Generated palette overrides. */
+window {
+  background-color: rgba(11,19,37, 0.90);
+}
+
+button {
+  color: #f5f8ff;
+  background-color: rgba(22,30,47, 0.94);
+  border-color: rgba(76,104,146, 0.66);
+}
+
+button:hover,
+button:focus,
+button:active {
+  background-color: rgba(43,50,65, 0.98);
+  border-color: #5f87c0;
+}
+
+#firmware {
+  background-color: rgba(126,189,164, 0.20);
+  border-color: rgba(126,189,164, 0.70);
+}

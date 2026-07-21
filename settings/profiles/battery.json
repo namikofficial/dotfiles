@@ -1,0 +1,18 @@
+{
+  "machine": { "profile": "battery" },
+  "power": { "default_profile": "power-saver", "auto_profile": true },
+  "wallpaper": { "rotate_enabled": false, "theme_sync": true },
+  "animations": {
+    "profile": "battery",
+    "enabled": true,
+    "motion_blur": false,
+    "motion_blur_samples": 1,
+    "border_angle": false,
+    "zoom": false,
+    "spring": false,
+    "window_speed": 3,
+    "workspace_speed": 3,
+    "workspace_distance": 10,
+    "special_workspace_distance": 10
+  }
+}

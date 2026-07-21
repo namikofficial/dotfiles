@@ -190,13 +190,38 @@ def read_state():
     return state
 
 
+def palette_css(css: str) -> str:
+    palette_path = Path(
+        os.environ.get(
+            "THEME_PALETTE_JSON",
+            Path.home() / ".cache" / "hypr" / "theme-palette.json",
+        )
+    )
+    try:
+        palette = json.loads(palette_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        palette = {}
+    colors = {
+        "__NOX_BG__": palette.get("bg", "#080b12"),
+        "__NOX_SURFACE__": palette.get("surface", "#111522"),
+        "__NOX_SURFACE_ALT__": palette.get("surface_alt", "#191f31"),
+        "__NOX_TEXT__": palette.get("text", "#f8fafc"),
+        "__NOX_MUTED__": palette.get("muted", "#cbd5e1"),
+        "__NOX_ACCENT__": palette.get("accent", "#7dd3fc"),
+        "__NOX_ACCENT_SOFT__": palette.get("accent_soft", "#60a5fa"),
+        "__NOX_SUCCESS__": palette.get("success", "#59ffa1"),
+    }
+    for token, value in colors.items():
+        css = css.replace(token, str(value))
+    return css
+
+
 def load_css():
     provider = Gtk.CssProvider()
     if CSS_FILE.exists():
-        provider.load_from_path(str(CSS_FILE))
+        css = CSS_FILE.read_text(encoding="utf-8")
     else:
-        provider.load_from_data(
-            b"""
+        css = """
             .scratch-backdrop { background: rgba(2, 6, 23, 0.72); }
             .scratch-shell {
               background: rgba(15, 23, 42, 0.92);
@@ -228,7 +253,7 @@ def load_css():
             .card-browser { background: linear-gradient(135deg, rgba(148, 163, 184, 0.18), rgba(15,23,42,0.6)); }
             .card-sidecar { background: linear-gradient(135deg, rgba(20, 184, 166, 0.16), rgba(15,23,42,0.6)); }
             """
-        )
+    provider.load_from_data(palette_css(css).encode("utf-8"))
     display = Gdk.Display.get_default()
     if display is not None:
         Gtk.StyleContext.add_provider_for_display(

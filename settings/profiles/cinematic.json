@@ -1,0 +1,17 @@
+{
+  "machine": { "profile": "cinematic" },
+  "power": { "default_profile": "performance", "auto_profile": false },
+  "animations": {
+    "profile": "cinematic",
+    "enabled": true,
+    "motion_blur": true,
+    "motion_blur_samples": 8,
+    "border_angle": true,
+    "zoom": true,
+    "spring": true,
+    "window_speed": 6,
+    "workspace_speed": 8,
+    "workspace_distance": 34,
+    "special_workspace_distance": 38
+  }
+}

@@ -62,8 +62,8 @@ DEFAULT_STATE = {
 }
 CSS = """
 window.clipboard-window {
-  background: linear-gradient(180deg, rgba(17, 20, 27, 0.98), rgba(10, 12, 17, 0.98));
-  color: #edf2f7;
+  background: linear-gradient(180deg, __NOX_SURFACE_98__, __NOX_BG_98__);
+  color: __NOX_TEXT__;
 }
 
 .clipboard-shell {
@@ -75,8 +75,8 @@ window.clipboard-window {
 .topbar,
 .preview-card,
 .history-card {
-  background: rgba(255, 255, 255, 0.055);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: __NOX_SURFACE_ALT_55__;
+  border: 1px solid __NOX_TEXT_10__;
   border-radius: 18px;
 }
 
@@ -126,9 +126,9 @@ entry.search-box {
 }
 
 .filter-chip:checked {
-  background: rgba(88, 166, 255, 0.18);
-  border-color: rgba(88, 166, 255, 0.44);
-  box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.16);
+  background: __NOX_ACCENT_18__;
+  border-color: __NOX_ACCENT_44__;
+  box-shadow: 0 0 0 1px __NOX_ACCENT_16__;
 }
 
 .history-card,
@@ -171,9 +171,9 @@ entry.search-box {
 
 .clip-row:selected .clip-row-shell,
 .clip-row.active-preview .clip-row-shell {
-  background: rgba(88, 166, 255, 0.16);
-  border-color: rgba(88, 166, 255, 0.30);
-  box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.14);
+  background: __NOX_ACCENT_16__;
+  border-color: __NOX_ACCENT_30__;
+  box-shadow: 0 0 0 1px __NOX_ACCENT_14__;
 }
 
 .clip-row-shell {
@@ -260,7 +260,7 @@ entry.search-box {
 textview.preview-text,
 textview.editor-text {
   background: transparent;
-  color: #edf2f7;
+  color: __NOX_TEXT__;
 }
 
 .preview-placeholder {
@@ -304,8 +304,8 @@ textview.editor-text {
 }
 
 .action-button.suggested-action {
-  background: rgba(88, 166, 255, 0.18);
-  border-color: rgba(88, 166, 255, 0.34);
+  background: __NOX_ACCENT_18__;
+  border-color: __NOX_ACCENT_34__;
 }
 
 .settings-popover {
@@ -1745,9 +1745,41 @@ class ClipboardApplication(Adw.Application):
             window.present()
 
 
+def palette_css(css: str) -> str:
+    palette_path = Path(
+        os.environ.get(
+            "THEME_PALETTE_JSON",
+            Path.home() / ".cache" / "hypr" / "theme-palette.json",
+        )
+    )
+    try:
+        palette = json.loads(palette_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        palette = {}
+
+    def rgba(key: str, alpha: int, fallback: str) -> str:
+        value = str(palette.get(key, fallback)).lstrip("#")
+        if len(value) != 6:
+            value = fallback.lstrip("#")
+        return f"rgba({int(value[0:2], 16)}, {int(value[2:4], 16)}, {int(value[4:6], 16)}, {alpha / 100:.2f})"
+
+    replacements = {
+        "__NOX_BG_98__": rgba("bg", 98, "0a0c11"),
+        "__NOX_SURFACE_98__": rgba("surface", 98, "11141b"),
+        "__NOX_SURFACE_ALT_55__": rgba("surface_alt", 55, "ffffff"),
+        "__NOX_TEXT__": palette.get("text", "#edf2f7"),
+    }
+    for alpha in (10, 14, 16, 18, 30, 34, 44):
+        replacements[f"__NOX_TEXT_{alpha}__"] = rgba("text", alpha, "ffffff")
+        replacements[f"__NOX_ACCENT_{alpha}__"] = rgba("accent", alpha, "58a6ff")
+    for token, value in replacements.items():
+        css = css.replace(token, value)
+    return css
+
+
 def install_css():
     provider = Gtk.CssProvider()
-    provider.load_from_data(CSS.encode("utf-8"))
+    provider.load_from_data(palette_css(CSS).encode("utf-8"))
     display = Gdk.Display.get_default()
     if display is None:
         return
