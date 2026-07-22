@@ -5,7 +5,7 @@ mode="${1:-open}"
 workspace_id="${NOXFLOW_LOGS_WORKSPACE:-9}"
 
 open_logs_terminal() {
-  kitty --class noxflow-logs --title "Noxflow Logs" -e sh -lc '
+  kitty --class noxflow-logs --title "Noxflow Logs" -e /usr/bin/zsh -lic '
     printf "Workspace logs view\n\n"
     printf "1) journalctl -b -f\n2) wayle service log\n3) hyprland runtime log tail\n\n"
     journalctl -b -f -n 150 --no-hostname --no-pager
@@ -14,7 +14,7 @@ open_logs_terminal() {
 
 open_tail_terminal() {
   # shellcheck disable=SC2016
-  kitty --class noxflow-logs --title "Noxflow Wayle Log" -e sh -lc '
+  kitty --class noxflow-logs --title "Noxflow Wayle Log" -e /usr/bin/zsh -lic '
     journalctl --user -fu wayle.service --no-pager
   ' >/dev/null 2>&1 &
 }

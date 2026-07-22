@@ -9,9 +9,9 @@
     "border_angle": true,
     "zoom": true,
     "spring": true,
-    "window_speed": 6,
+    "window_speed": 7,
     "workspace_speed": 8,
-    "workspace_distance": 34,
-    "special_workspace_distance": 38
+    "workspace_distance": 30,
+    "special_workspace_distance": 36
   }
 }

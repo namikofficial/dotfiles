@@ -51,19 +51,30 @@
       }
     }
   },
+  "permission": {
+    "workbench_*": "allow",
+    "workbench_ai_*": "allow",
+    "workbench_ai_select_project": "ask",
+    "workbench_ai_create_*": "ask",
+    "workbench_ai_run_*": "ask",
+    "workbench_ai_apply_*": "ask",
+    "obsidian_*": "ask",
+    "browser_*": "ask",
+    "chrome-devtools_*": "ask"
+  },
   "mcp": {
     "chrome-devtools": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/private/scripts/bin/opencode-chrome-devtools-mcp"],
+      "command": ["/home/namik/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp"],
       "enabled": true,
-      "timeout": 20000
+      "timeout": 30000
     },
     "browser": {
       "type": "local",
       "command": [
-        "/home/namik/.config/nvm/versions/node/v24.16.0/bin/playwright-mcp",
+        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/playwright-mcp",
         "--browser",
-        "chrome",
+        "chromium",
         "--viewport-size",
         "1920x1080",
         "--output-dir",
@@ -76,6 +87,7 @@
       "type": "local",
       "command": ["bash", "/home/namik/Documents/code/dotfiles/configs/opencode/obsidian-mcp.sh"],
       "environment": {
+        "OBSIDIAN_VAULT_PATH": "/home/namik/Documents/notes/DocsVault",
         "OBSIDIAN_API_KEY": "{env:OBSIDIAN_API_KEY}",
         "OBSIDIAN_BASE_URL": "{env:OBSIDIAN_BASE_URL}",
         "OBSIDIAN_ENABLE_CACHE": "{env:OBSIDIAN_ENABLE_CACHE}",
@@ -85,17 +97,35 @@
       "enabled": true,
       "timeout": 60000
     },
-    "rag": {
+    "workbench": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/system/rag-mcp.sh"],
+      "command": ["/home/namik/Documents/code/dotfiles/system/workbench-mcp.sh"],
       "enabled": true,
-      "timeout": 15000
+      "timeout": 30000
     },
     "local-docs": {
       "type": "local",
       "command": ["/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"],
       "enabled": true,
       "timeout": 15000
+    },
+    "filesystem": {
+      "type": "local",
+      "command": [
+        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/mcp-server-filesystem",
+        "/home/namik/Documents/code/dotfiles"
+      ],
+      "enabled": true,
+      "timeout": 30000
+    },
+    "git": {
+      "type": "local",
+      "command": [
+        "/home/namik/.local/bin/mcp-server-git",
+        "--repository", "/home/namik/Documents/code/dotfiles"
+      ],
+      "enabled": true,
+      "timeout": 30000
     }
   },
   "lsp": {

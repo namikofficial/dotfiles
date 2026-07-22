@@ -38,6 +38,7 @@ That command:
 - links tmux config (`~/.tmux.conf`)
 - links Neovim config (`~/.config/nvim`)
 - links Atuin config into `~/.config/atuin/config.toml`
+- links Starship config into `~/.config/starship.toml`
 - links UWSM compositor env (`~/.config/uwsm/env` and `~/.config/uwsm/env-hyprland`)
 - links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
 - links the modular Hyprland entrypoint (`hyprland.lua` + `hypr/conf/*.lua`), Wayle, Rofi, wlogout, and Kitty configs into `~/.config`
@@ -49,6 +50,17 @@ That command:
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
 - installs/updates tmux plugins via TPM (`~/.tmux/plugins/tpm`)
 - creates timestamped backups when replacing existing configs
+
+Set zsh as the account login shell after installing zsh:
+
+```sh
+./setup/bootstrap.sh --set-default-shell
+```
+
+For a raw Ctrl+Alt+F3-style Linux console, install `terminus-font` and apply
+the fallback console font with `sudo ./setup/configure-console-font.sh`.
+Kitty, tmux, and VS Code use JetBrainsMono Nerd Font for prompt and icon glyphs;
+the kernel console cannot display the complete Nerd Font icon set.
 
 ## Full install (packages + links)
 

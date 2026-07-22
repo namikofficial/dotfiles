@@ -342,12 +342,12 @@ spawn_music() {
   if command -v ncspot >/dev/null 2>&1; then
     kitty --class noxflow-scratch-music --title "Music" -e ncspot
   else
-    kitty --class noxflow-scratch-music --title "Music" -e bash -lc 'command -v cmus >/dev/null 2>&1 && exec cmus || exec bash'
+    kitty --class noxflow-scratch-music --title "Music" -e /usr/bin/zsh -lic 'command -v cmus >/dev/null 2>&1 && exec cmus || exec zsh -l'
   fi
 }
 
 spawn_notes() {
-  kitty --class noxflow-scratch-notes --title "Notes" -e bash -lc '
+  kitty --class noxflow-scratch-notes --title "Notes" -e /usr/bin/zsh -lic '
     cd "$HOME/Documents/notes" 2>/dev/null || cd "$HOME"
     if command -v hx >/dev/null 2>&1; then exec hx; fi
     if command -v micro >/dev/null 2>&1; then exec micro; fi

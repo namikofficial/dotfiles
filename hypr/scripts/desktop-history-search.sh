@@ -11,7 +11,7 @@ shell_search() {
   if command -v atuin >/dev/null 2>&1; then
     exec kitty --title "Shell History" -e atuin search
   fi
-  exec kitty --title "Shell History" -e bash -lc 'history | tail -n 2000 | fzf'
+  exec kitty --title "Shell History" -e /usr/bin/zsh -lic 'fc -l 1 | tail -n 2000 | fzf'
 }
 
 browser_search() {

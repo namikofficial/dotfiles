@@ -4,12 +4,13 @@ set -euo pipefail
 SOURCE_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-RAG_HOME="${RAG_HOME:-$HOME/ai-rag}"
-VENV="${RAG_HOME}/.venv"
+DOCS_HOME="${OPENCODE_LOCAL_DOCS_HOME:-$HOME/.local/share/opencode/local-docs}"
+PYTHON_BIN="$DOCS_HOME/.venv/bin/python"
 
-if [ ! -x "${VENV}/bin/python" ]; then
-  printf 'RAG venv not ready. Run: %s/setup/install-local-rag-stack.sh\n' "$REPO_DIR" >&2
+if [ ! -x "$PYTHON_BIN" ]; then
+  printf 'local-docs MCP is not installed. Run: %s/setup/install-opencode-mcp.sh\n' "$REPO_DIR" >&2
   exit 1
 fi
 
-exec "${VENV}/bin/python" "${SCRIPT_DIR}/local_docs_cache.py" mcp "$@"
+# local-docs is independent of the retired Python RAG stack.
+exec "$PYTHON_BIN" "${SCRIPT_DIR}/local_docs_cache.py" mcp "$@"

@@ -96,7 +96,7 @@ menu() {
       notify-send -a Syncthing "Syncthing" "Service restarted" >/dev/null 2>&1 || true
       ;;
     "Show Syncthing Service Status")
-      kitty -e sh -lc "$0 status; read -r -p 'Press enter to close'" >/dev/null 2>&1 &
+      kitty -e /usr/bin/zsh -lic "$0 status; read -r -p 'Press enter to close'" >/dev/null 2>&1 &
       ;;
     "Open Syncthing Config XML")
       xdg-open "$config_file" >/dev/null 2>&1 &

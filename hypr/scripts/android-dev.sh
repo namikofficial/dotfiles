@@ -53,8 +53,8 @@ case "${1:-menu}" in
       'Start emulator') exec kitty --title Emulator -e "$0" start ;;
       'Stop emulator') exec "$0" stop ;;
       Logcat) exec "$0" logcat ;;
-      'ADB devices') exec kitty -e sh -lc "'$0' devices; read -r -p 'Press enter'" ;;
-      'KVM health') exec kitty -e sh -lc "'$0' health; read -r -p 'Press enter'" ;;
+      'ADB devices') exec kitty -e /usr/bin/zsh -lic "'$0' devices; read -r -p 'Press enter'" ;;
+      'KVM health') exec kitty -e /usr/bin/zsh -lic "'$0' health; read -r -p 'Press enter'" ;;
     esac
     ;;
   *)

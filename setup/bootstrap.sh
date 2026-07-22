@@ -20,6 +20,7 @@ WITH_AUR=0
 WITH_NVIDIA=""
 DRY_RUN=0
 NO_BACKUP=0
+SET_DEFAULT_SHELL=0
 INSTALL_LOCAL_AI=1
 INSTALL_LOCAL_AI_MODELS=0
 INSTALL_ZSH_PLUGINS=1
@@ -44,6 +45,7 @@ Usage: $0 [options]
   --no-local-ai        Skip local AI runtime install/linking
   --dry-run            Print actions without writing changes
   --no-backup          Replace existing files without backup copy
+  --set-default-shell  Set the account login shell to /usr/bin/zsh
 USAGE
 }
 
@@ -75,6 +77,7 @@ while (($#)); do
       ;;
     --dry-run) DRY_RUN=1 ;;
     --no-backup) NO_BACKUP=1 ;;
+    --set-default-shell) SET_DEFAULT_SHELL=1 ;;
     -h | --help)
       usage
       exit 0
@@ -210,6 +213,7 @@ link_path "$REPO_DIR/setup/workstationctl" "$HOME/.local/bin/workstationctl"
 link_path "$REPO_DIR/system/pnpm" "$HOME/.local/bin/pnpm"
 link_path "$REPO_DIR/SHELL_CHEATSHEET.md" "$HOME/SHELL_CHEATSHEET.md"
 link_path "$REPO_DIR/atuin/config.toml" "$HOME/.config/atuin/config.toml"
+link_path "$REPO_DIR/starship.toml" "$HOME/.config/starship.toml"
 link_path "$REPO_DIR/nvim" "$HOME/.config/nvim"
 link_path "$REPO_DIR/uwsm/default-id" "$HOME/.config/uwsm/default-id"
 link_path "$REPO_DIR/uwsm/env" "$HOME/.config/uwsm/env"
@@ -324,6 +328,25 @@ if ((INSTALL_TMUX_PLUGINS)); then
   "${cmd[@]}"
 fi
 
+if ((SET_DEFAULT_SHELL)); then
+  zsh_path="$(command -v zsh || true)"
+  if [ -z "$zsh_path" ]; then
+    echo "Cannot set the default shell: zsh is not installed." >&2
+    exit 1
+  fi
+  current_shell="$(getent passwd "$USER" | cut -d: -f7 || true)"
+  if [ "$current_shell" != "$zsh_path" ]; then
+    if ((DRY_RUN)); then
+      echo "[dry-run] chsh -s '$zsh_path' '$USER'"
+    else
+      chsh -s "$zsh_path" "$USER"
+      echo "login shell set to $zsh_path; start a new login session to activate it"
+    fi
+  else
+    echo "ok   login shell is already $zsh_path"
+  fi
+fi
+
 if ((INSTALL_HYPR_PLUGINS)); then
   if ((DRY_RUN)); then
     echo "[dry-run] $SCRIPT_DIR/install-hypr-plugins.sh"
@@ -347,5 +370,6 @@ cat <<DONE
 
 Bootstrap complete.
 - Reload shell: exec zsh
+- Set the account login shell with: $0 --set-default-shell
 - Restart Hyprland/login session to activate hyprland.lua after migration
 DONE

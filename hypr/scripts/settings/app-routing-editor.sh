@@ -52,7 +52,7 @@ while true; do
     'List Rules')
       text="$("$SETTINGSCTL" list | jq -r '.app_routing.rules[] | "- \(.app): priority=\(.priority), route=\(.route), sound=\(.sound), sink=\(.audio_sink), workspace=\(.workspace)"' || true)"
       [[ -n "$text" ]] || text='No rules found'
-      kitty -e sh -lc "printf '%s\n' \"$text\"; read -r -p 'Press enter to close'"
+      kitty -e /usr/bin/zsh -lic "printf '%s\n' \"$text\"; read -r -p 'Press enter to close'"
       ;;
     'Back') exit 0 ;;
   esac

@@ -56,7 +56,7 @@
     "border_angle": true,
     "zoom": true,
     "spring": true,
-    "window_speed": 6,
+    "window_speed": 7,
     "workspace_speed": 7,
     "workspace_distance": 28,
     "special_workspace_distance": 34

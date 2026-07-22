@@ -28,9 +28,10 @@ clone_or_update() {
   }
 }
 
-# Programming / tech / cyberpunk / anime / landscape — covers all the vibes you want.
-clone_or_update "os-wallpapers"          "https://github.com/Tcode-Motion/os-wallpapers.git"
+# Naruto, Death Note, and other anime wallpapers.
 clone_or_update "anime-wallpapers"       "https://github.com/erickmartin890/Anime-Wallpapers.git"
+
+# Synthwave, dracula, gruvbox, catppuccin themes.
 clone_or_update "wallz"                  "https://github.com/fr0st-xyz/wallz.git"
 
 # Has dedicated coding/ and abstract/ subdirs for programming/tech wallpapers.

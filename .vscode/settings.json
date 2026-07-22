@@ -1,4 +1,12 @@
 {
+  "terminal.integrated.profiles.linux": {
+    "zsh (dotfiles)": {
+      "path": "/usr/bin/zsh",
+      "args": ["-l"]
+    }
+  },
+  "terminal.integrated.defaultProfile.linux": "zsh (dotfiles)",
+  "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font, JetBrains Mono, monospace",
   "css.validate": false,
   "scss.validate": false,
   "less.validate": false,

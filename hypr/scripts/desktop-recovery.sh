@@ -14,7 +14,7 @@ notify() {
 run_terminal() {
   local title="$1"
   shift
-  exec kitty --title "$title" -e sh -lc "$*; printf '\nPress enter to close'; read -r _"
+  exec kitty --title "$title" -e /usr/bin/zsh -lic "$*; printf '\nPress enter to close'; read -r _"
 }
 
 menu() {

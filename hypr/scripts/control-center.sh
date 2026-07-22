@@ -43,12 +43,12 @@ set -e
 [ -n "${choice:-}" ] || exit 0
 
 case "$choice" in
-  Health) exec kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/dev-health.sh; read -r -p 'Press enter to close'" ;;
-  "Health (JSON)") exec kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/dev-health.sh --json; read -r -p 'Press enter to close'" ;;
+  Health) exec kitty -e /usr/bin/zsh -lic "$HOME/Documents/code/dotfiles/setup/dev-health.sh; read -r -p 'Press enter to close'" ;;
+  "Health (JSON)") exec kitty -e /usr/bin/zsh -lic "$HOME/Documents/code/dotfiles/setup/dev-health.sh --json; read -r -p 'Press enter to close'" ;;
   "Settings Hub") exec "$SCRIPT_DIR/settings-hub.sh" ;;
-  "Settings Doctor") exec kitty -e sh -lc "$HOME/Documents/code/dotfiles/hypr/scripts/settingsctl doctor; read -r -p 'Press enter to close'" ;;
-  "Settings Keycheck") exec kitty -e sh -lc "$HOME/Documents/code/dotfiles/hypr/scripts/settingsctl keycheck; read -r -p 'Press enter to close'" ;;
-  "Project Profiles") exec kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/project-profile.sh status; read -r -p 'Press enter to close'" ;;
+  "Settings Doctor") exec kitty -e /usr/bin/zsh -lic "$HOME/Documents/code/dotfiles/hypr/scripts/settingsctl doctor; read -r -p 'Press enter to close'" ;;
+  "Settings Keycheck") exec kitty -e /usr/bin/zsh -lic "$HOME/Documents/code/dotfiles/hypr/scripts/settingsctl keycheck; read -r -p 'Press enter to close'" ;;
+  "Project Profiles") exec kitty -e /usr/bin/zsh -lic "$HOME/Documents/code/dotfiles/setup/project-profile.sh status; read -r -p 'Press enter to close'" ;;
   "Project Resume") exec "$SCRIPT_DIR/project-resume.sh" ;;
   Launcher) exec "$SCRIPT_DIR/launcher.sh" --fast ;;
   "Quick Actions") exec "$SCRIPT_DIR/quick-actions.sh" ;;

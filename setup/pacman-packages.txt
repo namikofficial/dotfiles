@@ -119,6 +119,7 @@ seahorse
 
 # UI polish and fonts
 ttf-jetbrains-mono-nerd
+terminus-font
 inter-font
 noto-fonts
 noto-fonts-cjk

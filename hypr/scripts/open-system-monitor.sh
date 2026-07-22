@@ -11,7 +11,7 @@ fi
 [ -n "$cmd" ] || exit 0
 
 if command -v kitty >/dev/null 2>&1; then
-  kitty sh -lc "$cmd; read -r -p 'Press enter to close'" >/dev/null 2>&1 &
+  kitty /usr/bin/zsh -lic "$cmd; read -r -p 'Press enter to close'" >/dev/null 2>&1 &
   exit 0
 fi
 if command -v foot >/dev/null 2>&1; then
