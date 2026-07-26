@@ -6,4 +6,5 @@ description = "NoxFlow desktop state and IPC daemon"
 license = "MIT"
 
 [dependencies]
-
+noxflow-ipc = { path = "../noxflow-ipc" }
+serde_json = "1"

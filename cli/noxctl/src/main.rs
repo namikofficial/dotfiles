@@ -1,3 +1,4 @@
+use noxflow_ipc::{Request, RequestEnvelope, PROTOCOL_VERSION};
 use std::{
     env,
     io::{Read, Write},
@@ -28,13 +29,21 @@ fn usage() {
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     match args.as_slice() {
-        [command] if command == "status" => match daemon_request("status") {
-            Ok(response) => println!("{response}"),
-            Err(error) => {
-                eprintln!("noxd unavailable: {error}");
-                std::process::exit(1);
+        [command] if command == "status" => {
+            let request = RequestEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                request_id: "noxctl-status".into(),
+                request: Request::GetState,
+            };
+            let request = serde_json::to_string(&request).expect("IPC request serializes");
+            match daemon_request(&request) {
+                Ok(response) => println!("{response}"),
+                Err(error) => {
+                    eprintln!("noxd unavailable: {error}");
+                    std::process::exit(1);
+                }
             }
-        },
+        }
         [command] if command == "doctor" => {
             println!("noxflow doctor");
             println!("  runtime socket: {}", socket().display());

@@ -5,3 +5,6 @@ edition = "2021"
 description = "NoxFlow shell and daemon control CLI"
 license = "MIT"
 
+[dependencies]
+noxflow-ipc = { path = "../../core/noxflow-ipc" }
+serde_json = "1"
