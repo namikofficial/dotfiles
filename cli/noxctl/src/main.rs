@@ -16,6 +16,7 @@ fn socket() -> PathBuf {
 fn daemon_request(request: &str) -> std::io::Result<String> {
     let mut stream = UnixStream::connect(socket())?;
     stream.write_all(request.as_bytes())?;
+    stream.write_all(b"\n")?;
     stream.shutdown(Shutdown::Write)?;
     let mut response = String::new();
     stream.read_to_string(&mut response)?;

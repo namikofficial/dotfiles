@@ -1,4 +1,7 @@
 //! The versioned JSON contract shared by noxd, noxctl, and Quickshell.
+//!
+//! The Unix socket transport uses UTF-8 newline-delimited JSON (NDJSON): every
+//! request and response is one compact JSON object terminated by `\\n`.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

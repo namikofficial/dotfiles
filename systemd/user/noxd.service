@@ -6,11 +6,14 @@ After=graphical-session.target
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/noxd
+RuntimeDirectory=noxflow
+RuntimeDirectoryMode=0700
+UMask=0077
 Restart=on-failure
 RestartSec=2
+KillSignal=SIGTERM
 NoNewPrivileges=yes
 PrivateTmp=yes
 
 [Install]
 WantedBy=graphical-session.target
-
