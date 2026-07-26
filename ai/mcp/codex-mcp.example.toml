@@ -26,6 +26,21 @@ command = "rag-mcp"
 args = []
 enabled = true
 
+[mcp_servers.local-docs]
+command = "bash"
+args = ["/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"]
+enabled = true
+
+[mcp_servers.browser]
+command = "/home/namik/.local/share/opencode/mcp/node_modules/.bin/playwright-mcp"
+args = ["--browser", "chromium", "--viewport-size", "1920x1080", "--output-dir", "/home/namik/.cache/codex/playwright-mcp"]
+enabled = true
+
+[mcp_servers.chrome-devtools]
+command = "/home/namik/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp"
+args = []
+enabled = true
+
 [mcp_servers.postgres]
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:password@localhost/dbname"]
