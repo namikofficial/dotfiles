@@ -115,9 +115,13 @@ pub enum ProviderStatus {
     Pending,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Subscription {
     pub subscription_id: String,
+    pub stream_id: String,
+    pub sequence: u64,
+    #[serde(default)]
+    pub snapshots: BTreeMap<String, ProviderState>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -136,8 +140,11 @@ pub struct EventEnvelope {
     #[serde(rename = "version")]
     pub protocol_version: u32,
     pub timestamp: u64,
+    pub stream_id: String,
+    pub sequence: u64,
     pub provider: String,
     pub event_type: String,
+    pub schema_version: u32,
     #[serde(default)]
     pub data: BTreeMap<String, Value>,
 }
@@ -247,8 +254,11 @@ mod tests {
         let event = EventEnvelope {
             protocol_version: 1,
             timestamp: 123,
+            stream_id: "test-stream".into(),
+            sequence: 1,
             provider: "audio".into(),
             event_type: "volume_changed".into(),
+            schema_version: 1,
             data: BTreeMap::new(),
         };
         let json = serde_json::to_value(event).unwrap();

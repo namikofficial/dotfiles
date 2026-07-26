@@ -1,7 +1,7 @@
 # NoxFlow IPC protocol
 
 This document defines protocol version `1` between `noxd`, `noxctl`, and
-Quickshell. Transport is newline-independent JSON over the Unix domain socket:
+Quickshell. Transport is newline-delimited JSON over the Unix domain socket:
 
 ```text
 $XDG_RUNTIME_DIR/noxflow/noxd.sock
@@ -28,7 +28,7 @@ Events are unsolicited messages. They always include the protocol version,
 Unix timestamp in seconds, provider name, event type, and optional data:
 
 ```json
-{"version":1,"timestamp":1710000000,"provider":"audio","event_type":"volume_changed","data":{"volume":42}}
+{"version":1,"timestamp":1710000000,"stream_id":"123-...","sequence":42,"provider":"audio","event_type":"volume_changed","schema_version":1,"data":{"volume":42}}
 ```
 
 Unknown JSON fields must be ignored by clients. Clients should likewise ignore
@@ -64,6 +64,17 @@ Examples:
 `reboot`, `power_off`, `refresh_providers`, and `set_profile`. There is no IPC
 operation for executing a shell command or passing an executable and its
 arguments.
+
+A successful subscription acknowledgement includes the subscription ID, the
+daemon stream ID, the sequence boundary, and matching provider snapshots:
+
+```json
+{"version":1,"id":"req-4","result":{"type":"subscription","data":{"subscription_id":"sub-1","stream_id":"123-...","sequence":41,"snapshots":{"audio":{"provider":"audio","status":"available","data":{"volume":42}}}}}}
+```
+
+Subsequent matching events are unsolicited messages. Their sequence numbers
+are greater than the acknowledgement boundary. A changed stream ID means the
+daemon restarted and the client should refresh its snapshot.
 
 ## Responses and errors
 
