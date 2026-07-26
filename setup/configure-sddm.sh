@@ -25,6 +25,8 @@ echo
 THEME_NAME="noxflow"
 THEME_SRC="$REPO_DIR/sddm/$THEME_NAME"
 THEME_DEST="/usr/share/sddm/themes/$THEME_NAME"
+src_user="${SUDO_USER:-$USER}"
+src_home="$(getent passwd "$src_user" | cut -d: -f6)"
 
 if [[ ! -d "$THEME_SRC" ]]; then
   echo "Missing theme source in repo: $THEME_SRC"
@@ -42,14 +44,18 @@ install -Dm644 "$REPO_DIR/sddm/sddm.conf.d/10-noxflow-theme.conf" /etc/sddm.conf
 rm -rf "$THEME_DEST"
 mkdir -p "$THEME_DEST"
 cp -r "$THEME_SRC"/. "$THEME_DEST"/
+
+palette_cache="${src_home:-}/.cache/hypr/theme-colors-sddm.js"
+if [[ -f "$palette_cache" ]]; then
+  install -Dm644 "$palette_cache" "$THEME_DEST/palette.js"
+fi
+
 chown -R root:root "$THEME_DEST"
 chmod -R a+rX "$THEME_DEST"
 
 default_wall="$THEME_DEST/images/background.png"
 target_wall="$THEME_DEST/images/noxflow-login.jpg"
 
-src_user="${SUDO_USER:-$USER}"
-src_home="$(getent passwd "$src_user" | cut -d: -f6)"
 src_wall="${src_home}/.cache/current-wallpaper"
 wall_path="$default_wall"
 

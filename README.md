@@ -38,6 +38,7 @@ That command:
 - links tmux config (`~/.tmux.conf`)
 - links Neovim config (`~/.config/nvim`)
 - links Atuin config into `~/.config/atuin/config.toml`
+- links Starship config into `~/.config/starship.toml`
 - links UWSM compositor env (`~/.config/uwsm/env` and `~/.config/uwsm/env-hyprland`)
 - links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
 - links the modular Hyprland entrypoint (`hyprland.lua` + `hypr/conf/*.lua`), Wayle, Rofi, wlogout, and Kitty configs into `~/.config`
@@ -49,6 +50,17 @@ That command:
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
 - installs/updates tmux plugins via TPM (`~/.tmux/plugins/tpm`)
 - creates timestamped backups when replacing existing configs
+
+Set zsh as the account login shell after installing zsh:
+
+```sh
+./setup/bootstrap.sh --set-default-shell
+```
+
+For a raw Ctrl+Alt+F3-style Linux console, install `terminus-font` and apply
+the fallback console font with `sudo ./setup/configure-console-font.sh`.
+Kitty, tmux, and VS Code use JetBrainsMono Nerd Font for prompt and icon glyphs;
+the kernel console cannot display the complete Nerd Font icon set.
 
 ## Full install (packages + links)
 
@@ -101,6 +113,18 @@ Run shell checks locally:
 ./setup/check-dotfiles.sh --all
 ```
 
+After upgrading Kitty, scrcpy, Neovim, libvirt, or the desktop stack, run the
+read-only workstation verification pass:
+
+```sh
+upgrade-verify
+```
+
+The check reports package versions, Kitty configuration errors, Kitty terminfo,
+Neovim startup, scrcpy encoders, Android SDK availability, KVM access, and
+libvirt domains/networks/storage pools. Warnings are diagnostic and do not
+modify system or VM state.
+
 Remove legacy shell experiments after the Wayle-first shell cleanup:
 
 ```sh
@@ -122,8 +146,11 @@ project-profile status
 - `dev-health --json` emits a machine-readable summary for menus and dashboards.
 - `dev-health --full` also runs the deeper weekly health log.
 - `dotfiles-stale-check` blocks stale retired-stack references from creeping back into docs/scripts.
-- `project-profile` lists and launches common workspaces from one source of truth.
-- `project-resume` restores the current project session, editor, and sidecar state from the focused repo.
+- `project-profile` lists and launches Workbench-registered projects from the canonical registry/cache; mutating
+  development and check actions always go through approved Workbench workflows.
+- `project-resume` resumes the canonical shared session and restores the manifest editor, tmux session, Sidecar, and
+  allowlisted scratchpad preferences. When canonical state is unavailable it opens an explicit read-only desktop
+  fallback without creating project or task state.
 
 If package install fails with `db.lck`, clear stale lock and retry:
 
@@ -217,6 +244,15 @@ Launcher performance note:
 - fast mode (`launcher.sh --fast`) skips icon rendering for near-instant open
 
 Full keybind tables: `docs/KEYBINDS.md`
+
+Regenerate and verify the Hyprland keybind tables after changing the Lua
+bindings:
+
+```sh
+./setup/generate-keybind-docs.py
+./setup/check-keybind-docs.sh
+```
+
 Wallpaper/theming pipeline: `docs/WALLPAPER_THEMING.md`
 
 ## Settings Control Plane

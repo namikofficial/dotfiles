@@ -56,7 +56,7 @@ if ! curl -fsS --max-time 1 "$health" >/dev/null 2>&1; then
   printf 'Start it now? [Y/n] '
   read -r answer
   case "${answer:-Y}" in
-    y|Y|yes|YES) start_server ;;
+    y | Y | yes | YES) start_server ;;
   esac
 fi
 
@@ -76,7 +76,7 @@ while :; do
   printf '\nlocal> '
   IFS= read -r prompt || break
   case "$prompt" in
-    /exit|exit|quit) break ;;
+    /exit | exit | quit) break ;;
     /clear)
       history='[{"role":"system","content":"You are a concise local coding assistant running inside a Hyprland scratchpad. Be direct and practical."}]'
       printf 'context cleared\n'

@@ -14,7 +14,10 @@ read -r mon_w mon_h < <(
 )
 
 case "$mon_w $mon_h" in
-  ''|'null null') mon_w=1920; mon_h=1080 ;;
+  '' | 'null null')
+    mon_w=1920
+    mon_h=1080
+    ;;
 esac
 
 ts="$(date +%Y%m%d-%H%M%S)"

@@ -23,12 +23,12 @@ print_if_readable() {
 print_ldd_files() {
   local file="$1"
   [[ -x "$file" ]] || return 0
-  ldd "$file" 2>/dev/null \
-    | awk '/=> \// { print $3 } /^\/[^[:space:]]+/ { print $1 }' \
-    | while IFS= read -r dep; do
-        [[ -r "$dep" ]] || continue
-        printf '%s\0' "$dep"
-      done
+  ldd "$file" 2>/dev/null |
+    awk '/=> \// { print $3 } /^\/[^[:space:]]+/ { print $1 }' |
+    while IFS= read -r dep; do
+      [[ -r "$dep" ]] || continue
+      printf '%s\0' "$dep"
+    done
 }
 
 chrome_files() {
@@ -111,10 +111,10 @@ obsidian_files() {
 }
 
 warm_stream() {
-  sort -zu \
-    | while IFS= read -r -d '' file; do
-        dd if="$file" of=/dev/null bs=8M iflag=fullblock status=none 2>/dev/null || true
-      done
+  sort -zu |
+    while IFS= read -r -d '' file; do
+      dd if="$file" of=/dev/null bs=8M iflag=fullblock status=none 2>/dev/null || true
+    done
 }
 
 case "${1:-all}" in
@@ -127,7 +127,7 @@ case "${1:-all}" in
   obsidian)
     obsidian_files | warm_stream
     ;;
-  all|--session)
+  all | --session)
     {
       chrome_files
       code_files

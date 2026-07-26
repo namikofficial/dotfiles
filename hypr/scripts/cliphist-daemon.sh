@@ -4,15 +4,15 @@ set -eu
 mode="${1:-start}"
 
 is_ready() {
-    systemctl --user is-active author-clipboard-daemon >/dev/null 2>&1
+  systemctl --user is-active author-clipboard-daemon >/dev/null 2>&1
 }
 
 start_daemon() {
-    systemctl --user start author-clipboard-daemon
+  systemctl --user start author-clipboard-daemon
 }
 
 case "$mode" in
-  start|ensure)
+  start | ensure)
     if is_ready; then
       exit 0
     fi

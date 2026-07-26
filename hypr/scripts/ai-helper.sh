@@ -4,6 +4,20 @@ set -eu
 mode="${1:-menu}"
 rofi_theme="${HOME}/.config/rofi/actions.rasi"
 context_builder="${HOME}/.config/hypr/scripts/ai-helper-context.sh"
+workbench_status_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"
+
+load_workbench_context_env() {
+  command -v jq >/dev/null 2>&1 || return 0
+  [ -s "$workbench_status_cache" ] || return 0
+  AI_WORKBENCH_PROJECT_ID="$(jq -r '.status.project.id // ""' "$workbench_status_cache" 2>/dev/null || true)"
+  AI_WORKBENCH_PROJECT_NAME="$(jq -r '.status.project.name // ""' "$workbench_status_cache" 2>/dev/null || true)"
+  AI_WORKBENCH_PROJECT_PATH="$(jq -r '.status.project.path // ""' "$workbench_status_cache" 2>/dev/null || true)"
+  AI_WORKBENCH_SESSION_ID="$(jq -r '.status.activeWork.sessionId // ""' "$workbench_status_cache" 2>/dev/null || true)"
+  AI_WORKBENCH_TASK_ID="$(jq -r '.status.activeWork.taskId // ""' "$workbench_status_cache" 2>/dev/null || true)"
+  AI_WORKBENCH_RUN_ID="$(jq -r '.status.activeWork.runId // ""' "$workbench_status_cache" 2>/dev/null || true)"
+  export AI_WORKBENCH_PROJECT_ID AI_WORKBENCH_PROJECT_NAME AI_WORKBENCH_PROJECT_PATH
+  export AI_WORKBENCH_SESSION_ID AI_WORKBENCH_TASK_ID AI_WORKBENCH_RUN_ID
+}
 
 notify() {
   command -v notify-send >/dev/null 2>&1 || return 0
@@ -46,7 +60,7 @@ run_codex_terminal() {
 
   # shellcheck disable=SC2016
   AI_PROMPT="$prompt_text" \
-  kitty --title "$title" -e sh -lc '
+    kitty --title "$title" -e sh -lc '
     printf "Noxflow AI helper\n\n"
     codex exec --sandbox workspace-write --ask-for-approval on-request "$AI_PROMPT" || true
     printf "\nPress Enter to close..."
@@ -59,6 +73,8 @@ run_codex_terminal() {
 run_ai() {
   title="$1"
   prompt_text="$2"
+
+  load_workbench_context_env
 
   if run_codex_terminal "$title" "$prompt_text"; then
     return 0
@@ -118,7 +134,7 @@ ask_mode() {
   require_cmd rofi
   question="$(rofi_input 'Ask AI')"
   [ -n "$question" ] || exit 0
- 
+
   run_ai "AI Ask" "$(compose_prompt ask "Question" "$question")"
 }
 

@@ -21,7 +21,6 @@ C_RESET='\033[0m'
 endpoint="${LLM_CHAT_ENDPOINT:-${AI_LLM_BASE_URL:-http://127.0.0.1:8080/v1}/chat/completions}"
 health="${LLM_HEALTH_ENDPOINT:-${AI_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}}"
 model="${LLM_CHAT_MODEL:-local}"
-context_script="${HOME}/.config/hypr/scripts/get-project-context.sh"
 prompt_builder="${HOME}/.config/hypr/scripts/ai-helper-context.sh"
 msg_count=0
 
@@ -75,54 +74,31 @@ diagnose_server() {
   fi
 }
 
-get_project_context() {
-  if [ -x "$context_script" ]; then
-    "$context_script" 2>/dev/null || echo '{}'
+fallback_context_dir() {
+  local dir="${AI_WORKBENCH_PROJECT_PATH:-${NOXFLOW_AI_CONTEXT:-$PWD}}"
+  if [ -d "$dir" ]; then
+    cd "$dir" 2>/dev/null && pwd -P
   else
-    echo '{}'
+    pwd -P
   fi
 }
 
-format_context_system_prompt() {
-  local ctx_json="$1"
-  local dir branch file uncommitted
-  
-  dir=$(echo "$ctx_json" | jq -r '.directory // "."' 2>/dev/null || echo ".")
-  branch=$(echo "$ctx_json" | jq -r '.git.branch // ""' 2>/dev/null || echo "")
-  file=$(echo "$ctx_json" | jq -r '.file // ""' 2>/dev/null || echo "")
-  uncommitted=$(echo "$ctx_json" | jq -r '.git.uncommitted_files // 0' 2>/dev/null || echo "0")
-  
-  local context_str="You are a concise local coding assistant running inside a Hyprland scratchpad."
-  context_str+=" Repository: $(basename "$dir")"
-  [ -n "$branch" ] && context_str+=" (branch: $branch)"
-  [ "$uncommitted" -gt 0 ] && context_str+=" [$uncommitted uncommitted files]"
-  [ -n "$file" ] && context_str+=" Current file: $file"
-  context_str+=" Be direct, practical, and format code in markdown blocks when needed."
-  
-  printf '%s\n' "$context_str"
+fallback_context_system_prompt() {
+  local dir
+  dir="$(fallback_context_dir)"
+  printf 'You are a concise local coding assistant running inside a Hyprland scratchpad. Workspace: %s.' "$dir"
+  [ -n "${AI_WORKBENCH_PROJECT_ID:-}" ] && printf ' Workbench project ID: %s.' "$AI_WORKBENCH_PROJECT_ID"
+  [ -n "${AI_WORKBENCH_SESSION_ID:-}" ] && printf ' Shared session ID: %s.' "$AI_WORKBENCH_SESSION_ID"
+  printf ' Canonical project status is unavailable; do not infer branch, task, or repository state. Be direct, practical, and format code in markdown blocks when needed.\n'
 }
 
-format_context_summary() {
-  local ctx_json="$1"
-  local dir branch file project_type uncommitted
-
-  dir=$(echo "$ctx_json" | jq -r '.directory // "."' 2>/dev/null || echo ".")
-  branch=$(echo "$ctx_json" | jq -r '.git.branch // ""' 2>/dev/null || echo "")
-  file=$(echo "$ctx_json" | jq -r '.file // ""' 2>/dev/null || echo "")
-  project_type=$(echo "$ctx_json" | jq -r '.project_type // "unknown"' 2>/dev/null || echo "unknown")
-  uncommitted=$(echo "$ctx_json" | jq -r '.git.uncommitted_files // 0' 2>/dev/null || echo "0")
-
-  printf 'Workspace: %s' "$dir"
-  [ -n "$branch" ] && printf ' | branch %s' "$branch"
-  [ "$uncommitted" -gt 0 ] && printf ' | %s changed files' "$uncommitted"
-  [ -n "$project_type" ] && printf ' | %s' "$project_type"
-  [ -n "$file" ] && printf ' | focus %s' "$file"
-  printf '\n'
+fallback_context_summary() {
+  local dir
+  dir="$(fallback_context_dir)"
+  printf 'Workspace: %s | Workbench context unavailable (directory-only fallback)\n' "$dir"
 }
 
 refresh_context() {
-  context_json="$(get_project_context)"
-
   if [ -x "$prompt_builder" ]; then
     context_prompt="$("$prompt_builder" prompt scratchpad 2>/dev/null || true)"
     context_summary="$("$prompt_builder" summary 2>/dev/null || true)"
@@ -131,8 +107,8 @@ refresh_context() {
     context_summary=""
   fi
 
-  [ -n "$context_prompt" ] || context_prompt="$(format_context_system_prompt "$context_json")"
-  [ -n "$context_summary" ] || context_summary="$(format_context_summary "$context_json")"
+  [ -n "$context_prompt" ] || context_prompt="$(fallback_context_system_prompt)"
+  [ -n "$context_summary" ] || context_summary="$(fallback_context_summary)"
 }
 
 trim_history() {
@@ -191,9 +167,9 @@ history="[$(jq -n --arg content "$context_prompt" '{role:"system",content:$conte
 while :; do
   printf '%s%s>%s ' "$C_CYAN" "local" "$C_RESET"
   IFS= read -r prompt || break
-  
+
   case "$prompt" in
-    /exit|exit|quit)
+    /exit | exit | quit)
       printf '%s← Goodbye%s\n' "$C_DIM" "$C_RESET"
       break
       ;;
@@ -203,7 +179,7 @@ while :; do
       printf '%s✓ Context cleared%s\n' "$C_GREEN" "$C_RESET"
       continue
       ;;
-    /context|/ctx)
+    /context | /ctx)
       refresh_context
       printf '%s%s%s\n' "$C_BOLD" "$context_summary" "$C_RESET"
       continue

@@ -9,8 +9,14 @@ set -euo pipefail
 
 choose_avd() {
   mapfile -t avds < <(emulator -list-avds 2>/dev/null)
-  ((${#avds[@]})) || { printf 'No AVDs found. Create one in Android Studio.\n' >&2; exit 1; }
-  if ((${#avds[@]} == 1)); then printf '%s\n' "${avds[0]}"; return; fi
+  ((${#avds[@]})) || {
+    printf 'No AVDs found. Create one in Android Studio.\n' >&2
+    exit 1
+  }
+  if ((${#avds[@]} == 1)); then
+    printf '%s\n' "${avds[0]}"
+    return
+  fi
   printf '%s\n' "${avds[@]}" | rofi -dmenu -p 'Android AVD'
 }
 
@@ -18,7 +24,10 @@ case "${1:-menu}" in
   studio) exec android-studio ;;
   code) exec code "${2:-.}" ;;
   start)
-    command -v emulator >/dev/null || { printf 'Install Android Emulator from SDK Manager.\n' >&2; exit 1; }
+    command -v emulator >/dev/null || {
+      printf 'Install Android Emulator from SDK Manager.\n' >&2
+      exit 1
+    }
     avd="${2:-$(choose_avd)}"
     exec emulator -avd "$avd" -accel on -gpu host \
       -memory "${NOX_ANDROID_EMULATOR_MEMORY_MB:-4096}" \
@@ -30,7 +39,10 @@ case "${1:-menu}" in
   health) exec workstationctl verify kvm ;;
   install-emulator)
     sdkmanager="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-    [[ -x "$sdkmanager" ]] || { printf 'Android sdkmanager is missing.\n' >&2; exit 1; }
+    [[ -x "$sdkmanager" ]] || {
+      printf 'Android sdkmanager is missing.\n' >&2
+      exit 1
+    }
     exec "$sdkmanager" emulator platform-tools
     ;;
   menu)
@@ -41,9 +53,12 @@ case "${1:-menu}" in
       'Start emulator') exec kitty --title Emulator -e "$0" start ;;
       'Stop emulator') exec "$0" stop ;;
       Logcat) exec "$0" logcat ;;
-      'ADB devices') exec kitty -e sh -lc "'$0' devices; read -r -p 'Press enter'" ;;
-      'KVM health') exec kitty -e sh -lc "'$0' health; read -r -p 'Press enter'" ;;
+      'ADB devices') exec kitty -e /usr/bin/zsh -lic "'$0' devices; read -r -p 'Press enter'" ;;
+      'KVM health') exec kitty -e /usr/bin/zsh -lic "'$0' health; read -r -p 'Press enter'" ;;
     esac
     ;;
-  *) printf 'Usage: %s {menu|studio|code|start [AVD]|stop|logcat|devices|health|install-emulator}\n' "$0" >&2; exit 2 ;;
+  *)
+    printf 'Usage: %s {menu|studio|code|start [AVD]|stop|logcat|devices|health|install-emulator}\n' "$0" >&2
+    exit 2
+    ;;
 esac

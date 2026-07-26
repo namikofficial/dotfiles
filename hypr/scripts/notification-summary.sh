@@ -12,7 +12,8 @@ panel="$("$HOME/.config/hypr/scripts/panel-switch.sh" status 2>/dev/null || echo
 network="$(nmcli -t -f STATE g 2>/dev/null || echo unknown)"
 profile="$(powerprofilesctl get 2>/dev/null || echo balanced)"
 
-summary="$(cat <<EOF
+summary="$(
+  cat <<EOF
 Notifications: $count
 DND: $dnd
 Mode: $notif_mode

@@ -10,7 +10,7 @@ state="$(wayle notify status 2>/dev/null | awk -F': ' '/Do Not Disturb/ {print $
 
 if command -v notify-send >/dev/null 2>&1; then
   case "$state" in
-    on|enabled|true|1) notify-send -a Noxflow "Notifications" "DND enabled" ;;
+    on | enabled | true | 1) notify-send -a Noxflow "Notifications" "DND enabled" ;;
     *) notify-send -a Noxflow "Notifications" "DND disabled" ;;
   esac
 fi

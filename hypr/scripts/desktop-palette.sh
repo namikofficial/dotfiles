@@ -61,10 +61,10 @@ EOF
     [ -n "${choice:-}" ] || exit 0
     case "$choice" in
       "git commit current project")
-        exec kitty --title "git commit" -e bash -lc "cd '$root' && git status --short && git add -A && git commit"
+        exec kitty --title "git commit" -e /usr/bin/zsh -lic "cd '$root' && git status --short && git add -A && git commit"
         ;;
       "open noxcrm backend")
-        exec xdg-open "$HOME/Documents/code/noxcrm/workspace/backend"
+        exec xdg-open "$HOME/Documents/code/noxorigin/workspace/backend"
         ;;
       "switch to dev mode")
         exec "$HOME/.config/hypr/scripts/settingsctl" profile apply performance
@@ -76,16 +76,16 @@ EOF
         exec "$HOME/.config/hypr/scripts/desktop-recovery.sh" menu
         ;;
       "run dev health")
-        exec kitty --title "dev-health" -e bash -lc "cd '$HOME/Documents/code/dotfiles' && setup/dev-health.sh; read -r -p 'Press enter to close'"
+        exec kitty --title "dev-health" -e /usr/bin/zsh -lic "cd '$HOME/Documents/code/dotfiles' && setup/dev-health.sh; read -r -p 'Press enter to close'"
         ;;
       "project profiles")
-        exec kitty --title "project profiles" -e bash -lc "cd '$HOME/Documents/code/dotfiles' && setup/project-profile.sh status; read -r -p 'Press enter to close'"
+        exec kitty --title "project profiles" -e /usr/bin/zsh -lic "cd '$HOME/Documents/code/dotfiles' && setup/project-profile.sh status; read -r -p 'Press enter to close'"
         ;;
       "run schemathesis")
-        exec kitty --title "schemathesis" -e bash -lc 'command -v schemathesis >/dev/null 2>&1 && exec schemathesis --help || exec bash'
+        exec kitty --title "schemathesis" -e /usr/bin/zsh -lic 'command -v schemathesis >/dev/null 2>&1 && exec schemathesis --help || exec zsh -l'
         ;;
       "open postgres logs")
-        exec kitty --title "postgres logs" -e bash -lc 'journalctl -u postgresql -f --no-pager'
+        exec kitty --title "postgres logs" -e /usr/bin/zsh -lic 'journalctl -u postgresql -f --no-pager'
         ;;
     esac
     ;;

@@ -65,6 +65,6 @@ else
   new_pid="$!"
 fi
 
-printf '%s\n' "$new_pid" > "$pid_file"
-command -v notify-send >/dev/null 2>&1 && \
+printf '%s\n' "$new_pid" >"$pid_file"
+command -v notify-send >/dev/null 2>&1 &&
   notify-send -a "Noxflow" "Keep-awake enabled (low-power mode)" >/dev/null 2>&1 || true

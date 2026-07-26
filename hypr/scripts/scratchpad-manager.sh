@@ -35,8 +35,10 @@ scratch_state="$state_dir/scratchpad-state.json"
 scene_state="$state_dir/scratchpad-scene-state.json"
 log_context_file="$state_dir/scratchpad-log-context"
 ai_context_file="$state_dir/scratchpad-ai-context"
+db_context_file="$state_dir/scratchpad-db-context"
 dashboard_log="$state_dir/scratchpad-dashboard.log"
 registry_cache=""
+workbench_status_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"
 
 spatial_visible() {
   hyprctl -j monitors 2>/dev/null | jq -e '
@@ -59,18 +61,19 @@ window_exists() {
 
 load_registry_cache() {
   [ -n "$registry_cache" ] && return 0
-  registry_cache="$(python3 - "$registry_file" <<'PY'
+  registry_cache="$(
+    python3 - "$registry_file" <<'PY'
 import json, sys, tomllib
 from pathlib import Path
 data = tomllib.loads(Path(sys.argv[1]).read_text())
 print(json.dumps(data))
 PY
-)"
+  )"
 }
 
 registry_jq() {
   local query="${*: -1}"
-  local args=("${@:1:$(($#-1))}")
+  local args=("${@:1:$(($# - 1))}")
   load_registry_cache
   jq -r "${args[@]}" "$query" <<<"$registry_cache" 2>/dev/null || true
 }
@@ -171,7 +174,7 @@ active_workspace_id() {
   local id
   id="$(hyprctl -j activeworkspace 2>/dev/null | jq -r '.id // 1' 2>/dev/null || printf '1')"
   case "$id" in
-    ''|*[!0-9-]*) id=1 ;;
+    '' | *[!0-9-]*) id=1 ;;
   esac
   if [ "$id" -gt 0 ]; then
     printf '%s\n' "$id"
@@ -339,12 +342,12 @@ spawn_music() {
   if command -v ncspot >/dev/null 2>&1; then
     kitty --class noxflow-scratch-music --title "Music" -e ncspot
   else
-    kitty --class noxflow-scratch-music --title "Music" -e bash -lc 'command -v cmus >/dev/null 2>&1 && exec cmus || exec bash'
+    kitty --class noxflow-scratch-music --title "Music" -e /usr/bin/zsh -lic 'command -v cmus >/dev/null 2>&1 && exec cmus || exec zsh -l'
   fi
 }
 
 spawn_notes() {
-  kitty --class noxflow-scratch-notes --title "Notes" -e bash -lc '
+  kitty --class noxflow-scratch-notes --title "Notes" -e /usr/bin/zsh -lic '
     cd "$HOME/Documents/notes" 2>/dev/null || cd "$HOME"
     if command -v hx >/dev/null 2>&1; then exec hx; fi
     if command -v micro >/dev/null 2>&1; then exec micro; fi
@@ -364,8 +367,56 @@ spawn_obsidian() {
   spawn_notes
 }
 
+load_scratch_context() {
+  local context="$1" canonical_path="" canonical_context="" explicit_path="" explicit_context=""
+  [ -d "$context" ] || context="$HOME"
+  scratch_context="$(cd "$context" 2>/dev/null && pwd -P)"
+  scratch_project_id=""
+  scratch_project_path=""
+  scratch_project_name="$(basename "$scratch_context")"
+  scratch_task_id=""
+  scratch_run_id=""
+  scratch_session_id=""
+  explicit_path="${AI_WORKBENCH_PROJECT_PATH:-}"
+  if [ -n "${AI_WORKBENCH_PROJECT_ID:-}" ] && [ -n "$explicit_path" ] && [ -d "$explicit_path" ]; then
+    explicit_context="$(cd "$explicit_path" 2>/dev/null && pwd -P)"
+    if [ "$explicit_context" = "$scratch_context" ]; then
+      scratch_project_id="$AI_WORKBENCH_PROJECT_ID"
+      scratch_project_path="$explicit_context"
+      scratch_project_name="${AI_WORKBENCH_PROJECT_NAME:-$(basename "$explicit_context")}"
+      scratch_task_id="${AI_WORKBENCH_TASK_ID:-}"
+      scratch_run_id="${AI_WORKBENCH_RUN_ID:-}"
+      scratch_session_id="${AI_WORKBENCH_SESSION_ID:-}"
+      return 0
+    fi
+  fi
+  if command -v jq >/dev/null 2>&1 && [ -s "$workbench_status_cache" ]; then
+    canonical_path="$(jq -r '.status.project.path // ""' "$workbench_status_cache" 2>/dev/null || true)"
+    if [ -n "$canonical_path" ] && [ -d "$canonical_path" ]; then
+      canonical_context="$(cd "$canonical_path" 2>/dev/null && pwd -P)"
+    fi
+    if [ "$canonical_context" = "$scratch_context" ]; then
+      scratch_project_id="$(jq -r '.status.project.id // ""' "$workbench_status_cache")"
+      scratch_project_path="$canonical_context"
+      scratch_project_name="$(jq -r '.status.project.name // ""' "$workbench_status_cache")"
+      scratch_task_id="$(jq -r '.status.activeWork.taskId // ""' "$workbench_status_cache")"
+      scratch_run_id="$(jq -r '.status.activeWork.runId // ""' "$workbench_status_cache")"
+      scratch_session_id="$(jq -r '.status.activeWork.sessionId // ""' "$workbench_status_cache")"
+    fi
+  fi
+  [ -n "$scratch_project_name" ] || scratch_project_name="$(basename "$scratch_context")"
+}
+
 spawn_db() {
-  kitty --class noxflow-scratch-db --title "Database" -e zsh -lic '
+  local context="${1:-$(context_cwd)}"
+  load_scratch_context "$context"
+  printf '%s\n' "$scratch_context" >"$db_context_file"
+  kitty --class noxflow-scratch-db --title "Database — $scratch_project_name" -e env \
+    NOXFLOW_DB_CONTEXT="$scratch_context" AI_WORKBENCH_PROJECT_ID="$scratch_project_id" \
+    AI_WORKBENCH_PROJECT_PATH="$scratch_project_path" AI_WORKBENCH_PROJECT_NAME="$scratch_project_name" \
+    AI_WORKBENCH_TASK_ID="$scratch_task_id" AI_WORKBENCH_RUN_ID="$scratch_run_id" \
+    AI_WORKBENCH_SESSION_ID="$scratch_session_id" zsh -lic '
+    cd "$NOXFLOW_DB_CONTEXT" 2>/dev/null || cd "$HOME"
     if [ -n "${DATABASE_URL:-}" ]; then
       if command -v pgcli >/dev/null 2>&1; then pgcli "$DATABASE_URL" || true; fi
       if command -v psql >/dev/null 2>&1; then psql "$DATABASE_URL" || true; fi
@@ -392,8 +443,13 @@ spawn_browser_devtools() {
 
 spawn_ai() {
   local context="${1:-$(context_cwd)}"
-  printf '%s\n' "$context" > "$ai_context_file"
-  kitty --class noxflow-scratch-ai --title "AI" -e env NOXFLOW_AI_CONTEXT="$context" zsh -lic '
+  load_scratch_context "$context"
+  printf '%s\n' "$scratch_context" >"$ai_context_file"
+  kitty --class noxflow-scratch-ai --title "AI — $scratch_project_name" -e env \
+    NOXFLOW_AI_CONTEXT="$scratch_context" AI_WORKBENCH_PROJECT_ID="$scratch_project_id" \
+    AI_WORKBENCH_PROJECT_PATH="$scratch_project_path" AI_WORKBENCH_PROJECT_NAME="$scratch_project_name" \
+    AI_WORKBENCH_TASK_ID="$scratch_task_id" AI_WORKBENCH_RUN_ID="$scratch_run_id" \
+    AI_WORKBENCH_SESSION_ID="$scratch_session_id" zsh -lic '
     cd "$NOXFLOW_AI_CONTEXT" 2>/dev/null || cd "$HOME/Documents/code" 2>/dev/null || cd "$HOME"
     exec "$HOME/.config/hypr/scripts/multi-model-ai.sh"
   ' >/dev/null 2>&1 &
@@ -401,8 +457,13 @@ spawn_ai() {
 
 spawn_logs() {
   local context="${1:-$(context_cwd)}"
-  printf '%s\n' "$context" > "$log_context_file"
-  kitty --class noxflow-scratch-logs --title "Project Runner" -e env NOXFLOW_LOG_CONTEXT="$context" zsh -lic '
+  load_scratch_context "$context"
+  printf '%s\n' "$scratch_context" >"$log_context_file"
+  kitty --class noxflow-scratch-logs --title "Runner — $scratch_project_name" -e env \
+    NOXFLOW_LOG_CONTEXT="$scratch_context" AI_WORKBENCH_PROJECT_ID="$scratch_project_id" \
+    AI_WORKBENCH_PROJECT_PATH="$scratch_project_path" AI_WORKBENCH_PROJECT_NAME="$scratch_project_name" \
+    AI_WORKBENCH_TASK_ID="$scratch_task_id" AI_WORKBENCH_RUN_ID="$scratch_run_id" \
+    AI_WORKBENCH_SESSION_ID="$scratch_session_id" zsh -lic '
     cd "$NOXFLOW_LOG_CONTEXT" 2>/dev/null || cd "$HOME"
     exec "$HOME/.config/hypr/scripts/empty-terminal.sh"
   ' >/dev/null 2>&1 &
@@ -414,7 +475,7 @@ spawn_pad_process() {
     terminal-cmd) spawn_logs "${NOXFLOW_LOG_CONTEXT:-$(context_cwd)}" ;;
     music) spawn_music >/dev/null 2>&1 & ;;
     notes) spawn_notes >/dev/null 2>&1 & ;;
-    db) spawn_db >/dev/null 2>&1 & ;;
+    db) spawn_db "${NOXFLOW_DB_CONTEXT:-$(context_cwd)}" >/dev/null 2>&1 & ;;
     browser-devtools) spawn_browser_devtools >/dev/null 2>&1 || true ;;
     ai) spawn_ai "${NOXFLOW_AI_CONTEXT:-$(context_cwd)}" ;;
     logs) spawn_logs "${NOXFLOW_LOG_CONTEXT:-$(context_cwd)}" ;;
@@ -484,6 +545,17 @@ PY
 
 context_cwd() {
   local pid cwd
+  if [ -n "${NOXFLOW_SCRATCH_PIN_PROJECT_PATH:-}" ] && [ -d "${NOXFLOW_SCRATCH_PIN_PROJECT_PATH}" ]; then
+    printf '%s\n' "$NOXFLOW_SCRATCH_PIN_PROJECT_PATH"
+    return 0
+  fi
+  if command -v jq >/dev/null 2>&1 && [ -s "$workbench_status_cache" ]; then
+    cwd="$(jq -r '.status.project.path // ""' "$workbench_status_cache" 2>/dev/null || true)"
+    if [ -n "$cwd" ] && [ -d "$cwd" ]; then
+      printf '%s\n' "$cwd"
+      return 0
+    fi
+  fi
   pid="$(context_window_json | jq -r '.pid // empty' 2>/dev/null || true)"
   if [ -n "$pid" ]; then
     cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
@@ -527,7 +599,9 @@ launch_overlay_pad() {
     fi
     address="$(client_address "$class_name" || true)"
     if [ -n "$address" ] && [ "$current_context" != "$context" ]; then
-      forget_client "$address"
+      command -v notify-send >/dev/null 2>&1 && notify-send -a "Scratchpad" \
+        "Scratchpad kept on $(basename "$current_context")" \
+        "Close and reopen it to follow $(basename "$context"), or set NOXFLOW_SCRATCH_PIN_PROJECT_PATH." >/dev/null 2>&1 || true
     fi
   fi
 
@@ -634,10 +708,10 @@ scene_enter() {
   logs_address="$(client_address "$logs_class" || true)"
 
   if [ -n "$ai_address" ] && [ "$current_ai" != "$context" ]; then
-    forget_client "$ai_address"
+    command -v notify-send >/dev/null 2>&1 && notify-send -a "Scratchpad" "AI scratchpad kept on $(basename "$current_ai")" >/dev/null 2>&1 || true
   fi
   if [ -n "$logs_address" ] && [ "$current_logs" != "$context" ]; then
-    forget_client "$logs_address"
+    command -v notify-send >/dev/null 2>&1 && notify-send -a "Scratchpad" "Logs scratchpad kept on $(basename "$current_logs")" >/dev/null 2>&1 || true
   fi
 
   window_exists "$ai_class" || NOXFLOW_AI_CONTEXT="$context" spawn_pad_process ai
@@ -671,7 +745,8 @@ scene_exit() {
   local main x y w h floating restore_main_tiled=0
   main="$(scene_main_address || true)"
   if [ -n "$main" ] && [ -s "$scene_state" ]; then
-    read -r x y w h floating < <(python3 - "$scene_state" <<'PY'
+    read -r x y w h floating < <(
+      python3 - "$scene_state" <<'PY'
 import json, sys
 from pathlib import Path
 state = json.loads(Path(sys.argv[1]).read_text())

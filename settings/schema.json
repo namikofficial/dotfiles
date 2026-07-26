@@ -15,14 +15,15 @@
     "startup",
     "shortcuts",
     "privacy",
-    "default_apps"
+    "default_apps",
+    "animations"
   ],
   "properties": {
     "machine": {
       "type": "object",
       "required": ["profile"],
       "properties": {
-        "profile": { "type": "string", "enum": ["laptop", "dock", "safe-gpu", "performance"] }
+        "profile": { "type": "string", "enum": ["laptop", "dock", "safe-gpu", "performance", "cinematic", "balanced", "reduced-motion", "battery"] }
       }
     },
     "notifications": {
@@ -86,6 +87,35 @@
       "properties": {
         "default_profile": { "type": "string", "enum": ["power-saver", "balanced", "performance"] },
         "auto_profile": { "type": "boolean" }
+      }
+    },
+    "animations": {
+      "type": "object",
+      "required": [
+        "profile",
+        "enabled",
+        "motion_blur",
+        "motion_blur_samples",
+        "border_angle",
+        "zoom",
+        "spring",
+        "window_speed",
+        "workspace_speed",
+        "workspace_distance",
+        "special_workspace_distance"
+      ],
+      "properties": {
+        "profile": { "type": "string", "enum": ["cinematic", "balanced", "reduced-motion", "battery"] },
+        "enabled": { "type": "boolean" },
+        "motion_blur": { "type": "boolean" },
+        "motion_blur_samples": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "border_angle": { "type": "boolean" },
+        "zoom": { "type": "boolean" },
+        "spring": { "type": "boolean" },
+        "window_speed": { "type": "number", "minimum": 1, "maximum": 20 },
+        "workspace_speed": { "type": "number", "minimum": 1, "maximum": 20 },
+        "workspace_distance": { "type": "integer", "minimum": 0, "maximum": 60 },
+        "special_workspace_distance": { "type": "integer", "minimum": 0, "maximum": 60 }
       }
     },
     "input": {

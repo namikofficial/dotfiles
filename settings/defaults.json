@@ -48,6 +48,19 @@
     "default_profile": "balanced",
     "auto_profile": true
   },
+  "animations": {
+    "profile": "cinematic",
+    "enabled": true,
+    "motion_blur": true,
+    "motion_blur_samples": 6,
+    "border_angle": true,
+    "zoom": true,
+    "spring": true,
+    "window_speed": 7,
+    "workspace_speed": 7,
+    "workspace_distance": 28,
+    "special_workspace_distance": 34
+  },
   "input": {
     "kb_layout": "us",
     "touchpad_natural_scroll": true,

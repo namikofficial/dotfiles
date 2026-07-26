@@ -15,7 +15,7 @@ upsert_kv() {
   if rg -q "^${key}=" "$file"; then
     sed -i "s|^${key}=.*|${key}=${val}|" "$file"
   else
-    printf '%s=%s\n' "$key" "$val" >> "$file"
+    printf '%s=%s\n' "$key" "$val" >>"$file"
   fi
 }
 
@@ -33,7 +33,7 @@ if [ -d "$prism_dir/instances" ]; then
   done < <(find "$prism_dir/instances" -maxdepth 3 -type f -name 'instance.cfg' -print0)
 fi
 
-cat > "$apps_dir/org.prismlauncher.PrismLauncher.desktop" <<DESKTOP
+cat >"$apps_dir/org.prismlauncher.PrismLauncher.desktop" <<DESKTOP
 [Desktop Entry]
 Version=1.0
 Name=Prism Launcher
@@ -49,7 +49,7 @@ StartupWMClass=PrismLauncher
 MimeType=application/zip;application/x-modrinth-modpack+zip;x-scheme-handler/curseforge;x-scheme-handler/prismlauncher;
 DESKTOP
 
-cat > "$apps_dir/prism-mc.desktop" <<DESKTOP
+cat >"$apps_dir/prism-mc.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Version=1.0

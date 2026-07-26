@@ -1,0 +1,11 @@
+[Unit]
+Description=Run encrypted client backup nightly
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=20m
+Unit=noxflow-client-backup.service
+
+[Install]
+WantedBy=timers.target

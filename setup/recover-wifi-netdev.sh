@@ -14,7 +14,7 @@ if [ "${1:-}" = "--connect" ]; then
 fi
 
 as_root() {
-  if (( EUID == 0 )); then
+  if ((EUID == 0)); then
     "$@"
   else
     sudo "$@"
@@ -44,8 +44,8 @@ as_root nmcli connection reload
 nmcli radio wifi on
 
 wifi_if="$(
-  nmcli -t -f DEVICE,TYPE device status \
-    | awk -F: '$2 == "wifi" { print $1; exit }'
+  nmcli -t -f DEVICE,TYPE device status |
+    awk -F: '$2 == "wifi" { print $1; exit }'
 )"
 
 if [ -z "$wifi_if" ]; then
@@ -54,7 +54,7 @@ if [ -z "$wifi_if" ]; then
   exit 1
 fi
 
-if (( CONNECT )) && ! nmcli -t -f NAME connection show | grep -Fx -- "$SSID" >/dev/null 2>&1; then
+if ((CONNECT)) && ! nmcli -t -f NAME connection show | grep -Fx -- "$SSID" >/dev/null 2>&1; then
   echo "==> Creating NetworkManager profile for $SSID on $wifi_if"
   nmcli device wifi connect "$BSSID" ifname "$wifi_if" name "$SSID" --ask
 fi
@@ -70,7 +70,7 @@ if nmcli -t -f NAME connection show | grep -Fx -- "$SSID" >/dev/null 2>&1; then
     connection.autoconnect-priority 50
 fi
 
-if (( CONNECT )); then
+if ((CONNECT)); then
   echo "==> Connecting to $SSID on 5 GHz BSSID $BSSID"
   nmcli connection up "$SSID" ifname "$wifi_if"
 fi

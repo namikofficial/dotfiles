@@ -27,11 +27,21 @@ gl() {
   git log --oneline -n 20 "$@"
 }
 
-greset() { 
+confirm_dangerous_action() {
+  emulate -L zsh
+  local prompt="${1:-Proceed?}"
+  print -P "%F{yellow}${prompt}%f [y/N] "
+  read -r reply
+  [[ "$reply" == [yY] || "$reply" == [yY][eE][sS] ]]
+}
+
+greset() {
+  confirm_dangerous_action "Discard tracked changes with git reset --hard?" || return 1
   git reset --hard "$@"
 }
 
-gresetfull() { 
+gresetfull() {
+  confirm_dangerous_action "Reset to origin and delete untracked files?" || return 1
   git fetch origin && \
   git reset --hard origin/$(git branch --show-current) && \
   git clean -fd
@@ -56,15 +66,35 @@ alias dimg='docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t
 alias dvol='docker volume ls --format "table {{.Name}}\t{{.Driver}}"'
 alias dnet='docker network ls --format "table {{.Name}}\t{{.Driver}}\t{{.Scope}}"'
 alias drestart="docker restart"
-alias dstopall='docker stop $(docker ps -q)'
+docker_stop_all() {
+  confirm_dangerous_action "Stop every running Docker container?" || return 1
+  docker stop $(docker ps -q)
+}
+alias dstopall='docker_stop_all'
 alias drmstopped='docker rm $(docker ps -aq -f status=exited)'
 alias ddf="docker system df"
 alias dinspect='docker inspect --format "Name={{.Name}} | Image={{.Config.Image}} | IP={{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}} | State={{.State.Status}}"'
 alias dtop='docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"'
-alias dpruneall='docker system prune -af --volumes'
-alias dcleanimg='docker image prune -af'
-alias dcleanctr='docker container prune -f'
-alias dcleanvol='docker volume prune -f'
+docker_prune_all() {
+  confirm_dangerous_action "Prune unused Docker containers, images, networks, and volumes?" || return 1
+  docker system prune -af --volumes
+}
+docker_clean_images() {
+  confirm_dangerous_action "Prune all unused Docker images?" || return 1
+  docker image prune -af
+}
+docker_clean_containers() {
+  confirm_dangerous_action "Prune stopped Docker containers?" || return 1
+  docker container prune -f
+}
+docker_clean_volumes() {
+  confirm_dangerous_action "Prune unused Docker volumes?" || return 1
+  docker volume prune -f
+}
+alias dpruneall='docker_prune_all'
+alias dcleanimg='docker_clean_images'
+alias dcleanctr='docker_clean_containers'
+alias dcleanvol='docker_clean_volumes'
 
 # Kubernetes aliases
 alias k="kubectl"
@@ -121,7 +151,23 @@ if command -v kitty >/dev/null 2>&1; then
   alias kdiff='kitty +kitten diff'
   alias khints='kitty +kitten hints'
   alias kthemes='kitty +kitten themes'
-  alias kssh='kitty +kitten ssh'
+alias kssh='kitty +kitten ssh'
+fi
+
+# scrcpy 4.1 profiles. Keep H.265 as the normal quality/bandwidth choice;
+# VP9 and encoder-constraint overrides are explicit troubleshooting paths.
+if command -v scrcpy >/dev/null 2>&1; then
+  alias sc='scrcpy --video-codec=h265 --video-bit-rate=12M --max-fps=60 --stay-awake --turn-screen-off'
+  alias sc-vp9='scrcpy --video-codec=vp9 --video-bit-rate=12M --max-fps=60'
+  alias sc-dev='scrcpy --video-codec=h265 --max-size=1440 --max-fps=60 --window-title="Pixel 8 — Development"'
+  alias sc-force='scrcpy --ignore-video-encoder-constraints --video-codec=h265'
+
+  scrcpy-wifi() {
+    emulate -L zsh
+    local device="${1:?Usage: scrcpy-wifi IP:PORT}"
+    shift
+    scrcpy --serial="$device" --video-codec=h265 --video-bit-rate=10M --max-fps=60 "$@"
+  }
 fi
 if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   alias panel='$HOME/.config/hypr/scripts/panel-switch.sh'
@@ -267,7 +313,7 @@ alias ni="npm install"
 alias nr="npm run"
 alias nt="npm test"
 alias nb="npm run build"
-alias pi="pnpm install"
+# alias pi="pnpm install"  # Using the pi coding agent
 alias pr="pnpm run"
 alias yi="yarn install"
 alias yr="yarn run"
@@ -292,7 +338,9 @@ alias zshprofile="$SCRIPTS_BIN/zsh-startup-profile"
 alias zshbench="$SCRIPTS_BIN/zsh-startup-profile --runs 20"
 alias dev-health="$DOTFILES_HOME/setup/dev-health.sh"
 alias dev-health-json="$DOTFILES_HOME/setup/dev-health.sh --json"
+alias upgrade-verify="bash $DOTFILES_HOME/setup/verify-workstation-upgrade.sh"
 alias dotfiles-stale-check="$DOTFILES_HOME/setup/check-stale-references.sh"
+alias client-backup="$DOTFILES_HOME/setup/client-backup.sh"
 alias dotfiles-center="$DOTFILES_HOME/hypr/scripts/control-center.sh"
 alias project-resume="$DOTFILES_HOME/hypr/scripts/project-resume.sh"
 project-profile() {
@@ -418,7 +466,7 @@ ff() {
   while IFS= read -r line; do
     [ -n "$line" ] && selected_files+=("$line")
   done <<< "$files"
-  [ ${#selected_files[@]} -gt 0 ] && "${EDITOR:-vim}" "${selected_files[@]}"
+  [ ${#selected_files[@]} -gt 0 ] && "$EDITOR" "${selected_files[@]}"
 }
 frg() {
   local q
@@ -439,7 +487,7 @@ frg() {
     | fzf --delimiter ':' --height=70% --layout=reverse --border \
       --preview "$preview_cmd" \
     | awk -F: '{print $1":"$2":"$3}' \
-    | xargs -r ${EDITOR:-vim}
+    | xargs -r "$EDITOR"
 }
 fkill() {
   local pid
@@ -450,7 +498,7 @@ tnotes() {
   local f="$SCRIPTS_HOME/docs/NOTES.md"
   mkdir -p "$(dirname "$f")"
   [ -f "$f" ] || touch "$f"
-  ${EDITOR:-vim} "$f"
+  "$EDITOR" "$f"
 }
 pkillport() {
   "$SCRIPTS_BIN/port-kill" "$@"

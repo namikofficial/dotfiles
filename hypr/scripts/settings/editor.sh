@@ -11,7 +11,8 @@ prompt_value() {
 }
 
 while true; do
-  choice="$(cat <<MENU | rofi -dmenu -i -p 'Settings Editor' -theme "$HOME/.config/rofi/actions.rasi" || true
+  choice="$(
+    cat <<MENU | rofi -dmenu -i -p 'Settings Editor' -theme "$HOME/.config/rofi/actions.rasi" || true
 Toggle Notification Sounds|toggle notifications.sounds.enabled|sounds
 Set Notification Timeout|set notifications.timeout|notifications
 Set Action Center Width|set action_center.width|action-center
@@ -30,11 +31,14 @@ Set Default Browser Desktop ID|set-string default_apps.browser_desktop|default-a
 Set Default Image Viewer Desktop ID|set-string default_apps.image_viewer_desktop|default-apps
 Back|back|none
 MENU
-)"
+  )"
 
   [[ -n "$choice" ]] || exit 0
-  action="${choice#*|}"; action="${action%%|*}"
-  path="${choice#*|}"; path="${path#*|}"; path="${path%%|*}"
+  action="${choice#*|}"
+  action="${action%%|*}"
+  path="${choice#*|}"
+  path="${path#*|}"
+  path="${path%%|*}"
   section="${choice##*|}"
 
   if [[ "$action" == "back" ]]; then

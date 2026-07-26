@@ -1,0 +1,21 @@
+[Unit]
+Description=AI Workbench active-project file event bridge
+After=graphical-session.target ai-workbench-desktop-observer.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+EnvironmentFile=-%h/.config/ai-workbench/runtime.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/.config/hypr/scripts/ai-workbench-project-watch.py
+Restart=on-failure
+RestartSec=2
+TimeoutStartSec=10
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+
+[Install]
+WantedBy=graphical-session.target

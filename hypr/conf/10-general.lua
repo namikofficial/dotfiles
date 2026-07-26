@@ -35,6 +35,10 @@ hl.config({
       passes = 2,
       vibrancy = 0.18,
     },
+    motion_blur = {
+      enabled = true,
+      samples = 6,
+    },
   },
   dwindle = {
     preserve_split = true,

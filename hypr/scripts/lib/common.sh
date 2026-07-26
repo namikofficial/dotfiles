@@ -34,4 +34,3 @@ noxflow_focused_cwd() {
 noxflow_git_root() {
   git -C "$1" rev-parse --show-toplevel 2>/dev/null || printf '%s\n' "$1"
 }
-

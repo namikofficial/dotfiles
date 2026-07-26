@@ -46,7 +46,7 @@ set_window_fullscreen() {
 
   case "$fullscreen_state" in
     1) mode="maximized" ;;
-    2|3) mode="fullscreen" ;;
+    2 | 3) mode="fullscreen" ;;
     *) return 0 ;;
   esac
 

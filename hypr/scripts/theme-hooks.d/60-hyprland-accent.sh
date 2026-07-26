@@ -17,5 +17,5 @@ a1="${accent#\#}"
 a2="${accent2#\#}"
 sf="${surface#\#}"
 
-hyprctl keyword general:col.active_border   "rgba(${a1}ff) rgba(${a2}ff) 45deg" >/dev/null 2>&1 || true
-hyprctl keyword general:col.inactive_border "rgba(${sf}cc)"                       >/dev/null 2>&1 || true
+hyprctl keyword general:col.active_border "rgba(${a1}ff) rgba(${a2}ff) 45deg" >/dev/null 2>&1 || true
+hyprctl keyword general:col.inactive_border "rgba(${sf}cc)" >/dev/null 2>&1 || true

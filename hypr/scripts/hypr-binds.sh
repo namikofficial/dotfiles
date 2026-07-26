@@ -21,7 +21,7 @@ while (($#)); do
       shift
       config_file="${1:-}"
       ;;
-    -h|--help)
+    -h | --help)
       usage
       exit 0
       ;;

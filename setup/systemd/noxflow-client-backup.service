@@ -1,0 +1,10 @@
+[Unit]
+Description=Encrypted client repository and database backup
+After=network-online.target syncthing.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+LoadCredential=restic-password:%h/.config/nox-backup/restic-password
+Environment=RESTIC_PASSWORD_FILE=%d/restic-password
+ExecStart=%h/Documents/code/dotfiles/setup/client-backup.sh run

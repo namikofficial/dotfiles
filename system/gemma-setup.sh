@@ -20,8 +20,14 @@ echo ""
 
 # Check prerequisites
 echo "Checking prerequisites..."
-command -v curl >/dev/null 2>&1 || { echo "✗ curl not found"; exit 1; }
-command -v llama-server >/dev/null 2>&1 || { echo "✗ llama-server not found"; exit 1; }
+command -v curl >/dev/null 2>&1 || {
+  echo "✗ curl not found"
+  exit 1
+}
+command -v llama-server >/dev/null 2>&1 || {
+  echo "✗ llama-server not found"
+  exit 1
+}
 
 # Create models directory
 mkdir -p "$MODELS_DIR"

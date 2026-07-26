@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="${1:-project}"
+status_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"
+legacy_cache="${XDG_CACHE_HOME:-$HOME/.cache}/kage/project-current.json"
+
+fallback() {
+	case "$mode" in
+	project)
+		if [ -s "$legacy_cache" ]; then
+			jq -c '{text:(.name // "—"),tooltip:((.name // "Unknown project")+"\n"+(.path // "")+"\nLegacy offline fallback")}' \
+				"$legacy_cache" 2>/dev/null && return 0
+		fi
+		printf '{"text":"—","tooltip":"Workbench offline; no project cache"}\n'
+		;;
+	git)
+		if [ -s "$legacy_cache" ]; then
+			jq -c '{text:((.branch // "git")+(if .dirty then " ✦"+((.modified // 0)|tostring) else "" end)),tooltip:"Legacy cached Git status"}' \
+				"$legacy_cache" 2>/dev/null && return 0
+		fi
+		printf '{"text":"git —","tooltip":"Git status unavailable while Workbench is offline"}\n'
+		;;
+	work) printf '{"text":"work —","tooltip":"Active work unavailable while Workbench is offline"}\n' ;;
+	ai) printf '{"text":"AI —","tooltip":"AI runtime state unavailable while Workbench is offline"}\n' ;;
+	*) printf '{"text":"—","tooltip":"Unknown Workbench status chip"}\n' ;;
+	esac
+}
+
+command -v jq >/dev/null 2>&1 || {
+	printf '{"text":"—","tooltip":"jq is required"}\n'
+	exit 0
+}
+if ! jq -e '.schemaVersion == 1 and .compact.schemaVersion == 1' "$status_cache" >/dev/null 2>&1; then
+	fallback
+	exit 0
+fi
+
+now_epoch="$(date +%s)"
+stale_after="$(jq -r '.compact.staleAfter // ""' "$status_cache")"
+stale_epoch="$(date -d "$stale_after" +%s 2>/dev/null || printf '0')"
+stale=false
+[ "$stale_epoch" -gt "$now_epoch" ] || stale=true
+
+case "$mode" in
+project)
+	jq -c --argjson stale "$stale" '
+      .compact as $c |
+      ($c.project.name // "—") as $name |
+      ([if ($c.project.pinned // false) then "pinned" else empty end,
+        if $stale then "stale" else empty end,
+        if (($c.project.confidence // 0) < 0.8) then "low confidence" else empty end] | join(", ")) as $flags |
+      {text:($name+(if ($c.project.pinned // false) then " ●" else "" end)+(if $stale then " ~" else "" end)),
+       tooltip:($name+"\nContext confidence: "+((($c.project.confidence // 0)*100|round)|tostring)+"%"+(if $flags != "" then "\nStatus: "+$flags else "" end))}
+    ' "$status_cache"
+	;;
+git)
+	jq -c --argjson stale "$stale" '
+      .compact as $c |
+      ($c.git.branch // "git") as $branch |
+      {text:($branch+(if ($c.git.dirty // 0)>0 then " ✦"+(($c.git.dirty)|tostring) else "" end)+(if ($c.git.staged // 0)>0 then " ◆"+(($c.git.staged)|tostring) else "" end)+(if ($c.git.conflicts // 0)>0 then " !"+(($c.git.conflicts)|tostring) else "" end)),
+       tooltip:("Branch: "+$branch+"\nChanged: "+(($c.git.dirty // 0)|tostring)+"\nStaged: "+(($c.git.staged // 0)|tostring)+"\nConflicts: "+(($c.git.conflicts // 0)|tostring)+(if $stale then "\nCached status is stale" else "" end))}
+    ' "$status_cache"
+	;;
+work)
+	jq -c --argjson stale "$stale" '
+      .compact.work as $work |
+      ($work.state | if .=="running" then " …" elif .=="blocked" or .=="failed" then " !" elif .=="waiting" then " ?" elif .=="completed" then " ✓" else "" end) as $badge |
+      {text:(($work.label // "No active task")+$badge+(if $work.progress then " "+$work.progress else "" end)),
+       tooltip:("Work: "+($work.label // "No active task")+"\nState: "+($work.state // "unknown")+(if $work.progress then "\nProgress: "+$work.progress else "" end)+(if $stale then "\nCached status is stale" else "" end))}
+    ' "$status_cache"
+	;;
+ai)
+	jq -c --argjson stale "$stale" '
+      .compact.ai as $ai |
+      ($ai.state | if .=="ready" then " ●" elif .=="loading" or .=="starting" then " …" elif .=="failed" or .=="offline" then " !" else " ?" end) as $badge |
+      {text:(($ai.label // "AI")+$badge),tooltip:("AI role: "+($ai.label // "AI")+"\nRuntime: "+($ai.state // "unknown")+(if $stale then "\nCached status is stale" else "" end))}
+    ' "$status_cache"
+	;;
+*)
+	printf '{"text":"—","tooltip":"usage: workbench-wayle-status <project|git|work|ai>"}\n'
+	;;
+esac

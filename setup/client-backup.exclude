@@ -1,0 +1,12 @@
+node_modules/
+.pnpm-store/
+dist/
+build/
+out/
+target/
+.next/
+.expo/
+.gradle/
+android/.gradle/
+*.apk
+*.aab

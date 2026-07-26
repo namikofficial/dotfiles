@@ -1,117 +1,110 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/workbench-runtime-env.sh"
+
 action="${1:-prompt}"
 mode="${2:-ask}"
 
-project_cache="${HOME}/.cache/kage/project-current.json"
-project_context_script="${HOME}/.config/hypr/scripts/get-project-context.sh"
-llm_base_url="${LLM_BASE_URL:-http://127.0.0.1:8080/v1}"
+workbench_status_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"
+# shellcheck disable=SC2153
+llm_base_url="$LLM_BASE_URL"
 llm_model_alias="${LLM_CHAT_MODEL:-local}"
 
+project_id=""
 project_path=""
 project_name=""
 project_branch=""
-project_framework=""
 project_modified="0"
 project_staged="0"
 project_dirty="false"
+repository_status_known="false"
 current_file=""
+context_source="offline-fallback"
+context_confidence="0"
+workbench_available="false"
+cache_stale="true"
+active_task=""
+active_run=""
+active_session=""
+ai_label="$llm_model_alias"
+ai_state="unknown"
 machine_arch="$(uname -m 2>/dev/null || printf 'unknown')"
 
-detect_framework() {
-  local dir="${1:-}"
-  [ -d "$dir" ] || return 0
-  if [ -f "$dir/package.json" ]; then
-    printf 'node\n'
-  elif [ -f "$dir/pyproject.toml" ] || [ -f "$dir/requirements.txt" ]; then
-    printf 'python\n'
-  elif [ -f "$dir/Cargo.toml" ]; then
-    printf 'rust\n'
-  elif [ -f "$dir/go.mod" ]; then
-    printf 'go\n'
-  elif [ -f "$dir/flake.nix" ] || [ -f "$dir/home.nix" ]; then
-    printf 'nix\n'
-  elif [ -f "$dir/.dotfiles" ] || [ -f "$dir/zshrc" ] || [ -d "$dir/hypr" ]; then
-    printf 'dotfiles\n'
-  else
-    printf 'unknown\n'
-  fi
-}
-
-load_project_from_dir() {
+load_offline_directory() {
   local dir="${1:-}"
   [ -d "$dir" ] || return 1
 
   project_path="$(cd "$dir" 2>/dev/null && pwd -P)"
   project_name="$(basename "$project_path")"
-  project_branch=""
-  project_framework="$(detect_framework "$project_path")"
-  project_modified="0"
-  project_staged="0"
-  project_dirty="false"
-
-  if git -C "$project_path" rev-parse --git-dir >/dev/null 2>&1; then
-    project_path="$(git -C "$project_path" rev-parse --show-toplevel 2>/dev/null || printf '%s\n' "$project_path")"
-    project_name="$(basename "$project_path")"
-    project_branch="$(git -C "$project_path" rev-parse --abbrev-ref HEAD 2>/dev/null || printf '')"
-    project_modified="$(git -C "$project_path" status --porcelain 2>/dev/null | awk 'END {print NR+0}')"
-    project_staged="$(git -C "$project_path" diff --cached --name-only 2>/dev/null | awk 'END {print NR+0}')"
-    [ "${project_modified:-0}" -gt 0 ] && project_dirty="true"
-  fi
-
-  project_framework="$(detect_framework "$project_path")"
+  context_source="offline-fallback"
   return 0
 }
 
-load_project_from_cache() {
+load_workbench_status() {
   command -v jq >/dev/null 2>&1 || return 1
-  [ -s "$project_cache" ] || return 1
+  [ -s "$workbench_status_cache" ] || return 1
+  jq -e '.schemaVersion == 1 and .status.schemaVersion == 1' "$workbench_status_cache" >/dev/null 2>&1 || return 1
 
-  local cache_path
-  cache_path="$(jq -r '.path // empty' "$project_cache" 2>/dev/null || true)"
-  [ -d "$cache_path" ] || return 1
-
-  project_path="$cache_path"
-  project_name="$(jq -r '.name // empty' "$project_cache" 2>/dev/null || true)"
-  project_branch="$(jq -r '.branch // empty' "$project_cache" 2>/dev/null || true)"
-  project_framework="$(jq -r '.framework // .lang // empty' "$project_cache" 2>/dev/null || true)"
-  project_modified="$(jq -r '.modified // 0' "$project_cache" 2>/dev/null || printf '0')"
-  project_staged="$(jq -r '.staged // 0' "$project_cache" 2>/dev/null || printf '0')"
-  project_dirty="$(jq -r '.dirty // false' "$project_cache" 2>/dev/null || printf 'false')"
-  [ -n "$project_name" ] || project_name="$(basename "$project_path")"
-  [ -n "$project_framework" ] || project_framework="$(detect_framework "$project_path")"
+  workbench_available="$(jq -r '.status.workbenchAvailable // false' "$workbench_status_cache")"
+  cache_stale="$(jq -r --arg now "$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)" \
+    '((.status.staleAfter // "") == "") or ((.status.staleAfter // "") <= $now)' "$workbench_status_cache")"
+  project_id="$(jq -r '.status.project.id // ""' "$workbench_status_cache")"
+  project_path="$(jq -r '.status.project.path // ""' "$workbench_status_cache")"
+  project_name="$(jq -r '.status.project.name // ""' "$workbench_status_cache")"
+  project_branch="$(jq -r '.status.git.branch // ""' "$workbench_status_cache")"
+  project_modified="$(jq -r '(.status.git.modified // 0) + (.status.git.deleted // 0) + (.status.git.renamed // 0) + (.status.git.untracked // 0)' "$workbench_status_cache")"
+  project_staged="$(jq -r '.status.git.staged // 0' "$workbench_status_cache")"
+  project_dirty="$(jq -r '.status.git.dirty // false' "$workbench_status_cache")"
+  repository_status_known="$(jq -r '(.status.project.path // "") != "" and .status.git != null' "$workbench_status_cache")"
+  context_source="$(jq -r '.status.context.source // "unresolved"' "$workbench_status_cache")"
+  context_confidence="$(jq -r '.status.context.confidence // 0' "$workbench_status_cache")"
+  current_file="$(jq -r '.status.context.activeFile // ""' "$workbench_status_cache")"
+  active_task="$(jq -r '.status.activeWork.taskId // ""' "$workbench_status_cache")"
+  active_run="$(jq -r '.status.activeWork.runId // ""' "$workbench_status_cache")"
+  active_session="$(jq -r '.status.activeWork.sessionId // ""' "$workbench_status_cache")"
+  ai_label="$(jq -r '.compact.ai.label // "AI"' "$workbench_status_cache")"
+  ai_state="$(jq -r '.compact.ai.state // "unknown"' "$workbench_status_cache")"
   return 0
 }
 
 load_project_context() {
-  if [ -n "${NOXFLOW_AI_CONTEXT:-}" ] && [ -d "${NOXFLOW_AI_CONTEXT}" ]; then
-    load_project_from_dir "${NOXFLOW_AI_CONTEXT}" || true
-  fi
+  local cached_project_id cached_project_path explicit_path
+  load_workbench_status || true
+  cached_project_id="$project_id"
+  cached_project_path="$project_path"
+  explicit_path="${AI_WORKBENCH_PROJECT_PATH:-${NOXFLOW_AI_CONTEXT:-}}"
 
-  if [ -z "$project_path" ]; then
+  if [ -n "${AI_WORKBENCH_PROJECT_ID:-}" ] && [ -n "$explicit_path" ] && [ -d "$explicit_path" ]; then
+    project_id="$AI_WORKBENCH_PROJECT_ID"
+    project_path="$(cd "$explicit_path" 2>/dev/null && pwd -P)"
+    project_name="${AI_WORKBENCH_PROJECT_NAME:-$(basename "$project_path")}"
+    context_source="scratchpad-launch"
+    context_confidence="1"
+    active_task="${AI_WORKBENCH_TASK_ID:-$active_task}"
+    active_run="${AI_WORKBENCH_RUN_ID:-$active_run}"
+    active_session="${AI_WORKBENCH_SESSION_ID:-$active_session}"
+    if [ "$cached_project_id" != "$project_id" ] || [ "$cached_project_path" != "$project_path" ]; then
+      project_branch=""
+      project_modified="0"
+      project_staged="0"
+      project_dirty="false"
+      repository_status_known="false"
+      current_file=""
+      cache_stale="true"
+    fi
+  elif [ -n "$project_path" ] && [ -d "$project_path" ]; then
+    [ -n "$project_name" ] || project_name="$(basename "$project_path")"
+  elif [ -n "$explicit_path" ] && [ -d "$explicit_path" ]; then
+    load_offline_directory "$explicit_path"
+  else
     case "$(pwd -P)" in
-      "$HOME"|/)
-        ;;
-      *)
-        load_project_from_dir "$(pwd -P)" || true
-        ;;
+      "$HOME" | /) load_offline_directory "$HOME" ;;
+      *) load_offline_directory "$(pwd -P)" ;;
     esac
   fi
-
-  if [ -z "$project_path" ]; then
-    load_project_from_cache || true
-  fi
-
-  if [ -z "$project_path" ]; then
-    load_project_from_dir "$HOME" || true
-  fi
-}
-
-load_current_file() {
-  command -v jq >/dev/null 2>&1 || return 0
-  [ -x "$project_context_script" ] || return 0
-  current_file="$("$project_context_script" 2>/dev/null | jq -r '.file // empty' 2>/dev/null || true)"
 }
 
 distribution_name() {
@@ -156,15 +149,19 @@ join_available() {
 }
 
 project_line() {
-  local status="clean"
-  if [ "${project_dirty:-false}" = "true" ] || [ "${project_modified:-0}" -gt 0 ]; then
-    status="dirty: ${project_modified} modified"
+  local status="repository state unknown"
+  if [ "$repository_status_known" = "true" ]; then
+    status="clean"
+  fi
+  if [ "$repository_status_known" = "true" ] &&
+    { [ "${project_dirty:-false}" = "true" ] || [ "${project_modified:-0}" -gt 0 ]; }; then
+    status="dirty: ${project_modified} changed"
     [ "${project_staged:-0}" -gt 0 ] && status="${status}, ${project_staged} staged"
   fi
 
   printf '%s at %s' "${project_name:-workspace}" "${project_path:-$HOME}"
+  [ -n "${project_id:-}" ] && printf ' | id %s' "$project_id"
   [ -n "${project_branch:-}" ] && printf ' | branch %s' "$project_branch"
-  [ -n "${project_framework:-}" ] && printf ' | %s' "$project_framework"
   printf ' | %s' "$status"
   [ -n "${current_file:-}" ] && printf ' | focus %s' "$current_file"
 }
@@ -176,8 +173,13 @@ print_summary() {
   devtools="$(join_available 8 docker kubectl tmux nvim atuin lazygit btop duf procs dust hyperfine pipx)"
 
   printf 'Workstation: %s %s on Hyprland | shell %s\n' "$(distribution_name)" "$machine_arch" "$(shell_summary)"
-  printf 'Local AI: llama-swap-manager at %s | model alias %s\n' "$llm_base_url" "$llm_model_alias"
+  printf 'Local AI: %s [%s] | llama-swap-manager at %s\n' "$ai_label" "$ai_state" "$llm_base_url"
+  printf 'Workbench context: %s | confidence %s | API %s | cache %s\n' \
+    "$context_source" "$context_confidence" "$workbench_available" "$([ "$cache_stale" = "true" ] && printf stale || printf fresh)"
   printf 'Project: %s\n' "$(project_line)"
+  [ -n "$active_task" ] && printf 'Active task: %s\n' "$active_task"
+  [ -n "$active_run" ] && printf 'Active run: %s\n' "$active_run"
+  [ -n "$active_session" ] && printf 'Shared session: %s\n' "$active_session"
   printf 'Conventions: prefer %s; aliases include dc, k, gss, glg, gcm, reload, hreload, clipcopy/clippaste/jclip.\n' "${modern:-rg, fd, bat, eza, jq, gh}"
   [ -n "$workstation" ] && printf 'Helper tools: %s\n' "$workstation"
   [ -n "$devtools" ] && printf 'Common tools: %s\n' "$devtools"
@@ -250,7 +252,6 @@ EOF
 }
 
 load_project_context
-load_current_file
 
 case "$action" in
   prompt) print_prompt ;;

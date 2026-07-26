@@ -55,7 +55,7 @@ while [ $# -gt 0 ]; do
       }
       shift
       ;;
-    -h|--help)
+    -h | --help)
       usage
       exit 0
       ;;
@@ -68,7 +68,7 @@ while [ $# -gt 0 ]; do
 done
 
 as_root() {
-  if (( EUID == 0 )); then
+  if ((EUID == 0)); then
     "$@"
   else
     sudo "$@"
@@ -76,7 +76,7 @@ as_root() {
 }
 
 run_root() {
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     printf '[dry-run] sudo %s\n' "$*"
   else
     as_root "$@"
@@ -84,14 +84,17 @@ run_root() {
 }
 
 confirm() {
-  if (( DRY_RUN || AUTO_YES )); then
+  if ((DRY_RUN || AUTO_YES)); then
     return 0
   fi
   printf 'This will remove iwd if installed and restart NetworkManager. Continue? [y/N] '
   read -r answer
   case "${answer:-N}" in
-    y|Y|yes|YES) ;;
-    *) echo "Aborted."; exit 1 ;;
+    y | Y | yes | YES) ;;
+    *)
+      echo "Aborted."
+      exit 1
+      ;;
   esac
 }
 
@@ -104,32 +107,32 @@ nm_wifi_state() {
 
 nm_has_wifi_connection() {
   [ -n "$SSID" ] || return 1
-  nmcli -t -f NAME,TYPE connection show 2>/dev/null \
-    | awk -F: '$2 == "802-11-wireless" { print $1 }' \
-    | grep -Fx -- "$SSID" >/dev/null 2>&1
+  nmcli -t -f NAME,TYPE connection show 2>/dev/null |
+    awk -F: '$2 == "802-11-wireless" { print $1 }' |
+    grep -Fx -- "$SSID" >/dev/null 2>&1
 }
 
 nm_connected_wifi_device() {
-  nmcli -t -f DEVICE,TYPE,STATE d 2>/dev/null \
-    | awk -F: '$2 == "wifi" && $3 == "connected" { print $1; exit }'
+  nmcli -t -f DEVICE,TYPE,STATE d 2>/dev/null |
+    awk -F: '$2 == "wifi" && $3 == "connected" { print $1; exit }'
 }
 
 nm_any_wifi_device() {
-  nmcli -t -f DEVICE,TYPE d 2>/dev/null \
-    | awk -F: '$2 == "wifi" { print $1; exit }'
+  nmcli -t -f DEVICE,TYPE d 2>/dev/null |
+    awk -F: '$2 == "wifi" { print $1; exit }'
 }
 
 iwd_connected_ssid() {
   command -v iwctl >/dev/null 2>&1 || return 0
-  iwctl station list 2>/dev/null \
-    | awk 'NR > 4 && $1 !~ /^-+$/ { print $1; exit }' \
-    | while read -r station; do
-        [ -n "$station" ] || continue
-        iwctl station "$station" show 2>/dev/null \
-          | awk -F'Connected network[[:space:]]+' '/Connected network/ { print $2; exit }' \
-          | sed 's/[[:space:]]*$//'
-      done \
-    | sed -n '1p'
+  iwctl station list 2>/dev/null |
+    awk 'NR > 4 && $1 !~ /^-+$/ { print $1; exit }' |
+    while read -r station; do
+      [ -n "$station" ] || continue
+      iwctl station "$station" show 2>/dev/null |
+        awk -F'Connected network[[:space:]]+' '/Connected network/ { print $2; exit }' |
+        sed 's/[[:space:]]*$//'
+    done |
+    sed -n '1p'
 }
 
 if ! pacman -Q networkmanager >/dev/null 2>&1 || ! pacman -Q wpa_supplicant >/dev/null 2>&1; then
@@ -139,7 +142,7 @@ fi
 
 if [ -n "$SSID" ] && ! nm_has_wifi_connection; then
   echo "==> Creating NetworkManager Wi-Fi profile for: $SSID"
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     printf '[dry-run] nmcli device wifi connect %q --ask\n' "$SSID"
   else
     nmcli device wifi connect "$SSID" --ask
@@ -149,7 +152,7 @@ fi
 
 if [ -n "$SSID" ] && { [ -n "$BSSID" ] || [ -n "$CHANNEL" ]; }; then
   echo "==> Pinning NetworkManager Wi-Fi profile to 5 GHz preferences"
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     printf '[dry-run] nmcli connection modify %q 802-11-wireless.band a' "$SSID"
     [ -z "$BSSID" ] || printf ' 802-11-wireless.bssid %q' "$BSSID"
     [ -z "$CHANNEL" ] || printf ' 802-11-wireless.channel %q' "$CHANNEL"
@@ -168,9 +171,9 @@ if [ -n "$SSID" ] && { [ -n "$BSSID" ] || [ -n "$CHANNEL" ]; }; then
   fi
 fi
 
-if [ -z "$SSID" ] \
-  && [ -n "$(iwd_connected_ssid)" ] \
-  && { [ "$(nm_wifi_state)" != "enabled" ] || [ -z "$(nm_connected_wifi_device)" ]; }; then
+if [ -z "$SSID" ] &&
+  [ -n "$(iwd_connected_ssid)" ] &&
+  { [ "$(nm_wifi_state)" != "enabled" ] || [ -z "$(nm_connected_wifi_device)" ]; }; then
   cat >&2 <<EOF
 Refusing to remove iwd while it appears to own the active Wi-Fi connection.
 
@@ -193,14 +196,14 @@ run_root systemctl mask iwd.service || true
 
 echo "==> Pinning NetworkManager backend to wpa_supplicant"
 run_root mkdir -p /etc/NetworkManager/conf.d
-if (( DRY_RUN )); then
+if ((DRY_RUN)); then
   cat <<'EOF'
 [dry-run] write /etc/NetworkManager/conf.d/20-wifi-backend.conf
 [device]
 wifi.backend=wpa_supplicant
 EOF
 else
-cat <<'EOF' | as_root tee /etc/NetworkManager/conf.d/20-wifi-backend.conf >/dev/null
+  cat <<'EOF' | as_root tee /etc/NetworkManager/conf.d/20-wifi-backend.conf >/dev/null
 [device]
 wifi.backend=wpa_supplicant
 EOF
@@ -218,7 +221,7 @@ if [ -z "$(nm_any_wifi_device)" ] && lsmod | grep -q '^iwlwifi'; then
   run_root systemctl start NetworkManager.service
 fi
 if [ -n "$SSID" ]; then
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     printf '[dry-run] sudo nmcli connection reload\n'
     printf '[dry-run] nmcli connection up %q\n' "$SSID"
   else
@@ -227,7 +230,7 @@ if [ -n "$SSID" ]; then
   fi
 fi
 
-if (( DRY_RUN )); then
+if ((DRY_RUN)); then
   echo
   echo "==> Dry run complete"
   exit 0

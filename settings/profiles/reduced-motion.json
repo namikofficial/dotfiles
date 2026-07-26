@@ -1,0 +1,17 @@
+{
+  "machine": { "profile": "reduced-motion" },
+  "power": { "default_profile": "balanced", "auto_profile": true },
+  "animations": {
+    "profile": "reduced-motion",
+    "enabled": true,
+    "motion_blur": false,
+    "motion_blur_samples": 1,
+    "border_angle": false,
+    "zoom": false,
+    "spring": false,
+    "window_speed": 3,
+    "workspace_speed": 3,
+    "workspace_distance": 8,
+    "special_workspace_distance": 8
+  }
+}

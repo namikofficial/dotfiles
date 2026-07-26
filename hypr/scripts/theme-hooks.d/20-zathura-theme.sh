@@ -13,7 +13,7 @@ include_line="include $theme_rc"
 
 mkdir -p "$conf_dir"
 
-cat > "$theme_rc" <<EOF2
+cat >"$theme_rc" <<EOF2
 set recolor true
 set recolor-keephue true
 set default-bg "${THEME_BG}"
@@ -39,7 +39,7 @@ set recolor-darkcolor "${THEME_TEXT}"
 EOF2
 
 if [ ! -f "$main_rc" ]; then
-  printf '%s\n' "$include_line" > "$main_rc"
+  printf '%s\n' "$include_line" >"$main_rc"
 elif ! grep -Fqx "$include_line" "$main_rc"; then
-  printf '\n%s\n' "$include_line" >> "$main_rc"
+  printf '\n%s\n' "$include_line" >>"$main_rc"
 fi

@@ -111,11 +111,11 @@ portal_interface_checks() {
 
 journal_group_by_service() {
   if command -v jq >/dev/null 2>&1; then
-    journalctl --since '7 days ago' -p err..alert -o json --no-pager 2>/dev/null | \
-      jq -r 'if ._SYSTEMD_UNIT then ._SYSTEMD_UNIT elif .SYSLOG_IDENTIFIER then .SYSLOG_IDENTIFIER else "unknown" end' | \
+    journalctl --since '7 days ago' -p err..alert -o json --no-pager 2>/dev/null |
+      jq -r 'if ._SYSTEMD_UNIT then ._SYSTEMD_UNIT elif .SYSLOG_IDENTIFIER then .SYSLOG_IDENTIFIER else "unknown" end' |
       sort | uniq -c | sort -nr | sed -n '1,40p'
   else
-    journalctl --since '7 days ago' -p err..alert --no-pager 2>/dev/null | \
+    journalctl --since '7 days ago' -p err..alert --no-pager 2>/dev/null |
       awk '{print $5}' | sed 's/:$//' | sort | uniq -c | sort -nr | sed -n '1,40p'
   fi
 }

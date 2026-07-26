@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-vault_path="${OBSIDIAN_VAULT_PATH:-$HOME/Documents/notes/namikBrain}"
+env_file="${OBSIDIAN_ENV_FILE:-$HOME/.config/opencode/obsidian.env}"
+if [ -f "$env_file" ]; then
+  set -a
+  # This file is user-owned and contains only Obsidian MCP environment values.
+  . "$env_file"
+  set +a
+fi
+
+vault_path="${OBSIDIAN_VAULT_PATH:-$HOME/Documents/notes/DocsVault}"
 rest_config="${OBSIDIAN_REST_CONFIG:-$vault_path/.obsidian/plugins/obsidian-local-rest-api/data.json}"
 cert_path="${OBSIDIAN_CERT_PATH:-$HOME/Documents/certs/obsidian-local-rest-api.crt}"
 server_bin="${OBSIDIAN_MCP_BIN:-$HOME/.config/nvm/versions/node/v24.14.0/bin/obsidian-mcp-server}"

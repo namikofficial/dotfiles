@@ -8,7 +8,7 @@ TPM_DIR="$PLUGIN_DIR/tpm"
 while (($#)); do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
-    -h|--help)
+    -h | --help)
       cat <<'USAGE'
 Usage: install-tmux-plugins.sh [--dry-run]
 Installs/updates tmux plugin manager (TPM) and syncs plugins from ~/.tmux.conf.
@@ -24,7 +24,7 @@ USAGE
 done
 
 run() {
-  if (( DRY_RUN )); then
+  if ((DRY_RUN)); then
     echo "[dry-run] $*"
   else
     "$@"
@@ -46,7 +46,7 @@ if ! command -v tmux >/dev/null 2>&1; then
   exit 1
 fi
 
-if (( DRY_RUN )); then
+if ((DRY_RUN)); then
   echo "[dry-run] tmux start-server"
   echo "[dry-run] $TPM_DIR/bin/install_plugins"
   echo "[dry-run] $TPM_DIR/bin/update_plugins all"

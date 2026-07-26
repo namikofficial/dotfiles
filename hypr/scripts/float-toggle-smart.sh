@@ -15,7 +15,7 @@ is_floating_before() {
   hyprctl activewindow 2>/dev/null | awk -F': ' '/floating:/ { print $2; exit }' | {
     read -r v || true
     case "$v" in
-      1|true|yes) printf 'true' ;;
+      1 | true | yes) printf 'true' ;;
       *) printf 'false' ;;
     esac
   }
@@ -64,7 +64,7 @@ EOF_SIZE
       )"
 
       case "$other_float_count" in
-        ''|*[!0-9]*) other_float_count=0 ;;
+        '' | *[!0-9]*) other_float_count=0 ;;
       esac
 
       slot=$((other_float_count % 6))

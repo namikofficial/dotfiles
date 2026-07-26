@@ -73,7 +73,7 @@ parse_desktop_entry() {
 
 build_cache() {
   local tmp_file="${CACHE_FILE}.tmp.$$"
-  : > "$tmp_file"
+  : >"$tmp_file"
   declare -A seen_ids=()
   local desktop_file desktop_id parsed name icon
 
@@ -88,8 +88,8 @@ build_cache() {
     fi
     parsed="$(parse_desktop_entry "$desktop_file" || true)"
     [ -n "$parsed" ] || continue
-    IFS=$'\t' read -r name icon <<< "$parsed"
-    printf '%s\t%s\t%s\n' "$name" "$desktop_id" "$icon" >> "$tmp_file"
+    IFS=$'\t' read -r name icon <<<"$parsed"
+    printf '%s\t%s\t%s\n' "$name" "$desktop_id" "$icon" >>"$tmp_file"
     seen_ids["$desktop_id"]=1
   done
 
@@ -133,7 +133,7 @@ schedule_cache_refresh() {
   fi
 
   "$0" --rebuild-cache >/dev/null 2>&1 &
-  echo "$!" > "$CACHE_REFRESH_PID_FILE"
+  echo "$!" >"$CACHE_REFRESH_PID_FILE"
 }
 
 ensure_cache() {
@@ -156,17 +156,17 @@ build_rows_cache() {
   local tmp_fast="${ROWS_FAST_FILE}.tmp.$$"
   local idx=0 name desktop_id _icon display hint
 
-  emit_rows_all > "$tmp_all"
-  emit_rows_frequent > "$tmp_frequent"
+  emit_rows_all >"$tmp_all"
+  emit_rows_frequent >"$tmp_frequent"
 
-  : > "$tmp_fast"
+  : >"$tmp_fast"
   while IFS=$'\t' read -r name desktop_id _icon; do
     display="$name"
     [ "${#display}" -gt 60 ] && display="${display:0:57}..."
     hint="$(hint_for_index "$idx")"
-    printf '%s\t%s\t%s\n' "$display" "$desktop_id" "$hint" >> "$tmp_fast"
+    printf '%s\t%s\t%s\n' "$display" "$desktop_id" "$hint" >>"$tmp_fast"
     idx=$((idx + 1))
-  done < "$CACHE_FILE"
+  done <"$CACHE_FILE"
 
   mv "$tmp_all" "$ROWS_ALL_FILE"
   mv "$tmp_frequent" "$ROWS_FREQUENT_FILE"
@@ -225,7 +225,7 @@ emit_rows_all() {
     hint="$(hint_for_index "$idx")"
     format_row "$display" "$hint" "$icon" "$desktop_id"
     idx=$((idx + 1))
-  done < "$CACHE_FILE"
+  done <"$CACHE_FILE"
 }
 
 emit_rows_frequent() {
@@ -235,11 +235,11 @@ emit_rows_frequent() {
   declare -A row_by_id=()
   declare -A added=()
 
-  mapfile -t fallback_rows < "$CACHE_FILE"
+  mapfile -t fallback_rows <"$CACHE_FILE"
   [ "${#fallback_rows[@]}" -gt 0 ] || return 0
 
   for row in "${fallback_rows[@]}"; do
-    IFS=$'\t' read -r name desktop_id icon <<< "$row"
+    IFS=$'\t' read -r name desktop_id icon <<<"$row"
     row_by_id["$desktop_id"]="$row"
   done
 
@@ -257,7 +257,7 @@ emit_rows_frequent() {
 
   if [ "${#rows[@]}" -lt 5 ]; then
     for row in "${fallback_rows[@]}"; do
-      IFS=$'\t' read -r _name desktop_id _icon <<< "$row"
+      IFS=$'\t' read -r _name desktop_id _icon <<<"$row"
       [ -n "${added[$desktop_id]:-}" ] && continue
       rows+=("$row")
       added["$desktop_id"]=1
@@ -266,7 +266,7 @@ emit_rows_frequent() {
   fi
 
   for row in "${rows[@]}"; do
-    IFS=$'\t' read -r name desktop_id icon <<< "$row"
+    IFS=$'\t' read -r name desktop_id icon <<<"$row"
     display="[top] $name"
     [ "${#display}" -gt 46 ] && display="${display:0:43}..."
     hint="$(hint_for_index "$idx")"
@@ -389,12 +389,12 @@ update_usage() {
           print id "\t1"
         }
       }
-    ' "$USAGE_FILE" > "$tmp_file"
+    ' "$USAGE_FILE" >"$tmp_file"
   else
-    printf '%s\t1\n' "$desktop_id" > "$tmp_file"
+    printf '%s\t1\n' "$desktop_id" >"$tmp_file"
   fi
 
-  sort -t $'\t' -k2,2nr "$tmp_file" | awk -F '\t' '!seen[$1]++' > "$USAGE_FILE"
+  sort -t $'\t' -k2,2nr "$tmp_file" | awk -F '\t' '!seen[$1]++' >"$USAGE_FILE"
   rm -f "$tmp_file"
 }
 
@@ -406,7 +406,7 @@ launch_desktop_id() {
   desktop_file="$(desktop_file_for_id "$desktop_id" || true)"
   if [ -n "$desktop_file" ]; then
     info="$(desktop_launch_info "$desktop_file")"
-    IFS=$'\t' read -r terminal exec_line <<< "$info"
+    IFS=$'\t' read -r terminal exec_line <<<"$info"
 
     if [ "$terminal" = "true" ]; then
       normalized_exec="$(normalize_exec_line "$exec_line")"
@@ -514,7 +514,7 @@ run_fast_launcher() {
       -kb-cancel 'Escape,Control+g,Super+space' \
       -mesg 'Type to search instantly | Ctrl+1..0 quick-launch' \
       -format 's' \
-      -pid "$PID_FILE" < "$ROWS_FAST_FILE"
+      -pid "$PID_FILE" <"$ROWS_FAST_FILE"
   )"
   rofi_status=$?
   set -e

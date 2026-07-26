@@ -7,7 +7,7 @@ if [ ! -x "$code_bin" ]; then
 fi
 
 if [ -z "$code_bin" ] || [ ! -x "$code_bin" ]; then
-  command -v notify-send >/dev/null 2>&1 && \
+  command -v notify-send >/dev/null 2>&1 &&
     notify-send -a "VS Code" "VS Code not found" "Install package: code"
   exit 1
 fi

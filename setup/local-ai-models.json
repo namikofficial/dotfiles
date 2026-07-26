@@ -188,6 +188,23 @@
       "autoload": false,
       "experimental": false,
       "notes": "Good balance of speed and quality. Already downloaded."
+    },
+    {
+      "id": "qwen35-4b",
+      "display_name": "Qwen3.5 4B",
+      "role": "coding_agent",
+      "description": "Small tool-capable coding and debugging agent with multimodal support.",
+      "recommended_quant": "Q4_K_M",
+      "format": "GGUF",
+      "filename": "Qwen_Qwen3.5-4B-Q4_K_M.gguf",
+      "hf_repo": "bartowski/Qwen_Qwen3.5-4B-GGUF",
+      "endpoint_alias": "qwen35-4b-local",
+      "context_default": 81920,
+      "context_max_safe": 81920,
+      "n_gpu_layers": 99,
+      "autoload": false,
+      "experimental": false,
+      "notes": "Additional local agent for 6 GB-class GPUs; use Q4_K_S if VRAM pressure appears."
     }
   ],
   "experimental_models": [

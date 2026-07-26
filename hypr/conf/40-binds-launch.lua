@@ -62,7 +62,7 @@ exec(mainMod .. " + CTRL + N", home .. "/.config/hypr/scripts/notification-summa
 exec(mainMod .. " + CTRL + ALT + N", home .. "/.config/hypr/scripts/notif-clear.sh")
 exec(mainMod .. " + SHIFT + N", home .. "/.config/hypr/scripts/open-notes.sh")
 exec(mainMod .. " + ALT + E", home .. "/.config/hypr/scripts/open-notes.sh")
-bind(mainMod .. " + SHIFT + Q", hl.dsp.window.kill())
+bind(mainMod .. " + SHIFT + Q", hl.dsp.window.close())
 exec(mainMod .. " + SHIFT + M", home .. "/.config/hypr/scripts/minimize-window.sh minimize")
 exec(mainMod .. " + F", home .. "/.config/hypr/scripts/float-toggle-smart.sh")
 bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized" }))

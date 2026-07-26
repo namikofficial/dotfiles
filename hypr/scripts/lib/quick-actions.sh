@@ -133,11 +133,11 @@ noxflow_quick_action_run() {
     "Open Settings Hub") ~/.config/hypr/scripts/settings-hub.sh ;;
     "Open Control Center") ~/.config/hypr/scripts/control-center.sh ;;
     "Monitor Control") ~/.config/hypr/scripts/monitor-control.sh menu ;;
-    "Run Dev Health") kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/dev-health.sh; read -r -p 'Press enter to close'" ;;
-    "Run Dev Health (JSON)") kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/dev-health.sh --json; read -r -p 'Press enter to close'" ;;
+    "Run Dev Health") kitty -e /usr/bin/zsh -lic "$HOME/Documents/code/dotfiles/setup/dev-health.sh; read -r -p 'Press enter to close'" ;;
+    "Run Dev Health (JSON)") kitty -e /usr/bin/zsh -lic "$HOME/Documents/code/dotfiles/setup/dev-health.sh --json; read -r -p 'Press enter to close'" ;;
     "Project Resume") ~/.config/hypr/scripts/project-resume.sh ;;
     "Recover Desktop") ~/.config/hypr/scripts/desktop-recovery.sh menu ;;
-    "Project Profiles") kitty -e sh -lc "$HOME/Documents/code/dotfiles/setup/project-profile.sh status; read -r -p 'Press enter to close'" ;;
+    "Project Profiles") kitty -e /usr/bin/zsh -lic "$HOME/Documents/code/dotfiles/setup/project-profile.sh status; read -r -p 'Press enter to close'" ;;
     *)
       return 1
       ;;

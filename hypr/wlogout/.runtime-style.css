@@ -5,93 +5,86 @@
 }
 
 window {
-  background-color: rgba(18, 20, 30, 0.84);
-  background-image: url("background-abstract.svg");
+  background-color: rgba(26, 27, 31, 0.88);
+  background-image: url("/home/namik/.config/wlogout/background-abstract.svg");
   background-size: cover;
-  background-repeat: no-repeat;
 }
 
 button {
-  color: transparent;
-  background-color: rgba(23, 27, 42, 0.9);
-  border: 1px solid rgba(52, 62, 88, 0.82);
-  border-radius: 16px;
-  margin: 6px;
+  color: #e8eefc;
+  background-color: rgba(36, 37, 41, 0.94);
+  border: 1px solid rgba(111, 148, 201, 0.45);
+  border-radius: 14px;
+  margin: 4px;
   padding: 0;
-  min-width: 194px;
-  min-height: 110px;
-  font-size: 1px;
-  letter-spacing: 0;
+  min-width: 128px;
+  min-height: 88px;
+  font-size: 17px;
+  font-weight: 700;
   background-repeat: no-repeat;
-  background-position: 50% 39%, 50% 58%, 92% 10px;
-  background-size: 44px, 110px 30px, 68px 26px;
-  box-shadow:
-    inset 0 1px 0 rgba(226, 232, 255, 0.05),
-    0 10px 18px rgba(0, 0, 0, 0.2);
-  transition:
-    background-color 210ms cubic-bezier(0.2, 0.9, 0.12, 1),
-    border-color 210ms cubic-bezier(0.2, 0.9, 0.12, 1),
-    box-shadow 210ms cubic-bezier(0.2, 0.9, 0.12, 1);
+  background-position: center 30%;
+  background-size: 34px;
 }
 
-button:hover,
-button:focus {
-  background-color: rgba(30, 36, 56, 0.94);
-  border: 1px solid #6f94c9;
-  box-shadow:
-    inset 0 1px 0 rgba(226, 232, 255, 0.08),
-    0 12px 20px rgba(0, 0, 0, 0.25);
+button:focus,
+button:active,
+button:hover {
+  background-color: rgba(30, 36, 56, 0.98);
+  border-color: #6f94c9;
+  outline-style: none;
 }
 
 #lock {
-  background-image:
-    url("/usr/share/wlogout/icons/lock.png"),
-    url("labels/lock.svg"),
-    url("icons/key-L.svg");
+  background-image: url("/usr/share/wlogout/icons/lock.png");
 }
 
 #suspend {
-  background-image:
-    url("/usr/share/wlogout/icons/suspend.png"),
-    url("labels/sleep.svg"),
-    url("icons/key-U.svg");
+  background-image: url("/usr/share/wlogout/icons/suspend.png");
 }
 
 #hibernate {
-  background-image:
-    url("/usr/share/wlogout/icons/hibernate.png"),
-    url("labels/hibernate.svg"),
-    url("icons/key-H.svg");
+  background-image: url("/usr/share/wlogout/icons/hibernate.png");
 }
 
-#logout {
-  background-image:
-    url("/usr/share/wlogout/icons/logout.png"),
-    url("labels/logout.svg"),
-    url("icons/key-E.svg");
+#firmware {
+  background-color: rgba(174, 119, 91, 0.24);
+  border-color: rgba(174, 119, 91, 0.7);
+  background-image: url("/home/namik/.config/wlogout/icons/firmware.svg");
 }
 
 #reboot {
-  background-image:
-    url("/usr/share/wlogout/icons/reboot.png"),
-    url("labels/reboot.svg"),
-    url("icons/key-R.svg");
+  background-image: url("/usr/share/wlogout/icons/reboot.png");
 }
 
 #shutdown {
-  background-color: rgba(255, 117, 127, 0.26);
-  border: 1px solid #ff757f;
-  background-image:
-    url("/usr/share/wlogout/icons/shutdown.png"),
-    url("labels/shutdown.svg"),
-    url("icons/key-S.svg");
+  background-color: rgba(255,117,127, 0.3);
+  border-color: #ff757f;
+  background-image: url("/usr/share/wlogout/icons/shutdown.png");
 }
 
-#shutdown:hover,
-#shutdown:focus {
-  background-color: rgba(255, 117, 127, 0.38);
-  border: 1px solid #ff757f;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 205, 210, 0.2),
-    0 12px 20px rgba(43, 9, 13, 0.34);
+#logout {
+  background-image: url("/usr/share/wlogout/icons/logout.png");
+}
+
+/* Generated palette overrides. */
+window {
+  background-color: rgba(4,6,11, 0.90);
+}
+
+button {
+  color: #e8eefc;
+  background-color: rgba(15,17,22, 0.94);
+  border-color: rgba(47,91,127, 0.66);
+}
+
+button:hover,
+button:focus,
+button:active {
+  background-color: rgba(37,38,43, 0.98);
+  border-color: #3579ae;
+}
+
+#firmware {
+  background-color: rgba(158,90,163, 0.20);
+  border-color: rgba(158,90,163, 0.70);
 }

@@ -7,7 +7,7 @@ if [ ! -x "$obs_bin" ]; then
 fi
 
 if [ -z "$obs_bin" ] || [ ! -x "$obs_bin" ]; then
-  command -v notify-send >/dev/null 2>&1 && \
+  command -v notify-send >/dev/null 2>&1 &&
     notify-send -a "Obsidian" "Obsidian not found" "Install package: obsidian"
   exit 1
 fi

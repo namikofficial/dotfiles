@@ -57,7 +57,7 @@ label="${choice%%|*}"
 rest="${choice#*|}"
 action="${rest%%|*}"
 section="${choice##*|}"
-printf '%s\n' "$section" > "$LAST_FILE"
+printf '%s\n' "$section" >"$LAST_FILE"
 
 case "$action" in
   apply)

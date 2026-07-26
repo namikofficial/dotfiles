@@ -62,6 +62,12 @@ setopt nomatch
 bindkey -e
 typeset -U path PATH
 
+# Neovim is the managed editor in this workstation configuration. Respect an
+# existing explicit choice, but make interactive tools agree by default.
+export EDITOR="${EDITOR:-nvim}"
+export VISUAL="${VISUAL:-$EDITOR}"
+export GIT_EDITOR="${GIT_EDITOR:-$EDITOR}"
+
 # History
 HISTSIZE=10000
 SAVEHIST=10000
@@ -872,3 +878,4 @@ if [[ "$ENABLE_ZSH_AUTOCOMPLETE" != "1" ]]; then
   unsetopt listambiguous
   LISTMAX=999999
 fi
+export PATH=$PATH:$HOME/.maestro/bin

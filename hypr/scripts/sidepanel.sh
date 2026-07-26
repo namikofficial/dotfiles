@@ -34,7 +34,7 @@ normal_current_workspace() {
   local workspace
   workspace="$(current_workspace)"
   case "$workspace" in
-    ''|*[!0-9-]*|0|-*) printf '1\n' ;;
+    '' | *[!0-9-]* | 0 | -*) printf '1\n' ;;
     *) printf '%s\n' "$workspace" ;;
   esac
 }

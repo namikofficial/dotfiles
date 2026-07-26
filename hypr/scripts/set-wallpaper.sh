@@ -131,7 +131,7 @@ ensure_theme_sync() {
 write_wall_cache() {
   wall="$1"
   skip_wayle_palette="${2:-0}"
-  printf '%s' "$wall" > "$HOME/.cache/current-wallpaper"
+  printf '%s' "$wall" >"$HOME/.cache/current-wallpaper"
   ensure_theme_sync "$wall" "$skip_wayle_palette"
   emit_event info "Wallpaper applied" "$wall"
 }
@@ -159,7 +159,10 @@ prepare_wall() {
 $(preferred_output_size)
 EOF_SIZE
   case "$mon_w $mon_h" in
-    ''|'null null') mon_w=1920; mon_h=1080 ;;
+    '' | 'null null')
+      mon_w=1920
+      mon_h=1080
+      ;;
   esac
 
   canvas_mode="${WALLPAPER_CANVAS_MODE:-blurpad}"

@@ -17,7 +17,7 @@ is_night_now() {
 
 apply_once() {
   case "$auto_night_light" in
-    1|true|yes|on)
+    1 | true | yes | on)
       ;;
     *)
       return 0

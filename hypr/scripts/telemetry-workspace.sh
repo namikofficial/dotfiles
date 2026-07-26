@@ -17,8 +17,8 @@ goto_workspace() {
 }
 
 find_client_address() {
-  hyprctl -j clients 2>/dev/null \
-    | python3 -c "
+  hyprctl -j clients 2>/dev/null |
+    python3 -c "
 import json,sys
 clients = json.load(sys.stdin)
 for c in clients:

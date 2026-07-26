@@ -21,6 +21,7 @@
 - lockscreen wallpaper sync
 - palette extraction from current wallpaper
 - runtime color files for Rofi/Kitty/Hyprlock
+- unified palette contract for wlogout, SDDM, clipboard, scratchpad, and Wayle
 - GTK3/GTK4 override CSS generation
 - VSCode dynamic workbench color update
 
@@ -32,6 +33,13 @@ Generated under `~/.cache/hypr/`:
 - `theme-colors-kitty.conf`
 - `theme-colors-hyprlock.conf`
 - `theme-palette.json`
+- `theme-palette.env`
+- `theme-colors-sddm.js`
+
+The canonical palette exposes `bg`, `surface`, `surface_alt`, `text`,
+`muted`, `accent`, `accent_soft`, `danger`, and `success`. Compatibility
+aliases such as `bg_soft`, `accent2`, and `warn` remain available to older
+hooks.
 
 ## App Hook Layer
 
@@ -52,6 +60,13 @@ Current default hooks:
   - `~/.config/discord/themes/NoxflowDynamic.theme.css`
   - `~/.config/Vencord/themes/NoxflowDynamic.theme.css`
   - `~/.config/BetterDiscord/themes/NoxflowDynamic.theme.css`
+
+Core UI consumers also read the generated palette directly:
+
+- wlogout runtime CSS
+- SDDM `palette.js` when the installed theme is writable or `sudo -n` is available
+- clipboard browser and scratchpad dashboard GTK styles
+- Wayle palette and notification surfaces
 
 ## Scripts
 
@@ -104,7 +119,7 @@ Current default hooks:
   - `wal` (pywal)
   - `matugen`
   - `pywalfox update` (Firefox)
-- Discord/Vesktop dynamic theming is not applied automatically yet (needs client theme plugin layer).
+- Discord/Vesktop dynamic theming is applied when the client theme directories are available.
 - PrismLauncher uses `ApplicationTheme=system` in `~/.local/share/PrismLauncher/prismlauncher.cfg`; it follows the system/Qt theme rather than panel CSS.
 - If you want absolutely no visual transition artifacts, set:
 `WALLPAPER_TRANSITION_TYPE=none`

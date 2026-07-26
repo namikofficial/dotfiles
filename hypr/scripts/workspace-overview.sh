@@ -102,7 +102,8 @@ clear_workspace_name() {
 }
 
 show_shortcuts_panel() {
-  shortcuts="$(cat <<'EOF_KEYS'
+  shortcuts="$(
+    cat <<'EOF_KEYS'
 Super + Y (Primary) -> Open Workspace Hub
 Super + W -> Open Workspace Hub directly
 Super + Shift + Space -> Open Workspace Hub directly
@@ -120,7 +121,7 @@ Ctrl + Alt + M (window row) -> Move window to workspace
 Ctrl + Alt + O (window row) -> Move window and follow
 Ctrl + Alt + P (window row) -> Send window to Sidecar
 EOF_KEYS
-)"
+  )"
 
   set +e
   _="$(printf '%s\n' "$shortcuts" | rofi -dmenu -i \
@@ -128,7 +129,7 @@ EOF_KEYS
     -theme "$HOME/.config/rofi/actions.rasi" \
     -mesg 'Esc closes. Enter copies selected row if wl-copy is available.' \
     -no-show-icons \
-    -kb-cancel 'Escape,Control+g' )"
+    -kb-cancel 'Escape,Control+g')"
   _status=$?
   set -e
 
@@ -329,7 +330,7 @@ while :; do
   set -e
 
   case "$rofi_status" in
-    1|130)
+    1 | 130)
       exit 0
       ;;
   esac

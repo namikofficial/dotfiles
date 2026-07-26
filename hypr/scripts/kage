@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/workbench-runtime-env.sh"
+
 KAGE_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/kage"
 KAGE_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/kage"
 KAGE_SHARE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/kage"
@@ -11,6 +15,8 @@ OVERVIEW_FALLBACK="${HOME}/.config/hypr/scripts/workspace-overview.sh"
 HYPRCTL_BIN="${HYPRCTL_BIN:-$(command -v hyprctl || true)}"
 PROJECT_CACHE="${KAGE_CACHE_DIR}/project-current.json"
 PROJECT_WATCH_PIDFILE="${KAGE_CACHE_DIR}/project-watch.pid"
+WORKBENCH_API_URL="$AI_WORKBENCH_API_URL"
+WORKBENCH_STATUS_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"
 
 ensure_dirs() {
   mkdir -p "${KAGE_STATE_DIR}" "${KAGE_CACHE_DIR}" "${KAGE_SHARE_DIR}/actions"
@@ -23,6 +29,41 @@ notify() {
 
 now_iso() {
   date -Iseconds
+}
+
+workbench_status_available() {
+  [ -s "${WORKBENCH_STATUS_CACHE}" ] || return 1
+  jq -e '.schemaVersion == 1 and (.status.project.id // "") != "" and .compact.schemaVersion == 1' \
+    "${WORKBENCH_STATUS_CACHE}" >/dev/null 2>&1
+}
+
+workbench_refresh_status() {
+  command -v curl >/dev/null 2>&1 || return 1
+  curl --silent --show-error --fail --max-time 10 -H 'accept: application/json' \
+    "${WORKBENCH_API_URL}/project-status/compact" >/dev/null
+}
+
+workbench_project_compat_json() {
+  jq -c '
+    .status as $s |
+    {
+      name: ($s.project.name // ""),
+      path: ($s.project.path // ""),
+      branch: ($s.git.branch // ""),
+      dirty: ($s.git.dirty // false),
+      modified: (($s.git.modified // 0) + ($s.git.deleted // 0) + ($s.git.renamed // 0) + ($s.git.untracked // 0)),
+      staged: ($s.git.staged // 0),
+      stashes: ($s.git.stashes // 0),
+      lang: "workbench",
+      framework: "workbench",
+      is_git: ($s.git != null),
+      services: (reduce $s.services[] as $service ({}; .[$service.name] = $service.state)),
+      actions: [],
+      updated_at: $s.generatedAt,
+      source: "workbench",
+      stale_after: $s.staleAfter
+    }
+  ' "${WORKBENCH_STATUS_CACHE}"
 }
 
 loaded_hyprexpo_path() {
@@ -488,8 +529,31 @@ with s.makefile("r", encoding="utf-8", errors="replace") as events:
 # ── Project: Wayle chip output ───────────────────────────────────────────────
 
 project_wayle_output() {
+  if workbench_status_available; then
+    local stale=false stale_after now_epoch stale_epoch
+    stale_after="$(jq -r '.compact.staleAfter // ""' "${WORKBENCH_STATUS_CACHE}" 2>/dev/null)"
+    now_epoch="$(date +%s)"
+    stale_epoch="$(date -d "$stale_after" +%s 2>/dev/null || printf '0')"
+    [ "$stale_epoch" -gt "$now_epoch" ] || stale=true
+    jq -c --argjson stale "$stale" '
+      .compact as $c |
+      ($c.project.name // "—") as $name |
+      ($c.git.branch // "") as $branch |
+      (($c.git.dirty // 0) + ($c.git.staged // 0)) as $changes |
+      ([if ($c.project.pinned // false) then "pinned" else empty end,
+        if $stale then "cached status is stale" else empty end,
+        if (($c.project.confidence // 0) < 0.8) then "project context confidence is low" else empty end]
+        | join(", ")) as $flags |
+      {
+        text: ($name + (if $branch != "" then "  " + $branch else "" end) + (if $changes > 0 then "  ✦" + ($changes|tostring) else "" end)),
+        tooltip: ($c.tooltip + (if $flags != "" then "\nStatus: " + $flags else "" end))
+      }
+    ' "${WORKBENCH_STATUS_CACHE}" 2>/dev/null \
+      || printf '{"text":"—","tooltip":"Workbench status parse error"}\n'
+    return 0
+  fi
   if [ ! -s "${PROJECT_CACHE}" ]; then
-    printf '{"text":"—","tooltip":"No project detected"}\n'
+    printf '{"text":"—","tooltip":"Workbench offline; no cached project status"}\n'
     return 0
   fi
   jq -r '
@@ -676,7 +740,13 @@ cmd_project() {
         case "$arg" in --json) json=1 ;; --wayle) wayle=1 ;; esac
       done
       [ "$wayle" = "1" ] && { project_wayle_output; return 0; }
-      if [ -s "${PROJECT_CACHE}" ]; then
+      if workbench_status_available; then
+        if [ "$json" = "1" ]; then
+          workbench_project_compat_json
+        else
+          workbench_project_compat_json | jq -r '"[\(.name)] \(.branch) \(if .dirty then "✦\(.modified) ◆\(.staged)" else "(clean)" end) [workbench]"'
+        fi
+      elif [ -s "${PROJECT_CACHE}" ]; then
         if [ "$json" = "1" ]; then
           cat "${PROJECT_CACHE}"
         else
@@ -691,18 +761,27 @@ cmd_project() {
         fi
       fi ;;
     refresh)
-      project_probe >/dev/null \
-        && echo "ok: project cache refreshed" \
-        || echo "warn: could not detect project (no focused window or not a git repo?)" ;;
+      if workbench_refresh_status; then
+        echo "ok: Workbench project status refreshed"
+      elif project_probe >/dev/null; then
+        echo "warn: Workbench offline; legacy project cache refreshed"
+      else
+        echo "warn: could not refresh Workbench or detect a legacy project"
+      fi ;;
     watch)
       project_watch_daemon ;;
     action)
       project_run_action "${1:-}" ;;
     status)
-      [ -s "${PROJECT_CACHE}" ] \
-        && jq -r '"project:  \(.name)\npath:     \(.path)\nbranch:   \(.branch)\nlang:     \(.framework)\ndirty:    \(.dirty)\nmodified: \(.modified) | staged: \(.staged)\nservices: \(.services|to_entries|map("\(.key):\(.value)")|join(", "))\nupdated:  \(.updated_at)"' \
-             "${PROJECT_CACHE}" 2>/dev/null \
-        || echo "no project cached" ;;
+      if workbench_status_available; then
+        jq -r '.compact.tooltip + "\nsource: Workbench\ngenerated: " + .compact.generatedAt + "\nstale after: " + .compact.staleAfter' \
+          "${WORKBENCH_STATUS_CACHE}" 2>/dev/null
+      elif [ -s "${PROJECT_CACHE}" ]; then
+        jq -r '"project:  \(.name)\npath:     \(.path)\nbranch:   \(.branch)\nlang:     \(.framework)\ndirty:    \(.dirty)\nmodified: \(.modified) | staged: \(.staged)\nservices: \(.services|to_entries|map("\(.key):\(.value)")|join(", "))\nupdated:  \(.updated_at)\nsource:   legacy fallback"' \
+             "${PROJECT_CACHE}" 2>/dev/null
+      else
+        echo "no project cached"
+      fi ;;
     *)
       echo "usage: kage project [current [--json|--wayle] | refresh | watch | action <name> | status]" >&2
       exit 1 ;;

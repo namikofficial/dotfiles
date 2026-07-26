@@ -8,6 +8,6 @@ fi
 
 state="$(nmcli -t -f STATE g 2>/dev/null || echo unknown)"
 case "$state" in
-  connected|full|limited|portal) echo true ;;
+  connected | full | limited | portal) echo true ;;
   *) echo false ;;
 esac

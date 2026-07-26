@@ -24,7 +24,7 @@ ensure_state_dir() {
 
 is_valid_ws_id() {
   case "$1" in
-    ''|*[!0-9]*) return 1 ;;
+    '' | *[!0-9]*) return 1 ;;
     0) return 1 ;;
     *) return 0 ;;
   esac
@@ -135,6 +135,6 @@ case "$command" in
   get) cmd_get "$@" ;;
   unset) cmd_unset "$@" ;;
   list) cmd_list "$@" ;;
-  json|dump) cmd_json "$@" ;;
+  json | dump) cmd_json "$@" ;;
   *) usage ;;
 esac

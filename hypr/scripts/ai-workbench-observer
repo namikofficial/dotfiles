@@ -1,0 +1,329 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/workbench-runtime-env.sh"
+
+API_URL="$AI_WORKBENCH_API_URL"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench"
+OBSERVATION_CACHE="${CACHE_DIR}/desktop-observation-v1.json"
+STATUS_CACHE="${CACHE_DIR}/project-status-v1.json"
+REGISTRY_CACHE="${CACHE_DIR}/project-registry-v1.json"
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+discover_hypr_signature() {
+  local candidate latest=""
+  if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" && -S "$runtime_dir/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" ]]; then
+    return 0
+  fi
+  for candidate in "$runtime_dir"/hypr/*/.socket2.sock; do
+    [[ -S "$candidate" ]] || continue
+    if [[ -z "$latest" || "$candidate" -nt "$latest" ]]; then
+      latest="$candidate"
+    fi
+  done
+  [[ -n "$latest" ]] || return 1
+  HYPRLAND_INSTANCE_SIGNATURE="$(basename "$(dirname "$latest")")"
+  export HYPRLAND_INSTANCE_SIGNATURE
+}
+
+mkdir -p "$CACHE_DIR"
+
+editor_for_window() {
+  local class_name="$1" title="$2"
+  [[ "$class_name" =~ ^(code|Code|code-oss|code-url-handler|VSCodium|codium)$ ]] || {
+    printf 'null'
+    return 0
+  }
+  command -v python3 >/dev/null 2>&1 || {
+    printf 'null'
+    return 0
+  }
+  [ -s "$REGISTRY_CACHE" ] || {
+    printf 'null'
+    return 0
+  }
+  AI_WORKBENCH_EDITOR_TITLE="$title" AI_WORKBENCH_REGISTRY_CACHE="$REGISTRY_CACHE" python3 - <<'PY'
+import json
+import os
+import re
+from pathlib import Path
+
+try:
+    payload = json.loads(Path(os.environ["AI_WORKBENCH_REGISTRY_CACHE"]).read_text(encoding="utf-8"))
+except (OSError, ValueError):
+    print("null")
+    raise SystemExit(0)
+
+if not isinstance(payload, dict) or payload.get("schemaVersion") != 1:
+    print("null")
+    raise SystemExit(0)
+projects = payload.get("projects")
+if not isinstance(projects, list):
+    print("null")
+    raise SystemExit(0)
+
+segments = [segment.strip() for segment in re.split(r"\s+(?:-|—)\s+", os.environ.get("AI_WORKBENCH_EDITOR_TITLE", ""))]
+if len(segments) < 3 or "visual studio code" not in segments[-1].casefold():
+    print("null")
+    raise SystemExit(0)
+workspace_label = segments[-2].casefold()
+
+matches = []
+for project in projects:
+    if not isinstance(project, dict):
+        continue
+    project_id = project.get("id")
+    path = project.get("path")
+    name = project.get("name")
+    aliases = project.get("aliases", [])
+    if not isinstance(project_id, str) or not project_id or not isinstance(path, str) or not os.path.isabs(path):
+        continue
+    keys = {Path(path).name.casefold()}
+    if isinstance(name, str) and name:
+        keys.add(name.casefold())
+    if isinstance(aliases, list):
+        keys.update(alias.casefold() for alias in aliases if isinstance(alias, str) and alias)
+    if workspace_label in keys:
+        matches.append((project_id, path))
+
+unique = list(dict.fromkeys(matches))
+if len(unique) != 1:
+    print("null")
+else:
+    print(json.dumps({"file": None, "workspace": unique[0][1]}, separators=(",", ":")))
+PY
+}
+
+is_descendant() {
+  local candidate="$1" root="$2" parent steps=0
+  while [[ "$candidate" =~ ^[0-9]+$ ]] && ((candidate > 1 && steps < 64)); do
+    [[ "$candidate" == "$root" ]] && return 0
+    parent="$(awk '/^PPid:/ { print $2; exit }' "/proc/$candidate/status" 2>/dev/null || true)"
+    [[ -n "$parent" && "$parent" != "$candidate" ]] || break
+    candidate="$parent"
+    ((steps += 1))
+  done
+  return 1
+}
+
+tmux_for_window() {
+  local window_pid="$1" client_pid session pane_line pane_id pane_cwd
+  command -v tmux >/dev/null 2>&1 || {
+    printf 'null'
+    return
+  }
+  while IFS=$'\t' read -r client_pid session; do
+    [[ -n "$client_pid" && -n "$session" ]] || continue
+    is_descendant "$client_pid" "$window_pid" || continue
+    pane_line="$(tmux list-panes -t "$session" -f '#{pane_active}' -F $'#{pane_id}\t#{pane_current_path}' 2>/dev/null | head -n1 || true)"
+    IFS=$'\t' read -r pane_id pane_cwd <<<"$pane_line"
+    jq -cn \
+      --argjson clientPid "$client_pid" \
+      --arg session "$session" \
+      --arg paneId "$pane_id" \
+      --arg cwd "$pane_cwd" \
+      '{clientPid:$clientPid,session:$session,paneId:($paneId|if length>0 then . else null end),cwd:($cwd|if length>0 then . else null end),associationVerified:true}'
+    return
+  done < <(tmux list-clients -F $'#{client_pid}\t#{client_session}' 2>/dev/null || true)
+  printf 'null'
+}
+
+process_for_window() {
+  local window_pid="$1" terminal="$2"
+  if [[ "$terminal" == true ]] && command -v python3 >/dev/null 2>&1; then
+    AI_WORKBENCH_WINDOW_PID="$window_pid" python3 - <<'PY'
+import json
+import os
+
+root = int(os.environ["AI_WORKBENCH_WINDOW_PID"])
+shells = {"bash", "dash", "fish", "nu", "sh", "zsh"}
+
+def read_text(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            return handle.read().strip()
+    except OSError:
+        return ""
+
+def parent(pid):
+    for line in read_text(f"/proc/{pid}/status").splitlines():
+        if line.startswith("PPid:"):
+            return int(line.split()[1])
+    return 0
+
+children = {}
+for entry in os.listdir("/proc"):
+    if entry.isdigit():
+        pid = int(entry)
+        children.setdefault(parent(pid), []).append(pid)
+
+stack = [(root, 0)]
+descendants = []
+while stack:
+    pid, depth = stack.pop()
+    descendants.append((pid, depth))
+    stack.extend((child, depth + 1) for child in children.get(pid, []))
+
+selected = max(
+    descendants,
+    key=lambda item: (read_text(f"/proc/{item[0]}/comm") in shells, item[1]),
+)
+pid, _depth = selected
+try:
+    cwd = os.readlink(f"/proc/{pid}/cwd")
+except OSError:
+    cwd = None
+print(json.dumps({"pid": pid, "parentPid": parent(pid) or None, "cwd": cwd, "command": read_text(f"/proc/{pid}/comm") or None}))
+PY
+    return
+  fi
+  local cwd command_name parent_pid
+  cwd="$(readlink -f "/proc/$window_pid/cwd" 2>/dev/null || true)"
+  command_name="$(tr -d '\n' <"/proc/$window_pid/comm" 2>/dev/null || true)"
+  parent_pid="$(awk '/^PPid:/ { print $2; exit }' "/proc/$window_pid/status" 2>/dev/null || true)"
+  parent_pid="${parent_pid:-0}"
+  jq -cn --argjson pid "$window_pid" --argjson parentPid "$parent_pid" --arg cwd "$cwd" --arg command "$command_name" \
+    '{pid:$pid,parentPid:(if $parentPid>0 then $parentPid else null end),cwd:($cwd|if length>0 then . else null end),command:($command|if length>0 then . else null end)}'
+}
+
+stream_hypr_events() {
+  AI_WORKBENCH_HYPR_SOCKET="$HYPR_SOCKET" python3 - <<'PY'
+import os
+import select
+import socket
+import time
+
+path = os.environ["AI_WORKBENCH_HYPR_SOCKET"]
+debounce = max(0.05, float(os.environ.get("AI_WORKBENCH_OBSERVER_DEBOUNCE_MS", "150")) / 1000)
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stream:
+    stream.connect(path)
+    pending = b""
+    deadline = None
+    last_payload = {}
+    while True:
+        timeout = None if deadline is None else max(0.0, deadline - time.monotonic())
+        readable, _, _ = select.select([stream], [], [], timeout)
+        if not readable:
+            print("refresh", flush=True)
+            deadline = None
+            continue
+        chunk = stream.recv(65536)
+        if not chunk:
+            break
+        pending += chunk
+        while b"\n" in pending:
+            line, pending = pending.split(b"\n", 1)
+            event, separator, payload = line.partition(b">>")
+            event_name = event.decode("utf-8", errors="replace")
+            if not separator or event_name not in {"activewindowv2", "workspacev2"}:
+                continue
+            if last_payload.get(event_name) == payload:
+                continue
+            last_payload[event_name] = payload
+            deadline = time.monotonic() + debounce
+PY
+}
+
+observe_once() {
+  local window pid class_name title role workspace address cwd terminal transient tmux_json process_json editor_json now observation_id response project_id cached_project stale_after now_epoch stale_epoch
+  window="$(hyprctl -j activewindow 2>/dev/null || true)"
+  if ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"$window"; then
+    window='{}'
+  fi
+  pid="$(jq -r '.pid // 0' <<<"$window")"
+  class_name="$(jq -r '.class // ""' <<<"$window")"
+  title="$(jq -r '.title // ""' <<<"$window")"
+  role="$(jq -r '.initialClass // ""' <<<"$window")"
+  workspace="$(jq -r '.workspace.id // empty' <<<"$window")"
+  address="$(jq -r '.address // ""' <<<"$window")"
+  terminal=false
+  [[ "$class_name" =~ ^(kitty|Alacritty|foot|org\.wezfurlong\.wezterm)$ ]] && terminal=true
+  process_json="null"
+  if [[ "$pid" =~ ^[0-9]+$ ]] && ((pid > 1)); then
+    process_json="$(process_for_window "$pid" "$terminal")"
+  fi
+  cwd="$(jq -r '.cwd // ""' <<<"$process_json")"
+  tmux_json="$(tmux_for_window "$pid")"
+  if [[ "$tmux_json" != "null" ]]; then
+    # A verified client belongs to this exact focused terminal. Its active pane
+    # CWD is stronger than Kitty's long-lived launcher/helper process CWD.
+    cwd="$(jq -r '.cwd // ""' <<<"$tmux_json")"
+  fi
+  editor_json="$(editor_for_window "$class_name" "$title")"
+  transient=false
+  [[ "$class_name" =~ (Rofi|rofi|notification|polkit|xdg-desktop-portal) ]] && transient=true
+  now="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
+  observation_id="desktop_$(date +%s%N)"
+
+  jq -cn \
+    --arg id "$observation_id" --arg now "$now" --arg instance "${HYPRLAND_INSTANCE_SIGNATURE:-unknown}" \
+    --arg address "$address" --arg className "$class_name" --arg title "$title" --arg role "$role" \
+    --arg workspace "$workspace" --arg cwd "$cwd" \
+    --argjson pid "${pid:-0}" --argjson terminal "$terminal" --argjson transient "$transient" --argjson tmux "$tmux_json" --argjson process "$process_json" --argjson editor "$editor_json" \
+    '{schemaVersion:1,id:$id,createdAt:$now,updatedAt:$now,origin:{source:"desktop",instanceId:$instance,legacyRef:null},capabilities:["focused-window","process-cwd","tmux-correlation","editor-workspace-hint"],observedAt:$now,state:"ready",compositor:"hyprland",workspaceId:($workspace|if length>0 then . else null end),window:{address:($address|if length>0 then . else null end),pid:(if $pid>0 then $pid else null end),className:($className|if length>0 then . else null end),title:($title|if length>0 then . else null end),role:($role|if length>0 then . else null end)},process:$process,editor:$editor,terminal:(if $terminal then {cwd:($cwd|if length>0 then . else null end),shell:($process.command // null)} else null end),tmux:$tmux,browser:null,explicitProjectId:null,transientWindow:$transient}' >"$OBSERVATION_CACHE.tmp"
+  mv "$OBSERVATION_CACHE.tmp" "$OBSERVATION_CACHE"
+  response="$(curl --silent --show-error --fail --max-time 1 \
+    -H 'content-type: application/json' -H 'accept: application/json' \
+    --data-binary "@$OBSERVATION_CACHE" "$API_URL/desktop/observations" 2>/dev/null || true)"
+  [ -n "$response" ] || return 0
+
+  project_id="$(jq -r '.data.project.id // ""' <<<"$response" 2>/dev/null || true)"
+  cached_project="$(jq -r '.status.project.id // ""' "$STATUS_CACHE" 2>/dev/null || true)"
+  stale_after="$(jq -r '.status.staleAfter // ""' "$STATUS_CACHE" 2>/dev/null || true)"
+  now_epoch="$(date +%s)"
+  stale_epoch="$(date -d "$stale_after" +%s 2>/dev/null || printf '0')"
+  # A transition to no project must replace an old project cache as well; otherwise
+  # Wayle would keep displaying a project that the canonical resolver rejected.
+  if [ "$project_id" != "$cached_project" ] || [ "$stale_epoch" -le "$now_epoch" ]; then
+    curl --silent --fail --max-time 10 -H 'accept: application/json' \
+      "$API_URL/project-status/compact" >/dev/null 2>&1 || true
+  fi
+}
+
+if [[ "${1:-}" == "--editor-hint" ]]; then
+  editor_for_window "${2:-}" "${3:-}"
+  printf '\n'
+  exit 0
+fi
+
+if [[ "${1:-}" == "--tmux-for-window" ]]; then
+  tmux_for_window "${2:-0}"
+  printf '\n'
+  exit 0
+fi
+
+discover_hypr_signature || {
+  printf 'No live Hyprland event socket was found under %s/hypr\n' "$runtime_dir" >&2
+  exit 1
+}
+HYPR_SOCKET="$runtime_dir/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
+
+if [[ "${1:-}" == "--once" ]]; then
+  observe_once
+  exit 0
+fi
+
+command -v hyprctl >/dev/null 2>&1 || {
+  echo "hyprctl is required" >&2
+  exit 1
+}
+command -v jq >/dev/null 2>&1 || {
+  echo "jq is required" >&2
+  exit 1
+}
+command -v python3 >/dev/null 2>&1 || {
+  echo "python3 is required" >&2
+  exit 1
+}
+
+observe_once
+while true; do
+  while IFS= read -r event; do
+    case "$event" in
+      refresh) observe_once ;;
+    esac
+  done < <(stream_hypr_events 2>/dev/null || true)
+  sleep 1
+done

@@ -14,7 +14,7 @@ usage() {
 for arg in "$@"; do
   case "$arg" in
     --with-hyprspace) WITH_HYPRSPACE=1 ;;
-    -h|--help)
+    -h | --help)
       usage
       exit 0
       ;;
@@ -77,7 +77,7 @@ load_hyprexpo_if_possible() {
 build_hyprexpo
 load_hyprexpo_if_possible
 
-if (( WITH_HYPRSPACE )); then
+if ((WITH_HYPRSPACE)); then
   echo "warning: Hyprspace is not auto-installed in the direct-build path." >&2
   echo "warning: use hyprpm manually if you want to experiment with it." >&2
 fi
