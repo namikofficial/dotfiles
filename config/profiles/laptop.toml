@@ -1,0 +1,7 @@
+extends = "base"
+
+[power]
+profile = "balanced"
+
+[network]
+wifi_backend = "iwd"

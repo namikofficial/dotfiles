@@ -1,8 +1,9 @@
 use noxd::{EventBus, DEFAULT_QUEUE_CAPACITY};
+use noxflow_config::{ConfigLoader, env_profile_override};
 use noxflow_ipc::{
     decode_request, ActionAccepted, DecodeError, ErrorCode, IpcError, ProviderState,
     ProviderStatus, Request, Response, ResponseEnvelope, State, VersionInfo, PROTOCOL_VERSION,
-    SOCKET_DIRECTORY, SOCKET_NAME, SUPPORTED_PROTOCOL_VERSIONS,
+    SUPPORTED_PROTOCOL_VERSIONS,
 };
 use serde_json::json;
 use std::{
@@ -13,7 +14,7 @@ use std::{
         fs::{FileTypeExt, MetadataExt, PermissionsExt},
         net::{UnixListener, UnixStream},
     },
-    path::{Path, PathBuf},
+    path::Path,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -88,35 +89,6 @@ fn validate_directory(path: &Path, uid: u32, require_private: bool) -> io::Resul
         ));
     }
     Ok(())
-}
-
-fn socket_path() -> io::Result<PathBuf> {
-    let runtime = env::var_os("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "XDG_RUNTIME_DIR is required"))?;
-    if !runtime.is_absolute()
-        || runtime
-            .components()
-            .any(|c| matches!(c, std::path::Component::ParentDir))
-    {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "XDG_RUNTIME_DIR must be a safe absolute path",
-        ));
-    }
-    let uid = current_uid();
-    validate_directory(&runtime, uid, false)?;
-    let directory = runtime.join(SOCKET_DIRECTORY);
-    match fs::symlink_metadata(&directory) {
-        Ok(_) => validate_directory(&directory, uid, true)?,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            fs::create_dir(&directory)?;
-            fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))?;
-            validate_directory(&directory, uid, true)?;
-        }
-        Err(error) => return Err(error),
-    }
-    Ok(directory.join(SOCKET_NAME))
 }
 
 fn prepare_socket(path: &Path) -> io::Result<()> {
@@ -511,7 +483,61 @@ fn cleanup_socket(path: &Path, expected: Option<(u64, u64)>) {
 }
 
 fn run() -> io::Result<()> {
-    let socket = socket_path()?;
+    // Load and validate configuration
+    let mut loader = ConfigLoader::new();
+    if let Some(profile) = env_profile_override() {
+        if !profile.is_empty() {
+            loader = loader.with_profile(profile);
+        }
+    }
+    let config = match loader.load()
+    {
+        Ok(cfg) => cfg,
+        Err(errors) => {
+            for error in &errors {
+                log_event(
+                    "error",
+                    "config_error",
+                    None,
+                    None,
+                    Some(&error.to_string()),
+                );
+            }
+            return Err(io::Error::other(format!(
+                "configuration validation failed ({} error(s))",
+                errors.len()
+            )));
+        }
+    };
+
+    let socket_path = &config.runtime.socket_path;
+    eprintln!(
+        "{}",
+        json!({
+            "timestamp": timestamp(),
+            "level": "info",
+            "event": "config_loaded",
+            "component": "noxd",
+            "pid": std::process::id(),
+            "config_dir": config.runtime.config_dir.display().to_string(),
+            "socket": socket_path.display().to_string(),
+            "profile": config.profile,
+        })
+    );
+
+    // Ensure socket directory exists with safe permissions
+    if let Some(parent) = socket_path.parent() {
+        match fs::symlink_metadata(parent) {
+            Ok(_) => validate_directory(parent, current_uid(), true)?,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                fs::create_dir(parent)?;
+                fs::set_permissions(parent, fs::Permissions::from_mode(0o700))?;
+                validate_directory(parent, current_uid(), true)?;
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    let socket = socket_path.clone();
     prepare_socket(&socket)?;
     let listener = UnixListener::bind(&socket)?;
     if let Err(error) = fs::set_permissions(&socket, fs::Permissions::from_mode(0o600)) {

@@ -1,5 +1,3 @@
-extends = "base"
-
 [appearance]
 profile = "material-focus"
 

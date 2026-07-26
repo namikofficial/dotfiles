@@ -1,3 +1,4 @@
+use noxflow_config::{ConfigLoader, env_profile_override, display_config};
 use noxflow_ipc::{Request, RequestEnvelope, PROTOCOL_VERSION};
 use std::{
     env,
@@ -24,7 +25,7 @@ fn daemon_request(request: &str) -> std::io::Result<String> {
 }
 
 fn usage() {
-    eprintln!("usage: noxctl status | doctor | shell use <noxflow|wayle> | shell restart | shell safe-mode");
+    eprintln!("usage: noxctl status | doctor | config | shell use <noxflow|wayle> | shell restart | shell safe-mode");
 }
 
 fn main() {
@@ -41,6 +42,24 @@ fn main() {
                 Ok(response) => println!("{response}"),
                 Err(error) => {
                     eprintln!("noxd unavailable: {error}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        [command] if command == "config" => {
+            let mut loader = ConfigLoader::new();
+            if let Some(profile) = env_profile_override() {
+                loader = loader.with_profile(profile);
+            }
+            match loader.load()
+            {
+                Ok(cfg) => {
+                    println!("{}", display_config(&cfg));
+                }
+                Err(errors) => {
+                    for error in &errors {
+                        eprintln!("config error: {error}");
+                    }
                     std::process::exit(1);
                 }
             }
