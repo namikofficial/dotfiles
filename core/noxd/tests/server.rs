@@ -32,6 +32,7 @@ impl TestDaemon {
         fs::set_permissions(&runtime, fs::Permissions::from_mode(0o700)).unwrap();
         let child = Command::new(env!("CARGO_BIN_EXE_noxd"))
             .env("XDG_RUNTIME_DIR", &runtime)
+            .env("XDG_STATE_HOME", runtime.join("state"))
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();

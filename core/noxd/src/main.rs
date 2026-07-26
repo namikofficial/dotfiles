@@ -1,10 +1,11 @@
 use noxd::{EventBus, DEFAULT_QUEUE_CAPACITY};
-use noxflow_config::{ConfigLoader, env_profile_override};
+use noxflow_config::{env_profile_override, ConfigLoader};
 use noxflow_ipc::{
     decode_request, ActionAccepted, DecodeError, ErrorCode, IpcError, ProviderState,
     ProviderStatus, Request, Response, ResponseEnvelope, State, VersionInfo, PROTOCOL_VERSION,
     SUPPORTED_PROTOCOL_VERSIONS,
 };
+use noxflow_state::StateStore;
 use serde_json::json;
 use std::{
     collections::BTreeMap,
@@ -490,8 +491,7 @@ fn run() -> io::Result<()> {
             loader = loader.with_profile(profile);
         }
     }
-    let config = match loader.load()
-    {
+    let config = match loader.load() {
         Ok(cfg) => cfg,
         Err(errors) => {
             for error in &errors {
@@ -509,6 +509,55 @@ fn run() -> io::Result<()> {
             )));
         }
     };
+
+    let (mut persistent_state, state_info) =
+        StateStore::load(config.runtime.state_dir.join("state.toml"))
+            .map_err(|error| io::Error::other(format!("persistent state load failed: {error}")))?;
+    if state_info.recovered {
+        log_event(
+            "warn",
+            "state_recovered",
+            Some(persistent_state.path()),
+            None,
+            Some("corrupt state was quarantined and reset"),
+        );
+    }
+    if state_info.migrated {
+        log_event(
+            "info",
+            "state_migrated",
+            Some(persistent_state.path()),
+            None,
+            None,
+        );
+        if let Err(error) = persistent_state.save() {
+            log_event(
+                "warn",
+                "state_unsynced",
+                Some(persistent_state.path()),
+                None,
+                Some(&error.to_string()),
+            );
+        }
+    }
+    if state_info.recovered {
+        log_event(
+            "warn",
+            "state_reset",
+            Some(persistent_state.path()),
+            None,
+            Some("persistent state was reset after recovery"),
+        );
+        if let Err(error) = persistent_state.save() {
+            log_event(
+                "warn",
+                "state_unsynced",
+                Some(persistent_state.path()),
+                None,
+                Some(&error.to_string()),
+            );
+        }
+    }
 
     let socket_path = &config.runtime.socket_path;
     eprintln!(
@@ -598,6 +647,17 @@ fn run() -> io::Result<()> {
         let _ = client.join();
     }
     cleanup_socket(&socket, Some(socket_identity));
+    if persistent_state.is_dirty() {
+        if let Err(error) = persistent_state.save() {
+            log_event(
+                "warn",
+                "state_unsynced",
+                Some(persistent_state.path()),
+                None,
+                Some(&error.to_string()),
+            );
+        }
+    }
     log_event("info", "shutdown", Some(&socket), None, None);
     Ok(())
 }
