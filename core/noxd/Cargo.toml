@@ -10,5 +10,6 @@ libc = "0.2"
 noxflow-config = { path = "../noxflow-config" }
 noxflow-state = { path = "../noxflow-state" }
 noxflow-ipc = { path = "../noxflow-ipc" }
+noxflow-diagnostics = { path = "../noxflow-diagnostics" }
 serde_json = "1"
 signal-hook = "0.3"

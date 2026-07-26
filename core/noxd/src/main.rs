@@ -1,5 +1,6 @@
 use noxd::{EventBus, DEFAULT_QUEUE_CAPACITY};
 use noxflow_config::{env_profile_override, ConfigLoader};
+use noxflow_diagnostics::{install_panic_hook, log as diagnostic_log, ProviderFailureLimiter};
 use noxflow_ipc::{
     decode_request, ActionAccepted, DecodeError, ErrorCode, IpcError, ProviderState,
     ProviderStatus, Request, Response, ResponseEnvelope, State, VersionInfo, PROTOCOL_VERSION,
@@ -43,23 +44,20 @@ fn log_event(
     request_id: Option<&str>,
     error: Option<&str>,
 ) {
-    let mut value = json!({
-        "timestamp": timestamp(),
-        "level": level,
-        "event": event,
-        "component": "noxd",
-        "pid": std::process::id(),
-    });
-    if let Some(socket) = socket {
-        value["socket"] = json!(socket.display().to_string());
-    }
-    if let Some(request_id) = request_id {
-        value["request_id"] = json!(request_id);
-    }
-    if let Some(error) = error {
-        value["error"] = json!(error);
-    }
-    eprintln!("{value}");
+    let context = match (socket, error) {
+        (Some(socket), Some(error)) => format!("socket={}; {}", socket.display(), error),
+        (Some(socket), None) => format!("socket={}", socket.display()),
+        (None, Some(error)) => error.to_owned(),
+        (None, None) => String::new(),
+    };
+    diagnostic_log(
+        "noxd",
+        level,
+        event,
+        None,
+        request_id,
+        (!context.is_empty()).then_some(context.as_str()),
+    );
 }
 
 fn current_uid() -> u32 {
@@ -597,13 +595,31 @@ fn run() -> io::Result<()> {
     let socket_identity = (socket_metadata.dev(), socket_metadata.ino());
     let shutting_down = Arc::new(AtomicBool::new(false));
     let bus = EventBus::new();
+    let provider_failures = ProviderFailureLimiter::new(Duration::from_secs(30));
     for provider in ["hyprland", "audio", "network", "battery", "media"] {
-        bus.register_provider(ProviderState {
+        let registration = bus.register_provider(ProviderState {
             provider: provider.into(),
             status: ProviderStatus::Pending,
             data: BTreeMap::new(),
-        })
-        .map_err(|error| io::Error::other(format!("provider registration failed: {error:?}")))?;
+        });
+        if let Err(error) = registration {
+            if let Some(suppressed) = provider_failures.record(provider) {
+                diagnostic_log(
+                    "noxd",
+                    "error",
+                    "provider_failure",
+                    Some(provider),
+                    None,
+                    Some(&format!(
+                        "socket={}; suppressed={suppressed}; {error:?}",
+                        socket.display()
+                    )),
+                );
+            }
+            return Err(io::Error::other(format!(
+                "provider registration failed: {error:?}"
+            )));
+        }
     }
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutting_down))
         .map_err(io::Error::other)?;
@@ -663,6 +679,7 @@ fn run() -> io::Result<()> {
 }
 
 fn main() {
+    install_panic_hook("noxd");
     if let Err(error) = run() {
         log_event(
             "error",

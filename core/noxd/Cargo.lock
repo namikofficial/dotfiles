@@ -58,6 +58,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "noxflow-config",
+ "noxflow-diagnostics",
  "noxflow-ipc",
  "noxflow-state",
  "serde_json",
@@ -72,6 +73,13 @@ dependencies = [
  "serde_json",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "noxflow-diagnostics"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]

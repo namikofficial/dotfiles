@@ -6,6 +6,9 @@ After=graphical-session.target
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/noxd
+SyslogIdentifier=noxd
+StandardOutput=journal
+StandardError=journal
 RuntimeDirectory=noxflow
 RuntimeDirectoryMode=0700
 UMask=0077

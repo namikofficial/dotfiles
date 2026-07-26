@@ -8,4 +8,5 @@ license = "MIT"
 [dependencies]
 noxflow-config = { path = "../../core/noxflow-config" }
 noxflow-ipc = { path = "../../core/noxflow-ipc" }
+noxflow-diagnostics = { path = "../../core/noxflow-diagnostics" }
 serde_json = "1"

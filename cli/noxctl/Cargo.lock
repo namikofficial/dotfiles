@@ -41,6 +41,7 @@ name = "noxctl"
 version = "0.1.0"
 dependencies = [
  "noxflow-config",
+ "noxflow-diagnostics",
  "noxflow-ipc",
  "serde_json",
 ]
@@ -53,6 +54,13 @@ dependencies = [
  "serde_json",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "noxflow-diagnostics"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
