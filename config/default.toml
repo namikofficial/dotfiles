@@ -1,0 +1,14 @@
+# NoxFlow user configuration. Keep machine-specific secrets outside the repository.
+[shell]
+name = "noxflow"
+fallback = "wayle"
+reduced_motion = false
+
+[appearance]
+profile = "material-expressive"
+density = "comfortable"
+radius = 14
+
+[ipc]
+socket = "noxflow/noxd.sock"
+

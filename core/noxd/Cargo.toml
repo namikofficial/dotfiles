@@ -1,0 +1,9 @@
+[package]
+name = "noxd"
+version = "0.1.0"
+edition = "2021"
+description = "NoxFlow desktop state and IPC daemon"
+license = "MIT"
+
+[dependencies]
+

@@ -1,0 +1,21 @@
+[appearance]
+mode = "dark"
+density = "comfortable"
+radius = 14
+motion = "fluid"
+transparency = "balanced"
+
+[color]
+background = "#090B10"
+surface = "#11141C"
+surface_container = "#181C27"
+surface_high = "#222838"
+text = "#F2F5FA"
+text_muted = "#9EA8B8"
+primary = "#8FA8FF"
+secondary = "#7CE0D3"
+success = "#7ADFA4"
+warning = "#F2C66D"
+danger = "#FF7993"
+outline = "#303749"
+

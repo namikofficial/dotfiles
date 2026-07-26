@@ -22,3 +22,12 @@ settings/export/
 .opencode-cache/
 .opencode-share/
 .opencode-state/
+
+# Rust build output (Cargo.lock is kept tracked for the desktop binaries).
+**/target/
+
+# Local NoxFlow runtime/configuration artifacts. Source configuration belongs in
+# config/, theme/, and systemd/ and must remain tracked.
+.noxflow/
+noxflow.local.toml
+noxflow-*.log
