@@ -154,6 +154,7 @@ fn handle_request(
     brightness: &noxd::providers::brightness::Control,
     power: &noxd::providers::power::Control,
     network: &noxd::providers::network::Control,
+    bluetooth: &noxd::providers::bluetooth::Control,
 ) -> Result<Response, IpcError> {
     let result = match request {
         Request::Ping => Response::Pong,
@@ -257,6 +258,32 @@ fn handle_request(
                 Action::NetworkVpnSetEnabled { uuid, enabled } => network
                     .send(noxd::providers::network::CommandRequest::VpnSetEnabled { uuid, enabled })
                     .map_err(network_error)?,
+                Action::BluetoothSetPowered { powered } => bluetooth
+                    .send(noxd::providers::bluetooth::CommandRequest::SetPowered(
+                        powered,
+                    ))
+                    .map_err(bluetooth_error)?,
+                Action::BluetoothSetDiscovering { discovering } => bluetooth
+                    .send(noxd::providers::bluetooth::CommandRequest::SetDiscovering(
+                        discovering,
+                    ))
+                    .map_err(bluetooth_error)?,
+                Action::BluetoothConnect { device_id } => bluetooth
+                    .send(noxd::providers::bluetooth::CommandRequest::Connect(
+                        device_id,
+                    ))
+                    .map_err(bluetooth_error)?,
+                Action::BluetoothDisconnect { device_id } => bluetooth
+                    .send(noxd::providers::bluetooth::CommandRequest::Disconnect(
+                        device_id,
+                    ))
+                    .map_err(bluetooth_error)?,
+                Action::BluetoothSetTrusted { device_id, trusted } => bluetooth
+                    .send(noxd::providers::bluetooth::CommandRequest::SetTrusted {
+                        device_id,
+                        trusted,
+                    })
+                    .map_err(bluetooth_error)?,
                 _ => {}
             }
             Response::ActionAccepted(ActionAccepted { action })
@@ -266,6 +293,14 @@ fn handle_request(
 }
 
 fn network_error(error: io::Error) -> IpcError {
+    IpcError {
+        code: ErrorCode::Unsupported,
+        message: error.to_string(),
+        details: BTreeMap::new(),
+    }
+}
+
+fn bluetooth_error(error: io::Error) -> IpcError {
     IpcError {
         code: ErrorCode::Unsupported,
         message: error.to_string(),
@@ -379,6 +414,7 @@ fn handle_client(
     brightness: noxd::providers::brightness::Control,
     power: noxd::providers::power::Control,
     network: noxd::providers::network::Control,
+    bluetooth: noxd::providers::bluetooth::Control,
 ) -> io::Result<()> {
     stream.set_read_timeout(Some(CLIENT_READ_TIMEOUT))?;
     log_event("info", "client_connection", Some(socket), None, None);
@@ -518,6 +554,7 @@ fn handle_client(
                             &brightness,
                             &power,
                             &network,
+                            &bluetooth,
                         ) {
                             Ok(result) => response(request_id, result),
                             Err(error) => error_response(request_id, error),
@@ -710,6 +747,7 @@ fn run() -> io::Result<()> {
         "brightness",
         "network",
         "power",
+        "bluetooth",
         "media",
     ] {
         let registration = bus.register_provider(ProviderState {
@@ -753,6 +791,8 @@ fn run() -> io::Result<()> {
         noxd::providers::power::start(bus.clone(), Arc::clone(&shutting_down));
     let (network_thread, network_control) =
         noxd::providers::network::start(bus.clone(), Arc::clone(&shutting_down));
+    let (bluetooth_thread, bluetooth_control) =
+        noxd::providers::bluetooth::start(bus.clone(), Arc::clone(&shutting_down));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutting_down))
         .map_err(io::Error::other)?;
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutting_down))
@@ -769,6 +809,7 @@ fn run() -> io::Result<()> {
                 let client_brightness = brightness_control.clone();
                 let client_power = power_control.clone();
                 let client_network = network_control.clone();
+                let client_bluetooth = bluetooth_control.clone();
                 clients.push(thread::spawn(move || {
                     if let Err(error) = handle_client(
                         stream,
@@ -778,6 +819,7 @@ fn run() -> io::Result<()> {
                         client_brightness,
                         client_power,
                         client_network,
+                        client_bluetooth,
                     ) {
                         log_event(
                             "error",
@@ -812,6 +854,8 @@ fn run() -> io::Result<()> {
     let _ = power_thread.join();
     drop(network_control);
     let _ = network_thread.join();
+    drop(bluetooth_control);
+    let _ = bluetooth_thread.join();
     for client in clients {
         let _ = client.join();
     }

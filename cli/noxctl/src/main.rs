@@ -28,10 +28,29 @@ fn daemon_request(request: &str) -> std::io::Result<String> {
 }
 
 fn usage() {
-    eprintln!("usage: noxctl status [hyprland] | network status | network wifi <enable|disable> | network connect <UUID> | network disconnect | network refresh | network vpn <enable|disable> <UUID> | audio status | audio volume <PERCENT|+DELTA|-DELTA> | brightness status | brightness <PERCENT|+DELTA|-DELTA> | power status | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
+    eprintln!("usage: noxctl status [hyprland] | network ... | bluetooth status | bluetooth power <on|off> | bluetooth discover <start|stop> | bluetooth <connect|disconnect|trust|untrust> <ADDRESS> | audio ... | brightness ... | power ... | doctor | config | logs ... | shell ...");
 }
 
 fn network_action(action: Action, id: &str) -> i32 {
+    let request = RequestEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        request_id: id.into(),
+        request: Request::RunAction { action },
+    };
+    let request = serde_json::to_string(&request).expect("IPC request serializes");
+    match daemon_request(&request) {
+        Ok(response) => {
+            println!("{response}");
+            0
+        }
+        Err(error) => {
+            eprintln!("noxd unavailable: {error}");
+            1
+        }
+    }
+}
+
+fn bluetooth_action(action: Action, id: &str) -> i32 {
     let request = RequestEnvelope {
         protocol_version: PROTOCOL_VERSION,
         request_id: id.into(),
@@ -56,6 +75,14 @@ fn valid_uuid(value: &str) -> bool {
             .bytes()
             .enumerate()
             .all(|(i, b)| b.is_ascii_hexdigit() || matches!(i, 8 | 13 | 18 | 23) && b == b'-')
+}
+
+fn valid_bluetooth_address(value: &str) -> bool {
+    let parts: Vec<_> = value.split(':').collect();
+    parts.len() == 6
+        && parts
+            .iter()
+            .all(|part| part.len() == 2 && part.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
 
 fn audio_action(action: Action, id: &str) -> i32 {
@@ -297,6 +324,62 @@ fn main() {
                 Action::NetworkConnectSaved { uuid: uuid.clone() },
                 "noxctl-network-connect",
             ));
+        }
+        [command, subcommand] if command == "bluetooth" && subcommand == "status" => {
+            std::process::exit(provider_status("bluetooth", "noxctl-bluetooth-status"));
+        }
+        [command, subcommand, toggle]
+            if command == "bluetooth"
+                && subcommand == "power"
+                && (toggle == "on" || toggle == "off") =>
+        {
+            std::process::exit(bluetooth_action(
+                Action::BluetoothSetPowered {
+                    powered: toggle == "on",
+                },
+                "noxctl-bluetooth-power",
+            ));
+        }
+        [command, subcommand, operation]
+            if command == "bluetooth"
+                && subcommand == "discover"
+                && (operation == "start" || operation == "stop") =>
+        {
+            std::process::exit(bluetooth_action(
+                Action::BluetoothSetDiscovering {
+                    discovering: operation == "start",
+                },
+                "noxctl-bluetooth-discover",
+            ));
+        }
+        [command, operation, device_id]
+            if command == "bluetooth"
+                && matches!(
+                    operation.as_str(),
+                    "connect" | "disconnect" | "trust" | "untrust"
+                ) =>
+        {
+            if !valid_bluetooth_address(device_id) {
+                eprintln!("bluetooth {operation}: invalid Bluetooth address");
+                std::process::exit(2);
+            }
+            let action = match operation.as_str() {
+                "connect" => Action::BluetoothConnect {
+                    device_id: device_id.to_ascii_uppercase(),
+                },
+                "disconnect" => Action::BluetoothDisconnect {
+                    device_id: device_id.to_ascii_uppercase(),
+                },
+                "trust" => Action::BluetoothSetTrusted {
+                    device_id: device_id.to_ascii_uppercase(),
+                    trusted: true,
+                },
+                _ => Action::BluetoothSetTrusted {
+                    device_id: device_id.to_ascii_uppercase(),
+                    trusted: false,
+                },
+            };
+            std::process::exit(bluetooth_action(action, "noxctl-bluetooth-device"));
         }
         [command, subcommand] if command == "network" && subcommand == "disconnect" => {
             std::process::exit(network_action(
@@ -546,6 +629,13 @@ mod tests {
         assert!(valid_uuid("01234567-89ab-cdef-0123-456789abcdef"));
         assert!(!valid_uuid("Cafe WiFi"));
         assert!(!valid_uuid("01234567-89ab-cdef-0123-456789abcdeg"));
+    }
+
+    #[test]
+    fn bluetooth_addresses_require_six_hex_pairs() {
+        assert!(valid_bluetooth_address("AA:bb:01:02:03:FF"));
+        assert!(!valid_bluetooth_address("AA:BB:CC:DD:EE"));
+        assert!(!valid_bluetooth_address("AA:BB:CC:DD:EE:GG"));
     }
 
     #[test]

@@ -94,6 +94,22 @@ pub enum Action {
         uuid: String,
         enabled: bool,
     },
+    BluetoothSetPowered {
+        powered: bool,
+    },
+    BluetoothSetDiscovering {
+        discovering: bool,
+    },
+    BluetoothConnect {
+        device_id: String,
+    },
+    BluetoothDisconnect {
+        device_id: String,
+    },
+    BluetoothSetTrusted {
+        device_id: String,
+        trusted: bool,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -288,6 +304,22 @@ mod tests {
                 action: Action::NetworkVpnSetEnabled {
                     uuid: "01234567-89ab-cdef-0123-456789abcdef".into(),
                     enabled: false,
+                },
+            },
+        };
+        let json = serde_json::to_string(&envelope).unwrap();
+        assert_eq!(decode_request(&json).unwrap(), envelope);
+    }
+
+    #[test]
+    fn bluetooth_actions_round_trip() {
+        let envelope = RequestEnvelope {
+            protocol_version: 1,
+            request_id: "bluetooth-1".into(),
+            request: Request::RunAction {
+                action: Action::BluetoothSetTrusted {
+                    device_id: "AA:BB:CC:DD:EE:FF".into(),
+                    trusted: true,
                 },
             },
         };

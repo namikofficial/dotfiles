@@ -89,6 +89,15 @@ provider reports connectivity, active connection and Ethernet state, Wi-Fi
 state and scan results, connected SSID, signal strength, IPv4/IPv6 addresses,
 metering, and VPN state.
 
+Bluetooth actions are `bluetooth_set_powered`, `bluetooth_set_discovering`,
+`bluetooth_connect`, `bluetooth_disconnect`, and `bluetooth_set_trusted`.
+Bluetooth device IDs are canonical uppercase Bluetooth addresses. Actions only
+operate on already paired devices; pairing agents, PIN handling, and new-device
+pairing are not exposed. Discovery starts on all adapters and stops after 30
+seconds unless stopped earlier. The provider reports adapter state, paired
+devices, normalized device categories, connection/trust state, and nullable
+Battery1 percentages.
+
 A successful subscription acknowledgement includes the subscription ID, the
 daemon stream ID, the sequence boundary, and matching provider snapshots:
 
