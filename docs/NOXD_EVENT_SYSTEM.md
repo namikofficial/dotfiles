@@ -30,7 +30,8 @@ payload type and implements `ProviderEvent`, supplying:
 Publishing an event updates the canonical snapshot and delivers the event to
 matching subscribers. Publishing an unregistered provider is rejected. This
 slice defines the bus only; system provider implementations are intentionally
-out of scope.
+out of scope. The audio provider publishes state and device changes from the
+PipeWire-Pulse `pactl subscribe` stream rather than polling `wpctl`.
 
 ## Subscriptions and snapshots
 

@@ -1,6 +1,6 @@
 use noxflow_config::{display_config, env_profile_override, ConfigLoader};
 use noxflow_diagnostics::{install_panic_hook, sanitize};
-use noxflow_ipc::{Request, RequestEnvelope, PROTOCOL_VERSION};
+use noxflow_ipc::{Action, AudioTarget, Request, RequestEnvelope, PROTOCOL_VERSION};
 use std::{
     env,
     io::{Read, Write},
@@ -28,7 +28,53 @@ fn daemon_request(request: &str) -> std::io::Result<String> {
 }
 
 fn usage() {
-    eprintln!("usage: noxctl status [hyprland] | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
+    eprintln!("usage: noxctl status [hyprland] | audio status | audio volume <PERCENT|+DELTA|-DELTA> | audio mute toggle | audio mic toggle | audio default <output|input> <NODE_ID|NODE_NAME> | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
+}
+
+fn audio_action(action: Action, id: &str) -> i32 {
+    let request = RequestEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        request_id: id.into(),
+        request: Request::RunAction { action },
+    };
+    let request = serde_json::to_string(&request).expect("IPC request serializes");
+    match daemon_request(&request) {
+        Ok(response) => {
+            println!("{response}");
+            0
+        }
+        Err(error) => {
+            eprintln!("noxd unavailable: {error}");
+            1
+        }
+    }
+}
+
+fn parse_volume(value: &str) -> Result<Action, String> {
+    if let Some(delta) = value.strip_prefix('+').or_else(|| value.strip_prefix('-')) {
+        let amount = delta
+            .parse::<i16>()
+            .map_err(|_| "volume adjustment must be an integer".to_string())?;
+        if amount == 0 || amount > 100 {
+            return Err("volume adjustment must be between 1 and 100".into());
+        }
+        let signed = if value.starts_with('-') {
+            -amount
+        } else {
+            amount
+        };
+        return Ok(Action::AudioAdjustVolume {
+            target: AudioTarget::Output,
+            delta: signed,
+        });
+    }
+    let volume = value
+        .parse::<u8>()
+        .map_err(|_| "volume must be 0-255 or a signed adjustment".to_string())?;
+    Ok(Action::AudioSetVolume {
+        target: AudioTarget::Output,
+        volume,
+    })
 }
 
 fn valid_provider(provider: &str) -> bool {
@@ -104,6 +150,71 @@ fn main() {
     install_panic_hook("noxctl");
     let args: Vec<String> = env::args().skip(1).collect();
     match args.as_slice() {
+        [command, subcommand] if command == "audio" && subcommand == "status" => {
+            let request = RequestEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                request_id: "noxctl-audio-status".into(),
+                request: Request::GetProviderState {
+                    provider: "audio".into(),
+                },
+            };
+            let request = serde_json::to_string(&request).expect("IPC request serializes");
+            match daemon_request(&request) {
+                Ok(response) => println!("{response}"),
+                Err(error) => {
+                    eprintln!("noxd unavailable: {error}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        [command, subcommand, value] if command == "audio" && subcommand == "volume" => {
+            match parse_volume(value) {
+                Ok(action) => std::process::exit(audio_action(action, "noxctl-audio-volume")),
+                Err(error) => {
+                    eprintln!("audio volume: {error}");
+                    std::process::exit(2);
+                }
+            }
+        }
+        [command, subcommand, toggle]
+            if command == "audio" && subcommand == "mute" && toggle == "toggle" =>
+        {
+            std::process::exit(audio_action(
+                Action::AudioToggleMute {
+                    target: AudioTarget::Output,
+                },
+                "noxctl-audio-mute",
+            ));
+        }
+        [command, subcommand, toggle]
+            if command == "audio" && subcommand == "mic" && toggle == "toggle" =>
+        {
+            std::process::exit(audio_action(
+                Action::AudioToggleMute {
+                    target: AudioTarget::Input,
+                },
+                "noxctl-audio-mic",
+            ));
+        }
+        [command, subcommand, target, selector]
+            if command == "audio"
+                && subcommand == "default"
+                && (target == "output" || target == "input")
+                && !selector.is_empty() =>
+        {
+            let target = if target == "output" {
+                AudioTarget::Output
+            } else {
+                AudioTarget::Input
+            };
+            std::process::exit(audio_action(
+                Action::AudioSetDefault {
+                    target,
+                    selector: selector.into(),
+                },
+                "noxctl-audio-default",
+            ));
+        }
         [command] if command == "status" => {
             let request = RequestEnvelope {
                 protocol_version: PROTOCOL_VERSION,
@@ -214,6 +325,32 @@ mod tests {
         assert!(valid_provider("hyprland"));
         assert!(!valid_provider("hyprland; rm -rf /"));
         assert!(!valid_provider(""));
+    }
+
+    #[test]
+    fn parses_audio_volume_commands() {
+        assert_eq!(
+            parse_volume("50").unwrap(),
+            Action::AudioSetVolume {
+                target: AudioTarget::Output,
+                volume: 50
+            }
+        );
+        assert_eq!(
+            parse_volume("+5").unwrap(),
+            Action::AudioAdjustVolume {
+                target: AudioTarget::Output,
+                delta: 5
+            }
+        );
+        assert_eq!(
+            parse_volume("-5").unwrap(),
+            Action::AudioAdjustVolume {
+                target: AudioTarget::Output,
+                delta: -5
+            }
+        );
+        assert!(parse_volume("+0").is_err());
     }
 
     #[test]

@@ -56,6 +56,17 @@ pub enum Action {
     PowerOff,
     RefreshProviders,
     SetProfile { profile: String },
+    AudioSetVolume { target: AudioTarget, volume: u8 },
+    AudioAdjustVolume { target: AudioTarget, delta: i16 },
+    AudioToggleMute { target: AudioTarget },
+    AudioSetDefault { target: AudioTarget, selector: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AudioTarget {
+    Output,
+    Input,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

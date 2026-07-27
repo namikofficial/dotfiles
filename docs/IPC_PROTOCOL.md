@@ -61,9 +61,14 @@ Examples:
 ```
 
 `run_action` is intentionally an enum of named actions: `lock`, `suspend`,
-`reboot`, `power_off`, `refresh_providers`, and `set_profile`. There is no IPC
+`reboot`, `power_off`, `refresh_providers`, `set_profile`, and typed audio
+volume/mute/default-device actions. There is no IPC
 operation for executing a shell command or passing an executable and its
 arguments.
+
+Audio actions use `audio_set_volume`, `audio_adjust_volume`,
+`audio_toggle_mute`, and `audio_set_default`, with `target` set to `output` or
+`input`. Device selectors are PipeWire node IDs or node names.
 
 A successful subscription acknowledgement includes the subscription ID, the
 daemon stream ID, the sequence boundary, and matching provider snapshots:

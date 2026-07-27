@@ -2,7 +2,7 @@ use noxd::{EventBus, DEFAULT_QUEUE_CAPACITY};
 use noxflow_config::{env_profile_override, ConfigLoader};
 use noxflow_diagnostics::{install_panic_hook, log as diagnostic_log, ProviderFailureLimiter};
 use noxflow_ipc::{
-    decode_request, ActionAccepted, DecodeError, ErrorCode, IpcError, ProviderState,
+    decode_request, Action, ActionAccepted, DecodeError, ErrorCode, IpcError, ProviderState,
     ProviderStatus, Request, Response, ResponseEnvelope, State, VersionInfo, PROTOCOL_VERSION,
     SUPPORTED_PROTOCOL_VERSIONS,
 };
@@ -147,7 +147,11 @@ fn error_response(request_id: String, error: IpcError) -> ResponseEnvelope {
     }
 }
 
-fn handle_request(request: Request, bus: &EventBus) -> Response {
+fn handle_request(
+    request: Request,
+    bus: &EventBus,
+    audio: &noxd::providers::audio::ControlSender,
+) -> Response {
     match request {
         Request::Ping => Response::Pong,
         Request::GetVersion => Response::Version(VersionInfo {
@@ -177,7 +181,38 @@ fn handle_request(request: Request, bus: &EventBus) -> Response {
         Request::SetSetting { key, value } => {
             Response::SettingUpdated(noxflow_ipc::SettingUpdated { key, value })
         }
-        Request::RunAction { action } => Response::ActionAccepted(ActionAccepted { action }),
+        Request::RunAction { action } => {
+            let command = match &action {
+                Action::AudioSetVolume { target, volume } => {
+                    Some(noxd::providers::audio::CommandRequest::SetVolume {
+                        target: target.clone(),
+                        value: *volume,
+                    })
+                }
+                Action::AudioAdjustVolume { target, delta } => {
+                    Some(noxd::providers::audio::CommandRequest::AdjustVolume {
+                        target: target.clone(),
+                        delta: *delta,
+                    })
+                }
+                Action::AudioToggleMute { target } => {
+                    Some(noxd::providers::audio::CommandRequest::ToggleMute {
+                        target: target.clone(),
+                    })
+                }
+                Action::AudioSetDefault { target, selector } => {
+                    Some(noxd::providers::audio::CommandRequest::SetDefault {
+                        target: target.clone(),
+                        selector: selector.clone(),
+                    })
+                }
+                _ => None,
+            };
+            if let Some(command) = command {
+                let _ = audio.send(command);
+            }
+            Response::ActionAccepted(ActionAccepted { action })
+        }
     }
 }
 
@@ -279,7 +314,12 @@ fn read_frame(reader: &mut BufReader<UnixStream>, frame: &mut Vec<u8>) -> io::Re
     }
 }
 
-fn handle_client(stream: UnixStream, socket: &Path, bus: EventBus) -> io::Result<()> {
+fn handle_client(
+    stream: UnixStream,
+    socket: &Path,
+    bus: EventBus,
+    audio: noxd::providers::audio::ControlSender,
+) -> io::Result<()> {
     stream.set_read_timeout(Some(CLIENT_READ_TIMEOUT))?;
     log_event("info", "client_connection", Some(socket), None, None);
     let (outbound, messages) = std::sync::mpsc::sync_channel(DEFAULT_QUEUE_CAPACITY);
@@ -414,7 +454,7 @@ fn handle_client(stream: UnixStream, socket: &Path, bus: EventBus) -> io::Result
                         outbound
                             .send(Outbound::Response(response(
                                 request_id,
-                                handle_request(request, &bus),
+                                handle_request(request, &bus, &audio),
                             )))
                             .map_err(|_| {
                                 io::Error::new(io::ErrorKind::BrokenPipe, "client writer stopped")
@@ -622,6 +662,11 @@ fn run() -> io::Result<()> {
         }
     }
     let hyprland_thread = noxd::providers::hyprland::start(bus.clone(), Arc::clone(&shutting_down));
+    let (audio_thread, audio_control) = noxd::providers::audio::start(
+        bus.clone(),
+        Arc::clone(&shutting_down),
+        config.audio.max_volume,
+    );
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutting_down))
         .map_err(io::Error::other)?;
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutting_down))
@@ -634,8 +679,11 @@ fn run() -> io::Result<()> {
             Ok((stream, _)) => {
                 let client_socket = socket.clone();
                 let client_bus = bus.clone();
+                let client_audio = audio_control.clone();
                 clients.push(thread::spawn(move || {
-                    if let Err(error) = handle_client(stream, &client_socket, client_bus) {
+                    if let Err(error) =
+                        handle_client(stream, &client_socket, client_bus, client_audio)
+                    {
                         log_event(
                             "error",
                             "internal_failure",
@@ -661,6 +709,8 @@ fn run() -> io::Result<()> {
     drop(listener);
     bus.shutdown();
     let _ = hyprland_thread.join();
+    drop(audio_control);
+    let _ = audio_thread.join();
     for client in clients {
         let _ = client.join();
     }

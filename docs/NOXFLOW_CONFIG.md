@@ -98,6 +98,7 @@ The full schema with field types and constraints is in
 | `appearance`  | profile, density, radius, mode    | radius: 0–36, density/mode: enum          |
 | `shell`       | name, fallback, reduced_motion    | name and fallback must be non-empty       |
 | `providers`   | audio..clipboard booleans         | all default to true                       |
+| `audio`       | `max_volume`                       | volume clamp, default 100                 |
 | `notifications`| timeout, max_history, dnd        | timeout: 1–3600                           |
 | `power`       | profile, dim..suspend             | profile: performance/balanced/power-saver |
 | `network`     | wifi_backend, dns                 |                                            |

@@ -71,6 +71,7 @@ pub struct Config {
     pub power: PowerConfig,
     pub network: NetworkConfig,
     pub media: MediaConfig,
+    pub audio: AudioConfig,
     pub developer: DeveloperConfig,
     pub ai: AiConfig,
     pub fallback: FallbackConfig,
@@ -91,6 +92,7 @@ impl Default for Config {
             power: PowerConfig::default(),
             network: NetworkConfig::default(),
             media: MediaConfig::default(),
+            audio: AudioConfig::default(),
             developer: DeveloperConfig::default(),
             ai: AiConfig::default(),
             fallback: FallbackConfig::default(),
@@ -244,6 +246,18 @@ pub struct MediaConfig {
     pub osd_enabled: bool,
     pub osd_timeout: u64,
     pub default_player: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AudioConfig {
+    pub max_volume: u8,
+}
+
+impl Default for AudioConfig {
+    fn default() -> Self {
+        Self { max_volume: 100 }
+    }
 }
 
 impl Default for MediaConfig {
@@ -409,6 +423,13 @@ impl Config {
                     "unknown profile '{}'; expected one of {:?}",
                     self.power.profile, valid_power
                 ),
+            ));
+        }
+
+        if self.audio.max_volume == 0 {
+            errors.push(ConfigError::validation(
+                "audio.max_volume",
+                "must be greater than zero",
             ));
         }
 
