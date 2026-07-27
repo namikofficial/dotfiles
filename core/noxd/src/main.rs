@@ -621,6 +621,7 @@ fn run() -> io::Result<()> {
             )));
         }
     }
+    let hyprland_thread = noxd::providers::hyprland::start(bus.clone(), Arc::clone(&shutting_down));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutting_down))
         .map_err(io::Error::other)?;
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutting_down))
@@ -659,6 +660,7 @@ fn run() -> io::Result<()> {
     }
     drop(listener);
     bus.shutdown();
+    let _ = hyprland_thread.join();
     for client in clients {
         let _ = client.join();
     }

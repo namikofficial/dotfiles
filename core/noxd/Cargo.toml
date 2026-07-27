@@ -12,4 +12,5 @@ noxflow-state = { path = "../noxflow-state" }
 noxflow-ipc = { path = "../noxflow-ipc" }
 noxflow-diagnostics = { path = "../noxflow-diagnostics" }
 serde_json = "1"
+serde = { version = "1", features = ["derive"] }
 signal-hook = "0.3"

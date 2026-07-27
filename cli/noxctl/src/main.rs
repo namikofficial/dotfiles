@@ -28,7 +28,7 @@ fn daemon_request(request: &str) -> std::io::Result<String> {
 }
 
 fn usage() {
-    eprintln!("usage: noxctl status | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
+    eprintln!("usage: noxctl status [hyprland] | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
 }
 
 fn valid_provider(provider: &str) -> bool {
@@ -109,6 +109,23 @@ fn main() {
                 protocol_version: PROTOCOL_VERSION,
                 request_id: "noxctl-status".into(),
                 request: Request::GetState,
+            };
+            let request = serde_json::to_string(&request).expect("IPC request serializes");
+            match daemon_request(&request) {
+                Ok(response) => println!("{response}"),
+                Err(error) => {
+                    eprintln!("noxd unavailable: {error}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        [command, provider] if command == "status" && provider == "hyprland" => {
+            let request = RequestEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                request_id: "noxctl-status-hyprland".into(),
+                request: Request::GetProviderState {
+                    provider: provider.into(),
+                },
             };
             let request = serde_json::to_string(&request).expect("IPC request serializes");
             match daemon_request(&request) {

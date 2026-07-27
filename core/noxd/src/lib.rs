@@ -7,6 +7,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+pub mod providers;
+
 pub const DEFAULT_QUEUE_CAPACITY: usize = 256;
 
 fn timestamp() -> u64 {

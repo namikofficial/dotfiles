@@ -61,6 +61,7 @@ dependencies = [
  "noxflow-diagnostics",
  "noxflow-ipc",
  "noxflow-state",
+ "serde",
  "serde_json",
  "signal-hook",
 ]
