@@ -58,8 +58,14 @@ PanelWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.Tokens.spacingLg
-                    Components.Card { Layout.fillWidth: true; Layout.preferredHeight: Theme.Tokens.scaled(160); Text { text: "Surface / Card\nLayered Material container"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; wrapMode: Text.Wrap } }
-                    Components.PopupContainer { Layout.fillWidth: true; Layout.preferredHeight: Theme.Tokens.scaled(160); Text { text: "Popup container\nOutline and elevation"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; wrapMode: Text.Wrap } }
+                    Components.Elevation { level: 1; Layout.fillWidth: true; Layout.preferredHeight: Theme.Tokens.scaled(120); Rectangle { anchors.fill: parent; color: "transparent"; Text { anchors.centerIn: parent; text: "Elevation 1\nLow depth"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleSmall; horizontalAlignment: Text.AlignHCenter } } }
+                    Components.Elevation { level: 3; Layout.fillWidth: true; Layout.preferredHeight: Theme.Tokens.scaled(120); Rectangle { anchors.fill: parent; color: "transparent"; Text { anchors.centerIn: parent; text: "Elevation 3\nHigh depth"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleSmall; horizontalAlignment: Text.AlignHCenter } } }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.Tokens.spacingLg
+                    Components.Card { Layout.fillWidth: true; Layout.preferredHeight: Theme.Tokens.scaled(120); Text { text: "Surface / Card\nLayered container"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; wrapMode: Text.Wrap } }
+                    Components.PopupContainer { Layout.fillWidth: true; Layout.preferredHeight: Theme.Tokens.scaled(120); Text { text: "Popup container\nOutline + elevation"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; wrapMode: Text.Wrap } }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -79,10 +85,26 @@ PanelWindow {
                 }
                 RowLayout {
                     Layout.fillWidth: true
+                    spacing: Theme.Tokens.spacingMd
                     Components.Toggle { checked: true }
                     Text { text: "Toggle"; color: Theme.Tokens.textSecondary }
                     Components.Slider { Layout.fillWidth: true; value: 0.65 }
                     Text { text: "Slider"; color: Theme.Tokens.textSecondary }
+                    Components.MaterialIcon { icon: "★"; size: "md"; iconColor: Theme.Tokens.tonalPrimary }
+                    Text { text: "MaterialIcon"; color: Theme.Tokens.textSecondary }
+                    Components.MaterialIcon { icon: "♻"; size: "lg"; iconColor: Theme.Tokens.stateSuccess }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.Tokens.spacingMd
+                    Components.TextField { Layout.fillWidth: true; label: "Search"; placeholderText: "Type to search..."; showClearButton: true }
+                    Components.TextField { Layout.fillWidth: true; label: "Password"; placeholderText: "••••••••"; helperText: "Min 8 characters"; hasError: true }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Components.Divider { vertical: true; Layout.fillHeight: true }
+                    Text { text: "Vertical divider"; color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    Components.Divider { vertical: true; Layout.fillHeight: true }
                 }
                 Text { text: "Keyboard focus, hover, pressed, disabled, contrast-validated, and reduced-motion states are shared by every primitive."; color: Theme.Tokens.textMuted; wrapMode: Text.Wrap; Layout.fillWidth: true }
             }
