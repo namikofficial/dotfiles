@@ -100,8 +100,8 @@ label-max-length = 28
 [modules.media]
 format = "{{ title }}"
 label-max-length = 24
-left-click = "/home/namik/.config/hypr/scripts/media-control.sh play-pause"
-right-click = "/home/namik/.config/hypr/scripts/media-control.sh next"
+left-click = "$HOME/.config/hypr/scripts/media-control.sh play-pause"
+right-click = "$HOME/.config/hypr/scripts/media-control.sh next"
 
 [modules.clock]
 format = "%a %d %b %H:%M"
@@ -141,7 +141,7 @@ button-bg-color = "transparent"
 
 [[modules.custom]]
 id = "updates"
-command = '''/home/namik/.config/hypr/scripts/status-updates.sh'''
+command = '''$HOME/.config/hypr/scripts/status-updates.sh'''
 mode = "poll"
 interval-ms = 60000
 format = "UP {{ text }}"
@@ -153,13 +153,13 @@ icon-bg-color = "auto"
 label-color = "fg-default"
 border-show = true
 border-color = "border-subtle"
-left-click = "kitty -e sh -lc '/home/namik/.config/hypr/scripts/system-update.sh run; read -r -p \"Press enter to close\"'"
-right-click = "kitty -e sh -lc '/home/namik/.config/hypr/scripts/system-update.sh run; read -r -p \"Press enter to close\"'"
-on-action = '''/home/namik/.config/hypr/scripts/status-updates.sh'''
+left-click = "kitty -e sh -lc '$HOME/.config/hypr/scripts/system-update.sh run; read -r -p \"Press enter to close\"'"
+right-click = "kitty -e sh -lc '$HOME/.config/hypr/scripts/system-update.sh run; read -r -p \"Press enter to close\"'"
+on-action = '''$HOME/.config/hypr/scripts/status-updates.sh'''
 
 [[modules.custom]]
 id = "layout"
-command = "/home/namik/.config/hypr/scripts/layout-switcher.sh status"
+command = "$HOME/.config/hypr/scripts/layout-switcher.sh status"
 mode = "poll"
 interval-ms = 600
 format = "{{ text }}"
@@ -169,9 +169,9 @@ label-max-length = 12
 button-bg-color = "bg-surface-elevated"
 icon-bg-color = "auto"
 label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/layout-switcher.sh cycle"
-right-click = "/home/namik/.config/hypr/scripts/layout-switcher.sh toggle"
-on-action = "/home/namik/.config/hypr/scripts/layout-switcher.sh status"
+left-click = "$HOME/.config/hypr/scripts/layout-switcher.sh cycle"
+right-click = "$HOME/.config/hypr/scripts/layout-switcher.sh toggle"
+on-action = "$HOME/.config/hypr/scripts/layout-switcher.sh status"
 
 [[modules.custom]]
 id = "brightness"
@@ -185,7 +185,7 @@ label-max-length = 8
 button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/brightness-control.sh menu"
+left-click = "$HOME/.config/hypr/scripts/brightness-control.sh menu"
 right-click = "brightnessctl set 55%"
 scroll-up = "brightnessctl set +4%"
 scroll-down = "brightnessctl set 4%-"
@@ -203,11 +203,11 @@ label-max-length = 4
 button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/scratchpad-manager.sh launch logs"
+left-click = "$HOME/.config/hypr/scripts/scratchpad-manager.sh launch logs"
 
 [[modules.custom]]
 id = "syncthing"
-command = '''/home/namik/.config/hypr/scripts/syncthing-status.sh'''
+command = '''$HOME/.config/hypr/scripts/syncthing-status.sh'''
 mode = "poll"
 interval-ms = 5000
 format = "SYNC {{ text }}"
@@ -218,9 +218,9 @@ label-max-length = 8
 button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/syncthing-control.sh open-ui"
-right-click = "/home/namik/.config/hypr/scripts/syncthing-control.sh menu"
-on-action = '''/home/namik/.config/hypr/scripts/syncthing-status.sh'''
+left-click = "$HOME/.config/hypr/scripts/syncthing-control.sh open-ui"
+right-click = "$HOME/.config/hypr/scripts/syncthing-control.sh menu"
+on-action = '''$HOME/.config/hypr/scripts/syncthing-status.sh'''
 
 [[modules.custom]]
 id = "quick"
@@ -234,11 +234,11 @@ label-max-length = 3
 button-bg-color = "transparent"
 icon-bg-color = "auto"
 label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/quick-actions.sh"
+left-click = "$HOME/.config/hypr/scripts/quick-actions.sh"
 
 [[modules.custom]]
 id = "work-project"
-command = "/home/namik/.config/hypr/scripts/workbench-wayle-status project"
+command = "$HOME/.config/hypr/scripts/workbench-wayle-status project"
 mode = "poll"
 interval-ms = 5000
 format = "{{ text }}"
@@ -248,12 +248,12 @@ label-max-length = 20
 button-bg-color = "bg-surface-elevated"
 icon-bg-color = "auto"
 label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/kage-project-rofi.sh"
-right-click = "/home/namik/.config/hypr/scripts/workbench-project-switcher"
+left-click = "$HOME/.config/hypr/scripts/kage-project-rofi.sh"
+right-click = "$HOME/.config/hypr/scripts/workbench-project-switcher"
 
 [[modules.custom]]
 id = "work-git"
-command = "/home/namik/.config/hypr/scripts/workbench-wayle-status git"
+command = "$HOME/.config/hypr/scripts/workbench-wayle-status git"
 mode = "poll"
 interval-ms = 5000
 format = "{{ text }}"
@@ -263,11 +263,11 @@ label-max-length = 24
 button-bg-color = "bg-surface-elevated"
 icon-bg-color = "auto"
 label-color = "fg-muted"
-left-click = "/home/namik/.config/hypr/scripts/kage-project-rofi.sh"
+left-click = "$HOME/.config/hypr/scripts/kage-project-rofi.sh"
 
 [[modules.custom]]
 id = "work-task"
-command = "/home/namik/.config/hypr/scripts/workbench-wayle-status work"
+command = "$HOME/.config/hypr/scripts/workbench-wayle-status work"
 mode = "poll"
 interval-ms = 5000
 format = "{{ text }}"
@@ -277,11 +277,11 @@ label-max-length = 28
 button-bg-color = "bg-surface-elevated"
 icon-bg-color = "auto"
 label-color = "fg-default"
-left-click = "/home/namik/.config/hypr/scripts/open-ai-workbench.sh work"
+left-click = "$HOME/.config/hypr/scripts/open-ai-workbench.sh work"
 
 [[modules.custom]]
 id = "work-ai"
-command = "/home/namik/.config/hypr/scripts/workbench-wayle-status ai"
+command = "$HOME/.config/hypr/scripts/workbench-wayle-status ai"
 mode = "poll"
 interval-ms = 5000
 format = "{{ text }}"
@@ -291,8 +291,8 @@ label-max-length = 14
 button-bg-color = "bg-surface-elevated"
 icon-bg-color = "auto"
 label-color = "fg-muted"
-left-click = "/home/namik/.config/hypr/scripts/scratchpad-manager.sh launch ai"
-right-click = "/home/namik/.config/hypr/scripts/open-ai-workbench.sh ask"
+left-click = "$HOME/.config/hypr/scripts/scratchpad-manager.sh launch ai"
+right-click = "$HOME/.config/hypr/scripts/open-ai-workbench.sh ask"
 
 [modules.battery]
 left-click = "dropdown:battery"

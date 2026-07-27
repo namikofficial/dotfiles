@@ -1,10 +1,12 @@
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
-use noxflow_config::{ConfigLoader, ConfigError, display_config, env_profile_override};
+use noxflow_config::{display_config, env_profile_override, ConfigError, ConfigLoader};
 
 fn fixture_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
 }
 
 fn tmp_dir() -> PathBuf {
@@ -73,22 +75,30 @@ fn loads_empty_config_with_defaults() {
 #[test]
 fn machine_local_overrides_merge() {
     let dir = tmp_dir();
-    fs::write(dir.join("config.toml"), r#"
+    fs::write(
+        dir.join("config.toml"),
+        r#"
 schema_version = 1
 [appearance]
 density = "spacious"
 radius = 16
-"#).unwrap();
-    fs::write(dir.join("config.local.toml"), r#"
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("config.local.toml"),
+        r#"
 [appearance]
 radius = 20
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let cfg = ConfigLoader::new()
         .with_config_dir(dir.clone())
         .load()
         .expect("should merge local override");
     assert_eq!(cfg.appearance.density, "spacious"); // from base, not overridden
-    assert_eq!(cfg.appearance.radius, 20);           // overridden by local
+    assert_eq!(cfg.appearance.radius, 20); // overridden by local
     let _ = fs::remove_dir_all(&dir);
 }
 
@@ -130,27 +140,39 @@ fn profile_override_from_loader() {
 fn profile_inheritance_merges_correctly() {
     let dir = tmp_dir();
     fs::create_dir_all(dir.join("profiles")).unwrap();
-    fs::write(dir.join("config.toml"), r#"
+    fs::write(
+        dir.join("config.toml"),
+        r#"
 schema_version = 1
 profile = "child"
-"#).unwrap();
-    fs::write(dir.join("profiles/child.toml"), r#"
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("profiles/child.toml"),
+        r#"
 extends = "parent"
 [appearance]
 density = "compact"
-"#).unwrap();
-    fs::write(dir.join("profiles/parent.toml"), r#"
+"#,
+    )
+    .unwrap();
+    fs::write(
+        dir.join("profiles/parent.toml"),
+        r#"
 [appearance]
 radius = 18
 mode = "light"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let cfg = ConfigLoader::new()
         .with_config_dir(dir.clone())
         .load()
         .expect("inheritance should merge");
     assert_eq!(cfg.appearance.density, "compact"); // from child
-    assert_eq!(cfg.appearance.radius, 18);           // from parent
-    assert_eq!(cfg.appearance.mode, "light");        // from parent
+    assert_eq!(cfg.appearance.radius, 18); // from parent
+    assert_eq!(cfg.appearance.mode, "light"); // from parent
     let _ = fs::remove_dir_all(&dir);
 }
 
@@ -166,7 +188,9 @@ fn circular_inheritance_detected() {
         .with_profile("circular-a".into())
         .load()
         .expect_err("circular inheritance should fail");
-    assert!(err.iter().any(|e| matches!(e, ConfigError::CircularInheritance { .. })));
+    assert!(err
+        .iter()
+        .any(|e| matches!(e, ConfigError::CircularInheritance { .. })));
 }
 
 #[test]
@@ -177,7 +201,9 @@ fn missing_profile_detected() {
         .with_profile("nonexistent-parent".into())
         .load()
         .expect_err("missing parent should fail");
-    assert!(err.iter().any(|e| matches!(e, ConfigError::ProfileNotFound { .. })));
+    assert!(err
+        .iter()
+        .any(|e| matches!(e, ConfigError::ProfileNotFound { .. })));
 }
 
 #[test]
@@ -188,7 +214,9 @@ fn bad_schema_version_rejected() {
         .with_profile("does-not-exist".into())
         .load()
         .expect_err("missing profile should fail");
-    assert!(err.iter().any(|e| matches!(e, ConfigError::ProfileNotFound { .. })));
+    assert!(err
+        .iter()
+        .any(|e| matches!(e, ConfigError::ProfileNotFound { .. })));
 }
 
 #[test]
@@ -212,11 +240,15 @@ fn schema_version_validation() {
 #[test]
 fn invalid_radius_rejected() {
     let dir = tmp_dir();
-    fs::write(dir.join("config.toml"), r#"
+    fs::write(
+        dir.join("config.toml"),
+        r#"
 schema_version = 1
 [appearance]
 radius = 99
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let err = ConfigLoader::new()
         .with_config_dir(dir.clone())
         .load()
@@ -234,13 +266,17 @@ radius = 99
 #[test]
 fn unknown_fields_are_safely_ignored() {
     let dir = tmp_dir();
-    fs::write(dir.join("config.toml"), r#"
+    fs::write(
+        dir.join("config.toml"),
+        r#"
 schema_version = 1
 unknown_key = "this should be safely ignored"
 [appearance]
 density = "comfortable"
 unknown_field = "also ignored"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let cfg = ConfigLoader::new()
         .with_config_dir(dir.clone())
         .load()
@@ -252,7 +288,9 @@ unknown_field = "also ignored"
 #[test]
 fn multiple_validation_errors_reported() {
     let dir = tmp_dir();
-    fs::write(dir.join("config.toml"), r#"
+    fs::write(
+        dir.join("config.toml"),
+        r#"
 schema_version = 99
 [appearance]
 density = "invalid"
@@ -260,15 +298,24 @@ radius = 99
 [ai]
 temperature = 3.5
 max_tokens = 200000
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let err = ConfigLoader::new()
         .with_config_dir(dir.clone())
         .load()
         .expect_err("multiple validation errors should be reported");
     assert!(err.len() >= 3);
-    let paths: Vec<&str> = err.iter().filter_map(|e| {
-        if let ConfigError::Validation { path, .. } = e { Some(path.as_str()) } else { None }
-    }).collect();
+    let paths: Vec<&str> = err
+        .iter()
+        .filter_map(|e| {
+            if let ConfigError::Validation { path, .. } = e {
+                Some(path.as_str())
+            } else {
+                None
+            }
+        })
+        .collect();
     assert!(paths.contains(&"schema_version"));
     assert!(paths.contains(&"appearance.density"));
     assert!(paths.contains(&"appearance.radius"));
@@ -284,8 +331,14 @@ fn display_config_redacts_api_key() {
     let mut cfg = noxflow_config::default_config();
     cfg.ai.api_key = Some("sk-supersecret-value".into());
     let output = display_config(&cfg);
-    assert!(!output.contains("sk-supersecret-value"), "secret should be redacted");
-    assert!(output.contains("__REDACTED__"), "should contain redaction marker");
+    assert!(
+        !output.contains("sk-supersecret-value"),
+        "secret should be redacted"
+    );
+    assert!(
+        output.contains("__REDACTED__"),
+        "should contain redaction marker"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -299,10 +352,30 @@ fn runtime_paths_are_resolved_from_environment() {
         .with_config_dir(dir)
         .load()
         .expect("valid config should load");
-    assert!(cfg.runtime.config_dir.display().to_string().contains("fixtures"));
-    assert!(cfg.runtime.socket_path.display().to_string().ends_with("noxd.sock"));
-    assert!(cfg.runtime.state_dir.display().to_string().ends_with("noxflow"));
-    assert!(cfg.runtime.cache_dir.display().to_string().ends_with("noxflow"));
+    assert!(cfg
+        .runtime
+        .config_dir
+        .display()
+        .to_string()
+        .contains("fixtures"));
+    assert!(cfg
+        .runtime
+        .socket_path
+        .display()
+        .to_string()
+        .ends_with("noxd.sock"));
+    assert!(cfg
+        .runtime
+        .state_dir
+        .display()
+        .to_string()
+        .ends_with("noxflow"));
+    assert!(cfg
+        .runtime
+        .cache_dir
+        .display()
+        .to_string()
+        .ends_with("noxflow"));
 }
 
 // ---------------------------------------------------------------------------
@@ -353,11 +426,15 @@ fn all_sections_present() {
 fn no_env_leak() {
     // This test should NOT find "focus" in a fresh tmp dir load.
     let dir = tmp_dir();
-    fs::write(dir.join("config.toml"), r#"
+    fs::write(
+        dir.join("config.toml"),
+        r#"
 schema_version = 1
 [appearance]
 density = "comfortable"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let cfg = ConfigLoader::new()
         .with_config_dir(dir.clone())
         .load()

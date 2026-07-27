@@ -16,7 +16,7 @@ use std::{
     net::Shutdown,
     os::unix::net::UnixStream,
     path::PathBuf,
-    process::Command,
+    process::{Command, Stdio},
     time::Duration,
 };
 
@@ -97,7 +97,10 @@ enum CommandGroup {
         #[arg(long)]
         provider: Option<String>,
     },
-    Doctor,
+    Doctor {
+        #[arg(long, help = "Run live dependency and integration checks")]
+        full: bool,
+    },
     Completions {
         shell: CompletionShell,
     },
@@ -549,7 +552,7 @@ fn run_logs(follow: bool, provider: Option<&str>, json: bool) -> Result<(), CliE
 fn config_for(profile: Option<String>) -> Result<noxflow_config::Config, CliError> {
     let loader = profile
         .map(|p| ConfigLoader::new().with_profile(p))
-        .unwrap_or_else(ConfigLoader::new);
+        .unwrap_or_default();
     loader.load().map_err(|e| {
         CliError::Local(
             e.iter()
@@ -611,11 +614,7 @@ fn shell_command(command: &ShellCommand) -> Result<(), CliError> {
         } => (shell_script(), vec!["wayle"]),
         ShellCommand::Use {
             shell: ShellName::Noxflow,
-        } => {
-            return Err(CliError::Daemon(
-                "NoxFlow shell activation is not installed in this session".into(),
-            ))
-        }
+        } => (shell_script(), vec!["noxflow"]),
         ShellCommand::Toggle {
             target: ShellTarget::Panel,
         } => (shell_script(), vec!["toggle-view"]),
@@ -631,20 +630,26 @@ fn shell_command(command: &ShellCommand) -> Result<(), CliError> {
             PathBuf::from("/usr/bin/systemctl"),
             vec!["--user", "start", "noxflow-notifications.service"],
         ),
-        ShellCommand::Restart => (
-            PathBuf::from("/usr/bin/systemctl"),
-            vec!["--user", "restart", "noxflow-session-optional.service"],
-        ),
-        ShellCommand::SafeMode => (
-            PathBuf::from("/usr/bin/systemctl"),
-            vec!["--user", "restart", "noxflow-session-optional.service"],
-        ),
+        ShellCommand::Restart => (shell_script(), vec!["restart"]),
+        ShellCommand::SafeMode => (shell_script(), vec!["safe-mode"]),
         ShellCommand::Island { .. } => {
             return Err(CliError::Usage(
                 "Island test command must be handled through noxd".into(),
             ))
         }
-        ShellCommand::Status => return Ok(()),
+        ShellCommand::Status => {
+            let status = Command::new(shell_script())
+                .arg("status")
+                .output()
+                .map_err(|e| CliError::Local(sanitize(&e.to_string())))?;
+            if !status.status.success() {
+                return Err(CliError::Local(
+                    String::from_utf8_lossy(&status.stderr).trim().to_owned(),
+                ));
+            }
+            print!("{}", String::from_utf8_lossy(&status.stdout));
+            return Ok(());
+        }
     };
     let status = Command::new(program)
         .args(args)
@@ -926,13 +931,7 @@ fn execute(cli: Cli) -> Result<(), CliError> {
             print_response(&x, cli.json);
             Ok(())
         }
-        CommandGroup::Shell { command } => {
-            if matches!(command, ShellCommand::Status) {
-                println!("shell script: {}", shell_script().display());
-                return Ok(());
-            }
-            shell_command(&command)
-        }
+        CommandGroup::Shell { command } => shell_command(&command),
         CommandGroup::Profile { command } => match command {
             ProfileCommand::List => {
                 let names = profile_names()?;
@@ -957,11 +956,7 @@ fn execute(cli: Cli) -> Result<(), CliError> {
             }
             ProfileCommand::Show { name } => {
                 let cfg = config_for(name)?;
-                if cli.json {
-                    println!("{}", display_config(&cfg))
-                } else {
-                    println!("{}", display_config(&cfg))
-                }
+                println!("{}", display_config(&cfg));
                 Ok(())
             }
             ProfileCommand::Use { name } => {
@@ -986,19 +981,49 @@ fn execute(cli: Cli) -> Result<(), CliError> {
         },
         CommandGroup::Config { profile } => {
             let cfg = config_for(profile)?;
-            if cli.json {
-                println!("{}", display_config(&cfg))
-            } else {
-                println!("{}", display_config(&cfg))
-            }
+            println!("{}", display_config(&cfg));
             Ok(())
         }
         CommandGroup::Logs { follow, provider } => run_logs(follow, provider.as_deref(), cli.json),
-        CommandGroup::Doctor => {
+        CommandGroup::Doctor { full } => {
             let version = c.request(Request::GetVersion, "doctor-version")?;
             print_response(&version, cli.json);
             println!("socket: {}", c.socket.display());
             println!("config: {}", resolve_config_dir().display());
+            if full {
+                let cfg = config_for(None)?;
+                println!("config validation: ok");
+                for command in ["systemctl", "qmllint", "quickshell"] {
+                    let available = Command::new("sh")
+                        .args(["-c", &format!("command -v {command}")])
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .status()
+                        .map(|s| s.success())
+                        .unwrap_or(false);
+                    if !available {
+                        return Err(CliError::Local(format!(
+                            "required command unavailable: {command}"
+                        )));
+                    }
+                }
+                let fallback = cfg.fallback.shell;
+                if fallback != "wayle"
+                    || !Command::new("sh")
+                        .args(["-c", "command -v wayle"])
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .status()
+                        .map(|s| s.success())
+                        .unwrap_or(false)
+                {
+                    return Err(CliError::Local(
+                        "configured fallback shell is unavailable".into(),
+                    ));
+                }
+                println!("fallback shell: {fallback}");
+                println!("full checks: ok");
+            }
             Ok(())
         }
     }

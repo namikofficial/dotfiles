@@ -366,7 +366,6 @@ fn active_connection(connection: &Connection, path: &str) -> zbus::Result<Value>
                 connection,
                 path.as_str(),
                 "org.freedesktop.NetworkManager.IP4Config",
-                false,
             )
             .ok()
         })
@@ -379,7 +378,6 @@ fn active_connection(connection: &Connection, path: &str) -> zbus::Result<Value>
                 connection,
                 path.as_str(),
                 "org.freedesktop.NetworkManager.IP6Config",
-                true,
             )
             .ok()
         })
@@ -393,7 +391,6 @@ fn read_addresses(
     connection: &Connection,
     path: &str,
     interface: &str,
-    ipv6: bool,
 ) -> zbus::Result<Vec<String>> {
     let config = proxy(connection, path, interface)?;
     let data: Vec<HashMap<String, OwnedValue>> =
@@ -408,11 +405,7 @@ fn read_addresses(
                 .get("prefix")
                 .and_then(|value| value.downcast_ref::<u32>().ok())
                 .unwrap_or(0);
-            addresses.push(if ipv6 {
-                format!("{address}/{prefix}")
-            } else {
-                format!("{address}/{prefix}")
-            });
+            addresses.push(format!("{address}/{prefix}"));
         }
     }
     Ok(addresses)

@@ -147,6 +147,7 @@ fn error_response(request_id: String, error: IpcError) -> ResponseEnvelope {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_request(
     request: Request,
     bus: &EventBus,
@@ -461,6 +462,7 @@ fn read_frame(reader: &mut BufReader<UnixStream>, frame: &mut Vec<u8>) -> io::Re
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_client(
     stream: UnixStream,
     socket: &Path,

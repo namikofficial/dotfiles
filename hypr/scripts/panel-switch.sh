@@ -20,7 +20,7 @@ read_engine() {
   if [ -f "$engine_file" ]; then
     saved="$(cat "$engine_file" 2>/dev/null || true)"
     case "$saved" in
-      wayle)
+      noxflow|wayle)
         printf '%s\n' "$saved"
         return 0
         ;;
@@ -31,7 +31,10 @@ read_engine() {
 }
 
 is_visible() {
-  systemctl --user is-active --quiet wayle.service 2>/dev/null
+  case "$(read_engine)" in
+    noxflow) systemctl --user is-active --quiet noxflow-shell.service 2>/dev/null ;;
+    *) systemctl --user is-active --quiet wayle.service 2>/dev/null ;;
+  esac
 }
 
 stop_stale_wayle_shells() {
@@ -54,7 +57,8 @@ start_wayle() {
     return 1
   fi
 
-  # Service-only ownership: clean stale service state, then start only via user unit.
+  # Service-only ownership: stop the alternate shell before starting Wayle.
+  systemctl --user stop noxflow-shell.service >/dev/null 2>&1 || true
   systemctl --user stop wayle.service >/dev/null 2>&1 || true
   systemctl --user reset-failed wayle.service >/dev/null 2>&1 || true
   stop_stale_wayle_shells
@@ -70,8 +74,31 @@ start_wayle() {
   notify "Panel mode" "Wayle"
 }
 
+start_noxflow() {
+  if ! command -v quickshell >/dev/null 2>&1; then
+    notify "NoxFlow unavailable" "Quickshell is not installed; keeping Wayle"
+    start_wayle
+    return 1
+  fi
+
+  systemctl --user stop wayle.service >/dev/null 2>&1 || true
+  systemctl --user reset-failed noxflow-shell.service >/dev/null 2>&1 || true
+  systemctl --user start noxflow-shell.service >/dev/null 2>&1 || true
+  sleep 0.5
+
+  if ! systemctl --user is-active --quiet noxflow-shell.service 2>/dev/null; then
+    notify "NoxFlow failed" "Falling back to Wayle"
+    start_wayle
+    return 1
+  fi
+
+  write_engine noxflow
+  notify "Panel mode" "NoxFlow"
+}
+
 hide_panel() {
   systemctl --user stop wayle.service >/dev/null 2>&1 || true
+  systemctl --user stop noxflow-shell.service >/dev/null 2>&1 || true
   stop_stale_wayle_shells
   notify "Panel view" "Hidden"
 }
@@ -90,7 +117,20 @@ status_line() {
 }
 
 case "$mode" in
+  noxflow) start_noxflow ;;
   wayle) start_wayle ;;
+  fallback) start_wayle ;;
+  restart)
+    case "$(read_engine)" in
+      noxflow) systemctl --user restart noxflow-shell.service ;;
+      *) start_wayle ;;
+    esac
+    ;;
+  safe-mode)
+    write_engine wayle
+    systemctl --user stop noxflow-shell.service >/dev/null 2>&1 || true
+    start_wayle
+    ;;
   toggle)
     if is_visible; then
       hide_panel
@@ -111,7 +151,7 @@ case "$mode" in
     status_line
     ;;
   *)
-    echo "usage: $0 [toggle|wayle|toggle-view|show|hide|status]" >&2
+    echo "usage: $0 [noxflow|wayle|fallback|restart|safe-mode|toggle|toggle-view|show|hide|status]" >&2
     exit 1
     ;;
 esac

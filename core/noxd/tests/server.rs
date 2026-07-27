@@ -19,6 +19,7 @@ struct TestDaemon {
 }
 
 impl TestDaemon {
+    #[allow(clippy::zombie_processes)]
     fn start() -> Self {
         let runtime = std::env::temp_dir().join(format!(
             "noxd-test-{}-{}",

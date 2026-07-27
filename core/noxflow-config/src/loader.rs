@@ -52,10 +52,7 @@ impl ConfigLoader {
 
     /// Load, merge, and validate the full configuration.
     pub fn load(&self) -> Result<Config, Vec<ConfigError>> {
-        let config_dir = self
-            .config_dir
-            .clone()
-            .unwrap_or_else(resolve_config_dir);
+        let config_dir = self.config_dir.clone().unwrap_or_else(resolve_config_dir);
 
         // Accumulator – tables override in merge order.
         // Start empty; `toml::Value::try_into` will fill defaults for missing keys.
@@ -70,15 +67,12 @@ impl ConfigLoader {
 
         // 2. Determine active profile
         //    `with_profile()` takes precedence over the file-level `profile` key.
-        let active_profile: Option<String> = self
-            .profile_override
-            .clone()
-            .or_else(|| {
-                merged
-                    .get("profile")
-                    .and_then(|v| v.as_str())
-                    .map(String::from)
-            });
+        let active_profile: Option<String> = self.profile_override.clone().or_else(|| {
+            merged
+                .get("profile")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+        });
 
         // 3. Resolve and merge profile chain
         if let Some(ref profile_name) = active_profile {
@@ -97,21 +91,17 @@ impl ConfigLoader {
 
         // 5. Deserialize merged tables into Config
         let toml_value = Value::Table(merged);
-        let mut config: Config = toml_value
-            .try_into()
-            .map_err(|e| {
-                vec![ConfigError::Other(format!(
-                    "failed to deserialize configuration: {e}"
-                ))]
-            })?;
+        let mut config: Config = toml_value.try_into().map_err(|e| {
+            vec![ConfigError::Other(format!(
+                "failed to deserialize configuration: {e}"
+            ))]
+        })?;
 
         // 6. Set runtime paths from environment (never from TOML)
         config.runtime = resolve_runtime_paths(&config_dir);
 
         // 7. Validate
-        if let Err(errors) = config.validate() {
-            return Err(errors);
-        }
+        config.validate()?;
 
         Ok(config)
     }
@@ -144,10 +134,11 @@ pub fn default_socket_path() -> PathBuf {
 
 /// Returns a default `Config` with environment-resolved paths.
 pub fn default_config() -> Config {
-    let mut cfg = Config::default();
-    cfg.schema_version = CURRENT_SCHEMA_VERSION;
-    cfg.runtime = resolve_runtime_paths(&resolve_config_dir());
-    cfg
+    Config {
+        schema_version: CURRENT_SCHEMA_VERSION,
+        runtime: resolve_runtime_paths(&resolve_config_dir()),
+        ..Config::default()
+    }
 }
 
 /// Read `NOXFLOW_PROFILE` from the environment, if set.
@@ -168,11 +159,8 @@ fn home_dir() -> PathBuf {
 fn resolve_runtime_paths(config_dir: &Path) -> ConfigPaths {
     let home = home_dir();
     let runtime_dir = xdg_or("XDG_RUNTIME_DIR", || PathBuf::from("/tmp"));
-    let state_dir =
-        xdg_or("XDG_STATE_HOME", || home.join(".local").join("state"))
-            .join("noxflow");
-    let cache_dir =
-        xdg_or("XDG_CACHE_HOME", || home.join(".cache")).join("noxflow");
+    let state_dir = xdg_or("XDG_STATE_HOME", || home.join(".local").join("state")).join("noxflow");
+    let cache_dir = xdg_or("XDG_CACHE_HOME", || home.join(".cache")).join("noxflow");
     let socket_path = runtime_dir.join("noxflow").join("noxd.sock");
     ConfigPaths {
         config_dir: config_dir.to_owned(),
@@ -194,12 +182,10 @@ fn load_toml_file(path: &Path) -> Result<Table, ConfigError> {
         path: path.to_owned(),
         source: e,
     })?;
-    content
-        .parse::<Table>()
-        .map_err(|e| ConfigError::Parse {
-            path: path.to_owned(),
-            source: e,
-        })
+    content.parse::<Table>().map_err(|e| ConfigError::Parse {
+        path: path.to_owned(),
+        source: e,
+    })
 }
 
 fn merge_tables(base: &mut Table, overlay: Table) {

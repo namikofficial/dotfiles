@@ -25,6 +25,11 @@ noxctl media play-pause
 noxctl profile list
 noxctl config --profile focus
 noxctl doctor
+noxctl doctor --full
+noxctl shell use noxflow
+noxctl shell use wayle
+noxctl shell restart
+noxctl shell safe-mode
 ```
 
 Use `--json` for automation. JSON output contains command data rather than

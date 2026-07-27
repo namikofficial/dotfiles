@@ -13,8 +13,7 @@ pub fn display_config(config: &Config) -> String {
 
     // Attach runtime paths so the user sees the resolved paths.
     if let serde_json::Value::Object(ref mut map) = root {
-        let runtime =
-            serde_json::to_value(&config.runtime).unwrap_or(serde_json::Value::Null);
+        let runtime = serde_json::to_value(&config.runtime).unwrap_or(serde_json::Value::Null);
         map.insert("runtime".into(), runtime);
     }
 
