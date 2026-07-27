@@ -28,7 +28,34 @@ fn daemon_request(request: &str) -> std::io::Result<String> {
 }
 
 fn usage() {
-    eprintln!("usage: noxctl status [hyprland] | audio status | audio volume <PERCENT|+DELTA|-DELTA> | brightness status | brightness <PERCENT|+DELTA|-DELTA> | power status | power profile list | power profile set <PROFILE> | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
+    eprintln!("usage: noxctl status [hyprland] | network status | network wifi <enable|disable> | network connect <UUID> | network disconnect | network refresh | network vpn <enable|disable> <UUID> | audio status | audio volume <PERCENT|+DELTA|-DELTA> | brightness status | brightness <PERCENT|+DELTA|-DELTA> | power status | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
+}
+
+fn network_action(action: Action, id: &str) -> i32 {
+    let request = RequestEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        request_id: id.into(),
+        request: Request::RunAction { action },
+    };
+    let request = serde_json::to_string(&request).expect("IPC request serializes");
+    match daemon_request(&request) {
+        Ok(response) => {
+            println!("{response}");
+            0
+        }
+        Err(error) => {
+            eprintln!("noxd unavailable: {error}");
+            1
+        }
+    }
+}
+
+fn valid_uuid(value: &str) -> bool {
+    value.len() == 36
+        && value
+            .bytes()
+            .enumerate()
+            .all(|(i, b)| b.is_ascii_hexdigit() || matches!(i, 8 | 13 | 18 | 23) && b == b'-')
 }
 
 fn audio_action(action: Action, id: &str) -> i32 {
@@ -246,6 +273,60 @@ fn main() {
     install_panic_hook("noxctl");
     let args: Vec<String> = env::args().skip(1).collect();
     match args.as_slice() {
+        [command, subcommand] if command == "network" && subcommand == "status" => {
+            std::process::exit(provider_status("network", "noxctl-network-status"));
+        }
+        [command, subcommand, toggle]
+            if command == "network"
+                && subcommand == "wifi"
+                && (toggle == "enable" || toggle == "disable") =>
+        {
+            std::process::exit(network_action(
+                Action::NetworkWifiSetEnabled {
+                    enabled: toggle == "enable",
+                },
+                "noxctl-network-wifi",
+            ));
+        }
+        [command, subcommand, uuid] if command == "network" && subcommand == "connect" => {
+            if !valid_uuid(uuid) {
+                eprintln!("network connect: invalid UUID");
+                std::process::exit(2);
+            }
+            std::process::exit(network_action(
+                Action::NetworkConnectSaved { uuid: uuid.clone() },
+                "noxctl-network-connect",
+            ));
+        }
+        [command, subcommand] if command == "network" && subcommand == "disconnect" => {
+            std::process::exit(network_action(
+                Action::NetworkDisconnectWifi,
+                "noxctl-network-disconnect",
+            ));
+        }
+        [command, subcommand] if command == "network" && subcommand == "refresh" => {
+            std::process::exit(network_action(
+                Action::NetworkRefresh,
+                "noxctl-network-refresh",
+            ));
+        }
+        [command, subcommand, toggle, uuid]
+            if command == "network"
+                && subcommand == "vpn"
+                && (toggle == "enable" || toggle == "disable") =>
+        {
+            if !valid_uuid(uuid) {
+                eprintln!("network vpn: invalid UUID");
+                std::process::exit(2);
+            }
+            std::process::exit(network_action(
+                Action::NetworkVpnSetEnabled {
+                    uuid: uuid.clone(),
+                    enabled: toggle == "enable",
+                },
+                "noxctl-network-vpn",
+            ));
+        }
         [command, subcommand] if command == "audio" && subcommand == "status" => {
             let request = RequestEnvelope {
                 protocol_version: PROTOCOL_VERSION,
@@ -458,6 +539,13 @@ mod tests {
         assert!(valid_provider("hyprland"));
         assert!(!valid_provider("hyprland; rm -rf /"));
         assert!(!valid_provider(""));
+    }
+
+    #[test]
+    fn network_profile_selectors_require_uuid() {
+        assert!(valid_uuid("01234567-89ab-cdef-0123-456789abcdef"));
+        assert!(!valid_uuid("Cafe WiFi"));
+        assert!(!valid_uuid("01234567-89ab-cdef-0123-456789abcdeg"));
     }
 
     #[test]

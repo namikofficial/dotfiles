@@ -4,4 +4,4 @@ extends = "base"
 profile = "balanced"
 
 [network]
-wifi_backend = "iwd"
+wifi_backend = "NetworkManager"

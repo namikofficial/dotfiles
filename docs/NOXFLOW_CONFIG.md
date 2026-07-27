@@ -64,7 +64,7 @@ changes that should not be committed to version control:
 ```toml
 # config.local.toml
 [network]
-wifi_backend = "iwd"
+wifi_backend = "NetworkManager"
 
 [appearance]
 density = "compact"

@@ -82,6 +82,18 @@ pub enum Action {
     PowerProfileSet {
         profile: String,
     },
+    NetworkWifiSetEnabled {
+        enabled: bool,
+    },
+    NetworkConnectSaved {
+        uuid: String,
+    },
+    NetworkDisconnectWifi,
+    NetworkRefresh,
+    NetworkVpnSetEnabled {
+        uuid: String,
+        enabled: bool,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -260,6 +272,22 @@ mod tests {
             request: Request::RunAction {
                 action: Action::PowerProfileSet {
                     profile: "performance".into(),
+                },
+            },
+        };
+        let json = serde_json::to_string(&envelope).unwrap();
+        assert_eq!(decode_request(&json).unwrap(), envelope);
+    }
+
+    #[test]
+    fn network_actions_round_trip() {
+        let envelope = RequestEnvelope {
+            protocol_version: 1,
+            request_id: "network-1".into(),
+            request: Request::RunAction {
+                action: Action::NetworkVpnSetEnabled {
+                    uuid: "01234567-89ab-cdef-0123-456789abcdef".into(),
+                    enabled: false,
                 },
             },
         };

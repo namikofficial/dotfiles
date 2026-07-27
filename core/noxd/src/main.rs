@@ -153,6 +153,7 @@ fn handle_request(
     audio: &noxd::providers::audio::ControlSender,
     brightness: &noxd::providers::brightness::Control,
     power: &noxd::providers::power::Control,
+    network: &noxd::providers::network::Control,
 ) -> Result<Response, IpcError> {
     let result = match request {
         Request::Ping => Response::Pong,
@@ -239,12 +240,37 @@ fn handle_request(
                         details: BTreeMap::new(),
                     })?;
                 }
+                Action::NetworkWifiSetEnabled { enabled } => network
+                    .send(noxd::providers::network::CommandRequest::WifiSetEnabled(
+                        enabled,
+                    ))
+                    .map_err(network_error)?,
+                Action::NetworkConnectSaved { uuid } => network
+                    .send(noxd::providers::network::CommandRequest::ConnectSaved(uuid))
+                    .map_err(network_error)?,
+                Action::NetworkDisconnectWifi => network
+                    .send(noxd::providers::network::CommandRequest::DisconnectWifi)
+                    .map_err(network_error)?,
+                Action::NetworkRefresh => network
+                    .send(noxd::providers::network::CommandRequest::Refresh)
+                    .map_err(network_error)?,
+                Action::NetworkVpnSetEnabled { uuid, enabled } => network
+                    .send(noxd::providers::network::CommandRequest::VpnSetEnabled { uuid, enabled })
+                    .map_err(network_error)?,
                 _ => {}
             }
             Response::ActionAccepted(ActionAccepted { action })
         }
     };
     Ok(result)
+}
+
+fn network_error(error: io::Error) -> IpcError {
+    IpcError {
+        code: ErrorCode::Unsupported,
+        message: error.to_string(),
+        details: BTreeMap::new(),
+    }
 }
 
 fn decode_error(error: DecodeError) -> (String, IpcError) {
@@ -352,6 +378,7 @@ fn handle_client(
     audio: noxd::providers::audio::ControlSender,
     brightness: noxd::providers::brightness::Control,
     power: noxd::providers::power::Control,
+    network: noxd::providers::network::Control,
 ) -> io::Result<()> {
     stream.set_read_timeout(Some(CLIENT_READ_TIMEOUT))?;
     log_event("info", "client_connection", Some(socket), None, None);
@@ -484,11 +511,17 @@ fn handle_client(
                             })?;
                     }
                     request => {
-                        let outbound_response =
-                            match handle_request(request, &bus, &audio, &brightness, &power) {
-                                Ok(result) => response(request_id, result),
-                                Err(error) => error_response(request_id, error),
-                            };
+                        let outbound_response = match handle_request(
+                            request,
+                            &bus,
+                            &audio,
+                            &brightness,
+                            &power,
+                            &network,
+                        ) {
+                            Ok(result) => response(request_id, result),
+                            Err(error) => error_response(request_id, error),
+                        };
                         outbound
                             .send(Outbound::Response(outbound_response))
                             .map_err(|_| {
@@ -718,6 +751,8 @@ fn run() -> io::Result<()> {
     );
     let (power_thread, power_control) =
         noxd::providers::power::start(bus.clone(), Arc::clone(&shutting_down));
+    let (network_thread, network_control) =
+        noxd::providers::network::start(bus.clone(), Arc::clone(&shutting_down));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutting_down))
         .map_err(io::Error::other)?;
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutting_down))
@@ -733,6 +768,7 @@ fn run() -> io::Result<()> {
                 let client_audio = audio_control.clone();
                 let client_brightness = brightness_control.clone();
                 let client_power = power_control.clone();
+                let client_network = network_control.clone();
                 clients.push(thread::spawn(move || {
                     if let Err(error) = handle_client(
                         stream,
@@ -741,6 +777,7 @@ fn run() -> io::Result<()> {
                         client_audio,
                         client_brightness,
                         client_power,
+                        client_network,
                     ) {
                         log_event(
                             "error",
@@ -773,6 +810,8 @@ fn run() -> io::Result<()> {
     let _ = brightness_thread.join();
     drop(power_control);
     let _ = power_thread.join();
+    drop(network_control);
+    let _ = network_thread.join();
     for client in clients {
         let _ = client.join();
     }

@@ -56,7 +56,7 @@ suspend = 1800                      # Suspend timeout (seconds)
 hybrid_sleep = true                 # Use hybrid sleep
 
 [network]
-wifi_backend = "iwd"                # Wi-Fi backend: iwd, NetworkManager
+wifi_backend = "NetworkManager"     # Wi-Fi backend
 vpn_autoconnect = false             # Auto-connect VPN on network change
 metered_connection = "detect"       # metered, unmetered, detect
 dns = "system"                      # DNS resolver: system, cloudflare, google, custom

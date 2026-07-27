@@ -81,6 +81,14 @@ missing battery is represented by `battery_present: false`; a missing
 power-profiles-daemon leaves the provider degraded and profile changes return
 the structured `unsupported` error.
 
+Network actions are `network_wifi_set_enabled`, `network_connect_saved`,
+`network_disconnect_wifi`, `network_refresh`, and `network_vpn_set_enabled`.
+Saved Wi-Fi and VPN profiles are selected by NetworkManager UUID. These
+actions never create profiles or handle passwords/secrets. The `network`
+provider reports connectivity, active connection and Ethernet state, Wi-Fi
+state and scan results, connected SSID, signal strength, IPv4/IPv6 addresses,
+metering, and VPN state.
+
 A successful subscription acknowledgement includes the subscription ID, the
 daemon stream ID, the sequence boundary, and matching provider snapshots:
 

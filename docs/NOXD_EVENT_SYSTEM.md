@@ -27,8 +27,11 @@ payload type and implements `ProviderEvent`, supplying:
 - JSON-compatible event data;
 - the resulting provider snapshot.
 
-The power provider polls UPower and power-profiles-daemon through D-Bus. It
-publishes `battery_low` and `battery_critical` only when UPower's warning level
+The power provider polls UPower and power-profiles-daemon through D-Bus. The
+NetworkManager provider keeps a D-Bus signal subscription and reconciles its
+snapshot after NetworkManager, device, access-point, active-connection, and
+property-change signals; it does not invoke `nmcli` or poll NetworkManager.
+The power provider publishes `battery_low` and `battery_critical` only when UPower's warning level
 transitions into the corresponding severity; repeated observations are
 suppressed until the battery recovers or begins charging.
 
