@@ -50,6 +50,12 @@ pub enum Request {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Action {
+    WorkspaceFocus {
+        workspace: String,
+    },
+    WorkspaceCycle {
+        delta: i16,
+    },
     Lock,
     Suspend,
     Reboot,
@@ -289,6 +295,24 @@ mod tests {
         };
         let json = serde_json::to_string(&envelope).unwrap();
         assert_eq!(decode_request(&json).unwrap(), envelope);
+    }
+
+    #[test]
+    fn workspace_actions_round_trip() {
+        for action in [
+            Action::WorkspaceFocus {
+                workspace: "3".into(),
+            },
+            Action::WorkspaceCycle { delta: -1 },
+        ] {
+            let envelope = RequestEnvelope {
+                protocol_version: 1,
+                request_id: "workspace-1".into(),
+                request: Request::RunAction { action },
+            };
+            let json = serde_json::to_string(&envelope).unwrap();
+            assert_eq!(decode_request(&json).unwrap(), envelope);
+        }
     }
 
     #[test]

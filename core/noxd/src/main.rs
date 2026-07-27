@@ -187,6 +187,18 @@ fn handle_request(
             Response::SettingUpdated(noxflow_ipc::SettingUpdated { key, value })
         }
         Request::RunAction { action } => {
+            if matches!(
+                &action,
+                Action::WorkspaceFocus { .. } | Action::WorkspaceCycle { .. }
+            ) {
+                noxd::providers::hyprland::dispatch_workspace(&action).map_err(|error| {
+                    IpcError {
+                        code: ErrorCode::Unsupported,
+                        message: error.to_string(),
+                        details: BTreeMap::new(),
+                    }
+                })?;
+            }
             let command = match &action {
                 Action::AudioSetVolume { target, volume } => {
                     Some(noxd::providers::audio::CommandRequest::SetVolume {

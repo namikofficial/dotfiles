@@ -48,6 +48,14 @@ QtObject {
 
     function start() { connectNow(); }
 
+    function runAction(action) {
+        if (!connected || !Protocol.isObject(action)) return false;
+        return sendRequest("run_action", { action: action }, function(result) {
+            if (!result || result.type !== "action_accepted")
+                errorText = "daemon returned malformed action response";
+        });
+    }
+
     function connectNow() {
         reconnectTimer.stop();
         if (socket.connected) return;

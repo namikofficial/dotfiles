@@ -28,8 +28,13 @@ ShellRoot {
         }
     }
 
-    Gallery {
-        client: noxd; hyprland: hyprland; audio: audio; brightness: brightness
-        battery: battery; power: power; network: network; bluetooth: bluetooth; media: media
+    Variants {
+        model: Quickshell.screens
+        Bar {
+            required property var modelData
+            noxd: noxd; hyprland: hyprland; audio: audio
+            battery: battery; network: network; bluetooth: bluetooth; media: media
+            screen: modelData
+        }
     }
 }

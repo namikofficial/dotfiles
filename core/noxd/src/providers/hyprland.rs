@@ -6,7 +6,7 @@
 //! tests with a pair of Unix socket fixtures.
 
 use crate::{EventBus, ProviderEvent};
-use noxflow_ipc::{ProviderState, ProviderStatus};
+use noxflow_ipc::{Action, ProviderState, ProviderStatus};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
@@ -105,6 +105,44 @@ pub fn socket_dir() -> Option<PathBuf> {
     let runtime = env::var_os("XDG_RUNTIME_DIR")?;
     let signature = env::var_os("HYPRLAND_INSTANCE_SIGNATURE")?;
     Some(PathBuf::from(runtime).join("hypr").join(signature))
+}
+
+/// Dispatch a workspace action through Hyprland's command socket.
+pub fn dispatch_workspace(action: &Action) -> io::Result<()> {
+    let directory = socket_dir().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "Hyprland runtime socket is unavailable",
+        )
+    })?;
+    let command = match action {
+        Action::WorkspaceFocus { workspace } => {
+            if workspace.is_empty() || workspace.contains('\n') {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "workspace name is invalid",
+                ));
+            }
+            format!("dispatch workspace {workspace}")
+        }
+        Action::WorkspaceCycle { delta } if *delta == 1 => "dispatch workspace e+1".into(),
+        Action::WorkspaceCycle { delta } if *delta == -1 => "dispatch workspace e-1".into(),
+        Action::WorkspaceCycle { .. } => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "workspace cycle delta must be -1 or 1",
+            ))
+        }
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "action is not a workspace action",
+            ))
+        }
+    };
+    let mut stream = UnixStream::connect(directory.join(".socket.sock"))?;
+    stream.write_all(command.as_bytes())?;
+    stream.shutdown(std::net::Shutdown::Write)
 }
 
 /// Start the provider worker. The returned thread exits when `stop` is set.

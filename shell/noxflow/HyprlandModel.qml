@@ -7,6 +7,7 @@ ProviderModel {
     property var windows: []
     property var monitors: []
     property var activeWorkspace: null
+    property var activeWindow: null
     property var urgentWindows: []
     property var specialWorkspaces: []
 
@@ -17,6 +18,7 @@ ProviderModel {
         windows = Array.isArray(next.windows) ? next.windows : [];
         monitors = Array.isArray(next.monitors) ? next.monitors : [];
         activeWorkspace = next.active_workspace === undefined ? null : next.active_workspace;
+        activeWindow = next.active_window === undefined ? null : next.active_window;
         urgentWindows = Array.isArray(next.urgent_windows) ? next.urgent_windows : [];
         specialWorkspaces = Array.isArray(next.special_workspaces) ? next.special_workspaces : [];
         return true;
