@@ -27,8 +27,8 @@ PanelWindow {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.Tokens.spacingXl
-        spacing: Theme.Tokens.spacingLg
+        anchors.margins: Theme.Tokens.scaled(Theme.Tokens.spacingXl)
+        spacing: Theme.Tokens.scaled(Theme.Tokens.spacingLg)
         RowLayout {
             Layout.fillWidth: true
             Text { text: "NoxFlow Material gallery"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyDisplayMedium; font.family: Theme.Tokens.typographyFontFamily; Layout.fillWidth: true }
@@ -58,8 +58,8 @@ PanelWindow {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.Tokens.spacingLg
-                    Components.Card { Layout.fillWidth: true; Layout.preferredHeight: 160; Text { text: "Surface / Card\nLayered Material container"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge } }
-                    Components.PopupContainer { Layout.fillWidth: true; Layout.preferredHeight: 160; Text { text: "Popup container\nOutline and elevation"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge } }
+                    Components.Card { Layout.fillWidth: true; Layout.preferredHeight: Theme.Tokens.scaled(160); Text { text: "Surface / Card\nLayered Material container"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; wrapMode: Text.Wrap } }
+                    Components.PopupContainer { Layout.fillWidth: true; Layout.preferredHeight: Theme.Tokens.scaled(160); Text { text: "Popup container\nOutline and elevation"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; wrapMode: Text.Wrap } }
                 }
                 RowLayout {
                     Layout.fillWidth: true

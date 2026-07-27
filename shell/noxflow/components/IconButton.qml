@@ -13,6 +13,10 @@ FocusScope {
     implicitWidth: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
     opacity: enabled ? 1.0 : Theme.Tokens.opacityDisabled
+    focus: false
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: root.accessibleName
 
     Rectangle {
         id: background
@@ -24,7 +28,18 @@ FocusScope {
     }
     Text { anchors.centerIn: parent; text: root.iconText; color: root.checked ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.iconMd }
     HoverHandler { onHoveredChanged: root.hovered = hovered }
-    TapHandler { onTapped: if (root.enabled) root.clicked() }
-    Keys.onSpacePressed: root.clicked()
-    Keys.onReturnPressed: root.clicked()
+    TapHandler {
+        onPressedChanged: root.pressed = pressed
+        onTapped: {
+            if (!root.enabled) return;
+            root.forceActiveFocus();
+            root.clicked();
+        }
+    }
+    Keys.onSpacePressed: {
+        if (root.enabled) root.clicked();
+    }
+    Keys.onReturnPressed: {
+        if (root.enabled) root.clicked();
+    }
 }

@@ -116,6 +116,22 @@ PanelWindow {
         noxd.runAction({ workspace_cycle: { delta: delta } });
     }
 
+    function toggleOutputMute() {
+        noxd.runAction({ audio_toggle_mute: { target: "output" } });
+    }
+
+    function refreshNetwork() {
+        noxd.runAction({ network_refresh: {} });
+    }
+
+    function toggleBluetooth() {
+        noxd.runAction({ bluetooth_set_powered: { powered: !bluetooth.powered } });
+    }
+
+    function toggleMediaPlayback() {
+        noxd.runAction({ media_play_pause: {} });
+    }
+
     function activeWindowLabel() {
         var window = hyprland.activeWindow;
         if (!window || typeof window !== "object") return "Desktop";
@@ -169,6 +185,7 @@ PanelWindow {
                         required property string modelData
                         required property int index
                         property bool hovered: false
+                        property bool pressed: false
                         property bool active: root.monitorActiveWorkspace() === modelData
                         property bool occupied: root.workspaceOccupied(modelData)
                         property bool urgent: root.workspaceUrgent(modelData)
@@ -181,7 +198,7 @@ PanelWindow {
                         Rectangle {
                             anchors.fill: parent
                             radius: Theme.Tokens.radiusSm
-                            color: workspaceButton.active ? Theme.Tokens.tonalPrimaryContainer : workspaceButton.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent"
+                            color: workspaceButton.pressed ? Theme.Tokens.withAlpha(Theme.Tokens.statePressedOverlay, 0.16) : workspaceButton.active ? Theme.Tokens.tonalPrimaryContainer : workspaceButton.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent"
                             border.color: workspaceButton.activeFocus ? Theme.Tokens.outlineFocus : workspaceButton.occupied ? Theme.Tokens.outlineDefault : "transparent"
                             border.width: workspaceButton.activeFocus ? 2 : workspaceButton.occupied ? 1 : 0
                         }
@@ -201,7 +218,13 @@ PanelWindow {
                             color: Theme.Tokens.stateDanger
                         }
                         HoverHandler { onHoveredChanged: workspaceButton.hovered = hovered }
-                        TapHandler { onTapped: root.focusWorkspace(modelData) }
+                        TapHandler {
+                            onPressedChanged: workspaceButton.pressed = pressed
+                            onTapped: {
+                                workspaceButton.forceActiveFocus();
+                                root.focusWorkspace(modelData);
+                            }
+                        }
                         WheelHandler {
                             onWheel: function(event) {
                                 root.cycleWorkspace(event.angleDelta.y > 0 ? -1 : 1);
@@ -237,17 +260,6 @@ PanelWindow {
             }
 
             Text {
-                Layout.alignment: Qt.AlignCenter
-                text: Qt.formatTime(new Date(), "HH:mm")
-                color: Theme.Tokens.textPrimary
-                font.family: Theme.Tokens.typographyFontFamily
-                font.pixelSize: Theme.Tokens.typographyTitleMedium
-                font.bold: true
-                Timer { interval: 1000; repeat: true; running: true; onTriggered: parent.text = Qt.formatTime(new Date(), "HH:mm") }
-                Accessible.name: "Current time: " + text
-            }
-
-            Text {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 Layout.maximumWidth: Theme.Tokens.scaled(280)
@@ -258,6 +270,7 @@ PanelWindow {
                 color: Theme.Tokens.tonalSecondary
                 font.family: Theme.Tokens.typographyFontFamily
                 font.pixelSize: Theme.Tokens.typographyBodySmall
+                TapHandler { onTapped: { root.toggleMediaPlayback(); parent.forceActiveFocus(); } }
                 Accessible.name: visible ? "Media: " + text : ""
             }
 
@@ -272,6 +285,7 @@ PanelWindow {
                     visible: root.networkLabel() !== ""
                     text: "⌁ " + root.networkLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight; Accessible.name: "Network: " + text
                     HoverHandler { onHoveredChanged: parent.hovered = hovered }
+                    TapHandler { onTapped: { root.refreshNetwork(); parent.forceActiveFocus(); } }
                     Tooltip { target: parent; text: "Network: " + root.networkLabel() }
                 }
                 Text {
@@ -279,6 +293,7 @@ PanelWindow {
                     visible: root.bluetoothLabel() !== ""
                     text: "◈ " + root.bluetoothLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; Accessible.name: "Bluetooth: " + text
                     HoverHandler { onHoveredChanged: parent.hovered = hovered }
+                    TapHandler { onTapped: { root.toggleBluetooth(); parent.forceActiveFocus(); } }
                     Tooltip { target: parent; text: "Bluetooth: " + root.bluetoothLabel() }
                 }
                 Text {
@@ -286,6 +301,7 @@ PanelWindow {
                     visible: audio.status === "available"
                     text: audio.outputMuted ? "◌" : "◉ " + audio.outputVolume + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; Accessible.name: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolume + " percent")
                     HoverHandler { onHoveredChanged: parent.hovered = hovered }
+                    TapHandler { onTapped: { root.toggleOutputMute(); parent.forceActiveFocus(); } }
                     Tooltip { target: parent; text: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolume + "%") }
                 }
                 Text {
@@ -309,6 +325,25 @@ PanelWindow {
                     Tooltip { target: parent; text: "Shell health degraded" }
                 }
             }
+        }
+
+        // Keep the clock independent from the variable-width content on either side.
+        Text {
+            id: clock
+            anchors.centerIn: parent
+            z: 10
+            text: Qt.formatTime(new Date(), "HH:mm")
+            color: Theme.Tokens.textPrimary
+            font.family: Theme.Tokens.typographyFontFamily
+            font.pixelSize: Theme.Tokens.typographyTitleMedium
+            font.bold: true
+            Timer {
+                interval: 1000
+                repeat: true
+                running: true
+                onTriggered: clock.text = Qt.formatTime(new Date(), "HH:mm")
+            }
+            Accessible.name: "Current time: " + text
         }
     }
 }
