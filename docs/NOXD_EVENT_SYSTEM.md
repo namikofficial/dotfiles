@@ -27,6 +27,11 @@ payload type and implements `ProviderEvent`, supplying:
 - JSON-compatible event data;
 - the resulting provider snapshot.
 
+The power provider polls UPower and power-profiles-daemon through D-Bus. It
+publishes `battery_low` and `battery_critical` only when UPower's warning level
+transitions into the corresponding severity; repeated observations are
+suppressed until the battery recovers or begins charging.
+
 Publishing an event updates the canonical snapshot and delivers the event to
 matching subscribers. Publishing an unregistered provider is rejected. This
 slice defines the bus only; system provider implementations are intentionally

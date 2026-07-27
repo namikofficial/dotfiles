@@ -79,6 +79,9 @@ pub enum Action {
     BrightnessAdjust {
         delta: i16,
     },
+    PowerProfileSet {
+        profile: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -243,6 +246,21 @@ mod tests {
             request_id: "req-7".into(),
             request: Request::RunAction {
                 action: Action::Lock,
+            },
+        };
+        let json = serde_json::to_string(&envelope).unwrap();
+        assert_eq!(decode_request(&json).unwrap(), envelope);
+    }
+
+    #[test]
+    fn power_profile_action_round_trips() {
+        let envelope = RequestEnvelope {
+            protocol_version: 1,
+            request_id: "power-1".into(),
+            request: Request::RunAction {
+                action: Action::PowerProfileSet {
+                    profile: "performance".into(),
+                },
             },
         };
         let json = serde_json::to_string(&envelope).unwrap();

@@ -28,7 +28,7 @@ fn daemon_request(request: &str) -> std::io::Result<String> {
 }
 
 fn usage() {
-    eprintln!("usage: noxctl status [hyprland] | audio status | audio volume <PERCENT|+DELTA|-DELTA> | brightness status | brightness <PERCENT|+DELTA|-DELTA> | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
+    eprintln!("usage: noxctl status [hyprland] | audio status | audio volume <PERCENT|+DELTA|-DELTA> | brightness status | brightness <PERCENT|+DELTA|-DELTA> | power status | power profile list | power profile set <PROFILE> | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
 }
 
 fn audio_action(action: Action, id: &str) -> i32 {
@@ -107,6 +107,58 @@ fn brightness_action(action: Action, id: &str) -> i32 {
         protocol_version: PROTOCOL_VERSION,
         request_id: id.into(),
         request: Request::RunAction { action },
+    };
+    let request = serde_json::to_string(&request).expect("IPC request serializes");
+    match daemon_request(&request) {
+        Ok(response) => {
+            println!("{response}");
+            0
+        }
+        Err(error) => {
+            eprintln!("noxd unavailable: {error}");
+            1
+        }
+    }
+}
+
+fn provider_status(provider: &str, id: &str) -> i32 {
+    let request = RequestEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        request_id: id.into(),
+        request: Request::GetProviderState {
+            provider: provider.into(),
+        },
+    };
+    let request = serde_json::to_string(&request).expect("IPC request serializes");
+    match daemon_request(&request) {
+        Ok(response) => {
+            println!("{response}");
+            0
+        }
+        Err(error) => {
+            eprintln!("noxd unavailable: {error}");
+            1
+        }
+    }
+}
+
+fn power_profile_action(profile: &str) -> i32 {
+    if profile.is_empty()
+        || !profile
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+    {
+        eprintln!("power profile: invalid profile name");
+        return 2;
+    }
+    let request = RequestEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        request_id: "noxctl-power-profile-set".into(),
+        request: Request::RunAction {
+            action: Action::PowerProfileSet {
+                profile: profile.into(),
+            },
+        },
     };
     let request = serde_json::to_string(&request).expect("IPC request serializes");
     match daemon_request(&request) {
@@ -227,6 +279,19 @@ fn main() {
                     std::process::exit(1);
                 }
             }
+        }
+        [command, subcommand] if command == "power" && subcommand == "status" => {
+            std::process::exit(provider_status("power", "noxctl-power-status"));
+        }
+        [command, subcommand, operation]
+            if command == "power" && subcommand == "profile" && operation == "list" =>
+        {
+            std::process::exit(provider_status("power", "noxctl-power-profile-list"));
+        }
+        [command, subcommand, operation, profile]
+            if command == "power" && subcommand == "profile" && operation == "set" =>
+        {
+            std::process::exit(power_profile_action(profile));
         }
         [command, value] if command == "brightness" => match parse_brightness(value) {
             Ok(action) => std::process::exit(brightness_action(action, "noxctl-brightness")),
@@ -437,6 +502,12 @@ mod tests {
         );
         assert!(parse_brightness("101").is_err());
         assert!(parse_brightness("+0").is_err());
+    }
+
+    #[test]
+    fn power_profile_names_are_safe() {
+        assert_eq!(power_profile_action(""), 2);
+        assert_eq!(power_profile_action("bad name"), 2);
     }
 
     #[test]

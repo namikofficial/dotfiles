@@ -74,6 +74,13 @@ Brightness actions use `brightness_set` and `brightness_adjust`. The brightness
 provider reports the selected safe internal backlight, current percentage,
 configured minimum and step, and explicit external-backend availability.
 
+Power actions use `power_profile_set`. The `power` provider reports UPower
+battery and AC state, nullable time and health values, UPower warning level,
+critical state, and the active/available power-profiles-daemon profiles. A
+missing battery is represented by `battery_present: false`; a missing
+power-profiles-daemon leaves the provider degraded and profile changes return
+the structured `unsupported` error.
+
 A successful subscription acknowledgement includes the subscription ID, the
 daemon stream ID, the sequence boundary, and matching provider snapshots:
 

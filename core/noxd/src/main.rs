@@ -152,6 +152,7 @@ fn handle_request(
     bus: &EventBus,
     audio: &noxd::providers::audio::ControlSender,
     brightness: &noxd::providers::brightness::Control,
+    power: &noxd::providers::power::Control,
 ) -> Result<Response, IpcError> {
     let result = match request {
         Request::Ping => Response::Pong,
@@ -230,6 +231,13 @@ fn handle_request(
                             message: error.to_string(),
                             details: BTreeMap::new(),
                         })?;
+                }
+                Action::PowerProfileSet { profile } => {
+                    power.set_profile(profile).map_err(|error| IpcError {
+                        code: ErrorCode::Unsupported,
+                        message: error.to_string(),
+                        details: BTreeMap::new(),
+                    })?;
                 }
                 _ => {}
             }
@@ -343,6 +351,7 @@ fn handle_client(
     bus: EventBus,
     audio: noxd::providers::audio::ControlSender,
     brightness: noxd::providers::brightness::Control,
+    power: noxd::providers::power::Control,
 ) -> io::Result<()> {
     stream.set_read_timeout(Some(CLIENT_READ_TIMEOUT))?;
     log_event("info", "client_connection", Some(socket), None, None);
@@ -476,7 +485,7 @@ fn handle_client(
                     }
                     request => {
                         let outbound_response =
-                            match handle_request(request, &bus, &audio, &brightness) {
+                            match handle_request(request, &bus, &audio, &brightness, &power) {
                                 Ok(result) => response(request_id, result),
                                 Err(error) => error_response(request_id, error),
                             };
@@ -667,7 +676,7 @@ fn run() -> io::Result<()> {
         "audio",
         "brightness",
         "network",
-        "battery",
+        "power",
         "media",
     ] {
         let registration = bus.register_provider(ProviderState {
@@ -707,6 +716,8 @@ fn run() -> io::Result<()> {
         config.brightness.step,
         config.brightness.external_backend.clone(),
     );
+    let (power_thread, power_control) =
+        noxd::providers::power::start(bus.clone(), Arc::clone(&shutting_down));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutting_down))
         .map_err(io::Error::other)?;
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutting_down))
@@ -721,6 +732,7 @@ fn run() -> io::Result<()> {
                 let client_bus = bus.clone();
                 let client_audio = audio_control.clone();
                 let client_brightness = brightness_control.clone();
+                let client_power = power_control.clone();
                 clients.push(thread::spawn(move || {
                     if let Err(error) = handle_client(
                         stream,
@@ -728,6 +740,7 @@ fn run() -> io::Result<()> {
                         client_bus,
                         client_audio,
                         client_brightness,
+                        client_power,
                     ) {
                         log_event(
                             "error",
@@ -758,6 +771,8 @@ fn run() -> io::Result<()> {
     let _ = audio_thread.join();
     drop(brightness_control);
     let _ = brightness_thread.join();
+    drop(power_control);
+    let _ = power_thread.join();
     for client in clients {
         let _ = client.join();
     }
