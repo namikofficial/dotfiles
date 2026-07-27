@@ -1,6 +1,9 @@
 //! The synchronized provider state and event bus used by `noxd`.
 
-use noxflow_ipc::{EventEnvelope, ProviderState, Subscription, PROTOCOL_VERSION};
+use noxflow_ipc::{
+    Action, EventEnvelope, ProviderState, ProviderStatus, Subscription, PROTOCOL_VERSION,
+};
+use serde_json::json;
 use std::{
     collections::{BTreeMap, HashMap},
     sync::{mpsc, Arc, Mutex},
@@ -10,6 +13,75 @@ use std::{
 pub mod providers;
 
 pub const DEFAULT_QUEUE_CAPACITY: usize = 256;
+
+struct IslandTestEvent {
+    provider: String,
+    event_type: String,
+    data: BTreeMap<String, serde_json::Value>,
+    snapshot: ProviderState,
+}
+
+impl ProviderEvent for IslandTestEvent {
+    fn provider(&self) -> &str {
+        &self.provider
+    }
+    fn event_type(&self) -> &str {
+        &self.event_type
+    }
+    fn data(&self) -> BTreeMap<String, serde_json::Value> {
+        self.data.clone()
+    }
+    fn snapshot(&self) -> ProviderState {
+        self.snapshot.clone()
+    }
+}
+
+/// Publish a synthetic Island event without invoking any hardware backend.
+pub fn publish_island_test(bus: &EventBus, action: &Action) -> Result<(), String> {
+    if let Action::IslandTestBrightness { percentage } = action {
+        if *percentage > 100 {
+            return Err("synthetic brightness must be between 0 and 100".into());
+        }
+    }
+    let (provider, field, value, event_type) = match action {
+        Action::IslandTestVolume { volume } => {
+            ("audio", "output_volume", json!(volume), "state_changed")
+        }
+        Action::IslandTestOutputMute { muted } => {
+            ("audio", "output_muted", json!(muted), "state_changed")
+        }
+        Action::IslandTestInputMute { muted } => {
+            ("audio", "input_muted", json!(muted), "state_changed")
+        }
+        Action::IslandTestBrightness { percentage } => (
+            "brightness",
+            "percentage",
+            json!(percentage),
+            "brightness_changed",
+        ),
+        _ => return Err("not an Island test action".into()),
+    };
+    let mut snapshot = bus
+        .snapshot()
+        .get(provider)
+        .cloned()
+        .unwrap_or(ProviderState {
+            provider: provider.into(),
+            status: ProviderStatus::Available,
+            data: BTreeMap::new(),
+        });
+    snapshot.data.insert(field.into(), value.clone());
+    let mut data = snapshot.data.clone();
+    data.insert(field.into(), value);
+    bus.publish(IslandTestEvent {
+        provider: provider.into(),
+        event_type: event_type.into(),
+        data,
+        snapshot,
+    })
+    .map(|_| ())
+    .map_err(|error| format!("unable to publish Island test event: {error:?}"))
+}
 
 fn timestamp() -> u64 {
     SystemTime::now()
@@ -459,5 +531,17 @@ mod tests {
             }),
             Err(BusError::Closed)
         );
+    }
+
+    #[test]
+    fn island_test_publishes_without_hardware_access() {
+        let bus = bus(2);
+        let subscription = bus.subscribe(vec!["audio".into()], vec![]).unwrap();
+        publish_island_test(&bus, &Action::IslandTestVolume { volume: 55 }).unwrap();
+        let event = subscription.try_recv().unwrap();
+        assert_eq!(event.provider, "audio");
+        assert_eq!(event.event_type, "state_changed");
+        assert_eq!(event.data["output_volume"], 55);
+        assert_eq!(bus.snapshot()["audio"].data["output_volume"], 55);
     }
 }

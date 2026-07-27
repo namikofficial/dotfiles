@@ -208,10 +208,30 @@ enum PlayerCommand {
 #[derive(Subcommand, Debug)]
 enum ShellCommand {
     Status,
-    Use { shell: ShellName },
+    Use {
+        shell: ShellName,
+    },
     Restart,
     SafeMode,
-    Toggle { target: ShellTarget },
+    Toggle {
+        target: ShellTarget,
+    },
+    Island {
+        #[command(subcommand)]
+        command: IslandCommand,
+    },
+}
+#[derive(Subcommand, Debug)]
+enum IslandCommand {
+    Volume { value: u8 },
+    Mute { state: IslandMuteState },
+    Mic { state: IslandMuteState },
+    Brightness { percentage: u8 },
+}
+#[derive(ValueEnum, Clone, Debug)]
+enum IslandMuteState {
+    Muted,
+    Unmuted,
 }
 #[derive(ValueEnum, Clone, Debug)]
 enum ShellName {
@@ -619,6 +639,11 @@ fn shell_command(command: &ShellCommand) -> Result<(), CliError> {
             PathBuf::from("/usr/bin/systemctl"),
             vec!["--user", "restart", "noxflow-session-optional.service"],
         ),
+        ShellCommand::Island { .. } => {
+            return Err(CliError::Usage(
+                "Island test command must be handled through noxd".into(),
+            ))
+        }
         ShellCommand::Status => return Ok(()),
     };
     let status = Command::new(program)
@@ -633,6 +658,26 @@ fn shell_command(command: &ShellCommand) -> Result<(), CliError> {
             status
         )))
     }
+}
+
+fn island_action(command: IslandCommand) -> Result<Action, CliError> {
+    Ok(match command {
+        IslandCommand::Volume { value } => Action::IslandTestVolume { volume: value },
+        IslandCommand::Mute { state } => Action::IslandTestOutputMute {
+            muted: matches!(state, IslandMuteState::Muted),
+        },
+        IslandCommand::Mic { state } => Action::IslandTestInputMute {
+            muted: matches!(state, IslandMuteState::Muted),
+        },
+        IslandCommand::Brightness { percentage } => {
+            if percentage > 100 {
+                return Err(CliError::Usage(
+                    "synthetic brightness must be between 0 and 100".into(),
+                ));
+            }
+            Action::IslandTestBrightness { percentage }
+        }
+    })
 }
 
 fn execute(cli: Cli) -> Result<(), CliError> {
@@ -874,6 +919,13 @@ fn execute(cli: Cli) -> Result<(), CliError> {
             print_response(&x, cli.json);
             Ok(())
         }
+        CommandGroup::Shell {
+            command: ShellCommand::Island { command },
+        } => {
+            let x = action(&c, island_action(command)?, "shell-island-test")?;
+            print_response(&x, cli.json);
+            Ok(())
+        }
         CommandGroup::Shell { command } => {
             if matches!(command, ShellCommand::Status) {
                 println!("shell script: {}", shell_script().display());
@@ -986,5 +1038,20 @@ mod tests {
         assert!(parse_volume("+0").is_err());
         assert_eq!(parse_seek(-1.5).unwrap(), -1_500_000);
         assert!(parse_seek(f64::NAN).is_err());
+    }
+
+    #[test]
+    fn island_commands_build_synthetic_actions() {
+        assert_eq!(
+            island_action(IslandCommand::Volume { value: 55 }).unwrap(),
+            Action::IslandTestVolume { volume: 55 }
+        );
+        assert_eq!(
+            island_action(IslandCommand::Mute {
+                state: IslandMuteState::Muted
+            })
+            .unwrap(),
+            Action::IslandTestOutputMute { muted: true }
+        );
     }
 }

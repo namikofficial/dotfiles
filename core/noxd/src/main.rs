@@ -189,6 +189,19 @@ fn handle_request(
         Request::RunAction { action } => {
             if matches!(
                 &action,
+                Action::IslandTestVolume { .. }
+                    | Action::IslandTestOutputMute { .. }
+                    | Action::IslandTestInputMute { .. }
+                    | Action::IslandTestBrightness { .. }
+            ) {
+                noxd::publish_island_test(bus, &action).map_err(|message| IpcError {
+                    code: ErrorCode::Unsupported,
+                    message,
+                    details: BTreeMap::new(),
+                })?;
+            }
+            if matches!(
+                &action,
                 Action::WorkspaceFocus { .. } | Action::WorkspaceCycle { .. }
             ) {
                 noxd::providers::hyprland::dispatch_workspace(&action).map_err(|error| {

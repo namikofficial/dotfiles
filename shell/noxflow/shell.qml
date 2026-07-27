@@ -30,6 +30,11 @@ ShellRoot {
 
     Variants {
         model: Quickshell.screens
+        NoxIsland {
+            required property var modelData
+            noxd: noxd; audio: audio; brightness: brightness
+            screen: modelData
+        }
         Bar {
             required property var modelData
             noxd: noxd; hyprland: hyprland; audio: audio

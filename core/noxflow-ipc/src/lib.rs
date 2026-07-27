@@ -127,6 +127,18 @@ pub enum Action {
     MediaSelectPlayer {
         player: String,
     },
+    IslandTestVolume {
+        volume: u8,
+    },
+    IslandTestOutputMute {
+        muted: bool,
+    },
+    IslandTestInputMute {
+        muted: bool,
+    },
+    IslandTestBrightness {
+        percentage: u8,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -409,5 +421,23 @@ mod tests {
         assert_eq!(json["timestamp"], 123);
         assert_eq!(json["provider"], "audio");
         assert_eq!(json["event_type"], "volume_changed");
+    }
+
+    #[test]
+    fn island_test_actions_round_trip() {
+        for action in [
+            Action::IslandTestVolume { volume: 42 },
+            Action::IslandTestOutputMute { muted: true },
+            Action::IslandTestInputMute { muted: false },
+            Action::IslandTestBrightness { percentage: 73 },
+        ] {
+            let envelope = RequestEnvelope {
+                protocol_version: 1,
+                request_id: "island-test".into(),
+                request: Request::RunAction { action },
+            };
+            let json = serde_json::to_string(&envelope).unwrap();
+            assert_eq!(decode_request(&json).unwrap(), envelope);
+        }
     }
 }
