@@ -16,7 +16,7 @@ use std::{
         fs::{FileTypeExt, MetadataExt, PermissionsExt},
         net::{UnixListener, UnixStream},
     },
-    path::Path,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -155,6 +155,7 @@ fn handle_request(
     power: &noxd::providers::power::Control,
     network: &noxd::providers::network::Control,
     bluetooth: &noxd::providers::bluetooth::Control,
+    media: &noxd::providers::media::ControlSender,
 ) -> Result<Response, IpcError> {
     let result = match request {
         Request::Ping => Response::Pong,
@@ -284,6 +285,27 @@ fn handle_request(
                         trusted,
                     })
                     .map_err(bluetooth_error)?,
+                Action::MediaPlay => media
+                    .send(noxd::providers::media::CommandRequest::Play)
+                    .map_err(media_error)?,
+                Action::MediaPause => media
+                    .send(noxd::providers::media::CommandRequest::Pause)
+                    .map_err(media_error)?,
+                Action::MediaPlayPause => media
+                    .send(noxd::providers::media::CommandRequest::PlayPause)
+                    .map_err(media_error)?,
+                Action::MediaPrevious => media
+                    .send(noxd::providers::media::CommandRequest::Previous)
+                    .map_err(media_error)?,
+                Action::MediaNext => media
+                    .send(noxd::providers::media::CommandRequest::Next)
+                    .map_err(media_error)?,
+                Action::MediaSeek { offset_us } => media
+                    .send(noxd::providers::media::CommandRequest::Seek { offset_us })
+                    .map_err(media_error)?,
+                Action::MediaSelectPlayer { player } => media
+                    .send(noxd::providers::media::CommandRequest::SelectPlayer { player })
+                    .map_err(media_error)?,
                 _ => {}
             }
             Response::ActionAccepted(ActionAccepted { action })
@@ -301,6 +323,14 @@ fn network_error(error: io::Error) -> IpcError {
 }
 
 fn bluetooth_error(error: io::Error) -> IpcError {
+    IpcError {
+        code: ErrorCode::Unsupported,
+        message: error.to_string(),
+        details: BTreeMap::new(),
+    }
+}
+
+fn media_error<E: std::fmt::Display>(error: E) -> IpcError {
     IpcError {
         code: ErrorCode::Unsupported,
         message: error.to_string(),
@@ -415,6 +445,7 @@ fn handle_client(
     power: noxd::providers::power::Control,
     network: noxd::providers::network::Control,
     bluetooth: noxd::providers::bluetooth::Control,
+    media: noxd::providers::media::ControlSender,
 ) -> io::Result<()> {
     stream.set_read_timeout(Some(CLIENT_READ_TIMEOUT))?;
     log_event("info", "client_connection", Some(socket), None, None);
@@ -555,6 +586,7 @@ fn handle_client(
                             &power,
                             &network,
                             &bluetooth,
+                            &media,
                         ) {
                             Ok(result) => response(request_id, result),
                             Err(error) => error_response(request_id, error),
@@ -793,6 +825,29 @@ fn run() -> io::Result<()> {
         noxd::providers::network::start(bus.clone(), Arc::clone(&shutting_down));
     let (bluetooth_thread, bluetooth_control) =
         noxd::providers::bluetooth::start(bus.clone(), Arc::clone(&shutting_down));
+    let artwork_dir = if config.media.artwork_cache_dir.is_empty() {
+        env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
+            .unwrap_or_else(|| PathBuf::from("/tmp"))
+            .join("noxflow/artwork")
+    } else {
+        PathBuf::from(&config.media.artwork_cache_dir)
+    };
+    let (media_thread, media_control) = noxd::providers::media::start(
+        bus.clone(),
+        Arc::clone(&shutting_down),
+        config.providers.media && config.media.mpris_integration,
+        config.media.default_player.clone(),
+        noxd::providers::media::ArtworkCacheConfig {
+            enabled: config.providers.media
+                && config.media.mpris_integration
+                && config.media.artwork_cache_enabled,
+            directory: artwork_dir,
+            max_bytes: config.media.artwork_cache_max_bytes,
+            ttl: Duration::from_secs(config.media.artwork_cache_ttl),
+        },
+    );
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutting_down))
         .map_err(io::Error::other)?;
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutting_down))
@@ -810,6 +865,7 @@ fn run() -> io::Result<()> {
                 let client_power = power_control.clone();
                 let client_network = network_control.clone();
                 let client_bluetooth = bluetooth_control.clone();
+                let client_media = media_control.clone();
                 clients.push(thread::spawn(move || {
                     if let Err(error) = handle_client(
                         stream,
@@ -820,6 +876,7 @@ fn run() -> io::Result<()> {
                         client_power,
                         client_network,
                         client_bluetooth,
+                        client_media,
                     ) {
                         log_event(
                             "error",
@@ -856,6 +913,8 @@ fn run() -> io::Result<()> {
     let _ = network_thread.join();
     drop(bluetooth_control);
     let _ = bluetooth_thread.join();
+    drop(media_control);
+    let _ = media_thread.join();
     for client in clients {
         let _ = client.join();
     }

@@ -103,7 +103,7 @@ The full schema with field types and constraints is in
 | `notifications`| timeout, max_history, dnd        | timeout: 1–3600                           |
 | `power`       | profile, dim..suspend             | profile: performance/balanced/power-saver |
 | `network`     | wifi_backend, dns                 |                                            |
-| `media`       | mpris, osd                        |                                            |
+| `media`       | mpris, osd, default player, artwork cache | remote artwork caching is disabled by default; enabled cache defaults to 50 MiB and 7 days |
 | `developer`   | editor, terminal, project_path    |                                            |
 | `ai`          | provider, endpoint, temperature   | temperature: 0.0–2.0, max_tokens: 1–128000|
 | `fallback`    | shell, compositor, launcher       | all non-empty                              |

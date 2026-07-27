@@ -28,7 +28,7 @@ fn daemon_request(request: &str) -> std::io::Result<String> {
 }
 
 fn usage() {
-    eprintln!("usage: noxctl status [hyprland] | network ... | bluetooth status | bluetooth power <on|off> | bluetooth discover <start|stop> | bluetooth <connect|disconnect|trust|untrust> <ADDRESS> | audio ... | brightness ... | power ... | doctor | config | logs ... | shell ...");
+    eprintln!("usage: noxctl status [hyprland] | network ... | bluetooth ... | audio ... | media ... | brightness ... | power ... | doctor | config | logs ... | shell ...");
 }
 
 fn network_action(action: Action, id: &str) -> i32 {
@@ -102,6 +102,42 @@ fn audio_action(action: Action, id: &str) -> i32 {
             1
         }
     }
+}
+
+fn media_action(action: Action, id: &str) -> i32 {
+    let request = RequestEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        request_id: id.into(),
+        request: Request::RunAction { action },
+    };
+    let request = serde_json::to_string(&request).expect("IPC request serializes");
+    match daemon_request(&request) {
+        Ok(response) => {
+            println!("{response}");
+            0
+        }
+        Err(error) => {
+            eprintln!("noxd unavailable: {error}");
+            1
+        }
+    }
+}
+
+fn valid_media_player(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+}
+
+fn parse_seek(value: &str) -> Result<i64, String> {
+    let seconds = value
+        .parse::<f64>()
+        .map_err(|_| "seek offset must be seconds".to_string())?;
+    if !seconds.is_finite() || seconds.abs() > 86_400.0 {
+        return Err("seek offset must be finite and within one day".into());
+    }
+    Ok((seconds * 1_000_000.0).round() as i64)
 }
 
 fn parse_volume(value: &str) -> Result<Action, String> {
@@ -427,6 +463,58 @@ fn main() {
                 }
             }
         }
+        [command, subcommand] if command == "media" && subcommand == "status" => {
+            std::process::exit(provider_status("media", "noxctl-media-status"));
+        }
+        [command, subcommand] if command == "media" && subcommand == "play-pause" => {
+            std::process::exit(media_action(
+                Action::MediaPlayPause,
+                "noxctl-media-play-pause",
+            ));
+        }
+        [command, subcommand] if command == "media" && subcommand == "play" => {
+            std::process::exit(media_action(Action::MediaPlay, "noxctl-media-play"));
+        }
+        [command, subcommand] if command == "media" && subcommand == "pause" => {
+            std::process::exit(media_action(Action::MediaPause, "noxctl-media-pause"));
+        }
+        [command, subcommand] if command == "media" && subcommand == "previous" => {
+            std::process::exit(media_action(Action::MediaPrevious, "noxctl-media-previous"));
+        }
+        [command, subcommand] if command == "media" && subcommand == "next" => {
+            std::process::exit(media_action(Action::MediaNext, "noxctl-media-next"));
+        }
+        [command, subcommand, offset] if command == "media" && subcommand == "seek" => {
+            match parse_seek(offset) {
+                Ok(offset_us) => std::process::exit(media_action(
+                    Action::MediaSeek { offset_us },
+                    "noxctl-media-seek",
+                )),
+                Err(error) => {
+                    eprintln!("media seek: {error}");
+                    std::process::exit(2);
+                }
+            }
+        }
+        [command, subcommand, operation]
+            if command == "media" && subcommand == "player" && operation == "list" =>
+        {
+            std::process::exit(provider_status("media", "noxctl-media-player-list"));
+        }
+        [command, subcommand, operation, player]
+            if command == "media" && subcommand == "player" && operation == "select" =>
+        {
+            if !valid_media_player(player) {
+                eprintln!("media player select: invalid player name");
+                std::process::exit(2);
+            }
+            std::process::exit(media_action(
+                Action::MediaSelectPlayer {
+                    player: player.clone(),
+                },
+                "noxctl-media-player-select",
+            ));
+        }
         [command, subcommand] if command == "brightness" && subcommand == "status" => {
             let request = RequestEnvelope {
                 protocol_version: PROTOCOL_VERSION,
@@ -680,6 +768,14 @@ mod tests {
         );
         assert!(parse_brightness("101").is_err());
         assert!(parse_brightness("+0").is_err());
+    }
+
+    #[test]
+    fn parses_media_seek_and_player_names() {
+        assert_eq!(parse_seek("-1.5").unwrap(), -1_500_000);
+        assert!(parse_seek("nan").is_err());
+        assert!(valid_media_player("spotify"));
+        assert!(!valid_media_player("spotify;quit"));
     }
 
     #[test]

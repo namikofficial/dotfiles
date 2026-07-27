@@ -110,6 +110,17 @@ pub enum Action {
         device_id: String,
         trusted: bool,
     },
+    MediaPlay,
+    MediaPause,
+    MediaPlayPause,
+    MediaPrevious,
+    MediaNext,
+    MediaSeek {
+        offset_us: i64,
+    },
+    MediaSelectPlayer {
+        player: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

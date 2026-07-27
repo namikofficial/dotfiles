@@ -15,3 +15,5 @@ serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 signal-hook = "0.3"
 zbus = { version = "4", features = ["blocking"] }
+ureq = "2"
+md5 = "0.7"

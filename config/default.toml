@@ -66,6 +66,10 @@ mpris_integration = true            # MPRIS media player integration
 osd_enabled = true                  # On-screen display for media changes
 osd_timeout = 2                     # OSD display seconds
 default_player = "spotify"          # Default MPRIS player
+artwork_cache_enabled = false        # Explicitly opt in to remote artwork downloads
+artwork_cache_dir = ""               # Defaults to $XDG_CACHE_HOME/noxflow/artwork
+artwork_cache_max_bytes = 52428800    # Bounded remote artwork cache size
+artwork_cache_ttl = 604800            # Cached artwork lifetime in seconds
 
 [audio]
 max_volume = 100                      # Volume clamp percentage

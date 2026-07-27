@@ -98,6 +98,16 @@ seconds unless stopped earlier. The provider reports adapter state, paired
 devices, normalized device categories, connection/trust state, and nullable
 Battery1 percentages.
 
+Media actions are `media_play`, `media_pause`, `media_play_pause`,
+`media_previous`, `media_next`, `media_seek` (signed microsecond offset), and
+`media_select_player`. The `media` provider reports available players, the
+active player, playback status, title, artists, album, artwork URL or cache
+reference, position, duration, volume, shuffle, and repeat where supported.
+It listens to MPRIS D-Bus lifecycle/property events; position is the last
+event-observed value with a `position_updated_at` timestamp because MPRIS does
+not emit `PropertiesChanged` for continuous position updates. Remote artwork is
+never downloaded unless `media.artwork_cache_enabled` is explicitly true.
+
 A successful subscription acknowledgement includes the subscription ID, the
 daemon stream ID, the sequence boundary, and matching provider snapshots:
 

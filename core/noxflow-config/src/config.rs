@@ -247,6 +247,10 @@ pub struct MediaConfig {
     pub osd_enabled: bool,
     pub osd_timeout: u64,
     pub default_player: String,
+    pub artwork_cache_enabled: bool,
+    pub artwork_cache_dir: String,
+    pub artwork_cache_max_bytes: u64,
+    pub artwork_cache_ttl: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -286,6 +290,10 @@ impl Default for MediaConfig {
             osd_enabled: true,
             osd_timeout: 2,
             default_player: "spotify".into(),
+            artwork_cache_enabled: false,
+            artwork_cache_dir: String::new(),
+            artwork_cache_max_bytes: 50 * 1024 * 1024,
+            artwork_cache_ttl: 7 * 24 * 60 * 60,
         }
     }
 }
