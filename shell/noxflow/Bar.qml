@@ -15,11 +15,36 @@ PanelWindow {
     required property var network
     required property var bluetooth
     required property var media
+    required property var notificationModel
+    required property var systemModel
+    property bool showNotificationBadge: !!(notificationModel && notificationModel.notifications && notificationModel.notifications.length > 0)
     property string monitorName: screen && screen.name ? screen.name : ""
     property var workspaceEntries: buildWorkspaceEntries()
     property var monitor: findMonitor()
     property bool providerDegraded: hasDegradedProvider()
     property bool urgent: monitorUrgentCount() > 0
+
+    // ── Morph-origin geometry (screen-space rects for Phase 3 MorphRegistry) ──
+    function chipRect(item) {
+        if (!item || !item.visible) return Qt.rect(0, 0, 0, 0);
+        var p = item.mapToItem(null, 0, 0);
+        return Qt.rect(p.x, p.y, item.width, item.height);
+    }
+    readonly property rect clockGeometry: chipRect(clockChip)
+    readonly property rect mediaChipGeometry: chipRect(mediaChip)
+    readonly property rect notificationChipGeometry: chipRect(notifChip)
+    readonly property rect statusClusterGeometry: chipRect(statusCluster)
+
+    // Register chips with MorphRegistry so panels can morph from them
+    function registerMorphChips() {
+        var reg = shellRoot.morphRegistry;
+        if (!reg) return;
+        reg.registerChip("clock", clockGeometry);
+        reg.registerChip("media", mediaChipGeometry);
+        reg.registerChip("notification", notificationChipGeometry);
+        reg.registerChip("status", statusClusterGeometry);
+    }
+    Component.onCompleted: registerMorphChips()
 
     screen: root.screen
     anchors.top: true
@@ -259,91 +284,237 @@ PanelWindow {
                 }
             }
 
-            Text {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
+            FocusScope {
+                id: mediaChip
+                property bool hovered: false
+                visible: mediaText.text !== ""
+                implicitWidth: mediaRow.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
                 Layout.maximumWidth: Theme.Tokens.scaled(280)
-                elide: Text.ElideRight
-                horizontalAlignment: Text.AlignRight
-                text: root.mediaLabel()
-                visible: text !== ""
-                color: Theme.Tokens.tonalSecondary
-                font.family: Theme.Tokens.typographyFontFamily
-                font.pixelSize: Theme.Tokens.typographyBodySmall
-                TapHandler { onTapped: { root.toggleMediaPlayback(); parent.forceActiveFocus(); } }
-                Accessible.name: visible ? "Media: " + text : ""
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.Tokens.radiusSm
+                    color: mediaChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent"
+                }
+                RowLayout {
+                    id: mediaRow
+                    anchors.centerIn: parent
+                    Text {
+                        id: mediaText
+                        Layout.maximumWidth: Theme.Tokens.scaled(260)
+                        elide: Text.ElideRight
+                        text: root.mediaLabel()
+                        color: Theme.Tokens.tonalSecondary
+                        font.family: Theme.Tokens.typographyFontFamily
+                        font.pixelSize: Theme.Tokens.typographyBodySmall
+                    }
+                }
+                HoverHandler { onHoveredChanged: mediaChip.hovered = hovered }
+                TapHandler { onTapped: { root.toggleMediaPlayback(); mediaChip.forceActiveFocus(); } }
+                Accessible.name: mediaText.text !== "" ? "Media: " + mediaText.text : ""
+                Tooltip { target: mediaChip; text: mediaText.text }
+            }
+
+            // ── Weather chip (guarded — may not fully resolve in Variants scope) ──
+            FocusScope {
+                id: weatherChip
+                property bool hovered: false
+                readonly property var _w: typeof shellRoot !== "undefined" && shellRoot ? shellRoot.weatherModel || null : null
+                visible: _w && _w.condition !== ""
+                implicitWidth: weatherRow.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+                Layout.maximumWidth: Theme.Tokens.scaled(180)
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.Tokens.radiusSm
+                    color: weatherChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent"
+                }
+                RowLayout {
+                    id: weatherRow
+                    anchors.centerIn: parent
+                    spacing: Theme.Tokens.spacingXs
+                    Text {
+                        text: weatherChip._w ? Math.round(weatherChip._w.temperature) + "°" : "—"
+                        color: Theme.Tokens.tonalSecondary
+                        font.family: Theme.Tokens.typographyFontFamily
+                        font.pixelSize: Theme.Tokens.typographyBodySmall
+                        font.bold: true
+                    }
+                    Text {
+                        text: weatherChip._w ? weatherChip._w.condition : ""
+                        color: Theme.Tokens.textSecondary
+                        font.family: Theme.Tokens.typographyFontFamily
+                        font.pixelSize: Theme.Tokens.typographyLabelSmall
+                        elide: Text.ElideRight
+                        visible: text !== ""
+                    }
+                }
+                HoverHandler { onHoveredChanged: weatherChip.hovered = hovered }
+                TapHandler { onTapped: shellRoot.toggleDashboard() }
+                Tooltip { target: weatherChip; text: weatherChip._w ? weatherChip._w.location + " — " + weatherChip._w.condition + ", " + Math.round(weatherChip._w.temperature) + "°C" : "" }
             }
 
             RowLayout {
+                id: statusCluster
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 Layout.alignment: Qt.AlignRight
-                spacing: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                spacing: Theme.Tokens.scaled(Theme.Tokens.spacingSm)
 
-                Text {
+                FocusScope {
+                    id: networkChip
                     property bool hovered: false
                     visible: root.networkLabel() !== ""
-                    text: "⌁ " + root.networkLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight; Accessible.name: "Network: " + text
-                    HoverHandler { onHoveredChanged: parent.hovered = hovered }
-                    TapHandler { onTapped: { root.refreshNetwork(); parent.forceActiveFocus(); } }
-                    Tooltip { target: parent; text: "Network: " + root.networkLabel() }
+                    implicitWidth: networkText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: networkChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
+                    Text { id: networkText; anchors.centerIn: parent; text: "⌁ " + root.networkLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight }
+                    HoverHandler { onHoveredChanged: networkChip.hovered = hovered }
+                    TapHandler { onTapped: { root.refreshNetwork(); networkChip.forceActiveFocus(); } }
+                    Accessible.name: "Network: " + root.networkLabel()
+                    Tooltip { target: networkChip; text: "Network: " + root.networkLabel() }
                 }
-                Text {
+                // CPU chip
+                FocusScope {
+                    id: cpuChip
+                    property bool hovered: false
+                    visible: true
+                    implicitWidth: cpuText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: cpuChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
+                    Text {
+                        id: cpuText; anchors.centerIn: parent
+                        text: "⚡ " + (typeof systemModel !== "undefined" && systemModel ? systemModel.cpuUsage + "%" : "--")
+                        color: (typeof systemModel !== "undefined" && systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary
+                        font.pixelSize: Theme.Tokens.typographyBodySmall
+                    }
+                    HoverHandler { onHoveredChanged: cpuChip.hovered = hovered }
+                    Tooltip { target: cpuChip; text: "CPU: " + (typeof systemModel !== "undefined" && systemModel ? systemModel.cpuUsage + "% @ " + systemModel.cpuTemp + "°C" : "N/A") }
+                }
+                // RAM chip
+                FocusScope {
+                    id: ramChip
+                    property bool hovered: false
+                    visible: true
+                    implicitWidth: ramText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: ramChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
+                    Text {
+                        id: ramText; anchors.centerIn: parent
+                        text: "💾 " + (typeof systemModel !== "undefined" && systemModel ? systemModel.memPercent + "%" : "--")
+                        color: (typeof systemModel !== "undefined" && systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary
+                        font.pixelSize: Theme.Tokens.typographyBodySmall
+                    }
+                    HoverHandler { onHoveredChanged: ramChip.hovered = hovered }
+                    Tooltip { target: ramChip; text: "RAM: " + (typeof systemModel !== "undefined" && systemModel ? Math.round(systemModel.memUsed / 1024) + "/" + Math.round(systemModel.memTotal / 1024) + " GB" : "N/A") }
+                }
+                FocusScope {
+                    id: bluetoothChip
                     property bool hovered: false
                     visible: root.bluetoothLabel() !== ""
-                    text: "◈ " + root.bluetoothLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; Accessible.name: "Bluetooth: " + text
-                    HoverHandler { onHoveredChanged: parent.hovered = hovered }
-                    TapHandler { onTapped: { root.toggleBluetooth(); parent.forceActiveFocus(); } }
-                    Tooltip { target: parent; text: "Bluetooth: " + root.bluetoothLabel() }
+                    implicitWidth: bluetoothText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: bluetoothChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
+                    Text { id: bluetoothText; anchors.centerIn: parent; text: "◈ " + root.bluetoothLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    HoverHandler { onHoveredChanged: bluetoothChip.hovered = hovered }
+                    TapHandler { onTapped: { root.toggleBluetooth(); bluetoothChip.forceActiveFocus(); } }
+                    Accessible.name: "Bluetooth: " + root.bluetoothLabel()
+                    Tooltip { target: bluetoothChip; text: "Bluetooth: " + root.bluetoothLabel() }
                 }
-                Text {
+                FocusScope {
+                    id: volumeChip
                     property bool hovered: false
                     visible: audio.status === "available"
-                    text: audio.outputMuted ? "◌" : "◉ " + audio.outputVolume + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; Accessible.name: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolume + " percent")
-                    HoverHandler { onHoveredChanged: parent.hovered = hovered }
-                    TapHandler { onTapped: { root.toggleOutputMute(); parent.forceActiveFocus(); } }
-                    Tooltip { target: parent; text: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolume + "%") }
+                    implicitWidth: volumeText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: volumeChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
+                    Text { id: volumeText; anchors.centerIn: parent; text: audio.outputMuted ? "◌" : "◉ " + audio.outputVolume + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    HoverHandler { onHoveredChanged: volumeChip.hovered = hovered }
+                    TapHandler { onTapped: { root.toggleOutputMute(); volumeChip.forceActiveFocus(); } }
+                    Accessible.name: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolume + " percent")
+                    Tooltip { target: volumeChip; text: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolume + "%") }
                 }
-                Text {
+                FocusScope {
+                    id: batteryChip
                     property bool hovered: false
                     visible: battery.status === "available" && battery.present && battery.percentage !== null
-                    text: "▰ " + Math.round(battery.percentage) + "%"; color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; Accessible.name: "Battery: " + text
-                    HoverHandler { onHoveredChanged: parent.hovered = hovered }
-                    Tooltip { target: parent; text: "Battery: " + Math.round(battery.percentage) + "%" }
+                    implicitWidth: batteryText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: batteryChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
+                    Text { id: batteryText; anchors.centerIn: parent; text: "▰ " + Math.round(battery.percentage) + "%"; color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    HoverHandler { onHoveredChanged: batteryChip.hovered = hovered }
+                    Accessible.name: "Battery: " + batteryText.text
+                    Tooltip { target: batteryChip; text: "Battery: " + Math.round(battery.percentage) + "%" }
                 }
-                Text {
+                FocusScope {
+                    id: notifChip
                     property bool hovered: false
-                    text: "·"; color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyTitleMedium; Accessible.role: Accessible.Button; Accessible.name: "Notifications"
-                    HoverHandler { onHoveredChanged: parent.hovered = hovered }
-                    Tooltip { target: parent; text: "Notifications" }
+                    implicitWidth: notifText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: notifChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
+                    Text {
+                        id: notifText; anchors.centerIn: parent
+                        text: root.showNotificationBadge ? root.notificationModel.notifications.length : "·"
+                        color: root.showNotificationBadge ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted
+                        font.pixelSize: Theme.Tokens.typographyTitleMedium
+                        font.bold: root.showNotificationBadge
+                    }
+                    HoverHandler { onHoveredChanged: notifChip.hovered = hovered }
+                    TapHandler { onTapped: shellRoot.toggleNotificationCentre() }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: root.showNotificationBadge ? root.notificationModel.notifications.length + " notifications" : "No notifications"
+                    Tooltip { target: notifChip; text: root.showNotificationBadge ? root.notificationModel.notifications.length + " notification(s)" : "Notifications" }
                 }
-                Text {
+                FocusScope {
+                    id: healthChip
                     property bool hovered: false
                     visible: root.providerDegraded
-                    text: "⚠"; color: Theme.Tokens.stateWarning; font.pixelSize: Theme.Tokens.typographyTitleMedium; Accessible.name: "Shell health degraded"
-                    HoverHandler { onHoveredChanged: parent.hovered = hovered }
-                    Tooltip { target: parent; text: "Shell health degraded" }
+                    implicitWidth: healthText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: healthChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
+                    Text { id: healthText; anchors.centerIn: parent; text: "⚠"; color: Theme.Tokens.stateWarning; font.pixelSize: Theme.Tokens.typographyTitleMedium }
+                    HoverHandler { onHoveredChanged: healthChip.hovered = hovered }
+                    Accessible.name: "Shell health degraded"
+                    Tooltip { target: healthChip; text: "Shell health degraded" }
                 }
             }
         }
 
         // Keep the clock independent from the variable-width content on either side.
-        Text {
-            id: clock
+        FocusScope {
+            id: clockChip
             anchors.centerIn: parent
             z: 10
-            text: Qt.formatTime(new Date(), "HH:mm")
-            color: Theme.Tokens.textPrimary
-            font.family: Theme.Tokens.typographyFontFamily
-            font.pixelSize: Theme.Tokens.typographyTitleMedium
-            font.bold: true
-            Timer {
-                interval: 1000
-                repeat: true
-                running: true
-                onTriggered: clock.text = Qt.formatTime(new Date(), "HH:mm")
+            property bool hovered: false
+            implicitWidth: clock.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+            implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
+
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.Tokens.radiusSm
+                color: clockChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent"
             }
-            Accessible.name: "Current time: " + text
+            Text {
+                id: clock
+                anchors.centerIn: parent
+                text: Qt.formatTime(new Date(), "HH:mm")
+                color: Theme.Tokens.textPrimary
+                font.family: Theme.Tokens.typographyFontFamily
+                font.pixelSize: Theme.Tokens.typographyTitleMedium
+                font.bold: true
+                Timer {
+                    interval: 1000
+                    repeat: true
+                    running: true
+                    onTriggered: clock.text = Qt.formatTime(new Date(), "HH:mm")
+                }
+            }
+            HoverHandler { onHoveredChanged: clockChip.hovered = hovered }
+            TapHandler { onTapped: shellRoot.toggleCalendar() }
+            Accessible.name: "Current time: " + clock.text
+            Tooltip { target: clockChip; text: "Calendar" }
         }
     }
 }

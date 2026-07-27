@@ -1,3 +1,10 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ⚠ DEPRECATED — Wayle bar configuration.
+# NoxFlow (Quickshell) is the active shell. This file is kept as a reference
+# fallback and for the noxflow-fallback systemd unit.
+# Active shell config: ~/.config/noxflow/config.toml and shell/noxflow/
+# ─────────────────────────────────────────────────────────────────────────────
+
 imports = []
 
 [general]

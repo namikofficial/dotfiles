@@ -17,7 +17,6 @@ FocusScope {
     property bool showClearButton: false
     property int maxLength: 0
     signal accepted()
-    signal textChanged(string newText)
 
     implicitWidth: Theme.Tokens.scaled(280)
     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightField + (label ? Theme.Tokens.spacingLg + 14 : 0))
@@ -56,28 +55,39 @@ FocusScope {
                 anchors.rightMargin: Theme.Tokens.spacingSm
                 spacing: Theme.Tokens.spacingSm
 
-                TextInput {
-                    id: input
+                Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    text: root.text
-                    placeholderText: root.placeholderText
-                    readOnly: root.readOnly
-                    clip: true
-                    verticalAlignment: Text.AlignVCenter
-                    color: root.readOnly ? Theme.Tokens.textDisabled : Theme.Tokens.textPrimary
-                    font.pixelSize: Theme.Tokens.typographyBodyLarge
-                    font.family: Theme.Tokens.typographyFontFamily
-                    selectionColor: Theme.Tokens.withAlpha(Theme.Tokens.tonalPrimary, 0.3)
-                    selectedTextColor: Theme.Tokens.textPrimary
-                    activeFocusOnTab: false
-                    selectByMouse: true
-                    maximumLength: root.maxLength > 0 ? root.maxLength : 99999
-                    onTextChanged: {
-                        root.text = text
-                        root.textChanged(text)
+
+                    TextInput {
+                        id: input
+                        anchors.fill: parent
+                        text: root.text
+                        readOnly: root.readOnly
+                        clip: true
+                        verticalAlignment: Text.AlignVCenter
+                        color: root.readOnly ? Theme.Tokens.textDisabled : Theme.Tokens.textPrimary
+                        font.pixelSize: Theme.Tokens.typographyBodyLarge
+                        font.family: Theme.Tokens.typographyFontFamily
+                        selectionColor: Theme.Tokens.withAlpha(Theme.Tokens.tonalPrimary, 0.3)
+                        selectedTextColor: Theme.Tokens.textPrimary
+                        activeFocusOnTab: false
+                        selectByMouse: true
+                        maximumLength: root.maxLength > 0 ? root.maxLength : 99999
+                        onTextChanged: { root.text = text }
+                        onAccepted: root.accepted()
                     }
-                    onAccepted: root.accepted()
+
+                    Text {
+                        anchors.fill: parent
+                        verticalAlignment: Text.AlignVCenter
+                        text: root.placeholderText
+                        color: Theme.Tokens.textMuted
+                        font.pixelSize: Theme.Tokens.typographyBodyLarge
+                        font.family: Theme.Tokens.typographyFontFamily
+                        visible: input.text === "" && !input.activeFocus
+                        clip: true
+                    }
                 }
 
                 Text {
@@ -86,7 +96,6 @@ FocusScope {
                     color: Theme.Tokens.textMuted
                     font.pixelSize: Theme.Tokens.typographyBodyMedium
                     TapHandler { onTapped: { input.text = ""; input.forceActiveFocus() } }
-                    cursorShape: Qt.PointingHandCursor
                 }
             }
         }

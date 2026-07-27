@@ -13,7 +13,7 @@ FocusScope {
     activeFocusOnTab: true
     Accessible.role: Accessible.Slider
     Accessible.name: "Slider"
-    Accessible.value: root.value
+    // Accessible.value: root.value  // not available in this Qt version
     Rectangle { anchors.verticalCenter: parent.verticalCenter; x: 0; width: parent.width; height: 4; radius: 2; color: Theme.Tokens.outlineSubtle }
     Rectangle { anchors.verticalCenter: parent.verticalCenter; x: 0; width: Math.max(0, root.width * ((root.value - root.from) / (root.to - root.from))); height: 4; radius: 2; color: Theme.Tokens.tonalPrimary }
     Rectangle { x: Math.max(0, Math.min(root.width - 20, root.width * ((root.value - root.from) / (root.to - root.from)) - 10)); anchors.verticalCenter: parent.verticalCenter; width: 20; height: 20; radius: 10; color: root.activeFocus ? Theme.Tokens.outlineFocus : Theme.Tokens.tonalPrimary }

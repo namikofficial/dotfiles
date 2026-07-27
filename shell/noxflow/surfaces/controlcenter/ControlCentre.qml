@@ -6,6 +6,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import "../../theme" as Theme
 import "../../components" as Components
@@ -26,14 +27,50 @@ PanelWindow {
     property real openProgress: 0
     property bool panelOpen: false
     property int activeTab: 0 // 0: quick, 1: audio, 2: network, 3: bluetooth
+    property bool focusEnabled: false
+    property bool dndBusy: false
+
+    // ── Debounced slider commit ──
+    property real pendingBrightness: -1
+    property real pendingVolume: -1
+    Timer {
+        id: sliderCommitTimer
+        interval: 100
+        repeat: false
+        onTriggered: {
+            if (root.pendingBrightness >= 0 && root.noxd.connected) {
+                root.noxd.runAction({ brightness_set: { percentage: Math.round(root.pendingBrightness * 100) } });
+                root.pendingBrightness = -1;
+            }
+            if (root.pendingVolume >= 0 && root.noxd.connected) {
+                root.noxd.runAction({ audio_set_volume: { target: "output", volume: Math.round(root.pendingVolume * (audio.maxVolume || 100)) } });
+                root.pendingVolume = -1;
+            }
+        }
+    }
+    function queueBrightness(v) { root.pendingBrightness = v; sliderCommitTimer.restart(); }
+    function queueVolume(v) { root.pendingVolume = v; sliderCommitTimer.restart(); }
+
+    // ── DND toggle via dunstctl ──
+    property Process dndCheck: Process {
+        running: false
+        stdout: SplitParser {
+            onRead: function(line) {
+                root.focusEnabled = line.trim() === "true";
+            }
+        }
+    }
+    property Process dndSet: Process {
+        running: false
+    }
 
     anchors.right: true
     anchors.top: true
     anchors.bottom: true
-    anchors.topMargin: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
-    anchors.bottomMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
-    anchors.rightMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
-    width: Theme.Tokens.scaled(380)
+    margins.top: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
+    margins.bottom: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+    margins.right: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+    implicitWidth: Theme.Tokens.scaled(380)
     exclusiveZone: 0
     aboveWindows: true
     focusable: true
@@ -53,8 +90,6 @@ PanelWindow {
         border.width: 1
         opacity: root.openProgress
         scale: 0.85 + 0.15 * root.openProgress
-        transformOrigin: Item.TopRight
-
         Behavior on scale {
             NumberAnimation { duration: Theme.Tokens.duration(200); easing.type: Easing.OutBack }
         }
@@ -160,14 +195,17 @@ PanelWindow {
 
                         // DND tile
                         Components.ControlTile {
-                            icon: "⊘"
-                            label: "Do Not Disturb"
+                            icon: root.focusEnabled ? "⊘" : "◈"
+                            label: root.focusEnabled ? "Do Not Disturb (ON)" : "Do Not Disturb"
                             active: true
-                            statusColor: Theme.Tokens.textSecondary
-                            toggleChecked: false
+                            statusColor: root.focusEnabled ? Theme.Tokens.tonalPrimary : Theme.Tokens.textSecondary
+                            toggleChecked: root.focusEnabled
                             showToggle: true
                             onToggleChanged: {
-                                // TODO: wire to notification provider DND
+                                if (root.dndBusy) return;
+                                root.dndBusy = true;
+                                root.dndSet.command = ["dunstctl", value ? "set-paused" : "set-paused", value ? "true" : "false"];
+                                root.dndSet.running = true;
                             }
                         }
 
@@ -181,11 +219,7 @@ PanelWindow {
                             Components.Slider {
                                 Layout.fillWidth: true
                                 value: brightness.available ? brightness.percentage / 100 : 0.5
-                                onValueChanged: {
-                                    if (brightness.available && root.noxd.connected) {
-                                        root.noxd.runAction({ brightness_set: { percentage: Math.round(value * 100) } });
-                                    }
-                                }
+                                onValueChanged: root.queueBrightness(value)
                             }
                             Text {
                                 text: Math.round(brightness.available ? brightness.percentage : 50) + "%"
@@ -206,11 +240,7 @@ PanelWindow {
                             Components.Slider {
                                 Layout.fillWidth: true
                                 value: audio.available ? audio.outputVolume / audio.maxVolume : 0.5
-                                onValueChanged: {
-                                    if (audio.available && root.noxd.connected) {
-                                        root.noxd.runAction({ audio_set_volume: { target: "output", volume: Math.round(value * audio.maxVolume) } });
-                                    }
-                                }
+                                onValueChanged: root.queueVolume(value)
                             }
                             Text {
                                 text: audio.available ? audio.outputVolume + "%" : "--"
@@ -220,7 +250,43 @@ PanelWindow {
 
                         Components.Divider { Layout.fillWidth: true }
 
-                        // Power profile
+                        // Battery mode drawer
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.Tokens.spacingMd
+                            visible: power.profilesAvailable
+                            Text { text: "🔋"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
+                            Text {
+                                text: "Mode: " + (power.activeProfile || "balanced")
+                                color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium
+                                Layout.fillWidth: true
+                            }
+                            Repeater {
+                                model: ["power-saver", "balanced", "performance"]
+                                delegate: Rectangle {
+                                    required property string modelData
+                                    height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                                    implicitWidth: Theme.Tokens.scaled(70)
+                                    radius: Theme.Tokens.radiusPill
+                                    color: power.activeProfile === modelData ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceVariant
+                                    border.color: power.activeProfile === modelData ? Theme.Tokens.tonalPrimary : "transparent"
+                                    border.width: power.activeProfile === modelData ? 1 : 0
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData === "power-saver" ? "🪫" : modelData === "balanced" ? "🔋" : "⚡"
+                                        color: power.activeProfile === modelData ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
+                                        font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                    }
+                                    TapHandler {
+                                        onTapped: { if (root.noxd.connected) root.noxd.runAction({ power_profile_set: { profile: modelData } }) }
+                                    }
+                                }
+                            }
+                        }
+
+                        Components.Divider { Layout.fillWidth: true }
+
+                        // Power profile (cycle)
                         RowLayout {
                             Layout.fillWidth: true
                             visible: power.profilesAvailable
@@ -467,14 +533,19 @@ PanelWindow {
         panelOpen = true;
         openProgress = 1;
         forceActiveFocus();
+        // Refresh DND state
+        dndCheck.command = ["dunstctl", "get-paused"];
+        dndCheck.running = true;
     }
 
     function close() {
-        openProgress = 0;
-        var anim = Qt.createQmlObject('import QtQuick; NumberAnimation { duration: 150; easing.type: Easing.InCubic }', root, "closeAnim");
-        anim.from = 1; anim.to = 0; anim.target = root; anim.property = "openProgress";
-        anim.onFinished = function() { root.panelOpen = false; anim.destroy(); };
-        anim.start();
+        closeAnim.start();
+    }
+
+    SequentialAnimation {
+        id: closeAnim
+        NumberAnimation { target: root; property: "openProgress"; from: 1; to: 0; duration: 150; easing.type: Easing.InCubic }
+        onFinished: root.panelOpen = false
     }
 
     function toggle() {

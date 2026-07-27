@@ -3,6 +3,9 @@ import QtQuick.Layouts
 import Quickshell
 import "theme" as Theme
 import "components" as Components
+import "surfaces/notifications" as NotificationSurfaces
+import "surfaces/radialmenu" as RadialMenuSurface
+import "surfaces/launcher" as LauncherSurface
 
 PanelWindow {
     id: root
@@ -15,6 +18,7 @@ PanelWindow {
     required property NetworkModel network
     required property BluetoothModel bluetooth
     required property MediaModel media
+    required property NotificationModel notifModel
     property int selectedPage: 0
     property bool reducedMotion: false
     property string density: "comfortable"
@@ -39,7 +43,8 @@ PanelWindow {
         RowLayout {
             Layout.fillWidth: true
             Components.TextButton { text: "Components"; onClicked: root.selectedPage = 0 }
-            Components.TextButton { text: "Diagnostics"; onClicked: root.selectedPage = 1 }
+            Components.TextButton { text: "Surfaces"; onClicked: root.selectedPage = 1 }
+            Components.TextButton { text: "Diagnostics"; onClicked: root.selectedPage = 2 }
             Components.TextButton { text: "Compact"; onClicked: { root.density = "compact"; Theme.Tokens.activeDensity = root.density } }
             Components.TextButton { text: "Comfortable"; onClicked: { root.density = "comfortable"; Theme.Tokens.activeDensity = root.density } }
             Components.TextButton { text: "Spacious"; onClicked: { root.density = "spacious"; Theme.Tokens.activeDensity = root.density } }
@@ -112,8 +117,92 @@ PanelWindow {
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root.selectedPage === 1
+            visible: root.selectedPage === 2
             Diagnostics { anchors.fill: parent; client: root.client; hyprland: root.hyprland; audio: root.audio; brightness: root.brightness; battery: root.battery; power: root.power; network: root.network; bluetooth: root.bluetooth; media: root.media }
+        }
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: root.selectedPage === 1
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: Theme.Tokens.spacingLg
+                Text { text: "Surfaces"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyHeadlineMedium }
+                Text { text: "Nox Island (live preview)"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyTitleMedium }
+                // Island state triggers
+                RowLayout {
+                    spacing: Theme.Tokens.spacingMd
+                    Components.TextButton { text: "Volume 68%"; onClicked: { if (typeof window === "undefined" || !window.noxIslandPreview) return; window.noxIslandPreview.show("volume", "Volume", "◉", 68, 100) } }
+                    Components.TextButton { text: "Brightness 42%"; onClicked: { if (typeof window === "undefined" || !window.noxIslandPreview) return; window.noxIslandPreview.show("brightness", "Brightness", "☼", 42, 100) } }
+                    Components.TextButton { text: "Mic muted"; onClicked: { if (typeof window === "undefined" || !window.noxIslandPreview) return; window.noxIslandPreview.show("mic", "Mic muted", "⊗", 0, 1) } }
+                    Components.TextButton { text: "Recording"; onClicked: { if (typeof window === "undefined" || !window.noxIslandPreview) return; window.noxIslandPreview.showRecording() } }
+                    Components.TextButton { text: "Timer 5:00"; onClicked: { if (typeof window === "undefined" || !window.noxIslandPreview) return; window.noxIslandPreview.startTimer(300) } }
+                    Components.TextButton { text: "Media"; onClicked: { if (typeof window === "undefined" || !window.noxIslandPreview) return; window.noxIslandPreview.show("media", "Never Gonna Give You Up", "♫", 50, 100) } }
+                    Components.TextButton { text: "Hide"; onClicked: { if (typeof window === "undefined" || !window.noxIslandPreview) return; window.noxIslandPreview.deactivate() } }
+                }
+                NoxIsland {
+                    id: previewIsland
+                    noxd: root.client; audio: root.audio; brightness: root.brightness
+                    screen: root.screen
+                }
+                Component.onCompleted: { if (typeof window !== "undefined") window.noxIslandPreview = previewIsland }
+
+                Components.Divider { Layout.fillWidth: true }
+
+                Text { text: "Notification Centre (demo)"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyTitleMedium }
+                RowLayout {
+                    spacing: Theme.Tokens.spacingMd
+                    Components.TextButton { text: "Add System"; onClicked: root.notifModel.addNotification("System", "Update available", "System update 24.04 is ready to install", "◈", "low") }
+                    Components.TextButton { text: "Add Chat"; onClicked: root.notifModel.addNotification("Chat", "New message from Alice", "Hey, are you free for lunch?", "◈", "normal") }
+                    Components.TextButton { text: "Add Critical"; onClicked: root.notifModel.addNotification("Battery", "Battery critically low", "10% remaining — plug in now", "⚡", "critical", [{id: "dismiss", label: "Dismiss"}]) }
+                    Components.TextButton { text: "Dismiss last"; onClicked: { var n = root.notifModel.notifications; if (n.length) root.notifModel.dismissNotification(n[n.length - 1].id) } }
+                    Components.TextButton { text: "Clear all"; onClicked: root.notifModel.clearAll() }
+                }
+
+                // NotificationCentre in compact preview mode
+                NotificationSurfaces.NotificationCentre {
+                    id: previewNc
+                    noxd: root.client; notifModel: root.notifModel
+                    screen: root.screen
+                    panelOpen: true
+                    openProgress: 1
+                }
+
+                Components.Divider { Layout.fillWidth: true }
+
+                Text { text: "Radial Wheel (demo)"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyTitleMedium }
+                RowLayout {
+                    spacing: Theme.Tokens.spacingMd
+                    Components.TextButton { text: "Open wheel"; onClicked: { if (window.radialPreview) window.radialPreview.open() } }
+                    Components.TextButton { text: "Close wheel"; onClicked: { if (window.radialPreview) window.radialPreview.close() } }
+                }
+                RadialMenuSurface.RadialWheel {
+                    id: radialPreview
+                    noxd: root.client
+                    screen: root.screen
+                    width: Theme.Tokens.scaled(240)
+                    height: Theme.Tokens.scaled(240)
+                    openProgress: 1
+                    wheelOpen: true
+                }
+                Component.onCompleted: { if (typeof window !== "undefined") window.radialPreview = radialPreview }
+
+                Components.Divider { Layout.fillWidth: true }
+
+                Text { text: "Universal Launcher (demo)"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyTitleMedium }
+                RowLayout {
+                    spacing: Theme.Tokens.spacingMd
+                    Components.TextButton { text: "Open launcher"; onClicked: { if (window.launcherPreview) window.launcherPreview.open() } }
+                    Components.TextButton { text: "Close launcher"; onClicked: { if (window.launcherPreview) window.launcherPreview.close() } }
+                }
+                LauncherSurface.Launcher {
+                    id: launcherPreview
+                    noxd: root.client; hyprland: root.hyprland
+                    screen: root.screen
+                    launcherOpen: true
+                }
+                Component.onCompleted: { if (typeof window !== "undefined") window.launcherPreview = launcherPreview }
+            }
         }
     }
 }

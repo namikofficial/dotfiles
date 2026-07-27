@@ -31,3 +31,11 @@ settings/export/
 .noxflow/
 noxflow.local.toml
 noxflow-*.log
+
+# Calendar sync (Waylandar-style): OAuth tokens, credentials, config, cache
+external/waylandar-backend/config.json
+external/waylandar-backend/token_*.json
+external/waylandar-backend/credentials.json
+external/waylandar-backend/*.ics
+external/waylandar-backend/__pycache__/
+external/waylandar-backend/cache_*.json

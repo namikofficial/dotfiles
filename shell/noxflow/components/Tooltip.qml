@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell._Window
 import "../theme" as Theme
 
@@ -11,12 +12,13 @@ PopupWindow {
     property bool targetHovered: target && target.hovered === true
 
     visible: target && targetHovered && text !== ""
-    parentWindow: target ? target.window : null
+    anchor.window: target && target.window ? target.window : null
+    anchor.item: target ? target : null
+    anchor.rect.x: target ? target.width / 2 - implicitWidth / 2 : 0
+    anchor.rect.y: target ? target.height + Theme.Tokens.scaled(Theme.Tokens.spacingXs) : 0
     implicitWidth: Theme.Tokens.scaled(220)
     implicitHeight: label.implicitHeight + Theme.Tokens.scaled(Theme.Tokens.spacingLg)
     color: "transparent"
-    relativeX: target ? target.mapToItem(null, target.width / 2, 0).x - width / 2 : 0
-    relativeY: target ? target.mapToItem(null, 0, target.height).y + Theme.Tokens.scaled(Theme.Tokens.spacingXs) : 0
 
     Rectangle {
         anchors.fill: parent

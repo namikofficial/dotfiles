@@ -1,70 +1,74 @@
 pragma Singleton
 import QtQml
 import QtQuick
+import "ThemeProfiles.js" as Profiles
 
 QtObject {
     id: root
 
-    // appearance
+    // ── Current active profile name ──
+    property string currentProfile: "material-expressive"
+
+    // appearance (config-level, not per-profile)
     readonly property string appearanceMode: "dark"
     readonly property string appearanceDensity: "comfortable"
     readonly property int appearanceRadius: 14
     readonly property string appearanceMotion: "fluid"
     readonly property string appearanceTransparency: "balanced"
 
-    // tonal
-    readonly property color tonalBackground: "#090B10"
-    readonly property color tonalPrimary: "#8FA8FF"
-    readonly property color tonalOnPrimary: "#101A3A"
-    readonly property color tonalPrimaryContainer: "#293A75"
-    readonly property color tonalOnPrimaryContainer: "#DCE3FF"
-    readonly property color tonalSecondary: "#7CE0D3"
-    readonly property color tonalOnSecondary: "#08201D"
-    readonly property color tonalSecondaryContainer: "#20504A"
-    readonly property color tonalOnSecondaryContainer: "#B8F3EA"
-    readonly property color tonalTertiary: "#D4B6F2"
-    readonly property color tonalOnTertiary: "#261334"
-    readonly property color tonalTertiaryContainer: "#503A68"
-    readonly property color tonalOnTertiaryContainer: "#EFDFFF"
+    // ── Tonal (writable — switched by applyProfile) ──
+    property color tonalBackground: "#090B10"
+    property color tonalPrimary: "#8FA8FF"
+    property color tonalOnPrimary: "#101A3A"
+    property color tonalPrimaryContainer: "#293A75"
+    property color tonalOnPrimaryContainer: "#DCE3FF"
+    property color tonalSecondary: "#7CE0D3"
+    property color tonalOnSecondary: "#08201D"
+    property color tonalSecondaryContainer: "#20504A"
+    property color tonalOnSecondaryContainer: "#B8F3EA"
+    property color tonalTertiary: "#D4B6F2"
+    property color tonalOnTertiary: "#261334"
+    property color tonalTertiaryContainer: "#503A68"
+    property color tonalOnTertiaryContainer: "#EFDFFF"
 
-    // surface
-    readonly property color surfaceSurface: "#11141C"
-    readonly property color surfaceSurfaceContainerLow: "#0E1117"
-    readonly property color surfaceSurfaceContainer: "#181C27"
-    readonly property color surfaceSurfaceContainerHigh: "#222838"
-    readonly property color surfaceSurfaceContainerHighest: "#2C3344"
-    readonly property color surfaceSurfaceVariant: "#303749"
-    readonly property color surfaceInverseSurface: "#E1E5EF"
-    readonly property color surfaceInverseOnSurface: "#282B33"
+    // ── Surface (writable) ──
+    property color surfaceSurface: "#11141C"
+    property color surfaceSurfaceContainerLow: "#0E1117"
+    property color surfaceSurfaceContainer: "#181C27"
+    property color surfaceSurfaceContainerHigh: "#222838"
+    property color surfaceSurfaceContainerHighest: "#2C3344"
+    property color surfaceSurfaceVariant: "#303749"
+    property color surfaceInverseSurface: "#E1E5EF"
+    property color surfaceInverseOnSurface: "#282B33"
 
-    // text
-    readonly property color textPrimary: "#F2F5FA"
-    readonly property color textSecondary: "#D7DEEA"
-    readonly property color textMuted: "#9EA8B8"
-    readonly property color textDisabled: "#687181"
-    readonly property color textOnPrimary: "#101A3A"
-    readonly property color textOnSecondary: "#08201D"
-    readonly property color textOnSurfaceVariant: "#C0C8D8"
+    // ── Text (writable) ──
+    property color textPrimary: "#F2F5FA"
+    property color textSecondary: "#D7DEEA"
+    property color textMuted: "#9EA8B8"
+    property color textDisabled: "#687181"
+    property color textOnPrimary: "#101A3A"
+    property color textOnSecondary: "#08201D"
+    property color textOnSurfaceVariant: "#C0C8D8"
 
-    // outline
-    readonly property color outlineDefault: "#596276"
-    readonly property color outlineSubtle: "#303749"
-    readonly property color outlineStrong: "#AAB5C9"
-    readonly property color outlineFocus: "#B8C7FF"
+    // ── Outline (writable) ──
+    property color outlineDefault: "#596276"
+    property color outlineSubtle: "#303749"
+    property color outlineStrong: "#AAB5C9"
+    property color outlineFocus: "#B8C7FF"
 
-    // state
-    readonly property color stateSuccess: "#7ADFA4"
-    readonly property color stateOnSuccess: "#092616"
-    readonly property color stateWarning: "#F2C66D"
-    readonly property color stateOnWarning: "#2B2107"
-    readonly property color stateDanger: "#FF7993"
-    readonly property color stateOnDanger: "#3A0713"
-    readonly property color stateInfo: "#8DC9FF"
-    readonly property color stateOnInfo: "#08233A"
-    readonly property color stateHoverOverlay: "#FFFFFF"
-    readonly property color statePressedOverlay: "#000000"
-    readonly property color stateFocusOverlay: "#B8C7FF"
-    readonly property color stateDisabledOverlay: "#FFFFFF"
+    // ── State (writable) ──
+    property color stateSuccess: "#7ADFA4"
+    property color stateOnSuccess: "#092616"
+    property color stateWarning: "#F2C66D"
+    property color stateOnWarning: "#2B2107"
+    property color stateDanger: "#FF7993"
+    property color stateOnDanger: "#3A0713"
+    property color stateInfo: "#8DC9FF"
+    property color stateOnInfo: "#08233A"
+    property color stateHoverOverlay: "#FFFFFF"
+    property color statePressedOverlay: "#000000"
+    property color stateFocusOverlay: "#B8C7FF"
+    property color stateDisabledOverlay: "#FFFFFF"
 
     // spacing
     readonly property int spacingNone: 0
@@ -76,14 +80,14 @@ QtObject {
     readonly property int spacingXxl: 32
     readonly property int spacingSection: 40
 
-    // radius
-    readonly property int radiusNone: 0
-    readonly property int radiusXs: 4
-    readonly property int radiusSm: 8
-    readonly property int radiusMd: 12
-    readonly property int radiusLg: 16
-    readonly property int radiusXl: 24
-    readonly property int radiusPill: 999
+    // radius (writable — can change with profile)
+    property int radiusNone: 0
+    property int radiusXs: 4
+    property int radiusSm: 8
+    property int radiusMd: 12
+    property int radiusLg: 16
+    property int radiusXl: 24
+    property int radiusPill: 999
 
     // elevation
     readonly property int elevationNone: 0
@@ -156,8 +160,72 @@ QtObject {
 
     property string activeDensity: appearanceDensity
     property bool reducedMotion: reducedMotionEnabled
+
+    // ── Public API ──
     function scale(value, density) { return value * (density === "compact" ? 0.9 : density === "spacious" ? 1.1 : 1.0); }
     function scaled(value) { return scale(value, activeDensity); }
     function duration(value) { return reducedMotion ? reducedMotionDurationScale * value : value; }
     function withAlpha(value, alpha) { return Qt.rgba(value.r, value.g, value.b, alpha); }
+
+    /// Apply a named theme profile, updating all color properties.
+    function applyProfile(name) {
+        var p = Profiles.getProfile(name);
+        if (!p) return;
+
+        // tonals
+        tonalBackground             = p.tonals.background;
+        tonalPrimary                = p.tonals.primary;
+        tonalOnPrimary              = p.tonals.onPrimary;
+        tonalPrimaryContainer       = p.tonals.primaryContainer;
+        tonalOnPrimaryContainer     = p.tonals.onPrimaryContainer;
+        tonalSecondary              = p.tonals.secondary;
+        tonalOnSecondary            = p.tonals.onSecondary;
+        tonalSecondaryContainer     = p.tonals.secondaryContainer;
+        tonalOnSecondaryContainer   = p.tonals.onSecondaryContainer;
+        tonalTertiary               = p.tonals.tertiary;
+        tonalOnTertiary             = p.tonals.onTertiary;
+        tonalTertiaryContainer      = p.tonals.tertiaryContainer;
+        tonalOnTertiaryContainer    = p.tonals.onTertiaryContainer;
+
+        // surfaces
+        surfaceSurface              = p.surfaces.surface;
+        surfaceSurfaceContainerLow  = p.surfaces.surfaceContainerLow;
+        surfaceSurfaceContainer     = p.surfaces.surfaceContainer;
+        surfaceSurfaceContainerHigh = p.surfaces.surfaceContainerHigh;
+        surfaceSurfaceContainerHighest = p.surfaces.surfaceContainerHighest;
+        surfaceSurfaceVariant       = p.surfaces.surfaceVariant;
+        surfaceInverseSurface       = p.surfaces.inverseSurface;
+        surfaceInverseOnSurface     = p.surfaces.inverseOnSurface;
+
+        // text
+        textPrimary                 = p.text.primary;
+        textSecondary               = p.text.secondary;
+        textMuted                   = p.text.muted;
+        textDisabled               = p.text.disabled;
+        textOnPrimary              = p.text.onPrimary;
+        textOnSecondary            = p.text.onSecondary;
+        textOnSurfaceVariant       = p.text.onSurfaceVariant;
+
+        // outline
+        outlineDefault             = p.outline.default;
+        outlineSubtle              = p.outline.subtle;
+        outlineStrong              = p.outline.strong;
+        outlineFocus               = p.outline.focus;
+
+        // state
+        stateSuccess               = p.state.success;
+        stateOnSuccess             = p.state.onSuccess;
+        stateWarning               = p.state.warning;
+        stateOnWarning             = p.state.onWarning;
+        stateDanger                 = p.state.danger;
+        stateOnDanger               = p.state.onDanger;
+        stateInfo                   = p.state.info;
+        stateOnInfo                 = p.state.onInfo;
+        stateHoverOverlay           = p.state.hoverOverlay;
+        statePressedOverlay         = p.state.pressedOverlay;
+        stateFocusOverlay           = p.state.focusOverlay;
+        stateDisabledOverlay        = p.state.disabledOverlay;
+
+        currentProfile = name;
+    }
 }

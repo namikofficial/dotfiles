@@ -1,7 +1,7 @@
 .pragma library
 
 var protocolVersion = 1;
-var providers = ["hyprland", "audio", "brightness", "power", "network", "bluetooth", "media"];
+var providers = ["hyprland", "audio", "brightness", "power", "network", "bluetooth", "media", "notifications"];
 
 function isObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);

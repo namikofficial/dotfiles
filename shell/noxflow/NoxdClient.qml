@@ -59,6 +59,14 @@ QtObject {
         });
     }
 
+    function setSetting(key, value) {
+        if (!connected) return false;
+        return sendRequest("set_setting", { key: key, value: value }, function(result) {
+            if (!result || result.type !== "setting_updated")
+                errorText = "daemon returned malformed setting response";
+        });
+    }
+
     function connectNow() {
         reconnectTimer.stop();
         if (socket.connected) return;
