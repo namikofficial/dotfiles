@@ -24,8 +24,7 @@ impl Default for ConfigPaths {
         let config_dir = xdg_var("XDG_CONFIG_HOME")
             .unwrap_or_else(|| home.join(".config"))
             .join("noxflow");
-        let runtime_dir =
-            xdg_var("XDG_RUNTIME_DIR").unwrap_or_else(|| PathBuf::from("/tmp"));
+        let runtime_dir = xdg_var("XDG_RUNTIME_DIR").unwrap_or_else(|| PathBuf::from("/tmp"));
         let state_dir = xdg_var("XDG_STATE_HOME")
             .unwrap_or_else(|| home.join(".local").join("state"))
             .join("noxflow");
@@ -72,6 +71,7 @@ pub struct Config {
     pub network: NetworkConfig,
     pub media: MediaConfig,
     pub audio: AudioConfig,
+    pub brightness: BrightnessConfig,
     pub developer: DeveloperConfig,
     pub ai: AiConfig,
     pub fallback: FallbackConfig,
@@ -93,6 +93,7 @@ impl Default for Config {
             network: NetworkConfig::default(),
             media: MediaConfig::default(),
             audio: AudioConfig::default(),
+            brightness: BrightnessConfig::default(),
             developer: DeveloperConfig::default(),
             ai: AiConfig::default(),
             fallback: FallbackConfig::default(),
@@ -254,6 +255,24 @@ pub struct AudioConfig {
     pub max_volume: u8,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BrightnessConfig {
+    pub minimum: u8,
+    pub step: u8,
+    pub external_backend: String,
+}
+
+impl Default for BrightnessConfig {
+    fn default() -> Self {
+        Self {
+            minimum: 10,
+            step: 5,
+            external_backend: "none".into(),
+        }
+    }
+}
+
 impl Default for AudioConfig {
     fn default() -> Self {
         Self { max_volume: 100 }
@@ -391,10 +410,7 @@ impl Config {
 
         // shell
         if self.shell.name.is_empty() {
-            errors.push(ConfigError::validation(
-                "shell.name",
-                "must not be empty",
-            ));
+            errors.push(ConfigError::validation("shell.name", "must not be empty"));
         }
         if self.shell.fallback.is_empty() {
             errors.push(ConfigError::validation(
@@ -407,10 +423,7 @@ impl Config {
         if self.notifications.timeout == 0 || self.notifications.timeout > 3600 {
             errors.push(ConfigError::validation(
                 "notifications.timeout",
-                format!(
-                    "value {} out of range 1–3600",
-                    self.notifications.timeout
-                ),
+                format!("value {} out of range 1–3600", self.notifications.timeout),
             ));
         }
 
@@ -430,6 +443,25 @@ impl Config {
             errors.push(ConfigError::validation(
                 "audio.max_volume",
                 "must be greater than zero",
+            ));
+        }
+
+        if self.brightness.minimum > 100 {
+            errors.push(ConfigError::validation(
+                "brightness.minimum",
+                format!("value {} out of range 0–100", self.brightness.minimum),
+            ));
+        }
+        if self.brightness.step == 0 || self.brightness.step > 100 {
+            errors.push(ConfigError::validation(
+                "brightness.step",
+                format!("value {} out of range 1–100", self.brightness.step),
+            ));
+        }
+        if !["none", "ddcutil"].contains(&self.brightness.external_backend.as_str()) {
+            errors.push(ConfigError::validation(
+                "brightness.external_backend",
+                "expected one of [none, ddcutil]",
             ));
         }
 

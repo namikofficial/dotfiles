@@ -99,6 +99,7 @@ The full schema with field types and constraints is in
 | `shell`       | name, fallback, reduced_motion    | name and fallback must be non-empty       |
 | `providers`   | audio..clipboard booleans         | all default to true                       |
 | `audio`       | `max_volume`                       | volume clamp, default 100                 |
+| `brightness`  | `minimum`, `step`, `external_backend` | minimum 0–100, step 1–100, backend `none` or `ddcutil` |
 | `notifications`| timeout, max_history, dnd        | timeout: 1–3600                           |
 | `power`       | profile, dim..suspend             | profile: performance/balanced/power-saver |
 | `network`     | wifi_backend, dns                 |                                            |

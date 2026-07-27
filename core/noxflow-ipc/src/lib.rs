@@ -55,11 +55,30 @@ pub enum Action {
     Reboot,
     PowerOff,
     RefreshProviders,
-    SetProfile { profile: String },
-    AudioSetVolume { target: AudioTarget, volume: u8 },
-    AudioAdjustVolume { target: AudioTarget, delta: i16 },
-    AudioToggleMute { target: AudioTarget },
-    AudioSetDefault { target: AudioTarget, selector: String },
+    SetProfile {
+        profile: String,
+    },
+    AudioSetVolume {
+        target: AudioTarget,
+        volume: u8,
+    },
+    AudioAdjustVolume {
+        target: AudioTarget,
+        delta: i16,
+    },
+    AudioToggleMute {
+        target: AudioTarget,
+    },
+    AudioSetDefault {
+        target: AudioTarget,
+        selector: String,
+    },
+    BrightnessSet {
+        percentage: u8,
+    },
+    BrightnessAdjust {
+        delta: i16,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -178,6 +197,7 @@ pub enum ErrorCode {
     UnknownProvider,
     UnknownSetting,
     UnknownAction,
+    Unsupported,
     NotSubscribed,
     Internal,
 }

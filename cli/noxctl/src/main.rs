@@ -28,7 +28,7 @@ fn daemon_request(request: &str) -> std::io::Result<String> {
 }
 
 fn usage() {
-    eprintln!("usage: noxctl status [hyprland] | audio status | audio volume <PERCENT|+DELTA|-DELTA> | audio mute toggle | audio mic toggle | audio default <output|input> <NODE_ID|NODE_NAME> | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
+    eprintln!("usage: noxctl status [hyprland] | audio status | audio volume <PERCENT|+DELTA|-DELTA> | brightness status | brightness <PERCENT|+DELTA|-DELTA> | doctor | config | logs [--follow] [--provider NAME] | shell use <noxflow|wayle> | shell restart | shell safe-mode");
 }
 
 fn audio_action(action: Action, id: &str) -> i32 {
@@ -75,6 +75,50 @@ fn parse_volume(value: &str) -> Result<Action, String> {
         target: AudioTarget::Output,
         volume,
     })
+}
+
+fn parse_brightness(value: &str) -> Result<Action, String> {
+    if let Some(delta) = value.strip_prefix('+').or_else(|| value.strip_prefix('-')) {
+        let amount = delta
+            .parse::<i16>()
+            .map_err(|_| "brightness adjustment must be an integer".to_string())?;
+        if amount == 0 || amount > 100 {
+            return Err("brightness adjustment must be between 1 and 100".into());
+        }
+        return Ok(Action::BrightnessAdjust {
+            delta: if value.starts_with('-') {
+                -amount
+            } else {
+                amount
+            },
+        });
+    }
+    let percentage = value
+        .parse::<u8>()
+        .map_err(|_| "brightness must be 0-100 or a signed adjustment".to_string())?;
+    if percentage > 100 {
+        return Err("brightness percentage must be between 0 and 100".into());
+    }
+    Ok(Action::BrightnessSet { percentage })
+}
+
+fn brightness_action(action: Action, id: &str) -> i32 {
+    let request = RequestEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        request_id: id.into(),
+        request: Request::RunAction { action },
+    };
+    let request = serde_json::to_string(&request).expect("IPC request serializes");
+    match daemon_request(&request) {
+        Ok(response) => {
+            println!("{response}");
+            0
+        }
+        Err(error) => {
+            eprintln!("noxd unavailable: {error}");
+            1
+        }
+    }
 }
 
 fn valid_provider(provider: &str) -> bool {
@@ -167,6 +211,30 @@ fn main() {
                 }
             }
         }
+        [command, subcommand] if command == "brightness" && subcommand == "status" => {
+            let request = RequestEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                request_id: "noxctl-brightness-status".into(),
+                request: Request::GetProviderState {
+                    provider: "brightness".into(),
+                },
+            };
+            let request = serde_json::to_string(&request).expect("IPC request serializes");
+            match daemon_request(&request) {
+                Ok(response) => println!("{response}"),
+                Err(error) => {
+                    eprintln!("noxd unavailable: {error}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        [command, value] if command == "brightness" => match parse_brightness(value) {
+            Ok(action) => std::process::exit(brightness_action(action, "noxctl-brightness")),
+            Err(error) => {
+                eprintln!("brightness: {error}");
+                std::process::exit(2);
+            }
+        },
         [command, subcommand, value] if command == "audio" && subcommand == "volume" => {
             match parse_volume(value) {
                 Ok(action) => std::process::exit(audio_action(action, "noxctl-audio-volume")),
@@ -351,6 +419,24 @@ mod tests {
             }
         );
         assert!(parse_volume("+0").is_err());
+    }
+
+    #[test]
+    fn parses_brightness_commands() {
+        assert_eq!(
+            parse_brightness("60").unwrap(),
+            Action::BrightnessSet { percentage: 60 }
+        );
+        assert_eq!(
+            parse_brightness("+5").unwrap(),
+            Action::BrightnessAdjust { delta: 5 }
+        );
+        assert_eq!(
+            parse_brightness("-5").unwrap(),
+            Action::BrightnessAdjust { delta: -5 }
+        );
+        assert!(parse_brightness("101").is_err());
+        assert!(parse_brightness("+0").is_err());
     }
 
     #[test]

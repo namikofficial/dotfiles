@@ -70,6 +70,11 @@ default_player = "spotify"          # Default MPRIS player
 [audio]
 max_volume = 100                      # Volume clamp percentage
 
+[brightness]
+minimum = 10                           # Safe minimum percentage
+step = 5                               # Relative adjustment percentage
+external_backend = "none"             # Explicitly opt in with: ddcutil
+
 [developer]
 editor = "neovim"                   # Default editor
 terminal = "kitty"                  # Default terminal emulator

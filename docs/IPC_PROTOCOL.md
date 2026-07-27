@@ -70,6 +70,10 @@ Audio actions use `audio_set_volume`, `audio_adjust_volume`,
 `audio_toggle_mute`, and `audio_set_default`, with `target` set to `output` or
 `input`. Device selectors are PipeWire node IDs or node names.
 
+Brightness actions use `brightness_set` and `brightness_adjust`. The brightness
+provider reports the selected safe internal backlight, current percentage,
+configured minimum and step, and explicit external-backend availability.
+
 A successful subscription acknowledgement includes the subscription ID, the
 daemon stream ID, the sequence boundary, and matching provider snapshots:
 
@@ -93,7 +97,7 @@ a response such as:
 
 Error codes are `invalid_request`, `unsupported_protocol_version`,
 `unknown_method`, `invalid_params`, `unknown_provider`, `unknown_setting`,
-`unknown_action`, `not_subscribed`, and `internal`. Error objects are stable
+`unknown_action`, `unsupported`, `not_subscribed`, and `internal`. Error objects are stable
 and structured; `details` may gain fields over time.
 
 ## Rust types

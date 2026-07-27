@@ -151,8 +151,9 @@ fn handle_request(
     request: Request,
     bus: &EventBus,
     audio: &noxd::providers::audio::ControlSender,
-) -> Response {
-    match request {
+    brightness: &noxd::providers::brightness::Control,
+) -> Result<Response, IpcError> {
+    let result = match request {
         Request::Ping => Response::Pong,
         Request::GetVersion => Response::Version(VersionInfo {
             daemon_version: env!("CARGO_PKG_VERSION").to_owned(),
@@ -211,9 +212,31 @@ fn handle_request(
             if let Some(command) = command {
                 let _ = audio.send(command);
             }
+            match action.clone() {
+                Action::BrightnessSet { percentage } => {
+                    brightness
+                        .send(noxd::providers::brightness::CommandRequest::Set { percentage })
+                        .map_err(|error| IpcError {
+                            code: ErrorCode::Unsupported,
+                            message: error.to_string(),
+                            details: BTreeMap::new(),
+                        })?;
+                }
+                Action::BrightnessAdjust { delta } => {
+                    brightness
+                        .send(noxd::providers::brightness::CommandRequest::Adjust { delta })
+                        .map_err(|error| IpcError {
+                            code: ErrorCode::Unsupported,
+                            message: error.to_string(),
+                            details: BTreeMap::new(),
+                        })?;
+                }
+                _ => {}
+            }
             Response::ActionAccepted(ActionAccepted { action })
         }
-    }
+    };
+    Ok(result)
 }
 
 fn decode_error(error: DecodeError) -> (String, IpcError) {
@@ -319,6 +342,7 @@ fn handle_client(
     socket: &Path,
     bus: EventBus,
     audio: noxd::providers::audio::ControlSender,
+    brightness: noxd::providers::brightness::Control,
 ) -> io::Result<()> {
     stream.set_read_timeout(Some(CLIENT_READ_TIMEOUT))?;
     log_event("info", "client_connection", Some(socket), None, None);
@@ -451,11 +475,13 @@ fn handle_client(
                             })?;
                     }
                     request => {
+                        let outbound_response =
+                            match handle_request(request, &bus, &audio, &brightness) {
+                                Ok(result) => response(request_id, result),
+                                Err(error) => error_response(request_id, error),
+                            };
                         outbound
-                            .send(Outbound::Response(response(
-                                request_id,
-                                handle_request(request, &bus, &audio),
-                            )))
+                            .send(Outbound::Response(outbound_response))
                             .map_err(|_| {
                                 io::Error::new(io::ErrorKind::BrokenPipe, "client writer stopped")
                             })?;
@@ -636,7 +662,14 @@ fn run() -> io::Result<()> {
     let shutting_down = Arc::new(AtomicBool::new(false));
     let bus = EventBus::new();
     let provider_failures = ProviderFailureLimiter::new(Duration::from_secs(30));
-    for provider in ["hyprland", "audio", "network", "battery", "media"] {
+    for provider in [
+        "hyprland",
+        "audio",
+        "brightness",
+        "network",
+        "battery",
+        "media",
+    ] {
         let registration = bus.register_provider(ProviderState {
             provider: provider.into(),
             status: ProviderStatus::Pending,
@@ -667,6 +700,13 @@ fn run() -> io::Result<()> {
         Arc::clone(&shutting_down),
         config.audio.max_volume,
     );
+    let (brightness_thread, brightness_control) = noxd::providers::brightness::start(
+        bus.clone(),
+        Arc::clone(&shutting_down),
+        config.brightness.minimum,
+        config.brightness.step,
+        config.brightness.external_backend.clone(),
+    );
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&shutting_down))
         .map_err(io::Error::other)?;
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&shutting_down))
@@ -680,10 +720,15 @@ fn run() -> io::Result<()> {
                 let client_socket = socket.clone();
                 let client_bus = bus.clone();
                 let client_audio = audio_control.clone();
+                let client_brightness = brightness_control.clone();
                 clients.push(thread::spawn(move || {
-                    if let Err(error) =
-                        handle_client(stream, &client_socket, client_bus, client_audio)
-                    {
+                    if let Err(error) = handle_client(
+                        stream,
+                        &client_socket,
+                        client_bus,
+                        client_audio,
+                        client_brightness,
+                    ) {
                         log_event(
                             "error",
                             "internal_failure",
@@ -711,6 +756,8 @@ fn run() -> io::Result<()> {
     let _ = hyprland_thread.join();
     drop(audio_control);
     let _ = audio_thread.join();
+    drop(brightness_control);
+    let _ = brightness_thread.join();
     for client in clients {
         let _ = client.join();
     }
