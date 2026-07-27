@@ -1,7 +1,6 @@
 # NoxFlow Shell Milestone 1 Release Report
 
-Status: implementation complete; live release gate blocked by missing
-Quickshell on the validation machine.
+Status: Release candidate
 
 ## Scope
 
@@ -18,29 +17,32 @@ Run from the repository root in an active Hyprland graphical session:
 ```
 
 The gate checks Rust formatting, Clippy, tests, QML syntax, systemd units,
-configuration, fallback availability, IPC documentation, hard-coded paths,
-and live shell integration.
+configuration, package ownership, fallback availability, IPC documentation,
+hard-coded paths, Quickshell launch, Quickshell-to-noxd IPC, and live shell
+integration. The gate passed on 2026-07-27.
 
 ## Integration matrix
 
-| Scenario | Result | Notes |
-| --- | --- | --- |
-| noxd systemd startup | Pass | Active under `noxd.service`; socket and provider snapshots available. |
-| Quickshell connection and reconnect | Blocked | `quickshell` is not installed. |
-| Bar provider state updates | Blocked | Requires Quickshell session. |
-| Audio and brightness controls | Pass | Provider/action/unit tests pass. |
-| Network, Bluetooth, battery and power state | Pass | Provider/action/unit tests pass; live Bluetooth hardware is unavailable to the test harness. |
-| Media state and controls | Pass | MPRIS provider/action tests pass; no active player is required. |
-| Nox Island activity | Pass | Synthetic Island IPC tests pass. |
-| Multi-monitor placement | Blocked | Requires Quickshell session and external display exercise. |
-| Hyprland reload | Blocked | Requires active Quickshell session. |
-| Quickshell and noxd restart | Partial | noxd restart is supervised; Quickshell restart is blocked by missing binary. |
-| Suspend/resume | Blocked | Requires live desktop power-cycle exercise. |
-| External monitor disconnect/reconnect | Blocked | Requires live external monitor. |
-| Daemon unavailable mode | Pass | QML client reconnect/degraded-path code and protocol fixtures pass. |
-| Protocol mismatch | Pass | CLI and IPC tests pass. |
-| Invalid configuration | Pass | Configuration integration tests pass. |
-| Wayle fallback and safe mode | Pass | `noxctl shell safe-mode` selects the active Wayle recovery path. |
+| Scenario | Static test | Synthetic integration test | Live desktop test | Manual hardware test |
+| --- | --- | --- | --- | --- |
+| noxd systemd startup | Pass | — | Pass; active unit and socket | — |
+| Quickshell production entrypoint | Pass; `qmllint` | — | Pass; one instance | — |
+| Protocol negotiation/subscription | Pass | Pass | Pass; journal records subscription | — |
+| Bar/provider state updates | Pass | Pass | Pass; live provider snapshots | Media content pending real player |
+| Audio/brightness controls | Pass | Pass | Pass; signed and mute round-trips | — |
+| Network/Bluetooth/battery/power | Pass | Pass | Pass; live providers available | Paired Bluetooth device pending |
+| MPRIS media | Pass | Pass | Provider unavailable without player | Start a real MPRIS player |
+| Nox Island content/timeout | Pass | Pass | Pass; synthetic volume/brightness events | Visual timeout confirmation |
+| Multi-monitor placement | Pass | Pass | Single-monitor pass | External display reconnect |
+| Hyprland reload/workspace | Pass | Pass | Reload passed | Confirm workspace switching |
+| noxd restart/socket recovery | Pass | Pass | Pass; disconnect/resubscribe | — |
+| Quickshell restart/crash | Pass | Pass | Pass; forced SIGKILL recovered | — |
+| Daemon-unavailable mode | Pass | Pass | Pass; socket disappearance exercised | — |
+| Protocol mismatch | Pass | Pass | — | — |
+| Invalid configuration | Pass | Pass | — | — |
+| Wayle fallback/return to NoxFlow | Pass | Pass | Pass; both directions | — |
+| Suspend/resume | Pass | Pass | — | Required manual test |
+| External-monitor disconnect/reconnect | Pass | Pass | — | Required manual test |
 
 ## Measurements
 
@@ -50,18 +52,30 @@ Capture live values with:
 ./setup/measure-noxflow.sh
 ```
 
-The NoxFlow-specific measurement command is currently blocked because the
-NoxFlow shell cannot be active without Quickshell. The live daemon snapshot on
-2026-07-27 reported `noxd` RSS of approximately 16.3 MiB. Login-to-bar time,
-NoxFlow idle CPU, and NoxFlow process count remain pending until Quickshell is
-installed and the gate is rerun.
+Measured on 2026-07-27 after a 10-second settle:
+
+```text
+noxd RSS: 12,232 KiB
+Quickshell RSS: 233,216 KiB
+Combined NoxFlow RSS: 245,448 KiB
+Idle CPU: 0.31%
+NoxFlow-related processes: 2
+Journal errors since shell start: 0
+Wayle fallback startup: 790 ms
+NoxFlow shell startup after Wayle: 549 ms
+```
+
+The reported `login_to_visible_bar_seconds=16,698` is a session-start to
+current-shell-activation proxy, not a clean boot measurement. A true
+login-to-visible-bar measurement remains a manual next-login check.
 
 ## Recovery behavior
 
-NoxFlow failure stops the failed shell and activates Wayle through the
-fallback service. `noxctl shell safe-mode` explicitly selects the same
-no-daemon recovery path. The last fallback reason is retained in NoxFlow
-state for diagnostics.
+NoxFlow failure activates Wayle through the fallback service. `noxctl shell
+safe-mode` explicitly selects the same no-daemon recovery path. A forced
+Quickshell SIGKILL produced an inactive failed NoxFlow unit and active Wayle;
+`noxctl shell use noxflow` restored one active Quickshell instance and no Wayle
+process.
 
 ## Remaining Wayle dependencies
 
@@ -72,6 +86,7 @@ and controls are owned by `noxd`.
 
 ## Release decision
 
-The static gate passes. The overall release decision remains pending until
-Quickshell is installed, the live integration matrix is completed, and
-`setup/release-gate.sh` exits successfully.
+The milestone is a Release candidate. The release gate passed. Remaining work
+is limited to manual suspend/resume, external-monitor reconnect, true
+login-to-visible-bar timing, and a real MPRIS playback session before marking
+the milestone Passed.

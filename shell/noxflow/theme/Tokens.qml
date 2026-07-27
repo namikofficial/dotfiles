@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQml
+import QtQuick
 
 QtObject {
     id: root

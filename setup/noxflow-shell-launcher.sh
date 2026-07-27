@@ -6,4 +6,4 @@ if ! command -v quickshell >/dev/null 2>&1; then
   exit 127
 fi
 
-exec quickshell --path "${XDG_CONFIG_HOME:-$HOME/.config}/noxflow/shell"
+exec quickshell --no-duplicate --path "${XDG_CONFIG_HOME:-$HOME/.config}/noxflow/shell"

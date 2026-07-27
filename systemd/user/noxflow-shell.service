@@ -8,8 +8,6 @@ OnFailure=noxflow-fallback.service
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/noxflow-shell
-Restart=on-failure
-RestartSec=2
 KillSignal=SIGTERM
 NoNewPrivileges=yes
 PrivateTmp=yes

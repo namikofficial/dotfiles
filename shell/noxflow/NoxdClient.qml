@@ -32,9 +32,12 @@ QtObject {
     property string streamId: ""
     property string subscriptionId: ""
 
-    Timer { id: reconnectTimer; repeat: false; onTriggered: root.connectNow() }
+    property Timer reconnectTimer: Timer {
+        repeat: false
+        onTriggered: root.connectNow()
+    }
 
-    Socket {
+    property Socket socket: Socket {
         id: socket
         path: root.socketPath
         connected: false
@@ -66,6 +69,7 @@ QtObject {
 
     function handleConnectionChange() {
         if (socket.connected) {
+            console.info("noxd socket connected", socketPath);
             retryDelay = 250;
             negotiatedVersion = 0;
             eventDescription = "none";
@@ -73,6 +77,7 @@ QtObject {
             phase = "negotiating";
             sendRequest("get_version", undefined, handleVersion);
         } else {
+            console.warn("noxd socket disconnected", socketPath);
             phase = "disconnected";
             pending = null;
             subscriptionId = "";
@@ -87,6 +92,7 @@ QtObject {
     }
 
     function handleSocketError(message) {
+        console.error("noxd socket error", message);
         errorText = "socket: " + message;
         if (socket.connected) socket.connected = false;
     }
@@ -135,6 +141,7 @@ QtObject {
         subscriptionId = subscription.subscription_id;
         publishSnapshots(subscription.snapshots);
         phase = "subscribed";
+        console.info("noxd IPC subscribed", streamId, subscriptionId);
     }
 
     function handleFrame(text) {
@@ -149,6 +156,7 @@ QtObject {
         var callback = pending.callback;
         pending = null;
         if (response.error !== undefined) {
+            console.error("noxd request failed", response.error.message || "unknown error");
             errorText = response.error.message || "daemon request failed";
             if (phase !== "subscribed") failProtocol(errorText);
             return;
@@ -187,6 +195,7 @@ QtObject {
     }
 
     function failProtocol(message) {
+        console.error("noxd protocol failure", message);
         errorText = message;
         phase = "disconnected";
         if (socket.connected) socket.connected = false;

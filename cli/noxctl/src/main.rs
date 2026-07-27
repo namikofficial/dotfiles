@@ -115,6 +115,7 @@ enum ProviderCommand {
 enum AudioCommand {
     Status,
     Volume {
+        #[arg(allow_hyphen_values = true)]
         value: String,
     },
     Mute {
@@ -137,8 +138,13 @@ enum ToggleCommand {
 #[derive(Subcommand, Debug)]
 enum BrightnessCommand {
     Status,
-    Set { percentage: u8 },
-    Adjust { delta: i16 },
+    Set {
+        percentage: u8,
+    },
+    Adjust {
+        #[arg(allow_hyphen_values = true)]
+        delta: i16,
+    },
 }
 #[derive(Subcommand, Debug)]
 enum PowerCommand {
@@ -993,7 +999,7 @@ fn execute(cli: Cli) -> Result<(), CliError> {
             if full {
                 let cfg = config_for(None)?;
                 println!("config validation: ok");
-                for command in ["systemctl", "qmllint", "quickshell"] {
+                for command in ["systemctl", "qmllint"] {
                     let available = Command::new("sh")
                         .args(["-c", &format!("command -v {command}")])
                         .stdout(Stdio::null())
@@ -1006,6 +1012,61 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                             "required command unavailable: {command}"
                         )));
                     }
+                }
+                let quickshell_available = Command::new("sh")
+                    .args(["-c", "command -v quickshell"])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false);
+                if !quickshell_available {
+                    return Err(CliError::Local(
+                        "FAIL: required NoxFlow shell runtime `quickshell` is not installed\nFix: sudo pacman -S --needed quickshell".into(),
+                    ));
+                }
+                let shell_active = Command::new("systemctl")
+                    .args(["--user", "is-active", "--quiet", "noxflow-shell.service"])
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false);
+                if !shell_active {
+                    return Err(CliError::Local(
+                        "FAIL: Quickshell is installed but the NoxFlow shell is unable to launch\nFix: journalctl --user -u noxflow-shell.service -n 80 --no-pager".into(),
+                    ));
+                }
+                let shell_start = Command::new("systemctl")
+                    .args([
+                        "--user",
+                        "show",
+                        "noxflow-shell.service",
+                        "-p",
+                        "ActiveEnterTimestamp",
+                        "--value",
+                    ])
+                    .output()
+                    .ok()
+                    .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+                    .filter(|value| !value.is_empty())
+                    .unwrap_or_else(|| "-2 minutes".into());
+                let logs = Command::new(JOURNALCTL)
+                    .args([
+                        "--user",
+                        "-u",
+                        "noxflow-shell.service",
+                        "--since",
+                        &shell_start,
+                        "--no-pager",
+                        "-o",
+                        "cat",
+                    ])
+                    .output()
+                    .map_err(|e| CliError::Local(sanitize(&e.to_string())))?;
+                let logs = String::from_utf8_lossy(&logs.stdout);
+                if !logs.contains("noxd IPC subscribed") {
+                    return Err(CliError::Local(
+                        "FAIL: Quickshell launched but did not connect to `noxd`\nFix: journalctl --user -u noxflow-shell.service -n 80 --no-pager".into(),
+                    ));
                 }
                 let fallback = cfg.fallback.shell;
                 if fallback != "wayle"

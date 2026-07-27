@@ -79,6 +79,11 @@ zip
 
 # Hyprland / Wayland stack
 hyprland
+quickshell
+# NoxFlow's immediately available Qt/QML runtime modules
+qt6-imageformats
+qt6-multimedia
+qt6-5compat
 hyprlock
 hypridle
 hyprpaper

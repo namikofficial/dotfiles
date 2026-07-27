@@ -9,7 +9,7 @@ mkdir -p "$state_dir"
 
 notify() {
   command -v notify-send >/dev/null 2>&1 || return 0
-  notify-send -a Panel "$1" "${2:-}"
+  notify-send -a Panel "$1" "${2:-}" >/dev/null 2>&1 || true
 }
 
 write_engine() {

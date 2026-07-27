@@ -27,7 +27,8 @@ PanelWindow {
 
     screen: root.screen
     anchors.top: true
-    anchors.horizontalCenter: true
+    anchors.left: true
+    anchors.right: true
     exclusiveZone: 0
     aboveWindows: true
     focusable: false
@@ -121,7 +122,9 @@ PanelWindow {
     }
 
     Components.PopupContainer {
-        anchors.fill: parent
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: root.implicitWidth
+        height: root.implicitHeight
         opacity: root.contentOpacity
 
         RowLayout {

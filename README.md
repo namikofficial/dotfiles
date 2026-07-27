@@ -82,6 +82,9 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 ## Package manifests
 
 - `setup/pacman-packages.txt`: official repository packages for the base workstation stack
+- NoxFlow's official shell runtime is managed by the base manifest: `quickshell`,
+  `qt6-imageformats`, `qt6-multimedia`, and `qt6-5compat`. Quickshell pulls
+  `qt6-svg` as an Arch repository dependency.
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible

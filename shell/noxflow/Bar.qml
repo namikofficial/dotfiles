@@ -167,13 +167,14 @@ PanelWindow {
                     delegate: FocusScope {
                         id: workspaceButton
                         required property string modelData
+                        required property int index
                         property bool hovered: false
                         property bool active: root.monitorActiveWorkspace() === modelData
                         property bool occupied: root.workspaceOccupied(modelData)
                         property bool urgent: root.workspaceUrgent(modelData)
                         implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightIconButton), label.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd))
                         implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
-                        focus: index === 0
+                        focus: modelData === "1"
                         Accessible.role: Accessible.Button
                         Accessible.name: "Workspace " + modelData + (active ? ", active" : occupied ? ", occupied" : "")
 

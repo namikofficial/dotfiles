@@ -28,9 +28,58 @@ check_rust() {
 check_qml() {
   command -v qmllint >/dev/null
   while IFS= read -r file; do
-    qmllint -I shell/noxflow "$file" || return 1
+    if ! qmllint -I shell/noxflow "$file"; then
+      echo "FAIL: invalid QML: $file" >&2
+      return 1
+    fi
   done < <(find shell/noxflow -name '*.qml' -print | sort)
   node shell/noxflow/tests/test_protocol.js
+}
+
+check_required_runtime() {
+  if ! command -v quickshell >/dev/null 2>&1; then
+    echo 'FAIL: required NoxFlow shell runtime `quickshell` is not installed' >&2
+    echo 'Fix: sudo pacman -S --needed quickshell' >&2
+    return 1
+  fi
+  if ! pacman -Q quickshell >/dev/null 2>&1; then
+    echo 'FAIL: required NoxFlow shell runtime `quickshell` is not owned by pacman' >&2
+    echo 'Fix: sudo pacman -S --needed quickshell' >&2
+    return 1
+  fi
+}
+
+check_optional_runtime() {
+  local imports="$(rg -n '^import (QtMultimedia|Qt5Compat)' shell/noxflow || true)"
+  local package
+  for package in qt6-imageformats qt6-multimedia qt6-5compat; do
+    if [[ -n "$imports" && "$package" != qt6-imageformats ]]; then
+      if ! pacman -Q "$package" >/dev/null 2>&1; then
+        echo "FAIL: optional QML module required by the shell is missing: $package" >&2
+        echo "Fix: sudo pacman -S --needed $package" >&2
+        return 1
+      fi
+    fi
+  done
+}
+
+check_shell_launch() {
+  if ! systemctl --user is-active noxflow-shell.service >/dev/null 2>&1; then
+    echo 'FAIL: Quickshell is installed but the NoxFlow shell is unable to launch' >&2
+    echo 'Fix: journalctl --user -u noxflow-shell.service -n 80 --no-pager' >&2
+    return 1
+  fi
+}
+
+check_shell_ipc() {
+  local recent start
+  start="$(systemctl --user show noxflow-shell.service -p ActiveEnterTimestamp --value 2>/dev/null || true)"
+  recent="$(journalctl --user -u noxflow-shell.service --since "${start:-'-2 minutes'}" --no-pager -o cat 2>/dev/null || true)"
+  if ! grep -q 'noxd IPC subscribed' <<<"$recent"; then
+    echo 'FAIL: Quickshell launched but did not connect to `noxd`' >&2
+    echo 'Fix: journalctl --user -u noxflow-shell.service -n 80 --no-pager' >&2
+    return 1
+  fi
 }
 
 check_units() {
@@ -74,11 +123,15 @@ check_live() {
 
 check "Rust format, lint, and tests" check_rust
 check "QML syntax and protocol fixtures" check_qml
+check "required shell runtime" check_required_runtime
+check "optional QML modules" check_optional_runtime
 check "systemd unit validity" check_units
 check "required configuration" check_config
 check "fallback shell" bash -n hypr/scripts/panel-switch.sh
 check "no hard-coded home paths" check_paths
 check "documented IPC changes" check_ipc_docs
+check "Quickshell launch" check_shell_launch
+check "Quickshell-to-noxd IPC" check_shell_ipc
 check "live shell integration" check_live
 
 rm -f /tmp/noxflow-release-gate.out /tmp/noxflow-release-gate.err
