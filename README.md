@@ -14,6 +14,7 @@ This repository bootstraps an Arch + Hyprland workstation with reproducible shel
 - `docs/NETWORK_STACK_POLICY.md` locked Wi-Fi stack policy (NetworkManager + wpa_supplicant)
 - `docs/LOCAL_DEVELOPER_WORKFLOW.md` day-to-day developer readiness, project, AI, and recovery workflow
 - `docs/NOXFLOW_LOGGING.md` structured diagnostics, journald integration, and `noxctl logs`
+- `docs/NOXCTL.md` stable NoxFlow CLI commands, JSON output, exit codes, and completions
 - `hypr/` for Hyprland, Wayle-first shell scripts, Rofi, wlogout, lockscreen, and helper scripts
 - `wayle/` for the preferred future shell config
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs

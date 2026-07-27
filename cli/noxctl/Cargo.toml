@@ -6,7 +6,10 @@ description = "NoxFlow shell and daemon control CLI"
 license = "MIT"
 
 [dependencies]
+clap = { version = "4.5", features = ["derive"] }
+clap_complete = "4.5"
 noxflow-config = { path = "../../core/noxflow-config" }
 noxflow-ipc = { path = "../../core/noxflow-ipc" }
 noxflow-diagnostics = { path = "../../core/noxflow-diagnostics" }
 serde_json = "1"
+toml = "0.8"
