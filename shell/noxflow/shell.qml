@@ -28,7 +28,7 @@ ShellRoot {
         }
     }
 
-    Diagnostics {
+    Gallery {
         client: noxd; hyprland: hyprland; audio: audio; brightness: brightness
         battery: battery; power: power; network: network; bluetooth: bluetooth; media: media
     }
