@@ -14,6 +14,10 @@ ProviderModel {
     property var vpn: []
     property bool metered: false
     property bool networkingEnabled: false
+    property var wifiEnabled: null
+    property var wifiHardwareEnabled: null
+    readonly property bool wifiUsable: available && wifiEnabled !== false && wifiHardwareEnabled !== false
+    readonly property string displayState: !available ? "Network unavailable" : wifiEnabled === false ? "Wi-Fi off" : connectivity === "full" && connectedSsid !== "" ? "Connected to " + connectedSsid : connectivity === "limited" ? "Limited connection" : "No connection"
 
     function applySnapshot(snapshot) {
         if (!Utils.applyBase(this, snapshot, providerName)) return false;
@@ -29,6 +33,8 @@ ProviderModel {
         vpn = Array.isArray(next.vpn) ? next.vpn : [];
         metered = next.metered === true;
         networkingEnabled = next.networking_enabled === true;
+        wifiEnabled = Utils.nullableBool(next.wifi_enabled);
+        wifiHardwareEnabled = Utils.nullableBool(next.wifi_hardware_enabled);
         return true;
     }
 }
