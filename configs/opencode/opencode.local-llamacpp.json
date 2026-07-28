@@ -1,63 +1,176 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
-    "llamacpp": {
+    "opencode": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "llama.cpp (local CUDA)",
+      "name": "OpenCode Go",
       "options": {
-        "baseURL": "http://127.0.0.1:8080/v1",
-        "apiKey": "local",
+        "baseURL": "https://opencode.ai/zen/go/v1",
+        "apiKey": "{env:OPENCODE_API_KEY}",
         "timeout": 600000
       },
       "models": {
-        "granite-agent": {
-          "name": "granite-agent",
-          "tools": true,
-          "limit": {
-            "context": 32768,
-            "output": 8192
-          }
+        "deepseek-v4-flash": {
+          "name": "DeepSeek V4 Flash",
+          "tool_call": true
+        },
+        "deepseek-v4-pro": {
+          "name": "DeepSeek V4 Pro",
+          "tool_call": true
+        },
+        "mimo-v2.5": {
+          "name": "MiMo V2.5",
+          "tool_call": true
+        },
+        "kimi-k2.7-code": {
+          "name": "Kimi K2.7 Code",
+          "tool_call": true
         }
       }
     },
-    "opencode": {
+    "opencode-free": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "OpenCode Zen",
+      "name": "OpenCode Zen Free Fallbacks",
       "options": {
         "baseURL": "https://opencode.ai/zen/v1",
-        "apiKey": "{env:OPENCODE_API_KEY}"
+        "apiKey": "{env:OPENCODE_API_KEY}",
+        "timeout": 600000
       },
       "models": {
-        "big-pickle": {
-          "name": "big-pickle",
-          "tools": true
-        },
         "deepseek-v4-flash-free": {
-          "name": "deepseek-v4-flash-free",
-          "tools": true
+          "name": "DeepSeek V4 Flash Free",
+          "tool_call": true
         },
         "mimo-v2.5-free": {
-          "name": "mimo-v2.5-free",
-          "tools": true
-        },
-        "nemotron-3-ultra-free": {
-          "name": "nemotron-3-ultra-free",
-          "tools": true
+          "name": "MiMo V2.5 Free",
+          "tool_call": true
         },
         "north-mini-code-free": {
-          "name": "north-mini-code-free",
-          "tools": true
+          "name": "North Mini Code Free",
+          "tool_call": true
+        },
+        "nemotron-3-ultra-free": {
+          "name": "Nemotron 3 Ultra Free",
+          "tool_call": true
+        },
+        "ling-3.0-flash-free": {
+          "name": "Ling 3.0 Flash Free",
+          "tool_call": true
+        },
+        "laguna-s-2.1-free": {
+          "name": "Laguna S 2.1 Free",
+          "tool_call": true
+        },
+        "big-pickle": {
+          "name": "Big Pickle",
+          "tool_call": true
         }
       }
     }
   },
+  "enabled_providers": [
+    "opencode",
+    "opencode-free"
+  ],
+  "model": "opencode-go/deepseek-v4-flash",
+  "small_model": "opencode-go/deepseek-v4-flash",
+  "default_agent": "orchestrator",
+  "subagent_depth": 1,
+  "share": "manual",
+  "instructions": [
+    "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md"
+  ],
   "permission": {
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "lsp": "allow",
+    "skill": "allow",
+    "todowrite": "allow",
+    "question": "allow",
+    "edit": "ask",
+    "task": "ask",
+    "external_directory": {
+      "*": "ask",
+      "/home/namik/Documents/code/**": "allow",
+      "/home/namik/.config/opencode/**": "allow"
+    },
+    "webfetch": "ask",
+    "websearch": "ask",
+    "doom_loop": "ask",
+    "bash": {
+      "*": "ask",
+      "pwd": "allow",
+      "ls": "allow",
+      "ls *": "allow",
+      "eza": "allow",
+      "eza *": "allow",
+      "cat *": "allow",
+      "head *": "allow",
+      "tail *": "allow",
+      "bat *": "allow",
+      "rg *": "allow",
+      "grep *": "allow",
+      "fd *": "allow",
+      "jq *": "allow",
+      "wc *": "allow",
+      "file *": "allow",
+      "git status": "allow",
+      "git status *": "allow",
+      "git diff": "allow",
+      "git diff *": "allow",
+      "git log": "allow",
+      "git log *": "allow",
+      "git show *": "allow",
+      "git branch --show-current": "allow",
+      "git rev-parse *": "allow",
+      "git ls-files *": "allow",
+      "pnpm test*": "allow",
+      "pnpm lint*": "allow",
+      "pnpm typecheck*": "allow",
+      "pnpm check*": "allow",
+      "npm test*": "allow",
+      "npm run test*": "allow",
+      "npm run lint*": "allow",
+      "npm run typecheck*": "allow",
+      "npm run check*": "allow",
+      "yarn test*": "allow",
+      "yarn lint*": "allow",
+      "bun test*": "allow",
+      "cargo check*": "allow",
+      "cargo test*": "allow",
+      "cargo clippy*": "allow",
+      "go test*": "allow",
+      "go vet*": "allow",
+      "pytest*": "allow",
+      "python -m pytest*": "allow",
+      "git add *": "ask",
+      "git commit *": "ask",
+      "git push *": "deny",
+      "git reset *": "ask",
+      "git rebase *": "ask",
+      "git clean *": "ask",
+      "rm *": "ask",
+      "sudo *": "deny",
+      "chmod *": "ask",
+      "chown *": "ask",
+      "pacman *": "ask",
+      "yay *": "ask",
+      "paru *": "ask",
+      "ssh *": "deny",
+      "git push": "deny",
+      "rm -rf*": "deny"
+    },
     "workbench_*": "allow",
     "workbench_ai_*": "allow",
     "workbench_ai_select_project": "ask",
     "workbench_ai_create_*": "ask",
     "workbench_ai_run_*": "ask",
     "workbench_ai_apply_*": "ask",
+    "local-docs_*": "allow",
+    "filesystem_*": "ask",
+    "git_*": "ask",
     "obsidian_*": "ask",
     "browser_*": "ask",
     "chrome-devtools_*": "ask"
@@ -65,7 +178,9 @@
   "mcp": {
     "chrome-devtools": {
       "type": "local",
-      "command": ["/home/namik/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp"],
+      "command": [
+        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp"
+      ],
       "enabled": true,
       "timeout": 30000
     },
@@ -85,7 +200,10 @@
     },
     "obsidian": {
       "type": "local",
-      "command": ["bash", "/home/namik/Documents/code/dotfiles/configs/opencode/obsidian-mcp.sh"],
+      "command": [
+        "bash",
+        "/home/namik/Documents/code/dotfiles/configs/opencode/obsidian-mcp.sh"
+      ],
       "environment": {
         "OBSIDIAN_VAULT_PATH": "/home/namik/Documents/notes/DocsVault",
         "OBSIDIAN_API_KEY": "{env:OBSIDIAN_API_KEY}",
@@ -99,13 +217,17 @@
     },
     "workbench": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/system/workbench-mcp.sh"],
+      "command": [
+        "/home/namik/Documents/code/dotfiles/system/workbench-mcp.sh"
+      ],
       "enabled": true,
       "timeout": 30000
     },
     "local-docs": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"],
+      "command": [
+        "/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"
+      ],
       "enabled": true,
       "timeout": 15000
     },
@@ -122,7 +244,8 @@
       "type": "local",
       "command": [
         "/home/namik/.local/bin/mcp-server-git",
-        "--repository", "/home/namik/Documents/code/dotfiles"
+        "--repository",
+        "/home/namik/Documents/code/dotfiles"
       ],
       "enabled": true,
       "timeout": 30000
@@ -130,24 +253,52 @@
   },
   "lsp": {
     "typescript": {
-      "command": ["typescript-language-server", "--stdio"],
-      "extensions": [".ts", ".tsx", ".mts", ".cts"]
+      "command": [
+        "typescript-language-server",
+        "--stdio"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".mts",
+        ".cts"
+      ]
     },
     "rust": {
-      "command": ["rust-analyzer"],
-      "extensions": [".rs"]
+      "command": [
+        "rust-analyzer"
+      ],
+      "extensions": [
+        ".rs"
+      ]
     },
     "python": {
-      "command": ["pyright-langserver", "--stdio"],
-      "extensions": [".py"]
+      "command": [
+        "pyright-langserver",
+        "--stdio"
+      ],
+      "extensions": [
+        ".py"
+      ]
     },
     "lua": {
-      "command": ["lua-language-server"],
-      "extensions": [".lua"]
+      "command": [
+        "lua-language-server"
+      ],
+      "extensions": [
+        ".lua"
+      ]
     },
     "bash": {
-      "command": ["bash-language-server", "start"],
-      "extensions": [".sh", ".bash", ".zsh"]
+      "command": [
+        "bash-language-server",
+        "start"
+      ],
+      "extensions": [
+        ".sh",
+        ".bash",
+        ".zsh"
+      ]
     }
   },
   "skills": {
@@ -157,193 +308,546 @@
     ]
   },
   "plugin": [
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/inject-local-ai-env.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/provider-rate-limit.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/session-log.js"
   ],
   "tool_output": {
-    "max_lines": 1000,
+    "max_lines": 1200,
     "max_bytes": 131072
   },
   "compaction": {
     "auto": true,
     "prune": true,
-    "reserved": 8000
+    "tail_turns": 3,
+    "preserve_recent_tokens": 12000,
+    "reserved": 16000
   },
   "agent": {
-    "build": {
-      "model": "llamacpp/granite-agent",
-      "limit": { "context": 32768, "output": 8192 },
+    "orchestrator": {
+      "description": "Primary technical lead and implementation orchestrator.",
+      "mode": "primary",
+      "model": "opencode-go/deepseek-v4-flash",
       "temperature": 0.1,
       "top_p": 0.95,
-      "prompt": "{file:~/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md}\n\n{file:~/Documents/code/dotfiles/configs/opencode/prompts/build.md}"
+      "steps": 80,
+      "color": "primary",
+      "prompt": "Act as a technical lead and implementation orchestrator across this multi-repository workstation. Detect the repository and project type, read applicable AGENTS.md and project profiles, and turn the request into bounded acceptance criteria. Complete small obvious tasks directly; delegate discovery, debugging, testing, security, UX, mobile, billing, Linux and specialist analysis when isolation improves accuracy. Use fresh subagent contexts, no more than 2 agents for ordinary work, 4 for complex work and 6 only for explicit audits. Never assign overlapping write ownership. Use DeepSeek Flash by default, free models for exploration and routine review, and DeepSeek Pro only for architecture or high-risk security. Ask only when the answer changes safety or architecture; otherwise state a low-risk assumption and continue. Verify progressively with formatter, linter, typecheck/compiler, Semgrep, affected tests and broader checks based on risk. Preserve raw evidence while passing compact summaries. Do not claim unobserved results. Keep a task ledger and finish with Completed, Changed, Verification, Decisions and assumptions, Risks, Git, and Next action sections.",
+      "permission": {
+        "edit": {
+          "*": "allow",
+          "*.env": "ask",
+          "*.env.*": "ask",
+          "**/.env": "ask",
+          "**/.env.*": "ask"
+        },
+        "task": {
+          "*": "deny",
+          "repo-scout": "allow",
+          "bug-investigator": "allow",
+          "quality-reviewer": "allow",
+          "test-verifier": "allow",
+          "security-boundary-reviewer": "allow",
+          "architecture-reviewer": "allow",
+          "product-ux-auditor": "allow",
+          "browser-mobile-qa": "allow",
+          "billing-domain-reviewer": "allow",
+          "linux-desktop-specialist": "allow"
+        },
+        "bash": {
+          "*": "ask",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "jq *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "git add *": "allow",
+          "git commit *": "allow",
+          "git push *": "deny",
+          "ssh *": "deny",
+          "sudo *": "deny",
+          "rm -rf*": "deny"
+        }
+      }
     },
-    "plan": {
-      "model": "llamacpp/granite-agent",
-      "limit": { "context": 32768, "output": 8192 },
-      "temperature": 0.3,
-      "top_p": 0.95
+    "repo-scout": {
+      "description": "Read-only repository discovery and compact handoff specialist.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.0,
+      "top_p": 0.95,
+      "steps": 24,
+      "color": "info",
+      "prompt": "Inspect applicable AGENTS.md, project profiles, CodeGraph/LSP when available, then verify important claims against source. Locate relevant files, symbols, tests and commands. Return exact paths, current flow, evidence, uncertainties and a compact handoff. Never edit.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "jq *": "allow",
+          "file *": "allow",
+          "wc *": "allow"
+        }
+      }
+    },
+    "feature-builder": {
+      "description": "Bounded production implementation agent.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "steps": 60,
+      "color": "info",
+      "prompt": "Implement only the assigned workstream. Follow existing architecture, add or update tests, avoid unrelated rewrites, and report changed files, commands, observed results and unresolved issues. Do not overlap another writer\u2019s ownership.",
+      "permission": {
+        "edit": {
+          "*": "allow",
+          "*.env": "ask",
+          "*.env.*": "ask",
+          "**/.env": "ask",
+          "**/.env.*": "ask"
+        },
+        "task": {
+          "*": "deny",
+          "repo-scout": "allow",
+          "bug-investigator": "allow",
+          "quality-reviewer": "allow",
+          "test-verifier": "allow",
+          "security-boundary-reviewer": "allow",
+          "architecture-reviewer": "allow",
+          "product-ux-auditor": "allow",
+          "browser-mobile-qa": "allow",
+          "billing-domain-reviewer": "allow",
+          "linux-desktop-specialist": "allow"
+        },
+        "bash": {
+          "*": "ask",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "jq *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "git add *": "allow",
+          "git commit *": "allow",
+          "git push *": "deny",
+          "ssh *": "deny",
+          "sudo *": "deny",
+          "rm -rf*": "deny"
+        }
+      }
+    },
+    "bug-investigator": {
+      "description": "Read-only reproduction and root-cause investigator.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "steps": 32,
+      "color": "info",
+      "prompt": "Reproduce the issue when possible, gather logs and exact evidence, trace the affected path, inspect relevant history, and separate facts from hypotheses. Propose the smallest corrective experiment or handoff. Do not edit production code.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "jq *": "allow",
+          "file *": "allow",
+          "wc *": "allow"
+        }
+      }
+    },
+    "quality-reviewer": {
+      "description": "Consolidated read-only correctness and regression reviewer.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.0,
+      "top_p": 0.95,
+      "steps": 28,
+      "color": "info",
+      "prompt": "Review the actual diff and relevant surrounding code for correctness, regressions, error handling, maintainability, compatibility, scope creep and missing verification. Report only actionable Blocker, High, Medium or Low findings with file and line evidence. Do not generate speculative patches.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "jq *": "allow",
+          "file *": "allow",
+          "wc *": "allow",
+          "git diff *": "allow",
+          "git log *": "allow"
+        }
+      }
+    },
+    "test-verifier": {
+      "description": "Dynamic verification and test-maintenance specialist.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "steps": 48,
+      "color": "info",
+      "prompt": "Select verification dynamically. Run the cheapest relevant formatter, lint, typecheck/compiler, Semgrep and affected tests first; add only test files, fixtures or test utilities when needed. Retry likely flaky tests once and distinguish passed, failed, skipped, environment-blocked and pre-existing failures. Do not edit production code.",
+      "permission": {
+        "edit": {
+          "*": "deny",
+          "**/*test*": "allow",
+          "**/*spec*": "allow",
+          "**/fixtures/**": "allow",
+          "**/test-utils/**": "allow"
+        },
+        "task": {
+          "*": "deny",
+          "repo-scout": "allow",
+          "bug-investigator": "allow",
+          "quality-reviewer": "allow",
+          "test-verifier": "allow",
+          "security-boundary-reviewer": "allow",
+          "architecture-reviewer": "allow",
+          "product-ux-auditor": "allow",
+          "browser-mobile-qa": "allow",
+          "billing-domain-reviewer": "allow",
+          "linux-desktop-specialist": "allow"
+        },
+        "bash": {
+          "*": "ask",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "jq *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "git add *": "allow",
+          "git commit *": "allow",
+          "git push *": "deny",
+          "ssh *": "deny",
+          "sudo *": "deny",
+          "rm -rf*": "deny"
+        }
+      }
+    },
+    "security-boundary-reviewer": {
+      "description": "Read-only security and trust-boundary reviewer.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-pro",
+      "temperature": 0.0,
+      "top_p": 0.95,
+      "steps": 32,
+      "color": "info",
+      "prompt": "Review authentication, authorization, tenant isolation, payments, uploads, secrets, public inputs, infrastructure, cryptography, SQL/query construction and dependency-security changes when relevant. Cite concrete evidence, severity, exploitability and required verification. Do not edit.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "jq *": "allow",
+          "file *": "allow",
+          "wc *": "allow"
+        }
+      }
+    },
+    "architecture-reviewer": {
+      "description": "Architecture and migration design reviewer.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-pro",
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "steps": 32,
+      "color": "info",
+      "prompt": "Review only when the task involves new services/packages, cross-application contracts, queues/events, framework migrations, public APIs or large refactors. Evaluate boundaries, data flow, compatibility, migration and rollback strategy. Return a concise decision with alternatives and risks. Do not edit.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "jq *": "allow",
+          "file *": "allow",
+          "wc *": "allow"
+        }
+      }
+    },
+    "product-ux-auditor": {
+      "description": "Read-only end-to-end product and UX auditor.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.2,
+      "top_p": 0.95,
+      "steps": 32,
+      "color": "info",
+      "prompt": "Evaluate the complete business workflow, onboarding, navigation, errors, roles, missing states and sellability. Inspect owner, manager, cashier, staff and customer experiences when applicable. Use browser or screenshots when available and report reproduction steps, friction and prioritized defects. Do not edit.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "jq *": "allow",
+          "file *": "allow",
+          "wc *": "allow"
+        }
+      }
+    },
+    "browser-mobile-qa": {
+      "description": "Browser, mobile and platform verification specialist.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.05,
+      "top_p": 0.95,
+      "steps": 48,
+      "color": "info",
+      "prompt": "Build a focused coverage matrix for business-critical browser and mobile paths. Use Playwright, Chrome DevTools, emulator logs and UI tests when applicable. Validate visible controls, forms, states, representative roles and boundaries without uncontrolled exhaustive combinations. Include screenshots or exact evidence and distinguish environment blocks.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "jq *": "allow",
+          "file *": "allow",
+          "wc *": "allow"
+        }
+      }
+    },
+    "billing-domain-reviewer": {
+      "description": "Read-only billing and retail workflow reviewer.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.0,
+      "top_p": 0.95,
+      "steps": 32,
+      "color": "info",
+      "prompt": "For billing-related work, review invoice lifecycle, totals, rounding, tax/HSN/SAC data, credit notes, dispatch details, receipts, role permissions and auditability. Do not assert current legal or tax requirements without verified sources. Report workflow and contract risks with evidence. Do not edit.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "jq *": "allow",
+          "file *": "allow",
+          "wc *": "allow"
+        }
+      }
+    },
+    "linux-desktop-specialist": {
+      "description": "Linux, Arch, Hyprland and desktop-utility specialist.",
+      "mode": "subagent",
+      "model": "opencode-go/deepseek-v4-flash",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "steps": 32,
+      "color": "info",
+      "prompt": "For dotfiles and desktop work, preserve keyboard-first workflows, validate installed-version behavior, inspect logs before changes, and avoid broad aesthetic rewrites. Treat boot, display manager, kernel, NVIDIA, networking and systemd changes as high risk. Report exact commands and risks. Do not edit unless explicitly assigned a bounded change.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow",
+          "jq *": "allow",
+          "file *": "allow",
+          "wc *": "allow"
+        }
+      }
     },
     "title": {
-      "model": "opencode/big-pickle",
+      "model": "opencode-go/deepseek-v4-flash",
       "temperature": 0.1,
       "top_p": 0.9,
-      "prompt": "{file:~/Documents/code/dotfiles/configs/opencode/prompts/title.md}"
+      "steps": 3,
+      "prompt": "Generate a precise session title of 3-7 words. Use the concrete task or outcome, not generic labels. Return only the title."
     },
-    "local-build": {
-      "description": "Local default build agent for normal coding, planning, and low-risk edits.",
-      "mode": "subagent",
-      "model": "llamacpp/granite-agent",
-      "limit": { "context": 32768, "output": 8192 },
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You are a local build subagent running on the workstation model. Inspect the repo first, make small scoped edits only when asked, prefer existing patterns, and run the most relevant local checks. Avoid paid/network providers and avoid broad refactors."
-    },
-    "cheap-review": {
-      "description": "Cheap read-only review agent for quick diff checks and risk spotting.",
-      "mode": "subagent",
-      "model": "opencode/north-mini-code-free",
+    "summary": {
+      "model": "opencode-go/deepseek-v4-flash",
       "temperature": 0.0,
-      "top_p": 1.0,
-      "prompt": "You are a read-only reviewer using a cheap/free model. Review only the assigned files or diff. Return concise findings first with exact paths, risks, and missing tests. Do not edit files and do not call paid providers."
+      "steps": 8,
+      "prompt": "Summarize the session for continuation. Preserve exact decisions, file paths, commands and observed results, unresolved failures, user constraints, and the next concrete action. Remove conversational noise and never invent completion."
     },
-    "long-context-summarizer": {
-      "description": "Free long-context synthesis agent for large logs, handoffs, and repo slices.",
-      "mode": "subagent",
-      "model": "opencode/nemotron-3-ultra-free",
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You synthesize large context into a compact engineering brief. Preserve exact file paths, commands, errors, decisions, and unresolved risks. Remove noise and end with concrete next actions. Stay read-only unless explicitly asked otherwise."
-    },
-    "paid-heavy": {
-      "description": "Explicit paid/network fallback for hard implementation or analysis tasks.",
-      "mode": "subagent",
-      "model": "minmax/MiniMax-M3",
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You are an explicit paid/network heavy-lift subagent. Use this budget carefully: inspect first, stay narrow, avoid speculative rewrites, and return only evidence-backed implementation or analysis. Run focused checks when feasible and report exact results."
-    },
-    "zen-general-mimo": {
-      "description": "Free Zen general-purpose helper for broad context, attachments, and second opinions.",
-      "mode": "subagent",
-      "model": "opencode/mimo-v2.5-free",
-      "temperature": 0.2,
-      "top_p": 0.95,
-      "prompt": "You are a free general-purpose OpenCode Zen subagent. Help with broad context, attached files, screenshots, and second opinions. Stay scoped to the assigned task. Inspect before concluding. Prefer concise findings, exact file paths, and concrete next actions. Do not make unrelated edits."
-    },
-    "zen-general-big-pickle": {
-      "description": "Free Zen general fallback for cheap brainstorming, sanity checks, and simple implementation advice.",
-      "mode": "subagent",
-      "model": "opencode/big-pickle",
-      "temperature": 0.2,
-      "top_p": 0.95,
-      "prompt": "You are a free general-purpose OpenCode Zen fallback subagent. Use cheap reasoning for task breakdowns, sanity checks, and simple implementation advice. Keep output short, practical, and evidence-backed. Ask for missing critical context only if the assignment cannot be answered from the provided files."
-    },
-    "zen-code-reviewer": {
-      "description": "Free Zen read-only review for small diffs and implementation risks.",
-      "mode": "subagent",
-      "model": "opencode/north-mini-code-free",
+    "compaction": {
+      "model": "opencode-go/deepseek-v4-flash",
       "temperature": 0.0,
-      "top_p": 1.0,
-      "prompt": "You are a read-only code reviewer. Review only the assigned diff or files. Return findings first, ordered by severity, with file paths and exact risks. Include missing tests and scope creep. Do not edit files."
+      "steps": 8,
+      "prompt": "Compact the conversation without losing operational state. Preserve user intent, repository facts, changed files, exact errors, decisions, verification evidence, pending tasks, and safety constraints. Distinguish completed work from proposed work."
     },
-    "zen-deep-reviewer": {
-      "description": "Free Zen deeper review/debug helper for complex failures.",
-      "mode": "subagent",
-      "model": "opencode/deepseek-v4-flash-free",
+    "plan": {
+      "description": "Read-only repository-grounded planning agent.",
+      "mode": "primary",
+      "model": "opencode-go/deepseek-v4-flash",
       "temperature": 0.1,
       "top_p": 0.95,
-      "prompt": "You are a deeper reasoning review and debug subagent. Trace the likely failure path, separate evidence from hypotheses, and return the smallest useful next experiment. Stay read-only unless explicitly assigned implementation."
-    },
-    "zen-long-context": {
-      "description": "Free Zen long-context synthesis for large repos, logs, and handoffs.",
-      "mode": "subagent",
-      "model": "opencode/nemotron-3-ultra-free",
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You synthesize large context into an actionable engineering brief. Preserve exact file paths, commands, errors, and decisions. Remove noise. End with the next 3-7 concrete actions."
-    },
-    "zen-vision-context": {
-      "description": "Free Zen multimodal/context helper for screenshots, attachments, and UI evidence.",
-      "mode": "subagent",
-      "model": "opencode/mimo-v2.5-free",
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You analyze screenshots, attachments, and UI/context evidence. Describe observable problems, likely source files, and verification steps. Do not speculate beyond the evidence without labeling it as a hypothesis."
-    },
-    "reviewer-subagent": {
-      "description": "Read-only code review. Returns structured findings (correctness, scope, tests, risks). Never edits files.",
-      "mode": "subagent",
-      "model": "minmax/MiniMax-M3",
-      "temperature": 0.0,
-      "top_p": 1.0,
-      "prompt": "You are a read-only code reviewer. Inspect the diff. Output JSON: { summary, risks[], missing_tests[], scope_creep, suggested_fixes[] }. Do not edit files. Do not run commands that change state."
-    },
-    "test-writer-subagent": {
-      "description": "Adds tests for changed code. Matches existing test style. No scope creep into production code.",
-      "mode": "subagent",
-      "model": "llamacpp/granite-agent",
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "Add or update tests for the changed code. Match existing test style. Do not modify production code. Run the test suite and report pass/fail."
-    },
-    "docs-subagent": {
-      "description": "Updates README, JSDoc, and code comments for the change. Verifies each line against current source.",
-      "mode": "subagent",
-      "model": "llamacpp/granite-agent",
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "Update README, JSDoc, and code comments for the change. Verify each line against the current source — never invent APIs."
-    },
-    "debug-subagent": {
-      "description": "Reproduces a bug, isolates the cause, returns a hypothesis + minimal repro.",
-      "mode": "subagent",
-      "model": "llamacpp/granite-agent",
-      "temperature": 0.2,
-      "top_p": 0.95,
-      "prompt": "Reproduce the bug, isolate the cause, return { hypothesis, repro, affected_files[], minimal_fix }. No fixes — just diagnosis."
+      "steps": 40,
+      "color": "info",
+      "prompt": "Produce an implementation-ready plan grounded in the repository. Read applicable AGENTS.md and project profiles, inspect relevant source, tests and configuration, resolve discoverable uncertainty, and delegate only bounded read-only investigations. Identify current behavior, acceptance criteria, affected paths, contracts, permissions, migrations, tests, risks and verification. Separate facts from assumptions. Do not edit, install dependencies, commit, push, use SSH, run production commands or mutate databases.",
+      "permission": {
+        "edit": "deny",
+        "task": {
+          "*": "deny",
+          "repo-scout": "allow",
+          "bug-investigator": "allow",
+          "security-boundary-reviewer": "allow",
+          "architecture-reviewer": "allow",
+          "product-ux-auditor": "allow",
+          "browser-mobile-qa": "allow",
+          "billing-domain-reviewer": "allow",
+          "linux-desktop-specialist": "allow"
+        },
+        "bash": {
+          "*": "deny",
+          "pwd": "allow",
+          "ls": "allow",
+          "ls *": "allow",
+          "rg *": "allow",
+          "fd *": "allow",
+          "cat *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "jq *": "allow",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git ls-files*": "allow"
+        }
+      }
     }
-  },
-  "permission": {
-    "edit": "allow",
-    "read": "allow",
-    "bash": {
-      "ls": "allow",
-      "cat": "allow",
-      "head": "allow",
-      "tail": "allow",
-      "rg": "allow",
-      "fd": "allow",
-      "git status": "allow",
-      "git diff": "allow",
-      "git log": "allow",
-      "git show": "allow",
-      "git add": "ask",
-      "git commit": "ask",
-      "git push": "ask",
-      "pnpm typecheck": "allow",
-      "pnpm test": "allow",
-      "pnpm lint": "allow",
-      "pnpm format": "allow",
-      "pnpm check": "allow",
-      "biome check": "allow",
-      "biome format": "allow",
-      "biome lint": "allow",
-      "cargo build": "allow",
-      "cargo test": "allow",
-      "cargo check": "allow",
-      "cargo clippy": "allow",
-      "rustc": "allow",
-      "go build": "allow",
-      "go test": "allow",
-      "go vet": "allow",
-      "opencode-health": "allow",
-      "system/local-docs-cache.sh": "allow",
-      "default": "ask"
-    }
-  },
-  "model": "llamacpp/granite-agent",
-  "small_model": "llamacpp/granite-agent"
+  }
 }
