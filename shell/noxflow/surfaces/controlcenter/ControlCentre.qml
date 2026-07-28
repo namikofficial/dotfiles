@@ -32,6 +32,15 @@ Item {
     property int activeTab: 0
     property string initialSection: ""
     property bool dndBusy: false
+    property string wifiActionState: ""
+    property string bluetoothActionState: ""
+    property string audioActionState: ""
+    Timer {
+        id: actionStateTimer
+        interval: 1800
+        repeat: false
+        onTriggered: { root.wifiActionState = ""; root.bluetoothActionState = ""; root.audioActionState = ""; }
+    }
     property Process wifiConnect: Process {
         running: false
         onExited: {
@@ -59,6 +68,19 @@ Item {
     }
     function queueBrightness(v) { root.pendingBrightness = v; sliderCommitTimer.restart(); }
     function queueVolume(v) { root.pendingVolume = v; sliderCommitTimer.restart(); }
+    function markAction(kind, message) {
+        if (kind === "wifi") root.wifiActionState = message;
+        else if (kind === "bluetooth") root.bluetoothActionState = message;
+        else root.audioActionState = message;
+        actionStateTimer.restart();
+    }
+    function profileName(value) { return value && typeof value === "object" ? String(value.name || "") : String(value || ""); }
+    function profileNames() {
+        var result = [];
+        var source = power && Array.isArray(power.availableProfiles) ? power.availableProfiles : [];
+        for (var i = 0; i < source.length; i++) { var name = profileName(source[i]); if (name !== "") result.push(name); }
+        return result.length > 0 ? result : ["power-saver", "balanced", "performance"];
+    }
 
     property bool focusEnabled: false
     property Process dndCheck: Process {
@@ -183,17 +205,17 @@ Item {
 
                         Components.ControlTile {
                             icon: network.connectivity === "full" || network.connectedSsid !== "" ? "⌁" : "⌁"
-                            label: network.connectedSsid || (network.connectivity === "full" ? "Connected" : network.connectivity === "limited" ? "Limited" : "Offline")
-                            subtitle: network.connectivity === "full" ? network.connectedSsid || "Wi-Fi" : ""
-                            active: network.available
+                            label: network.displayState
+                            subtitle: root.wifiActionState || (network.wifiEnabled === false ? "Enable Wi-Fi to connect" : network.availableWifi.length + " networks visible")
+                            active: network.wifiUsable
                             statusColor: network.connectivity === "full" ? Theme.Tokens.stateSuccess : network.connectivity === "limited" ? Theme.Tokens.stateWarning : Theme.Tokens.stateDanger
                             onClicked: root.activeTab = 2
                         }
 
                         Components.ControlTile {
                             icon: "◈"
-                            label: bluetooth.powered ? "Bluetooth" : "Bluetooth Off"
-                            subtitle: bluetooth.powered ? bluetooth.devices.filter(function(d) { return d.connected; }).map(function(d) { return d.name; }).join(", ") || "No devices" : ""
+                            label: bluetooth.displayState
+                            subtitle: root.bluetoothActionState || (bluetooth.devices.length + " paired/seen devices")
                             active: bluetooth.adapterPresent
                             statusColor: bluetooth.powered ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted
                             onClicked: root.activeTab = 3
@@ -248,7 +270,7 @@ Item {
                                 onMoved: root.queueVolume(value)
                             }
                             Text {
-                                text: audio.available ? audio.outputVolumePercent + "%" : "--"
+                                text: audio.available ? audio.outputVolumePercent + "% · " + audio.outputName : "Audio unavailable"
                                 color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
                             }
                         }
@@ -262,7 +284,7 @@ Item {
                             visible: power.profilesAvailable
                             Text { text: "🔋"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
                             Text {
-                                text: "Mode: " + (power.activeProfile || "balanced")
+                                text: "Power profile"
                                 color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium
                                 Layout.fillWidth: true
                             }
@@ -295,7 +317,7 @@ Item {
                             visible: power.profilesAvailable
                             Text { text: "⚡"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
                             Text {
-                                text: "Profile: " + (power.activeProfile || "balanced")
+                                text: "Confirmed profile: " + (power.activeProfile || "Unknown")
                                 color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium
                                 Layout.fillWidth: true
                             }
@@ -313,7 +335,7 @@ Item {
                                 TapHandler {
                                     onTapped: {
                                         if (root.noxd.connected) {
-                                            var profiles = power.availableProfiles;
+                                            var profiles = root.profileNames();
                                             var idx = profiles.indexOf(power.activeProfile);
                                             var next = profiles[(idx + 1) % profiles.length];
                                             root.noxd.runAction({ power_profile_set: { profile: next } });
@@ -338,7 +360,7 @@ Item {
                         spacing: Theme.Tokens.spacingMd
 
                         Text {
-                            text: "Output"
+                            text: "Output · " + (audio.available ? audio.outputName : "Unavailable")
                             color: Theme.Tokens.textSecondary
                             font.pixelSize: Theme.Tokens.typographyLabelLarge
                             font.family: Theme.Tokens.typographyFontFamily
@@ -349,7 +371,7 @@ Item {
                             Components.IconButton {
                                 iconText: audio.outputMuted ? "⊘" : "◉"
                                 accessibleName: "Toggle mute"
-                                onClicked: { if (root.noxd.connected) root.noxd.runAction({ audio_toggle_mute: { target: "output" } }) }
+                                onClicked: { if (root.noxd.connected) { root.noxd.runAction({ audio_toggle_mute: { target: "output" } }); root.markAction("audio", audio.outputMuted ? "Unmuting…" : "Muting…"); } }
                             }
                             Components.Slider {
                                 Layout.fillWidth: true
@@ -408,6 +430,10 @@ Item {
                             Components.Slider {
                                 Layout.fillWidth: true
                                 value: audio.available ? audio.inputVolume / audio.maxVolume : 0.5
+                                onMoved: function(value) {
+                                    if (audio.available && root.noxd.connected)
+                                        root.noxd.runAction({ audio_set_volume: { target: "input", volume: Math.round(value * audio.maxVolume) } });
+                                }
                             }
                         }
                         Repeater {
@@ -460,11 +486,17 @@ Item {
                             Text { text: "Wi-Fi"; color: Theme.Tokens.textPrimary }
                             Item { Layout.fillWidth: true }
                             Components.Toggle {
-                                checked: network.networkingEnabled
-                                onToggled: function(value) { if (root.noxd.connected) root.noxd.runAction({ network_wifi_set_enabled: { enabled: value } }) }
+                                enabled: network.available
+                                checked: network.wifiEnabled === true
+                                onToggled: function(value) {
+                                    if (root.noxd.connected) {
+                                        root.noxd.runAction({ network_wifi_set_enabled: { enabled: value } });
+                                        root.markAction("wifi", value ? "Enabling Wi-Fi…" : "Disabling Wi-Fi…");
+                                    }
+                                }
                             }
                         }
-                        Text { text: "Status: " + network.connectivity; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                        Text { text: network.displayState; color: network.connectivity === "full" ? Theme.Tokens.stateSuccess : network.connectivity === "limited" ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                         Text {
                             visible: network.connectedSsid !== ""
                             text: "Connected to: " + network.connectedSsid
@@ -486,7 +518,7 @@ Item {
                                     anchors.margins: Theme.Tokens.spacingSm
                                     Text { text: modelData.ssid || "Hidden SSID"; elide: Text.ElideRight; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                                     Text { text: modelData.strength ? Array(Math.round(modelData.strength / 25) + 1).join("▂") : ""; color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                                    Text { text: modelData.active ? "Connected" : ""; color: Theme.Tokens.stateSuccess; font.pixelSize: Theme.Tokens.typographyLabelSmall }
+                                    Text { text: modelData.ssid === network.connectedSsid ? "Connected" : modelData.saved ? "Saved" : "Available"; color: modelData.ssid === network.connectedSsid ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
                                 }
                                 TapHandler {
                                     onTapped: {
@@ -496,6 +528,7 @@ Item {
                                         // Bring up the profile by its SSID, which is how
                                         // NetworkManager names the normal saved profile.
                                         root.wifiConnect.command = ["nmcli", "connection", "up", "id", ssid];
+                                        root.markAction("wifi", "Connecting to " + ssid + "…");
                                         root.wifiConnect.running = true;
                                     }
                                 }
@@ -543,8 +576,14 @@ Item {
                             Text { text: "Bluetooth"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
                             Item { Layout.fillWidth: true }
                             Components.Toggle {
+                                enabled: bluetooth.adapterPresent
                                 checked: bluetooth.powered
-                                onToggled: function(value) { if (root.noxd.connected) root.noxd.runAction({ bluetooth_set_powered: { powered: value } }) }
+                                onToggled: function(value) {
+                                    if (root.noxd.connected) {
+                                        root.noxd.runAction({ bluetooth_set_powered: { powered: value } });
+                                        root.markAction("bluetooth", value ? "Turning Bluetooth on…" : "Turning Bluetooth off…");
+                                    }
+                                }
                             }
                         }
                         Components.IconButton {
@@ -555,7 +594,7 @@ Item {
                         }
                         Text {
                             visible: bluetooth.discovering
-                            text: "Discovering..."
+                            text: "Discovering nearby devices…"
                             color: Theme.Tokens.tonalPrimary
                             font.pixelSize: Theme.Tokens.typographyBodySmall
                         }
@@ -593,10 +632,10 @@ Item {
                                             color: Theme.Tokens.textSecondary
                                             font.pixelSize: Theme.Tokens.typographyLabelSmall
                                         }
-                                        TapHandler { onTapped: { if (root.noxd.connected) root.noxd.runAction({ bluetooth_disconnect: { device_id: modelData.id || modelData.path || "" } }) } }
+                                        TapHandler { onTapped: { if (root.noxd.connected) { root.noxd.runAction({ bluetooth_disconnect: { device_id: modelData.id || modelData.path || "" } }); root.markAction("bluetooth", "Disconnecting…"); } } }
                                     }
                                 }
-                                TapHandler { onTapped: { if (root.noxd.connected && !modelData.connected) root.noxd.runAction({ bluetooth_connect: { device_id: modelData.id || modelData.path || "" } }) } }
+                                TapHandler { onTapped: { if (root.noxd.connected && !modelData.connected && modelData.paired) { root.noxd.runAction({ bluetooth_connect: { device_id: modelData.id || modelData.path || "" } }); root.markAction("bluetooth", "Connecting…"); } } }
                             }
                         }
                     }
@@ -798,7 +837,7 @@ Item {
                             visible: power.profilesAvailable
                         }
                         Repeater {
-                            model: power.availableProfiles || ["power-saver", "balanced", "performance"]
+                            model: root.profileNames()
                             delegate: Rectangle {
                                 required property string modelData
                                 Layout.fillWidth: true
