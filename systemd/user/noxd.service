@@ -11,9 +11,14 @@ StandardOutput=journal
 StandardError=journal
 RuntimeDirectory=noxflow
 RuntimeDirectoryMode=0700
+StateDirectory=noxflow
 UMask=0077
 Restart=on-failure
 RestartSec=2
+StartLimitIntervalSec=30
+StartLimitBurst=5
+ExecStartPre=-/usr/bin/mkdir -p %t/noxflow
+Environment=XDG_RUNTIME_DIR=%t
 KillSignal=SIGTERM
 NoNewPrivileges=yes
 PrivateTmp=yes

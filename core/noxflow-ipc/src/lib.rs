@@ -42,6 +42,10 @@ pub enum Request {
         key: String,
         value: Value,
     },
+    GetSetting {
+        key: String,
+    },
+    GetSettings,
     RunAction {
         action: Action,
     },
@@ -169,6 +173,8 @@ pub enum Response {
     ProviderState(ProviderState),
     Subscription(Subscription),
     SettingUpdated(SettingUpdated),
+    Setting(SettingValue),
+    Settings(SettingsMap),
     ActionAccepted(ActionAccepted),
 }
 
@@ -223,6 +229,17 @@ pub struct SettingUpdated {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ActionAccepted {
     pub action: Action,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SettingValue {
+    pub key: String,
+    pub value: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SettingsMap {
+    pub settings: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

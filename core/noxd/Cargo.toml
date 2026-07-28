@@ -17,3 +17,6 @@ signal-hook = "0.3"
 zbus = { version = "4", features = ["blocking"] }
 ureq = "2"
 md5 = "0.7"
+
+[dev-dependencies]
+tempfile = "3"

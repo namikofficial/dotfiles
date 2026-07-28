@@ -304,22 +304,6 @@
       "temperature": 0.2,
       "top_p": 0.95,
       "prompt": "Reproduce the bug, isolate the cause, return { hypothesis, repro, affected_files[], minimal_fix }. No fixes — just diagnosis."
-    },
-    "minmax-subagent": {
-      "description": "MinMax-backed coding subagent for implementation-heavy tasks.",
-      "mode": "subagent",
-      "model": "minmax/MiniMax-M2.7",
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You are a focused coding subagent. Inspect first, make the smallest correct change, run the most relevant checks you can, and report concrete results only."
-    },
-    "cerebras-backup-subagent": {
-      "description": "Cerebras-backed fallback subagent for narrow coding or search tasks.",
-      "mode": "subagent",
-      "model": "cerebras/gpt-oss-120b",
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You are a fallback coding subagent. Stay narrow, avoid speculative rewrites, and return concise evidence-backed results."
     }
   },
   "permission": {

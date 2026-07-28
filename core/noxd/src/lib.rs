@@ -11,6 +11,7 @@ use std::{
 };
 
 pub mod providers;
+pub mod settings;
 
 pub const DEFAULT_QUEUE_CAPACITY: usize = 256;
 
@@ -104,6 +105,34 @@ fn stream_id() -> String {
 }
 
 static STREAM_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+/// Event published when a runtime setting is changed.
+pub struct SettingChangedEvent {
+    pub key: String,
+    pub value: serde_json::Value,
+}
+
+impl ProviderEvent for SettingChangedEvent {
+    fn provider(&self) -> &str {
+        "settings"
+    }
+    fn event_type(&self) -> &str {
+        "changed"
+    }
+    fn data(&self) -> BTreeMap<String, serde_json::Value> {
+        let mut data = BTreeMap::new();
+        data.insert("key".into(), self.key.clone().into());
+        data.insert("value".into(), self.value.clone());
+        data
+    }
+    fn snapshot(&self) -> ProviderState {
+        ProviderState {
+            provider: "settings".into(),
+            status: ProviderStatus::Available,
+            data: self.data(),
+        }
+    }
+}
 
 /// A provider owns the concrete payload type and converts it to the stable IPC shape.
 pub trait ProviderEvent: Send + Sync + 'static {

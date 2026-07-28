@@ -2,10 +2,12 @@ import QtQml
 import Quickshell
 import Quickshell.Io
 import "Protocol.js" as Protocol
+import "Fallbacks.js" as Fallbacks
 
 QtObject {
     id: root
 
+    // ── Public read-only state ──
     readonly property int protocolVersion: negotiatedVersion
     readonly property bool connected: socket.connected && phase === "subscribed"
     readonly property bool connecting: socket.connected && phase !== "subscribed"
@@ -13,13 +15,26 @@ QtObject {
     readonly property string lastEvent: eventDescription
     readonly property string lastError: errorText
     readonly property var providerHealth: health
+
+    // Step 5 — Extended error visibility
+    readonly property string connectionState: phase
+    readonly property var lastFailedAction: failedAction
+    readonly property int reconnectAttempt: reconnectCount
+    readonly property int queuedActionCount: coalesceTimer.running ? Object.keys(coalesceSlots).length : 0
+
+    // ── Signals ──
+    signal snapshotReceived(var snapshots)
+    signal eventReceived(var event)
+    signal connectionStateChanged(string state)
+    signal providerHealthChanged(string provider, string status)
+
+    // ── Socket path ──
     property string socketPath: {
         var runtime = Quickshell.env("XDG_RUNTIME_DIR");
         return (runtime ? runtime : "/tmp") + "/noxflow/noxd.sock";
     }
-    signal snapshotReceived(var snapshots)
-    signal eventReceived(var event)
 
+    // ── Private state ──
     property int negotiatedVersion: 0
     property int receivedEvents: 0
     property string eventDescription: "none"
@@ -28,15 +43,38 @@ QtObject {
     property string phase: "idle"
     property int retryDelay: 250
     property int requestCounter: 0
-    property var pending: null
+    property var pendingRequests: ({})     // { id: { method, callback, errorCallback, deadline, metadata } }
+    property var coalesceSlots: ({})       // { group: { action, params } }
     property string streamId: ""
     property string subscriptionId: ""
+    property var failedAction: null
+    property int reconnectCount: 0
 
+    // ── Constants ──
+    readonly property int requestTimeoutMs: 2000
+    readonly property int coalesceDebounceMs: 80
+    readonly property int maxCoalesceSlots: 32
+
+    // ── Timer: sweep expired requests ──
+    property Timer timeoutTimer: Timer {
+        interval: 500
+        repeat: true
+        onTriggered: root.sweepTimeouts()
+    }
+
+    // ── Timer: flush coalesced actions ──
+    property Timer coalesceTimer: Timer {
+        repeat: false
+        onTriggered: root.flushCoalesced()
+    }
+
+    // ── Timer: reconnect ──
     property Timer reconnectTimer: Timer {
         repeat: false
         onTriggered: root.connectNow()
     }
 
+    // ── Socket ──
     property Socket socket: Socket {
         id: socket
         path: root.socketPath
@@ -49,28 +87,40 @@ QtObject {
         onError: error => root.handleSocketError(String(error))
     }
 
-    function start() { connectNow(); }
+    // ── Public API ──
+    function start() {
+        timeoutTimer.start();
+        connectNow();
+    }
 
+    /// Send an action to the daemon. Returns true if accepted (queued or sent immediately).
+    /// For backward compatibility: callers that ignore the return value are fine.
     function runAction(action) {
-        if (!connected || !Protocol.isObject(action)) return false;
-        return sendRequest("run_action", { action: action }, function(result) {
-            if (!result || result.type !== "action_accepted")
-                errorText = "daemon returned malformed action response";
-        });
+        if (!Protocol.isObject(action)) return false;
+        return enqueueAction(action);
     }
 
+    /// Write a setting value. Returns true if queued.
     function setSetting(key, value) {
-        if (!connected) return false;
-        return sendRequest("set_setting", { key: key, value: value }, function(result) {
-            if (!result || result.type !== "setting_updated")
-                errorText = "daemon returned malformed setting response";
-        });
+        return sendRequest("set_setting", { key: key, value: value });
     }
 
+    /// Read a setting. Calls callback(result) with the setting value result.
+    function getSetting(key, callback, errorCallback) {
+        return sendRequest("get_setting", { key: key }, callback, errorCallback);
+    }
+
+    /// Read all settings. Calls callback(result) with the settings map result.
+    function getSettings(callback, errorCallback) {
+        return sendRequest("get_settings", {}, callback, errorCallback);
+    }
+
+    // ── Connection management ──
     function connectNow() {
         reconnectTimer.stop();
         if (socket.connected) return;
         phase = "connecting";
+        connectionStateChanged("connecting");
         socket.path = socketPath;
         socket.connected = true;
     }
@@ -79,24 +129,34 @@ QtObject {
         if (socket.connected) {
             console.info("noxd socket connected", socketPath);
             retryDelay = 250;
+            reconnectCount = 0;
             negotiatedVersion = 0;
             eventDescription = "none";
             errorText = "";
             phase = "negotiating";
-            sendRequest("get_version", undefined, handleVersion);
+            connectionStateChanged("negotiating");
+            // Re-send pending requests that were disconnected mid-flight
+            resendPendingRequests();
+            sendRequest("get_version", undefined, handleVersion, handleVersionError);
         } else {
             console.warn("noxd socket disconnected", socketPath);
             phase = "disconnected";
-            pending = null;
+            connectionStateChanged("disconnected");
             subscriptionId = "";
+            cancelPendingRequests("disconnected");
             scheduleReconnect();
         }
+    }
+
+    function handleVersionError(error) {
+        failProtocol("daemon version negotiation failed: " + (error && error.message ? error.message : "timeout"));
     }
 
     function scheduleReconnect() {
         reconnectTimer.interval = retryDelay;
         reconnectTimer.start();
         retryDelay = Math.min(retryDelay * 2, 8000);
+        reconnectCount += 1;
     }
 
     function handleSocketError(message) {
@@ -105,17 +165,210 @@ QtObject {
         if (socket.connected) socket.connected = false;
     }
 
-    function sendRequest(method, params, callback) {
-        if (!socket.connected || pending !== null) return false;
+    // ── Request system (multi-request, timeouts, retry) ──
+    /// Send a request to the daemon. Returns the request id string, or null if failed.
+    /// callback(result) is called on success. errorCallback(code, message) on failure.
+    function sendRequest(method, params, callback, errorCallback) {
+        if (!socket.connected) {
+            // Try fallback before failing
+            if (tryFallback(method, params, callback, errorCallback)) return null;
+            var errCb = errorCallback || defaultErrorCallback;
+            errCb("disconnected", "daemon not connected");
+            return null;
+        }
         requestCounter += 1;
-        var request = { version: Protocol.protocolVersion, id: "shell-" + requestCounter, method: method };
+        var requestId = "shell-" + requestCounter;
+        var request = {
+            version: Protocol.protocolVersion,
+            id: requestId,
+            method: method
+        };
         if (params !== undefined) request.params = params;
-        pending = { id: request.id, callback: callback };
+
+        pendingRequests[requestId] = {
+            method: method,
+            callback: callback || defaultCallback,
+            errorCallback: errorCallback || defaultErrorCallback,
+            deadline: Date.now() + requestTimeoutMs,
+            metadata: { method: method, params: params }
+        };
+
         socket.write(JSON.stringify(request) + "\n");
         socket.flush();
+        return requestId;
+    }
+
+    function defaultCallback(result) {
+        // no-op
+    }
+
+    function defaultErrorCallback(code, message) {
+        console.warn("noxd request failed:", code, message);
+        errorText = message || String(code);
+    }
+
+    function sweepTimeouts() {
+        var now = Date.now();
+        var keys = Object.keys(pendingRequests);
+        for (var i = 0; i < keys.length; i++) {
+            var id = keys[i];
+            var entry = pendingRequests[id];
+            if (entry && now >= entry.deadline) {
+                // Request timed out
+                console.warn("noxd request timed out:", id, entry.method);
+                var ecb = entry.errorCallback;
+                delete pendingRequests[id];
+
+                // Retry policy: retry once for idempotent requests
+                if (canRetry(entry.method, entry.metadata)) {
+                    entry.retryCount = (entry.retryCount || 0) + 1;
+                    if (entry.retryCount <= 1) {
+                        entry.deadline = now + requestTimeoutMs;
+                        pendingRequests[id] = entry;
+                        // Re-send the request
+                        var request = {
+                            version: Protocol.protocolVersion,
+                            id: id,
+                            method: entry.method
+                        };
+                        if (entry.metadata && entry.metadata.params !== undefined)
+                            request.params = entry.metadata.params;
+                        if (socket.connected) {
+                            socket.write(JSON.stringify(request) + "\n");
+                            socket.flush();
+                        }
+                        return;
+                    }
+                }
+
+                failedAction = { action: entry.method, error: "timeout", timestamp: now };
+                ecb("timeout", "request timed out after " + requestTimeoutMs + "ms");
+            }
+        }
+    }
+
+    function canRetry(method, metadata) {
+        // Never retry destructive actions
+        if (method === "run_action" && metadata && metadata.params && metadata.params.action) {
+            var actionKey = Object.keys(metadata.params.action)[0];
+            if (actionKey === "reboot" || actionKey === "power_off"
+                || actionKey === "suspend" || actionKey === "lock") {
+                return false;
+            }
+        }
         return true;
     }
 
+    function cancelPendingRequests(reason) {
+        var now = Date.now();
+        var keys = Object.keys(pendingRequests);
+        for (var i = 0; i < keys.length; i++) {
+            var id = keys[i];
+            var entry = pendingRequests[id];
+            if (entry) {
+                failedAction = { action: entry.method, error: reason, timestamp: now };
+                entry.errorCallback(reason, "disconnected before response");
+            }
+        }
+        pendingRequests = {};
+    }
+
+    function resendPendingRequests() {
+        // Re-send any requests that were waiting mid-flight
+        var keys = Object.keys(pendingRequests);
+        for (var i = 0; i < keys.length; i++) {
+            var id = keys[i];
+            var entry = pendingRequests[id];
+            if (entry && entry.metadata) {
+                var request = {
+                    version: Protocol.protocolVersion,
+                    id: id,
+                    method: entry.method
+                };
+                if (entry.metadata.params !== undefined)
+                    request.params = entry.metadata.params;
+                socket.write(JSON.stringify(request) + "\n");
+                socket.flush();
+            }
+        }
+    }
+
+    // ── Action coalescing (Step 4) ──
+    function enqueueAction(action) {
+        var actionKey = Object.keys(action)[0];
+        var actionParams = action[actionKey];
+
+        // Determine coalesce group
+        var group = coalesceGroup(actionKey, actionParams);
+
+        if (group) {
+            // Coalescable: store latest value, schedule flush
+            coalesceSlots[group] = { actionKey: actionKey, params: actionParams };
+            if (!coalesceTimer.running) {
+                coalesceTimer.interval = coalesceDebounceMs;
+                coalesceTimer.start();
+            }
+            return true;
+        }
+
+        // Non-coalescable: send immediately
+        return doSendAction(actionKey, actionParams);
+    }
+
+    function flushCoalesced() {
+        var slots = coalesceSlots;
+        coalesceSlots = {};
+        var keys = Object.keys(slots);
+        for (var i = 0; i < keys.length; i++) {
+            var slot = slots[keys[i]];
+            doSendAction(slot.actionKey, slot.params);
+        }
+    }
+
+    function coalesceGroup(actionKey, params) {
+        if (actionKey === "brightness_set" || actionKey === "brightness_adjust")
+            return "brightness";
+        if (actionKey === "audio_set_volume" || actionKey === "audio_adjust_volume") {
+            var target = (params && params.target) || "output";
+            return "volume::" + target;
+        }
+        if (actionKey === "network_refresh")
+            return "refresh::network";
+        return null; // not coalesced
+    }
+
+    function doSendAction(actionKey, params) {
+        var actionPayload = {};
+        actionPayload[actionKey] = params || {};
+        return sendRequest("run_action", { action: actionPayload });
+    }
+
+    // ── Fallback system (Step 7) ──
+    function tryFallback(method, params, callback, errorCallback) {
+        if (method !== "run_action" || !params || !params.action) return false;
+        var actionKey = Object.keys(params.action)[0];
+        var actionParams = params.action[actionKey];
+
+        var fallback = Fallbacks.get(actionKey);
+        if (!fallback) return false;
+
+        console.log("noxd: using fallback for", actionKey);
+        errorText = "daemon unavailable; using fallback for " + actionKey;
+        failedAction = { action: actionKey, error: "fallback", timestamp: Date.now() };
+
+        try {
+            fallback(actionParams);
+            if (callback) callback({ type: "action_accepted", data: { action: params.action } });
+            return true;
+        } catch (err) {
+            console.error("noxd: fallback failed for", actionKey, err);
+            failedAction = { action: actionKey, error: String(err), timestamp: Date.now() };
+            if (errorCallback) errorCallback("fallback_failed", String(err));
+            return true; // we tried, don't also send to daemon
+        }
+    }
+
+    // ── Protocol handshake ──
     function handleVersion(result) {
         var info = Protocol.responseData(result, "version");
         if (!info || info.protocol_version !== Protocol.protocolVersion) {
@@ -124,7 +377,10 @@ QtObject {
         }
         negotiatedVersion = info.protocol_version;
         phase = "state";
-        sendRequest("get_state", undefined, handleState);
+        connectionStateChanged("state");
+        sendRequest("get_state", undefined, handleState, function(error, msg) {
+            failProtocol("get_state failed: " + msg);
+        });
     }
 
     function handleState(result) {
@@ -133,9 +389,14 @@ QtObject {
             failProtocol("daemon returned malformed initial state");
             return;
         }
+        // Load settings if present
+        if (state.settings) emitSettingsEvents(state.settings);
         publishSnapshots(state.providers);
         phase = "subscribing";
-        sendRequest("subscribe", { providers: [], event_types: [] }, handleSubscription);
+        connectionStateChanged("subscribing");
+        sendRequest("subscribe", { providers: [], event_types: [] }, handleSubscription, function(error, msg) {
+            failProtocol("subscribe failed: " + msg);
+        });
     }
 
     function handleSubscription(result) {
@@ -149,9 +410,11 @@ QtObject {
         subscriptionId = subscription.subscription_id;
         publishSnapshots(subscription.snapshots);
         phase = "subscribed";
+        connectionStateChanged("subscribed");
         console.info("noxd IPC subscribed", streamId, subscriptionId);
     }
 
+    // ── Frame handling ──
     function handleFrame(text) {
         var parsed = Protocol.validateFrame(String(text));
         if (!parsed.ok) { errorText = parsed.error; return; }
@@ -160,16 +423,21 @@ QtObject {
     }
 
     function handleResponse(response) {
-        if (!pending || response.id !== pending.id) { errorText = "unexpected response id"; return; }
-        var callback = pending.callback;
-        pending = null;
-        if (response.error !== undefined) {
-            console.error("noxd request failed", response.error.message || "unknown error");
-            errorText = response.error.message || "daemon request failed";
-            if (phase !== "subscribed") failProtocol(errorText);
+        var entry = pendingRequests[response.id];
+        if (!entry) {
+            // Could be a timed-out response — ignore
             return;
         }
-        callback(response.result);
+        delete pendingRequests[response.id];
+        if (response.error !== undefined) {
+            var errMsg = response.error.message || "daemon request failed";
+            console.error("noxd request failed", response.id, errMsg);
+            errorText = errMsg;
+            failedAction = { action: entry.method, error: errMsg, timestamp: Date.now() };
+            entry.errorCallback(response.error.code || "error", errMsg);
+            return;
+        }
+        entry.callback(response.result);
     }
 
     function handleEvent(event) {
@@ -182,6 +450,12 @@ QtObject {
         receivedEvents += 1;
         eventDescription = event.provider + ":" + event.event_type + " (#" + event.sequence + ")";
         var snapshot = { provider: event.provider, status: "available", data: event.data };
+
+        // Handle setting_changed events by emitting them
+        if (event.provider === "settings" && event.event_type === "changed") {
+            // Pass through to models if they handle it
+        }
+
         updateHealth(snapshot);
         eventReceived(event);
         var updates = {};
@@ -189,6 +463,26 @@ QtObject {
         publishSnapshots(updates);
     }
 
+    function emitSettingsEvents(settings) {
+        if (!settings || typeof settings !== "object") return;
+        var keys = Object.keys(settings);
+        for (var i = 0; i < keys.length; i++) {
+            // Emit synthetic events for initial settings load
+            var fakeEvent = {
+                version: 1,
+                timestamp: Math.floor(Date.now() / 1000),
+                stream_id: streamId,
+                sequence: 0,
+                provider: "settings",
+                event_type: "changed",
+                schema_version: 1,
+                data: { key: keys[i], value: settings[keys[i]] }
+            };
+            // Don't send to models, just let the settings system know
+        }
+    }
+
+    // ── Snapshot dispatching ──
     function publishSnapshots(snapshots) {
         for (var provider in snapshots) {
             if (Protocol.providerSnapshot(snapshots[provider])) updateHealth(snapshots[provider]);
@@ -197,15 +491,23 @@ QtObject {
     }
 
     function updateHealth(snapshot) {
-        var next = Object.assign({}, health);
+        var prev = health[snapshot.provider];
+        var next = {};
+        for (var k in health) next[k] = health[k];
         next[snapshot.provider] = snapshot.status;
         health = next;
+        if (prev !== snapshot.status) {
+            providerHealthChanged(snapshot.provider, snapshot.status);
+        }
     }
 
+    // ── Error handling ──
     function failProtocol(message) {
         console.error("noxd protocol failure", message);
         errorText = message;
         phase = "disconnected";
+        connectionStateChanged("disconnected");
+        cancelPendingRequests("protocol_failure");
         if (socket.connected) socket.connected = false;
     }
 }

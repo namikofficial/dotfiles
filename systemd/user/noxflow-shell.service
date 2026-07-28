@@ -2,7 +2,7 @@
 Description=NoxFlow Quickshell desktop shell
 PartOf=graphical-session.target
 After=graphical-session.target noxd.service
-Wants=noxd.service
+Requires=noxd.service
 OnFailure=noxflow-fallback.service
 
 [Service]
@@ -12,6 +12,12 @@ KillSignal=SIGTERM
 NoNewPrivileges=yes
 PrivateTmp=yes
 SyslogIdentifier=noxflow-shell
+Restart=on-failure
+RestartSec=3
+StartLimitIntervalSec=30
+StartLimitBurst=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=graphical-session.target

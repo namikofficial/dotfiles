@@ -1,10 +1,10 @@
-use noxd::{EventBus, DEFAULT_QUEUE_CAPACITY};
+use noxd::{settings::SettingsStore, EventBus, DEFAULT_QUEUE_CAPACITY};
 use noxflow_config::{env_profile_override, ConfigLoader};
 use noxflow_diagnostics::{install_panic_hook, log as diagnostic_log, ProviderFailureLimiter};
 use noxflow_ipc::{
     decode_request, Action, ActionAccepted, DecodeError, ErrorCode, IpcError, ProviderState,
-    ProviderStatus, Request, Response, ResponseEnvelope, State, VersionInfo, PROTOCOL_VERSION,
-    SUPPORTED_PROTOCOL_VERSIONS,
+    ProviderStatus, Request, Response, ResponseEnvelope, SettingValue, SettingsMap, State,
+    VersionInfo, PROTOCOL_VERSION, SUPPORTED_PROTOCOL_VERSIONS,
 };
 use noxflow_state::StateStore;
 use serde_json::json;
@@ -151,6 +151,7 @@ fn error_response(request_id: String, error: IpcError) -> ResponseEnvelope {
 fn handle_request(
     request: Request,
     bus: &EventBus,
+    settings: &noxd::settings::SettingsStore,
     audio: &noxd::providers::audio::ControlSender,
     brightness: &noxd::providers::brightness::Control,
     power: &noxd::providers::power::Control,
@@ -168,7 +169,7 @@ fn handle_request(
         Request::GetState => Response::State(State {
             timestamp: timestamp(),
             providers: bus.snapshot(),
-            settings: BTreeMap::new(),
+            settings: settings.get_all(),
         }),
         Request::GetProviderState { provider } => bus
             .snapshot()
@@ -185,7 +186,21 @@ fn handle_request(
         Request::Subscribe { .. } => unreachable!("subscriptions are handled by the client loop"),
         Request::Unsubscribe { .. } => Response::Pong,
         Request::SetSetting { key, value } => {
+            settings.set(&key, value.clone())?;
+            let _ = bus.publish(noxd::SettingChangedEvent {
+                key: key.clone(),
+                value: value.clone(),
+            });
             Response::SettingUpdated(noxflow_ipc::SettingUpdated { key, value })
+        }
+        Request::GetSetting { key } => {
+            let value = settings.get(&key)?;
+            Response::Setting(SettingValue { key, value })
+        }
+        Request::GetSettings => {
+            Response::Settings(SettingsMap {
+                settings: settings.get_all(),
+            })
         }
         Request::RunAction { action } => {
             if matches!(
@@ -467,6 +482,7 @@ fn handle_client(
     stream: UnixStream,
     socket: &Path,
     bus: EventBus,
+    settings: noxd::settings::SettingsStore,
     audio: noxd::providers::audio::ControlSender,
     brightness: noxd::providers::brightness::Control,
     power: noxd::providers::power::Control,
@@ -608,6 +624,7 @@ fn handle_client(
                         let outbound_response = match handle_request(
                             request,
                             &bus,
+                            &settings,
                             &audio,
                             &brightness,
                             &power,
@@ -761,6 +778,11 @@ fn run() -> io::Result<()> {
         }
     }
 
+    // Initialize settings store
+    let settings_store = SettingsStore::new(&config.runtime.state_dir);
+    let loaded_settings = settings_store.load();
+    let _ = &loaded_settings; // available for broadcast to subscribing clients
+
     let socket_path = &config.runtime.socket_path;
     eprintln!(
         "{}",
@@ -808,6 +830,7 @@ fn run() -> io::Result<()> {
         "power",
         "bluetooth",
         "media",
+        "settings",
     ] {
         let registration = bus.register_provider(ProviderState {
             provider: provider.into(),
@@ -887,6 +910,7 @@ fn run() -> io::Result<()> {
             Ok((stream, _)) => {
                 let client_socket = socket.clone();
                 let client_bus = bus.clone();
+                let client_settings = settings_store.clone(); // SettingsStore is Arc<Mutex<...>>
                 let client_audio = audio_control.clone();
                 let client_brightness = brightness_control.clone();
                 let client_power = power_control.clone();
@@ -898,6 +922,7 @@ fn run() -> io::Result<()> {
                         stream,
                         &client_socket,
                         client_bus,
+                        client_settings,
                         client_audio,
                         client_brightness,
                         client_power,
