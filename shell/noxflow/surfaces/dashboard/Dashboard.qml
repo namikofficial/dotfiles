@@ -72,17 +72,25 @@ PanelWindow {
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(parent.width * 0.85, Theme.Tokens.scaled(800))
-        height: Math.min(parent.height * 0.8, Theme.Tokens.scaled(560))
+        height: Math.min(parent.height * 0.85, Theme.Tokens.scaled(620))
         radius: Theme.Tokens.radiusXl
         color: Theme.Tokens.surfaceSurfaceContainerHigh
         border.color: Theme.Tokens.outlineDefault; border.width: 1
         scale: 0.85 + 0.15 * root.openProgress
         opacity: root.openProgress
+        clip: true
 
-        ColumnLayout {
+        Flickable {
             anchors.fill: parent
-            anchors.margins: Theme.Tokens.spacingXl
-            spacing: Theme.Tokens.spacingLg
+            anchors.margins: Theme.Tokens.spacingMd
+            contentHeight: dashContent.childrenRect.height + Theme.Tokens.spacingLg
+            interactive: contentHeight > height
+            clip: true
+
+            ColumnLayout {
+                id: dashContent
+                anchors.left: parent.left; anchors.right: parent.right
+                spacing: Theme.Tokens.spacingLg
 
             // ── Header row ──
             RowLayout {
@@ -590,6 +598,7 @@ PanelWindow {
                     }
                 }
             }
+        }
         }
     }
 
