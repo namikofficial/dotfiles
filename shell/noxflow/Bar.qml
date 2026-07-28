@@ -18,6 +18,21 @@ PanelWindow {
     property bool providerDegraded: hasDegradedProvider()
     property bool urgent: monitorUrgentCount() > 0
     property Process workspaceDispatch: Process { running: false }
+    property string compositorWorkspace: ""
+    property Process workspaceProbe: Process {
+        running: false
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: function(data) {
+                try {
+                    var state = JSON.parse(String(data).trim());
+                    if (state && state.name !== undefined) {
+                        root.compositorWorkspace = String(state.name);
+                    }
+                } catch (error) {}
+            }
+        }
+    }
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
     readonly property real pillHeight: Theme.Tokens.scaled(32)
 
@@ -44,6 +59,17 @@ PanelWindow {
         reg.registerTrigger("quick-settings", monitorName, batteryGeometry, Theme.Tokens.radiusPill, "battery");
     }
     Timer { interval: 250; repeat: true; running: root.visible; onTriggered: root.registerMorphChips() }
+    Timer {
+        interval: 120
+        repeat: true
+        running: root.visible
+        onTriggered: {
+            if (!workspaceProbe.running) {
+                workspaceProbe.command = ["sh", "-c", "hyprctl activeworkspace -j | jq -c ."];
+                workspaceProbe.running = true;
+            }
+        }
+    }
     Component.onCompleted: registerMorphChips()
 
     screen: root.screen
@@ -57,7 +83,20 @@ PanelWindow {
     function findMonitor() { for (var i=0;i<hyprland.monitors.length;i++) if (String(hyprland.monitors[i].name||"")===monitorName) return hyprland.monitors[i]; return null; }
     function buildWorkspaceEntries() { var e=[]; for (var i=1;i<=10;i++) e.push(String(i)); for (var j=0;j<hyprland.workspaces.length;j++) { var n=String(hyprland.workspaces[j].name||""); if (n&&n.indexOf("special:")!==0&&e.indexOf(n)<0) e.push(n); } return e; }
     function wsRecord(name) { for (var i=0;i<hyprland.workspaces.length;i++) { var it=hyprland.workspaces[i]; if (String(it.name||it.id)===name&&String(it.monitor||"")===monitorName) return it; } return null; }
-    function monitorActiveWS() { return wsId(monitor?objVal(monitor,"activeWorkspace","active_workspace",null):null); }
+    function monitorActiveWS() {
+        // Hyprland emits workspace/focusedmon events with the new active
+        // workspace, while the monitor list is refreshed less often. Prefer
+        // that event-backed value for the focused monitor so keyboard and
+        // compositor-driven changes repaint the indicator immediately.
+        if (Quickshell.activeScreen && Quickshell.activeScreen.name === monitorName && hyprland.activeWorkspace)
+            return wsId(hyprland.activeWorkspace);
+        return wsId(monitor ? objVal(monitor, "activeWorkspace", "active_workspace", null) : null);
+    }
+    function displayedActiveWS() {
+        if (Quickshell.activeScreen && Quickshell.activeScreen.name === monitorName && compositorWorkspace !== "")
+            return compositorWorkspace;
+        return monitorActiveWS();
+    }
     function wsOccupied(name) { for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; var ws=w.workspace; if (ws&&wsId(ws)===name&&wsRecord(name)) return true; } return false; }
     function monitorUrgentCount() { var c=0; for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(wsId(w.workspace))) c++; } return c; }
     function wsUrgent(name) { for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (wsId(w.workspace)===name&&hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(name)) return true; } return false; }
@@ -103,7 +142,7 @@ PanelWindow {
                 delegate: FocusScope {
                     id: wsb; required property string modelData; required property int index
                     property bool ho: false; property bool pr: false
-                    property bool active: root.monitorActiveWS() === modelData
+                    property bool active: (root.compositorWorkspace !== "" ? root.compositorWorkspace : root.monitorActiveWS()) === modelData
                     property bool occupied: root.wsOccupied(modelData)
                     property bool urg: root.wsUrgent(modelData)
                     implicitWidth: Math.max(pillHeight, wlbl.implicitWidth + Theme.Tokens.scaled(14))
@@ -114,13 +153,13 @@ PanelWindow {
 
                     // Pill background (always visible — no outer bar needed)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
-                        color: wsb.pr ? Theme.Tokens.tonalPrimaryContainer : wsb.active ? Theme.Tokens.tonalPrimaryContainer : wsb.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.6) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.4)
-                        border.color: wsb.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: wsb.activeFocus ? 2 : 0
+                        color: wsb.pr ? Theme.Tokens.tonalPrimaryContainer : wsb.active ? "#8FA8FF" : wsb.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.6) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.4)
+                        border.color: wsb.active ? Theme.Tokens.tonalPrimary : wsb.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: wsb.active ? 1 : wsb.activeFocus ? 2 : 0
                         opacity: wsb.active ? 1.0 : wsb.occupied ? 0.85 : 0.55
                     }
                     Text { id: wlbl; anchors.centerIn: parent; text: modelData
-                        color: wsb.active ? Theme.Tokens.tonalOnPrimaryContainer : wsb.occupied ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted
-                        font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium }
+                        color: wsb.active ? "#101A3A" : wsb.occupied ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted
+                        font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium; font.bold: wsb.active }
                     Rectangle { visible: wsb.urg; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 1; width: 6; height: 6; radius: 3; color: Theme.Tokens.stateDanger }
                     HoverHandler { onHoveredChanged: wsb.ho = hovered }
                     TapHandler { onPressedChanged: wsb.pr = pressed; onTapped: { wsb.forceActiveFocus(); root.focusWS(modelData); } }
