@@ -1,6 +1,5 @@
 // CalendarWidget — month grid + agenda panel.
-// Stolen from: Waylandar + ilyamiro.
-// Compact: month grid with event dots. Expanded: agenda list.
+// Super+Shift+C to open.
 
 import QtQuick
 import QtQuick.Layouts
@@ -13,43 +12,49 @@ PanelWindow {
     id: root
 
     required property var noxd
-    required property var calModel   // CalendarModel instance
+    required property var calModel
 
-    // ── State ──
-    property real openProgress: 0
-    property bool panelOpen: false
+    // ── Lifecycle ──
+    Components.SurfaceLifecycle { id: lifecycle }
+    property alias openProgress: lifecycle.openProgress
+    Behavior on openProgress {
+        NumberAnimation { duration: lifecycle.animDuration; easing.type: lifecycle.easingType }
+    }
+
     property bool expanded: false
     property int hoveredDay: -1
 
-    // ── Layout (top-right, compact) ──
-    anchors.right: true
-    anchors.top: true
+    anchors.right: true; anchors.top: true
     margins.top: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
     margins.right: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
     implicitWidth: expanded ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(320)
-    exclusiveZone: 0
-    aboveWindows: true
-    focusable: true
-    color: "transparent"
-    visible: panelOpen
+    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    visible: lifecycle.active
 
-    Behavior on width {
-        NumberAnimation { duration: Theme.Tokens.duration(250); easing.type: Easing.OutCubic }
+    Connections {
+        target: lifecycle
+        function onOpened() {
+            calModel.today();
+            if (calModel && calModel.syncGCal) calModel.syncGCal();
+        }
     }
 
-    // ── Panel ──
+    // ── Focus + Escape ──
+    FocusScope {
+        id: focusRoot
+        focus: lifecycle.interactive
+        anchors.fill: parent
+        Keys.onEscapePressed: lifecycle.requestClose("escape")
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: Theme.Tokens.radiusXl
         color: Theme.Tokens.surfaceSurfaceContainerHigh
-        border.color: Theme.Tokens.outlineDefault
-        border.width: 1
+        border.color: Theme.Tokens.outlineDefault; border.width: 1
         opacity: root.openProgress
         scale: 0.85 + 0.15 * root.openProgress
         transformOrigin: Item.TopRight
-
-        Behavior on scale { NumberAnimation { duration: Theme.Tokens.duration(200); easing.type: Easing.OutBack } }
-        Behavior on opacity { NumberAnimation { duration: Theme.Tokens.duration(150) } }
 
         ColumnLayout {
             anchors.fill: parent
@@ -67,18 +72,32 @@ PanelWindow {
                     font.bold: true
                     Layout.fillWidth: true
                 }
-
-                Components.IconButton { iconText: "◀"; accessibleName: "Previous month"; onClicked: { calModel.goPrevMonth(); root.showAgendaForSelected() } }
-                Components.IconButton { iconText: "●"; accessibleName: "Today"; onClicked: { calModel.today(); root.showAgendaForSelected() } }
-                Components.IconButton { iconText: "▶"; accessibleName: "Next month"; onClicked: { calModel.goNextMonth(); root.showAgendaForSelected() } }
-                Components.IconButton { iconText: root.expanded ? "▣" : "□"; accessibleName: root.expanded ? "Compact" : "Expand"; onClicked: root.expanded = !root.expanded }
-                Components.IconButton { iconText: "✕"; accessibleName: "Close"; onClicked: root.close() }
+                Components.IconButton {
+                    iconText: "◀"; accessibleName: "Previous month"
+                    onClicked: { calModel.goPrevMonth(); root.showAgendaForSelected() }
+                }
+                Components.IconButton {
+                    iconText: "●"; accessibleName: "Today"
+                    onClicked: { calModel.today(); root.showAgendaForSelected() }
+                }
+                Components.IconButton {
+                    iconText: "▶"; accessibleName: "Next month"
+                    onClicked: { calModel.goNextMonth(); root.showAgendaForSelected() }
+                }
+                Components.IconButton {
+                    iconText: root.expanded ? "▣" : "□"
+                    accessibleName: root.expanded ? "Compact" : "Expand"
+                    onClicked: root.expanded = !root.expanded
+                }
+                Components.IconButton {
+                    iconText: "✕"; accessibleName: "Close"
+                    onClicked: lifecycle.requestClose("closeButton")
+                }
             }
 
             // ── Weekday labels ──
             RowLayout {
-                Layout.fillWidth: true
-                spacing: 0
+                Layout.fillWidth: true; spacing: 0
                 Repeater {
                     model: calModel.weekdayLabels
                     delegate: Text {
@@ -95,21 +114,16 @@ PanelWindow {
 
             // ── Day grid ──
             GridLayout {
-                Layout.fillWidth: true
-                columns: 7
-                columnSpacing: 0
+                Layout.fillWidth: true; columns: 7; columnSpacing: 0
                 rowSpacing: Theme.Tokens.spacingXs
 
-                // Blank cells before first day
                 Repeater {
                     model: calModel.firstDayOfMonth(calModel.year, calModel.month)
                     delegate: Item {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: Theme.Tokens.scaled(32)
+                        Layout.fillWidth: true; Layout.preferredHeight: Theme.Tokens.scaled(32)
                     }
                 }
 
-                // Day cells
                 Repeater {
                     model: calModel.daysInMonth(calModel.year, calModel.month)
                     delegate: Rectangle {
@@ -117,7 +131,9 @@ PanelWindow {
                         readonly property int day: index + 1
                         readonly property bool isToday: {
                             var d = new Date();
-                            return d.getFullYear() === calModel.year && d.getMonth() === calModel.month && d.getDate() === day;
+                            return d.getFullYear() === calModel.year &&
+                                   d.getMonth() === calModel.month &&
+                                   d.getDate() === day;
                         }
                         readonly property bool isSelected: day === calModel.selectedDay
                         readonly property bool isHovered: day === root.hoveredDay
@@ -131,8 +147,7 @@ PanelWindow {
                              : "transparent"
 
                         Text {
-                            anchors.centerIn: parent
-                            text: day
+                            anchors.centerIn: parent; text: day
                             color: isSelected ? Theme.Tokens.tonalOnPrimaryContainer
                                  : isToday ? Theme.Tokens.tonalOnPrimary
                                  : Theme.Tokens.textPrimary
@@ -140,21 +155,16 @@ PanelWindow {
                             font.bold: isToday || isSelected
                         }
 
-                        // Event dot
                         Rectangle {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 2
+                            anchors.bottom: parent.bottom; anchors.bottomMargin: 2
                             width: 4; height: 4; radius: 2
                             visible: calModel.hasEvents(calModel.year, calModel.month, day)
                             color: Theme.Tokens.tonalPrimary
                         }
 
                         TapHandler {
-                            onTapped: {
-                                calModel.selectedDay = day;
-                                root.showAgendaForSelected();
-                            }
+                            onTapped: { calModel.selectedDay = day; root.showAgendaForSelected(); }
                         }
                         HoverHandler {
                             onHoveredChanged: root.hoveredDay = hovered ? day : -1
@@ -164,18 +174,14 @@ PanelWindow {
                 }
             }
 
-            // ── Agenda (events for selected day) ──
+            // ── Agenda ──
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.expanded ? Theme.Tokens.scaled(200) : Theme.Tokens.scaled(100)
-                radius: Theme.Tokens.radiusMd
-                color: Theme.Tokens.surfaceSurfaceContainer
-                visible: true
-                clip: true
+                radius: Theme.Tokens.radiusMd; color: Theme.Tokens.surfaceSurfaceContainer; clip: true
 
                 ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: Theme.Tokens.spacingMd
+                    anchors.fill: parent; anchors.margins: Theme.Tokens.spacingMd
                     spacing: Theme.Tokens.spacingSm
 
                     Text {
@@ -186,28 +192,28 @@ PanelWindow {
                     }
 
                     Flickable {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        contentHeight: agendaItems.height + Theme.Tokens.spacingSm
-                        clip: true
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        contentHeight: agendaItems.height + Theme.Tokens.spacingSm; clip: true
 
                         ColumnLayout {
                             id: agendaItems
-                            anchors.left: parent.left
-                            anchors.right: parent.right
+                            anchors.left: parent.left; anchors.right: parent.right
                             spacing: Theme.Tokens.spacingXs
 
                             Repeater {
                                 id: agendaRepeater
-                                model: calModel.eventsForDay(calModel.year, calModel.month, root.hoveredDay >= 0 ? root.hoveredDay : calModel.selectedDay)
+                                model: calModel.eventsForDay(calModel.year, calModel.month,
+                                    root.hoveredDay >= 0 ? root.hoveredDay : calModel.selectedDay)
+
                                 delegate: Rectangle {
                                     id: agendaCard
                                     required property var modelData
                                     property bool isExpanded: false
 
                                     Layout.fillWidth: true
-                                    height: isExpanded ? Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip) + 24, Theme.Tokens.scaled(80)) : Theme.Tokens.scaled(Theme.Tokens.heightChip)
-                                    Behavior on height { NumberAnimation { duration: Theme.Tokens.duration(200); easing.type: Easing.OutQuart } }
+                                    height: isExpanded
+                                        ? Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip) + 24, Theme.Tokens.scaled(80))
+                                        : Theme.Tokens.scaled(Theme.Tokens.heightChip)
                                     radius: Theme.Tokens.radiusSm
                                     color: Theme.Tokens.surfaceSurfaceContainerHigh
 
@@ -221,21 +227,19 @@ PanelWindow {
                                             spacing: Theme.Tokens.spacingSm
 
                                             Rectangle {
-                                                width: 3; height: isExpanded ? parent.height : Theme.Tokens.scaled(Theme.Tokens.heightChip - 16)
+                                                width: 3
+                                                height: isExpanded ? parent.height : Theme.Tokens.scaled(Theme.Tokens.heightChip - 16)
                                                 radius: 2
                                                 color: modelData.calendarColor || Theme.Tokens.tonalPrimary
-                                                Behavior on height { NumberAnimation { duration: 150 } }
                                             }
 
                                             ColumnLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 0
+                                                Layout.fillWidth: true; spacing: 0
                                                 Text {
                                                     text: modelData.title || "Event"
                                                     color: Theme.Tokens.textPrimary
                                                     font.pixelSize: Theme.Tokens.typographyBodySmall
-                                                    font.bold: true
-                                                    elide: Text.ElideRight
+                                                    font.bold: true; elide: Text.ElideRight
                                                     Layout.fillWidth: true
                                                 }
                                                 Text {
@@ -260,17 +264,13 @@ PanelWindow {
                                             }
                                         }
 
-                                        // Expanded details (fade in)
                                         Text {
                                             text: modelData.description || ""
                                             color: Theme.Tokens.textSecondary
                                             font.pixelSize: Theme.Tokens.typographyBodySmall
-                                            wrapMode: Text.Wrap
-                                            Layout.fillWidth: true
+                                            wrapMode: Text.Wrap; Layout.fillWidth: true
                                             Layout.leftMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                                             visible: isExpanded && text !== ""
-                                            opacity: isExpanded ? 1 : 0
-                                            Behavior on opacity { NumberAnimation { duration: 150 } }
                                         }
                                         Text {
                                             text: modelData.location ? "📍 " + modelData.location : ""
@@ -278,8 +278,6 @@ PanelWindow {
                                             font.pixelSize: Theme.Tokens.typographyLabelSmall
                                             Layout.leftMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                                             visible: isExpanded && text !== ""
-                                            opacity: isExpanded ? 1 : 0
-                                            Behavior on opacity { NumberAnimation { duration: 150 } }
                                         }
                                         Text {
                                             text: modelData.duration ? "⏱ " + modelData.duration : ""
@@ -287,8 +285,6 @@ PanelWindow {
                                             font.pixelSize: Theme.Tokens.typographyLabelSmall
                                             Layout.leftMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                                             visible: isExpanded && text !== ""
-                                            opacity: isExpanded ? 1 : 0
-                                            Behavior on opacity { NumberAnimation { duration: 150 } }
                                         }
                                     }
 
@@ -298,8 +294,7 @@ PanelWindow {
                             }
 
                             Text {
-                                text: "No events"
-                                color: Theme.Tokens.textMuted
+                                text: "No events"; color: Theme.Tokens.textMuted
                                 font.pixelSize: Theme.Tokens.typographyBodySmall
                                 visible: agendaRepeater.count === 0
                             }
@@ -310,34 +305,10 @@ PanelWindow {
         }
     }
 
-    // ── Helpers ──
-    function showAgendaForSelected() {
-        // Triggers agenda update via model binding
-    }
+    function showAgendaForSelected() {}
 
     // ── Public API ──
-    function open() {
-        panelOpen = true;
-        calModel.today();
-        openProgress = 1;
-        // Force calendar sync when opened
-        if (calModel && calModel.syncGCal) calModel.syncGCal();
-    }
-
-    SequentialAnimation {
-        id: closeAnim
-        NumberAnimation {
-            target: root; property: "openProgress"
-            from: 1; to: 0; duration: 150; easing.type: Easing.InCubic
-        }
-        onFinished: root.panelOpen = false
-    }
-
-    function close() {
-        closeAnim.start();
-    }
-
-    function toggle() {
-        if (panelOpen) close(); else open();
-    }
+    function toggle() { lifecycle.toggle(); }
+    function open() { lifecycle.open(); }
+    function close() { lifecycle.requestClose("close"); }
 }

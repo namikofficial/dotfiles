@@ -1,7 +1,5 @@
 // NotificationCentre — notification history & management panel.
-// Stolen from: DankMaterialShell + Tide notification surface.
-// Opened with Super + N (or from island / bar).
-// Groups by app, supports DND, history, clear all, inline actions.
+// Super+N to open. Groups by app, supports DND, history, clear all, inline actions.
 
 import QtQuick
 import QtQuick.Layouts
@@ -14,26 +12,33 @@ PanelWindow {
     id: root
 
     required property var noxd
-    required property var notifModel   // NotificationModel instance
+    required property var notifModel
     required property var morphRegistry
 
-    /// Current animation phase
-    property real openProgress: 0
-    property bool panelOpen: false
+    // ── Lifecycle ──
+    Components.SurfaceLifecycle { id: lifecycle }
+    property alias openProgress: lifecycle.openProgress
+    Behavior on openProgress {
+        NumberAnimation { duration: lifecycle.animDuration; easing.type: lifecycle.easingType }
+    }
+
     property bool showHistory: false
 
-    anchors.top: true
-    anchors.left: true
-    anchors.right: true
-    anchors.bottom: true
-    exclusiveZone: 0
-    aboveWindows: true
-    focusable: true
-    color: "transparent"
-    visible: panelOpen
+    anchors.top: true; anchors.left: true; anchors.right: true; anchors.bottom: true
+    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    visible: lifecycle.active
 
-    Behavior on width {
-        NumberAnimation { duration: Theme.Tokens.duration(250); easing.type: Easing.OutCubic }
+    Connections {
+        target: lifecycle
+        function onOpened() { showHistory = false; }
+    }
+
+    // ── Focus + Escape ──
+    FocusScope {
+        id: focusRoot
+        focus: lifecycle.interactive
+        anchors.fill: parent
+        Keys.onEscapePressed: lifecycle.requestClose("escape")
     }
 
     // ── Scrim ──
@@ -42,8 +47,7 @@ PanelWindow {
         color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, 0.5)
         opacity: root.openProgress * 0.8
         visible: root.openProgress > 0
-        Behavior on opacity { NumberAnimation { duration: Theme.Tokens.duration(200) } }
-        TapHandler { onTapped: root.close() }
+        TapHandler { onTapped: lifecycle.requestClose("clickOutside") }
     }
 
     // ── Panel background ──
@@ -55,12 +59,6 @@ PanelWindow {
         border.width: 1
         opacity: root.openProgress
         scale: 0.85 + 0.15 * root.openProgress
-        Behavior on scale {
-            NumberAnimation { duration: Theme.Tokens.duration(200); easing.type: Easing.OutBack }
-        }
-        Behavior on opacity {
-            NumberAnimation { duration: Theme.Tokens.duration(150) }
-        }
 
         ColumnLayout {
             anchors.fill: parent
@@ -78,8 +76,6 @@ PanelWindow {
                     font.bold: true
                     Layout.fillWidth: true
                 }
-
-                // Clear all
                 Text {
                     text: "Clear"
                     color: Theme.Tokens.stateInfo
@@ -88,11 +84,10 @@ PanelWindow {
                     TapHandler { onTapped: notifModel.clearAll() }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
-
                 Components.IconButton {
                     iconText: "✕"
                     accessibleName: "Close notifications"
-                    onClicked: root.close()
+                    onClicked: lifecycle.requestClose("closeButton")
                 }
             }
 
@@ -115,7 +110,7 @@ PanelWindow {
 
             Components.Divider { Layout.fillWidth: true }
 
-            // ── Tab picker: active / history ──
+            // ── Tab picker ──
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.Tokens.spacingXs
@@ -159,7 +154,6 @@ PanelWindow {
                 Layout.fillHeight: true
                 clip: true
 
-                // Empty state
                 Text {
                     anchors.centerIn: parent
                     text: root.showHistory ? "No history" : "No notifications"
@@ -187,13 +181,10 @@ PanelWindow {
                                 Layout.fillWidth: true
                                 onDismissed: notifModel.dismissNotification(modelData.id)
                                 onActionInvoked: function(notification, actionId) {
-                                    // Notify daemon if connected
-                                    if (root.noxd && root.noxd.connected) {
+                                    if (root.noxd && root.noxd.connected)
                                         root.noxd.runAction({ notification_action: { id: notification.id, action: actionId } });
-                                    }
-                                    if (actionId === "dismiss" || actionId === "dismiss") {
+                                    if (actionId === "dismiss")
                                         notifModel.dismissNotification(notification.id);
-                                    }
                                 }
                             }
                         }
@@ -204,26 +195,7 @@ PanelWindow {
     }
 
     // ── Public API ──
-    function open() {
-        panelOpen = true;
-        showHistory = false;
-        openProgress = 1;
-    }
-
-    SequentialAnimation {
-        id: closeAnim
-        NumberAnimation {
-            target: root; property: "openProgress"
-            from: 1; to: 0; duration: 150; easing.type: Easing.InCubic
-        }
-        onFinished: root.panelOpen = false
-    }
-
-    function close() {
-        closeAnim.start();
-    }
-
-    function toggle() {
-        if (panelOpen) close(); else open();
-    }
+    function toggle() { lifecycle.toggle(); }
+    function open() { lifecycle.open(); }
+    function close() { lifecycle.requestClose("close"); }
 }

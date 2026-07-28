@@ -1,7 +1,5 @@
 // Nox Control — QUIC settings panel.
-// Stolen from: DankMaterialShell ControlCenter + end-4 sidebarRight.
-// Opened with Super + A.
-// Connects to existing noxd providers via NoxdClient and QML models.
+// Super+Shift+B to open.
 
 import QtQuick
 import QtQuick.Layouts
@@ -23,14 +21,17 @@ PanelWindow {
     required property var power
     required property var hyprland
 
-    /// Current animation phase for morphing panel
-    property real openProgress: 0
-    property bool panelOpen: false
-    property int activeTab: 0 // 0: quick, 1: audio, 2: network, 3: bluetooth
-    property bool focusEnabled: false
+    // ── Lifecycle ──
+    Components.SurfaceLifecycle { id: lifecycle }
+    property alias openProgress: lifecycle.openProgress
+    Behavior on openProgress {
+        NumberAnimation { duration: lifecycle.animDuration; easing.type: lifecycle.easingType }
+    }
+
+    property int activeTab: 0
     property bool dndBusy: false
 
-    // ── Debounced slider commit ──
+    // Debounced slider commit
     property real pendingBrightness: -1
     property real pendingVolume: -1
     Timer {
@@ -51,51 +52,43 @@ PanelWindow {
     function queueBrightness(v) { root.pendingBrightness = v; sliderCommitTimer.restart(); }
     function queueVolume(v) { root.pendingVolume = v; sliderCommitTimer.restart(); }
 
-    // ── DND toggle via dunstctl ──
+    property bool focusEnabled: false
     property Process dndCheck: Process {
         running: false
-        stdout: SplitParser {
-            onRead: function(line) {
-                root.focusEnabled = line.trim() === "true";
-            }
-        }
+        stdout: SplitParser { onRead: function(line) { root.focusEnabled = line.trim() === "true"; } }
     }
-    property Process dndSet: Process {
-        running: false
-    }
+    property Process dndSet: Process { running: false }
 
-    anchors.right: true
-    anchors.top: true
-    anchors.bottom: true
+    anchors.right: true; anchors.top: true; anchors.bottom: true
     margins.top: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
     margins.bottom: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
     margins.right: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
     implicitWidth: Theme.Tokens.scaled(380)
-    exclusiveZone: 0
-    aboveWindows: true
-    focusable: true
-    color: "transparent"
-    visible: panelOpen
+    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    visible: lifecycle.active
 
-    Behavior on width {
-        NumberAnimation { duration: Theme.Tokens.duration(250); easing.type: Easing.OutCubic }
+    Connections {
+        target: lifecycle
+        function onOpened() { dndCheck.command = ["dunstctl", "get-paused"]; dndCheck.running = true; }
     }
 
-    // ── Panel background with morphing entrance ──
+    // ── Focus + Escape ──
+    FocusScope {
+        id: focusRoot
+        focus: lifecycle.interactive
+        anchors.fill: parent
+        Keys.onEscapePressed: lifecycle.requestClose("escape")
+    }
+
+    // ── Panel background ──
     Rectangle {
         anchors.fill: parent
         radius: Theme.Tokens.radiusXl
         color: Theme.Tokens.surfaceSurfaceContainerHigh
         border.color: Theme.Tokens.outlineDefault
         border.width: 1
-        opacity: root.openProgress
         scale: 0.85 + 0.15 * root.openProgress
-        Behavior on scale {
-            NumberAnimation { duration: Theme.Tokens.duration(200); easing.type: Easing.OutBack }
-        }
-        Behavior on opacity {
-            NumberAnimation { duration: Theme.Tokens.duration(150) }
-        }
+        opacity: root.openProgress
 
         ColumnLayout {
             anchors.fill: parent
@@ -116,7 +109,7 @@ PanelWindow {
                 Components.IconButton {
                     iconText: "✕"
                     accessibleName: "Close control centre"
-                    onClicked: root.close()
+                    onClicked: lifecycle.requestClose("closeButton")
                 }
             }
 
@@ -137,7 +130,6 @@ PanelWindow {
                         color: root.activeTab === index ? Theme.Tokens.tonalPrimaryContainer : "transparent"
                         border.color: root.activeTab === index ? Theme.Tokens.tonalPrimary : "transparent"
                         border.width: root.activeTab === index ? 1 : 0
-
                         Text {
                             anchors.centerIn: parent
                             text: modelData
@@ -145,9 +137,7 @@ PanelWindow {
                             font.pixelSize: Theme.Tokens.typographyLabelMedium
                             font.family: Theme.Tokens.typographyFontFamily
                         }
-                        TapHandler {
-                            onTapped: root.activeTab = index
-                        }
+                        TapHandler { onTapped: root.activeTab = index }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                 }
@@ -173,7 +163,6 @@ PanelWindow {
                         anchors.right: parent.right
                         spacing: Theme.Tokens.spacingMd
 
-                        // Network tile
                         Components.ControlTile {
                             icon: network.connectivity === "full" || network.connectedSsid !== "" ? "⌁" : "⌁"
                             label: network.connectedSsid || (network.connectivity === "full" ? "Connected" : network.connectivity === "limited" ? "Limited" : "Offline")
@@ -183,17 +172,15 @@ PanelWindow {
                             onClicked: root.activeTab = 2
                         }
 
-                        // Bluetooth tile
                         Components.ControlTile {
                             icon: "◈"
                             label: bluetooth.powered ? "Bluetooth" : "Bluetooth Off"
-                            subtitle: bluetooth.powered ? bluetooth.devices.filter(d => d.connected).map(d => d.name).join(", ") || "No devices" : ""
+                            subtitle: bluetooth.powered ? bluetooth.devices.filter(function(d) { return d.connected; }).map(function(d) { return d.name; }).join(", ") || "No devices" : ""
                             active: bluetooth.adapterPresent
                             statusColor: bluetooth.powered ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted
                             onClicked: root.activeTab = 3
                         }
 
-                        // DND tile
                         Components.ControlTile {
                             icon: root.focusEnabled ? "⊘" : "◈"
                             label: root.focusEnabled ? "Do Not Disturb (ON)" : "Do Not Disturb"
@@ -227,7 +214,7 @@ PanelWindow {
                             }
                         }
 
-                        // Volume (master output)
+                        // Volume
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.Tokens.spacingMd
@@ -277,16 +264,14 @@ PanelWindow {
                                         color: power.activeProfile === modelData ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
                                         font.pixelSize: Theme.Tokens.typographyLabelSmall
                                     }
-                                    TapHandler {
-                                        onTapped: { if (root.noxd.connected) root.noxd.runAction({ power_profile_set: { profile: modelData } }) }
-                                    }
+                                    TapHandler { onTapped: { if (root.noxd.connected) root.noxd.runAction({ power_profile_set: { profile: modelData } }) } }
                                 }
                             }
                         }
 
                         Components.Divider { Layout.fillWidth: true }
 
-                        // Power profile (cycle)
+                        // Power profile cycle
                         RowLayout {
                             Layout.fillWidth: true
                             visible: power.profilesAvailable
@@ -334,8 +319,12 @@ PanelWindow {
                         anchors.right: parent.right
                         spacing: Theme.Tokens.spacingMd
 
-                        // Output volume
-                        Text { text: "Output"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge; font.family: Theme.Tokens.typographyFontFamily }
+                        Text {
+                            text: "Output"
+                            color: Theme.Tokens.textSecondary
+                            font.pixelSize: Theme.Tokens.typographyLabelLarge
+                            font.family: Theme.Tokens.typographyFontFamily
+                        }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: Theme.Tokens.spacingMd
@@ -348,11 +337,11 @@ PanelWindow {
                                 Layout.fillWidth: true
                                 value: audio.available ? audio.outputVolume / audio.maxVolume : 0.5
                                 onValueChanged: {
-                                    if (audio.available && root.noxd.connected) root.noxd.runAction({ audio_set_volume: { target: "output", volume: Math.round(value * audio.maxVolume) } });
+                                    if (audio.available && root.noxd.connected)
+                                        root.noxd.runAction({ audio_set_volume: { target: "output", volume: Math.round(value * audio.maxVolume) } });
                                 }
                             }
                         }
-                        // Output devices
                         Repeater {
                             model: audio.outputs
                             delegate: Rectangle {
@@ -364,36 +353,72 @@ PanelWindow {
                                 border.color: modelData.active ? Theme.Tokens.tonalPrimary : "transparent"
                                 border.width: modelData.active ? 1 : 0
                                 RowLayout {
-                                    anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.Tokens.spacingSm
                                     Text { text: "◉"; color: modelData.active ? Theme.Tokens.tonalPrimary : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.iconSm }
-                                    Text { text: modelData.description || modelData.name || "Unknown"; elide: Text.ElideRight; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                                    Text {
+                                        text: modelData.description || modelData.name || "Unknown"
+                                        elide: Text.ElideRight; Layout.fillWidth: true
+                                        color: Theme.Tokens.textPrimary
+                                        font.pixelSize: Theme.Tokens.typographyBodySmall
+                                    }
                                 }
-                                TapHandler { onTapped: { if (root.noxd.connected) root.noxd.runAction({ audio_set_default: { target: "output", selector: modelData.name || modelData.description } }) } }
+                                TapHandler {
+                                    onTapped: {
+                                        if (root.noxd.connected)
+                                            root.noxd.runAction({ audio_set_default: { target: "output", selector: modelData.name || modelData.description } })
+                                    }
+                                }
                             }
                         }
+
                         Components.Divider { Layout.fillWidth: true }
-                        // Input volume
-                        Text { text: "Input"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
+
+                        Text {
+                            text: "Input"
+                            color: Theme.Tokens.textSecondary
+                            font.pixelSize: Theme.Tokens.typographyLabelLarge
+                        }
                         RowLayout {
-                            Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
-                            Components.IconButton { iconText: audio.inputMuted ? "⊗" : "◌"; accessibleName: "Toggle mic mute"; onClicked: { if (root.noxd.connected) root.noxd.runAction({ audio_toggle_mute: { target: "input" } }) } }
-                            Components.Slider { Layout.fillWidth: true; value: audio.available ? audio.inputVolume / audio.maxVolume : 0.5 }
+                            Layout.fillWidth: true
+                            spacing: Theme.Tokens.spacingMd
+                            Components.IconButton {
+                                iconText: audio.inputMuted ? "⊗" : "◌"
+                                accessibleName: "Toggle mic mute"
+                                onClicked: { if (root.noxd.connected) root.noxd.runAction({ audio_toggle_mute: { target: "input" } }) }
+                            }
+                            Components.Slider {
+                                Layout.fillWidth: true
+                                value: audio.available ? audio.inputVolume / audio.maxVolume : 0.5
+                            }
                         }
                         Repeater {
                             model: audio.inputs
                             delegate: Rectangle {
                                 required property var modelData
                                 width: parent ? parent.width : 100
-                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusSm
+                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                                radius: Theme.Tokens.radiusSm
                                 color: modelData.active ? Theme.Tokens.tonalPrimaryContainer : "transparent"
                                 border.color: modelData.active ? Theme.Tokens.tonalPrimary : "transparent"
                                 border.width: modelData.active ? 1 : 0
                                 RowLayout {
-                                    anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.Tokens.spacingSm
                                     Text { text: "◌"; color: modelData.active ? Theme.Tokens.tonalPrimary : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.iconSm }
-                                    Text { text: modelData.description || modelData.name || "Unknown"; elide: Text.ElideRight; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                                    Text {
+                                        text: modelData.description || modelData.name || "Unknown"
+                                        elide: Text.ElideRight; Layout.fillWidth: true
+                                        color: Theme.Tokens.textPrimary
+                                        font.pixelSize: Theme.Tokens.typographyBodySmall
+                                    }
                                 }
-                                TapHandler { onTapped: { if (root.noxd.connected) root.noxd.runAction({ audio_set_default: { target: "input", selector: modelData.name || modelData.description } }) } }
+                                TapHandler {
+                                    onTapped: {
+                                        if (root.noxd.connected)
+                                            root.noxd.runAction({ audio_set_default: { target: "input", selector: modelData.name || modelData.description } })
+                                    }
+                                }
                             }
                         }
                     }
@@ -422,7 +447,11 @@ PanelWindow {
                             }
                         }
                         Text { text: "Status: " + network.connectivity; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                        Text { visible: network.connectedSsid !== ""; text: "Connected to: " + network.connectedSsid; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                        Text {
+                            visible: network.connectedSsid !== ""
+                            text: "Connected to: " + network.connectedSsid
+                            color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
+                        }
 
                         Components.Divider { Layout.fillWidth: true }
                         Text { text: "Available Networks"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
@@ -431,10 +460,12 @@ PanelWindow {
                             delegate: Rectangle {
                                 required property var modelData
                                 width: parent ? parent.width : 100
-                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusSm
+                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                                radius: Theme.Tokens.radiusSm
                                 color: Theme.Tokens.surfaceSurfaceContainer
                                 RowLayout {
-                                    anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.Tokens.spacingSm
                                     Text { text: modelData.ssid || "Hidden SSID"; elide: Text.ElideRight; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                                     Text { text: modelData.strength ? Array(Math.round(modelData.strength / 25) + 1).join("▂") : ""; color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodySmall }
                                     Text { text: modelData.active ? "Connected" : ""; color: Theme.Tokens.stateSuccess; font.pixelSize: Theme.Tokens.typographyLabelSmall }
@@ -442,16 +473,20 @@ PanelWindow {
                                 TapHandler { onTapped: { if (root.noxd.connected) root.noxd.runAction({ network_connect_saved: { uuid: modelData.uuid || "" } }) } }
                             }
                         }
+
                         Components.Divider { Layout.fillWidth: true }
                         Text { text: "VPN"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
                         Repeater {
                             model: network.vpn
                             delegate: Rectangle {
                                 required property var modelData
-                                width: parent ? parent.width : 100; height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
-                                color: Theme.Tokens.surfaceSurfaceContainer; radius: Theme.Tokens.radiusSm
+                                width: parent ? parent.width : 100
+                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                                color: Theme.Tokens.surfaceSurfaceContainer
+                                radius: Theme.Tokens.radiusSm
                                 RowLayout {
-                                    anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.Tokens.spacingSm
                                     Text { text: modelData.name || "VPN"; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                                     Components.Toggle {
                                         checked: modelData.active === true
@@ -490,7 +525,12 @@ PanelWindow {
                             enabled: bluetooth.powered
                             onClicked: { if (root.noxd.connected) root.noxd.runAction({ bluetooth_set_discovering: { discovering: !bluetooth.discovering } }) }
                         }
-                        Text { visible: bluetooth.discovering; text: "Discovering..."; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                        Text {
+                            visible: bluetooth.discovering
+                            text: "Discovering..."
+                            color: Theme.Tokens.tonalPrimary
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                        }
 
                         Components.Divider { Layout.fillWidth: true }
                         Text { text: "Devices"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
@@ -499,12 +539,14 @@ PanelWindow {
                             delegate: Rectangle {
                                 required property var modelData
                                 width: parent ? parent.width : 100
-                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusSm
+                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                                radius: Theme.Tokens.radiusSm
                                 color: modelData.connected ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
                                 border.color: modelData.connected ? Theme.Tokens.tonalPrimary : "transparent"
                                 border.width: modelData.connected ? 1 : 0
                                 RowLayout {
-                                    anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.Tokens.spacingSm
                                     Text { text: modelData.icon || "◈"; color: modelData.connected ? Theme.Tokens.tonalPrimary : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.iconSm }
                                     ColumnLayout {
                                         Layout.fillWidth: true; spacing: 0
@@ -512,10 +554,17 @@ PanelWindow {
                                         Text { text: modelData.connected ? "Connected" : modelData.paired ? "Paired" : ""; color: modelData.connected ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
                                     }
                                     Rectangle {
-                                        height: Theme.Tokens.scaled(Theme.Tokens.heightChip - 8); implicitWidth: Theme.Tokens.scaled(50)
-                                        radius: Theme.Tokens.radiusPill; color: Theme.Tokens.surfaceSurfaceVariant
+                                        height: Theme.Tokens.scaled(Theme.Tokens.heightChip - 8)
+                                        implicitWidth: Theme.Tokens.scaled(50)
+                                        radius: Theme.Tokens.radiusPill
+                                        color: Theme.Tokens.surfaceSurfaceVariant
                                         visible: modelData.connected
-                                        Text { anchors.centerIn: parent; text: "Disconnect"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelSmall }
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "Disconnect"
+                                            color: Theme.Tokens.textSecondary
+                                            font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                        }
                                         TapHandler { onTapped: { if (root.noxd.connected) root.noxd.runAction({ bluetooth_disconnect: { device_id: modelData.id || modelData.path || "" } }) } }
                                     }
                                 }
@@ -529,26 +578,7 @@ PanelWindow {
     }
 
     // ── Public API ──
-    function open() {
-        panelOpen = true;
-        openProgress = 1;
-        forceActiveFocus();
-        // Refresh DND state
-        dndCheck.command = ["dunstctl", "get-paused"];
-        dndCheck.running = true;
-    }
-
-    function close() {
-        closeAnim.start();
-    }
-
-    SequentialAnimation {
-        id: closeAnim
-        NumberAnimation { target: root; property: "openProgress"; from: 1; to: 0; duration: 150; easing.type: Easing.InCubic }
-        onFinished: root.panelOpen = false
-    }
-
-    function toggle() {
-        if (panelOpen) close(); else open();
-    }
+    function toggle() { lifecycle.toggle(); }
+    function open() { lifecycle.open(); }
+    function close() { lifecycle.requestClose("close"); }
 }
