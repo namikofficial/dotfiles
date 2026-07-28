@@ -31,6 +31,7 @@ exec(mainMod .. " + ALT + M", home .. "/.config/hypr/scripts/minimize-window.sh 
 exec(mainMod .. " + CTRL + comma", home .. "/.config/hypr/scripts/settings-hub.sh quick")
 exec(mainMod .. " + ALT + comma", home .. "/.config/hypr/scripts/settings/editor.sh")
 exec(mainMod .. " + CTRL + ALT + comma", home .. "/.config/hypr/scripts/app-routing-apply-focused.sh")
+exec(mainMod .. " + E", ctx.fileManager)
 exec(mainMod .. " + B", ctx.browser .. " --ozone-platform-hint=auto")
 exec(mainMod .. " + I", ctx.editor)
 exec(mainMod .. " + CTRL + SHIFT + I", ctx.ide)

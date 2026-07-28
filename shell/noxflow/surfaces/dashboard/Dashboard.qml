@@ -60,10 +60,10 @@ PanelWindow {
         Keys.onEscapePressed: lifecycle.requestClose("escape")
     }
 
-    // ── Scrim ──
+    // ── Scrim (light) ──
     Rectangle {
         anchors.fill: parent
-        color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, 0.7)
+        color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, 0.25)
         opacity: root.openProgress
         TapHandler { onTapped: lifecycle.requestClose("clickOutside") }
     }
