@@ -135,6 +135,8 @@ fn run(
     let mut state = read_state(minimum, step, &external_backend);
     available.store(state.backend_available, Ordering::Relaxed);
     publish_snapshot(&bus, &state, "state_changed", false);
+    let poll_interval = Duration::from_secs(2);
+    let mut last_poll = std::time::Instant::now();
 
     while !stop.load(Ordering::Relaxed) {
         match receiver.recv_timeout(Duration::from_millis(200)) {
@@ -149,7 +151,20 @@ fn run(
                     publish_snapshot(&bus, &state, "backend_unavailable", false);
                 }
             }
-            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                // Poll for external brightness changes (e.g. keyboard brightness keys)
+                if last_poll.elapsed() >= poll_interval {
+                    let prev_pct = state.percentage;
+                    state = read_state(minimum, step, &external_backend);
+                    let updated_backend = state.backend_available;
+                    available.store(updated_backend, Ordering::Relaxed);
+                    // Only publish if value changed or backend became available
+                    if state.percentage != prev_pct || (updated_backend && !available.load(Ordering::Relaxed)) {
+                        publish_snapshot(&bus, &state, "brightness_changed", true);
+                    }
+                    last_poll = std::time::Instant::now();
+                }
+            }
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }
     }

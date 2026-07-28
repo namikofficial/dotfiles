@@ -21,7 +21,7 @@ PanelWindow {
     // Right-side panel
     anchors.top: true; anchors.bottom: true; anchors.right: true
     margins.top: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
-    margins.bottom: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+    margins.bottom: Theme.Tokens.scaled(Theme.Tokens.spacingLg)
     margins.right: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
     implicitWidth: Theme.Tokens.scaled(380)
     exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"

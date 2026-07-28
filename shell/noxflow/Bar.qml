@@ -44,13 +44,13 @@ PanelWindow {
     function monitorUrgentCount() { var c=0; for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(wsId(w.workspace))) c++; } return c; }
     function wsUrgent(name) { for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (wsId(w.workspace)===name&&hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(name)) return true; } return false; }
     function hasDegradedProvider() { var ss=noxd.providerHealth||{}; for (var p in ss) if (ss[p]==="degraded") return true; return false; }
-    function focusWS(name) { noxd.runAction({workspace_focus:{workspace:name}}); }
+    function focusWS(name) { if (noxd.connected) noxd.runAction({workspace_focus:{workspace:name}}); else { var p=new Process();p.command=["hyprctl","dispatch","workspace",name];p.running=true; } }
     function cycleWS(d) { noxd.runAction({workspace_cycle:{delta:d}}); }
     function toggleMute() { noxd.runAction({audio_toggle_mute:{target:"output"}}); }
     function refreshNet() { noxd.runAction({network_refresh:{}}); }
     function toggleBT() { noxd.runAction({bluetooth_set_powered:{powered:!bluetooth.powered}}); }
     function toggleMedia() { noxd.runAction({media_play_pause:{}}); }
-    function activeWinLabel() { var w=hyprland.activeWindow; if (!w||typeof w!=="object") return "Desktop"; return String(w.title||w.application_id||w.class||w.appid||"").trim()||"Desktop"; }
+    function activeWinLabel() { var w=hyprland.activeWindow; if (!w||typeof w!=="object") return ""; return String(w.title||w.application_id||w.class||w.appid||"").trim(); }
     function mediaLabel() { if (media.status!=="available"||!media.active||!media.title) return ""; var a=media.artists&&media.artists.length?" — "+media.artists.join(", "):""; return media.title+a; }
     function netLabel() { if (network.status!=="available") return ""; if (network.connectivity==="full"||network.connectivity==="limited") return network.connectedSsid||"Network"; if (network.ethernet&&network.ethernet.length) return "Ethernet"; return "Offline"; }
     function btLabel() { if (bluetooth.status!=="available"||!bluetooth.adapterPresent) return ""; for (var i=0;i<bluetooth.devices.length;i++) if (bluetooth.devices[i].connected===true) return bluetooth.devices[i].name||"Bluetooth"; return bluetooth.powered?"Bluetooth":""; }
