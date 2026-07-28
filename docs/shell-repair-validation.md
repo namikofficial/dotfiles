@@ -18,6 +18,8 @@ Run on 2026-07-29 in the live Hyprland session:
 - Workspace dispatch repair: bar workspace activation now uses direct Hyprland compositor IPC and no longer depends on a timed-out noxd action.
 - Control Centre repair: live layer settled at `1528 88 380 720` instead of the previous full-height `380x1016`; tab labels no longer overlap, and the current saved Wi-Fi profile (`Airtel_shub_6992`) is addressed by its NetworkManager connection name rather than an empty scanned-AP UUID.
 - Control Centre animation repair: removed the inner dim/0.85-scale animation, changed lifecycle opening to `Easing.OutCubic`, and kept the shared MorphSurface responsible for geometry.
+- Control Centre state repair: Wi-Fi now reads confirmed `wifi_enabled`, hardware, connectivity, and SSID fields; Bluetooth reads adapter/power/discovery/connected-device state; audio exposes confirmed default device names and volume/mute state.
+- Power profile repair: provider profile objects are normalized to profile names before comparison or action dispatch, so the active profile highlight and cycle action use the confirmed profile string.
 
 ## Manual interaction matrix
 
