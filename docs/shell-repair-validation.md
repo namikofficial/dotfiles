@@ -16,6 +16,8 @@ Run on 2026-07-29 in the live Hyprland session:
 - Morph sample: early geometry differed from settled geometry, confirming host-window expansion rather than a final-size fade.
 - Shell restart and diagnostics: service active, IPC reachable, no new QML errors/warnings after the smoke run.
 - Workspace dispatch repair: bar workspace activation now uses direct Hyprland compositor IPC and no longer depends on a timed-out noxd action.
+- Control Centre repair: live layer settled at `1528 88 380 720` instead of the previous full-height `380x1016`; tab labels no longer overlap, and the current saved Wi-Fi profile (`Airtel_shub_6992`) is addressed by its NetworkManager connection name rather than an empty scanned-AP UUID.
+- Control Centre animation repair: removed the inner dim/0.85-scale animation, changed lifecycle opening to `Easing.OutCubic`, and kept the shared MorphSurface responsible for geometry.
 
 ## Manual interaction matrix
 

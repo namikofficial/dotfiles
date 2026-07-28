@@ -30,7 +30,14 @@ Item {
     }
 
     property int activeTab: 0
+    property string initialSection: ""
     property bool dndBusy: false
+    property Process wifiConnect: Process {
+        running: false
+        onExited: {
+            if (root.noxd.connected) root.noxd.runAction({ network_refresh: {} });
+        }
+    }
 
     // Debounced slider commit
     property real pendingBrightness: -1
@@ -65,7 +72,11 @@ Item {
 
     Connections {
         target: lifecycle
-        function onOpened() { dndCheck.command = ["dunstctl", "get-paused"]; dndCheck.running = true; }
+        function onOpened() {
+            var tabs = { network: 2, bluetooth: 3, volume: 1, audio: 1, battery: 0, power: 0 };
+            if (root.initialSection !== "" && tabs[root.initialSection] !== undefined) root.activeTab = tabs[root.initialSection];
+            dndCheck.command = ["dunstctl", "get-paused"]; dndCheck.running = true;
+        }
     }
 
     // ── Focus + Escape ──
@@ -83,8 +94,10 @@ Item {
         color: Theme.Tokens.surfaceSurfaceContainerHigh
         border.color: Theme.Tokens.outlineDefault
         border.width: 1
-        scale: 0.85 + 0.15 * root.openProgress
-        opacity: root.openProgress
+        // MorphSurface owns the geometry transition. Keep the actual surface
+        // opaque and stable so the panel never looks disabled during opening.
+        scale: 1
+        opacity: 1
 
         ColumnLayout {
             anchors.fill: parent
@@ -112,29 +125,38 @@ Item {
             Components.Divider { Layout.fillWidth: true }
 
             // ── Tab bar ──
-            RowLayout {
+            Flickable {
+                id: tabScroller
                 Layout.fillWidth: true
-                spacing: Theme.Tokens.spacingXs
-                Repeater {
-                    model: ["Quick", "Audio", "Network", "Bluetooth", "System", "Input", "⚡"]
-                    delegate: Rectangle {
-                        required property int index
-                        required property string modelData
-                        Layout.fillWidth: true
-                        height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
-                        radius: Theme.Tokens.radiusPill
-                        color: root.activeTab === index ? Theme.Tokens.tonalPrimaryContainer : "transparent"
-                        border.color: root.activeTab === index ? Theme.Tokens.tonalPrimary : "transparent"
-                        border.width: root.activeTab === index ? 1 : 0
-                        Text {
-                            anchors.centerIn: parent
-                            text: modelData
-                            color: root.activeTab === index ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
-                            font.pixelSize: Theme.Tokens.typographyLabelMedium
-                            font.family: Theme.Tokens.typographyFontFamily
+                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                clip: true
+                contentWidth: tabRow.implicitWidth
+                interactive: contentWidth > width
+                Row {
+                    id: tabRow
+                    spacing: Theme.Tokens.spacingXs
+                    Repeater {
+                        model: ["Quick", "Audio", "Net", "BT", "System", "Input", "Power"]
+                        delegate: Rectangle {
+                            required property int index
+                            required property string modelData
+                            width: tabLabel.implicitWidth + Theme.Tokens.scaled(20)
+                            height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                            radius: Theme.Tokens.radiusPill
+                            color: root.activeTab === index ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
+                            border.color: root.activeTab === index ? Theme.Tokens.tonalPrimary : Theme.Tokens.outlineSubtle
+                            border.width: 1
+                            Text {
+                                id: tabLabel
+                                anchors.centerIn: parent
+                                text: modelData
+                                color: root.activeTab === index ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
+                                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                font.family: Theme.Tokens.typographyFontFamily
+                            }
+                            TapHandler { onTapped: root.activeTab = index }
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
                         }
-                        TapHandler { onTapped: root.activeTab = index }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                 }
             }
@@ -184,7 +206,7 @@ Item {
                             statusColor: root.focusEnabled ? Theme.Tokens.tonalPrimary : Theme.Tokens.textSecondary
                             toggleChecked: root.focusEnabled
                             showToggle: true
-                            onToggleChanged: {
+                            onToggleChanged: function(value) {
                                 if (root.dndBusy) return;
                                 root.dndBusy = true;
                                 root.dndSet.command = ["dunstctl", value ? "set-paused" : "set-paused", value ? "true" : "false"];
@@ -202,7 +224,7 @@ Item {
                             Components.Slider {
                                 Layout.fillWidth: true
                                 value: brightness.available ? brightness.percentage / 100 : 0.5
-                                onValueChanged: root.queueBrightness(value)
+                                onMoved: root.queueBrightness(value)
                             }
                             Text {
                                 text: Math.round(brightness.available ? brightness.percentage : 50) + "%"
@@ -223,7 +245,7 @@ Item {
                             Components.Slider {
                                 Layout.fillWidth: true
                                 value: audio.available ? audio.outputVolume / audio.maxVolume : 0.5
-                                onValueChanged: root.queueVolume(value)
+                                onMoved: root.queueVolume(value)
                             }
                             Text {
                                 text: audio.available ? audio.outputVolumePercent + "%" : "--"
@@ -332,7 +354,7 @@ Item {
                             Components.Slider {
                                 Layout.fillWidth: true
                                 value: audio.available ? audio.outputVolume / audio.maxVolume : 0.5
-                                onValueChanged: {
+                                onMoved: function(value) {
                                     if (audio.available && root.noxd.connected)
                                         root.noxd.runAction({ audio_set_volume: { target: "output", volume: Math.round(value * audio.maxVolume) } });
                                 }
@@ -439,7 +461,7 @@ Item {
                             Item { Layout.fillWidth: true }
                             Components.Toggle {
                                 checked: network.networkingEnabled
-                                onToggled: { if (root.noxd.connected) root.noxd.runAction({ network_wifi_set_enabled: { enabled: value } }) }
+                                onToggled: function(value) { if (root.noxd.connected) root.noxd.runAction({ network_wifi_set_enabled: { enabled: value } }) }
                             }
                         }
                         Text { text: "Status: " + network.connectivity; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
@@ -466,7 +488,17 @@ Item {
                                     Text { text: modelData.strength ? Array(Math.round(modelData.strength / 25) + 1).join("▂") : ""; color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodySmall }
                                     Text { text: modelData.active ? "Connected" : ""; color: Theme.Tokens.stateSuccess; font.pixelSize: Theme.Tokens.typographyLabelSmall }
                                 }
-                                TapHandler { onTapped: { if (root.noxd.connected) root.noxd.runAction({ network_connect_saved: { uuid: modelData.uuid || "" } }) } }
+                                TapHandler {
+                                    onTapped: {
+                                        var ssid = String(modelData.ssid || "").trim();
+                                        if (!ssid || root.wifiConnect.running) return;
+                                        // Scanned APs do not carry saved-profile UUIDs.
+                                        // Bring up the profile by its SSID, which is how
+                                        // NetworkManager names the normal saved profile.
+                                        root.wifiConnect.command = ["nmcli", "connection", "up", "id", ssid];
+                                        root.wifiConnect.running = true;
+                                    }
+                                }
                             }
                         }
 
@@ -486,7 +518,7 @@ Item {
                                     Text { text: modelData.name || "VPN"; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                                     Components.Toggle {
                                         checked: modelData.active === true
-                                        onToggled: { if (root.noxd.connected) root.noxd.runAction({ network_vpn_set_enabled: { uuid: modelData.uuid || "", enabled: value } }) }
+                                        onToggled: function(value) { if (root.noxd.connected) root.noxd.runAction({ network_vpn_set_enabled: { uuid: modelData.uuid || "", enabled: value } }) }
                                     }
                                 }
                             }
@@ -512,7 +544,7 @@ Item {
                             Item { Layout.fillWidth: true }
                             Components.Toggle {
                                 checked: bluetooth.powered
-                                onToggled: { if (root.noxd.connected) root.noxd.runAction({ bluetooth_set_powered: { powered: value } }) }
+                                onToggled: function(value) { if (root.noxd.connected) root.noxd.runAction({ bluetooth_set_powered: { powered: value } }) }
                             }
                         }
                         Components.IconButton {
@@ -670,7 +702,7 @@ Item {
                             Components.Slider {
                                 Layout.fillWidth: true
                                 value: audio.available ? audio.inputVolume / audio.maxVolume : 0.5
-                                onValueChanged: {
+                                onMoved: function(value) {
                                     if (audio.available && root.noxd.connected)
                                         root.noxd.runAction({ audio_set_volume: { target: "input", volume: Math.round(value * audio.maxVolume) } });
                                 }

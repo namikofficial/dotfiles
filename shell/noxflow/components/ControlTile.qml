@@ -52,7 +52,7 @@ Rectangle {
             id: controlToggle
             visible: root.showToggle
             checked: root.toggleChecked
-            onToggled: root.toggleChanged(value)
+            onToggled: function(value) { root.toggleChanged(value) }
         }
     }
     TapHandler {

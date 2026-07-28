@@ -14,6 +14,7 @@ PanelWindow {
     property string activePanel: ""
     property string pendingPanel: ""
     property rect originRect: Qt.rect(0, 0, 0, 0)
+    property string initialSection: ""
     property bool active: activePanel !== "" || pendingPanel !== ""
     property real topMargin: targetTopMargin
     property real rightMargin: targetRightMargin
@@ -24,7 +25,9 @@ PanelWindow {
     readonly property real targetBottomMargin: Theme.Tokens.scaled(Theme.Tokens.spacingLg)
     readonly property real targetWidth: activePanel === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(380)
     readonly property real targetHeight: activePanel === "media" ? Theme.Tokens.scaled(230) :
-        (activePanel === "calendar" ? Theme.Tokens.scaled(650) : (screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)))
+        (activePanel === "calendar" ? Theme.Tokens.scaled(650) :
+        (activePanel === "notifications" ? Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)) :
+        Math.min(Theme.Tokens.scaled(720), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700))))
     readonly property int morphDuration: Config.Motion.panelOpen
     property bool switching: pendingPanel !== ""
 
@@ -47,6 +50,8 @@ PanelWindow {
         sourceComponent: root.panelComponents && root.activePanel
             ? (root.panelComponents[root.activePanel] || null) : null
         onLoaded: {
+            if (item && root.initialSection !== "" && item.initialSection !== undefined)
+                item.initialSection = root.initialSection;
             if (item && typeof item.open === "function") item.open();
         }
     }
@@ -76,7 +81,9 @@ PanelWindow {
     function geometryFor(name, rect) {
         var width = name === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(380);
         var height = name === "media" ? Theme.Tokens.scaled(230) :
-            (name === "calendar" ? Theme.Tokens.scaled(650) : (screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)));
+            (name === "calendar" ? Theme.Tokens.scaled(650) :
+            (name === "notifications" ? Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)) :
+            Math.min(Theme.Tokens.scaled(720), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700))));
         var hasOrigin = rect && rect.width > 0 && rect.height > 0;
         if (hasOrigin) return { top: Math.max(0, rect.y), right: Math.max(0, screen.width - rect.x - rect.width), width: rect.width, height: rect.height };
         return { top: targetTopMargin, right: targetRightMargin, width: width, height: height };
@@ -88,10 +95,11 @@ PanelWindow {
         Qt.callLater(function() { topMargin = targetTopMargin; rightMargin = targetRightMargin; surfaceWidth = g.width; surfaceHeight = g.height; });
     }
 
-    function openPanel(name, rect) {
+    function openPanel(name, rect, section) {
         if (!componentFor(name)) return false;
         closeTimer.stop();
         if (rect && rect.width > 0 && rect.height > 0) originRect = rect;
+        initialSection = section || "";
         var g = geometryFor(name, rect);
         if (activePanel === name && pendingPanel === "") { closePanel(); return true; }
         if (activePanel !== "" && activePanel !== name) {

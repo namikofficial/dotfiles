@@ -122,7 +122,7 @@ PanelWindow {
     function toggleMedia() { noxd.runAction({media_play_pause:{}}); }
     function toggleCalendarFromBar() { shellRoot.coordinator.toggle("calendar", monitorName, clockGeometry); }
     function toggleNotificationsFromBar() { shellRoot.coordinator.toggle("notifications", monitorName, notificationChipGeometry); }
-    function toggleQuickSettingsFromBar(sourceItem) { shellRoot.coordinator.toggle("quick-settings", monitorName, chipRect(sourceItem || statusCluster)); }
+    function toggleQuickSettingsFromBar(sourceItem, section) { shellRoot.coordinator.toggle("quick-settings", monitorName, chipRect(sourceItem || statusCluster), section || ""); }
     function activeWinLabel() { var w=hyprland.activeWindow; if (!w||typeof w!=="object") return ""; return String(w.title||w.application_id||w.class||w.appid||"").trim(); }
     function mediaLabel() { if (media.status!=="available"||!media.active||!media.title) return ""; var a=media.artists&&media.artists.length?" — "+media.artists.join(", "):""; return media.title+a; }
     function netLabel() { if (network.status!=="available") return ""; if (network.connectivity==="full"||network.connectivity==="limited") return network.connectedSsid||"Network"; if (network.ethernet&&network.ethernet.length) return "Ethernet"; return "Offline"; }
@@ -212,7 +212,7 @@ PanelWindow {
                     Text { text: root.netLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight }
                 }
                 HoverHandler { onHoveredChanged: netPill.ho = hovered }
-                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(netPill); netPill.forceActiveFocus(); } }
+                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(netPill, "network"); netPill.forceActiveFocus(); } }
             }
 
             // Bluetooth pill
@@ -225,7 +225,7 @@ PanelWindow {
                     Text { text: root.btLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                 }
                 HoverHandler { onHoveredChanged: btPill.ho = hovered }
-                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(btPill); btPill.forceActiveFocus(); } }
+                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(btPill, "bluetooth"); btPill.forceActiveFocus(); } }
             }
 
             // Volume pill
@@ -238,7 +238,7 @@ PanelWindow {
                     Text { text: audio.outputVolumePercent + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; visible: !audio.outputMuted }
                 }
                 HoverHandler { onHoveredChanged: volPill.ho = hovered }
-                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(volPill); volPill.forceActiveFocus(); } }
+                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(volPill, "volume"); volPill.forceActiveFocus(); } }
             }
 
             // Battery pill
@@ -251,7 +251,7 @@ PanelWindow {
                     Text { text: Math.round(battery.percentage) + "%"; color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                 }
                 HoverHandler { onHoveredChanged: batPill.ho = hovered }
-                TapHandler { onTapped: root.toggleQuickSettingsFromBar(batPill) }
+                TapHandler { onTapped: root.toggleQuickSettingsFromBar(batPill, "battery") }
             }
 
             // Notification pill

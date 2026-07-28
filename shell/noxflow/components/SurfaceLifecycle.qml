@@ -37,7 +37,7 @@ QtObject {
 
     // The type of easing the surface's Behavior should use
     readonly property int easingType: state === SurfaceLifecycle.State.Opening
-        ? Easing.OutBack
+        ? Easing.OutCubic
         : Easing.InCubic
 
     // ── Signals ──

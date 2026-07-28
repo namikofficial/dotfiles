@@ -44,12 +44,19 @@ QtObject {
         }
     }
 
-    function open(name, monitorName, sourceRect) {
+    function open(name, monitorName, sourceRect, initialSection) {
         targetMonitor = monitorName || (Quickshell.activeScreen ? Quickshell.activeScreen.name : "");
         var registered = triggerRegistry && typeof triggerRegistry.trigger === "function"
             ? triggerRegistry.trigger(name, targetMonitor) : null;
         if (!surface(name)) return false;
-        if (activePanel === name) { close(name); return true; }
+        if (activePanel === name) {
+            if (initialSection && initialSection !== "") {
+                var same = surface(name);
+                if (same && typeof same.openPanel === "function") same.openPanel(name, originRect, initialSection);
+                return true;
+            }
+            close(name); return true;
+        }
         var old = activePanel;
         previousPanel = old;
         originRect = sourceRect || (registered ? Qt.rect(registered.globalX, registered.globalY, registered.globalWidth, registered.globalHeight) : Qt.rect(0, 0, 0, 0));
@@ -58,7 +65,7 @@ QtObject {
         for (var key in panels) if (key !== name) closeSurface(key);
         activePanel = name;
         var next = surface(name);
-        if (next && typeof next.openPanel === "function") next.openPanel(name, sourceRect);
+        if (next && typeof next.openPanel === "function") next.openPanel(name, originRect, initialSection || "");
         else if (next && typeof next.open === "function") next.open();
         isInteractive = true;
         isAnimating = false;
@@ -67,7 +74,7 @@ QtObject {
         return true;
     }
 
-    function toggle(name, monitorName, sourceRect) { return open(name, monitorName, sourceRect); }
+    function toggle(name, monitorName, sourceRect, initialSection) { return open(name, monitorName, sourceRect, initialSection); }
 
     function close(name) {
         var requested = name || activePanel;
