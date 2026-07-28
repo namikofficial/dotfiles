@@ -4,6 +4,8 @@ PartOf=graphical-session.target
 After=graphical-session.target noxd.service
 Requires=noxd.service
 OnFailure=noxflow-fallback.service
+StartLimitIntervalSec=30
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -14,8 +16,6 @@ PrivateTmp=yes
 SyslogIdentifier=noxflow-shell
 Restart=on-failure
 RestartSec=3
-StartLimitIntervalSec=30
-StartLimitBurst=5
 StandardOutput=journal
 StandardError=journal
 

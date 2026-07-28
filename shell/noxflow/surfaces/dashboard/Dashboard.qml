@@ -509,7 +509,7 @@ PanelWindow {
                                 font.pixelSize: Theme.Tokens.typographyBodyMedium; Layout.fillWidth: true
                             }
                             Text {
-                                text: audio.outputMuted ? "Muted" : audio.outputVolume + "%"
+                                text: audio.outputMuted ? "Muted" : audio.outputVolumePercent + "%"
                                 color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
                             }
                         }

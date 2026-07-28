@@ -16,5 +16,6 @@
   ],
   "python.autoComplete.extraPaths": [
     "${workspaceFolder}/system"
-  ]
+  ],
+  "makefile.configureOnOpen": false
 }

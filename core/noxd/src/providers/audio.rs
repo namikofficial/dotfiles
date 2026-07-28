@@ -269,7 +269,7 @@ fn percent(v: &Value) -> u8 {
         .and_then(|x| x.get("value_percent"))
         .and_then(Value::as_str)
         .and_then(|s| s.trim_end_matches('%').parse::<f32>().ok())
-        .map(|n| n.round().clamp(0.0, 255.0) as u8)
+        .map(|n| n.round().clamp(0.0, 100.0) as u8)
         .unwrap_or(0)
 }
 fn device(v: &Value) -> Option<AudioDevice> {

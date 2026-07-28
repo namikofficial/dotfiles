@@ -20,6 +20,7 @@ PanelWindow {
     required property var battery
     required property var power
     required property var hyprland
+    required property var systemModel
 
     // ── Lifecycle ──
     Components.SurfaceLifecycle { id: lifecycle }
@@ -120,7 +121,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 spacing: Theme.Tokens.spacingXs
                 Repeater {
-                    model: ["Quick", "Audio", "Network", "Bluetooth"]
+                    model: ["Quick", "Audio", "Network", "Bluetooth", "System", "Input", "⚡"]
                     delegate: Rectangle {
                         required property int index
                         required property string modelData
@@ -230,7 +231,7 @@ PanelWindow {
                                 onValueChanged: root.queueVolume(value)
                             }
                             Text {
-                                text: audio.available ? audio.outputVolume + "%" : "--"
+                                text: audio.available ? audio.outputVolumePercent + "%" : "--"
                                 color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
                             }
                         }
@@ -569,6 +570,223 @@ PanelWindow {
                                     }
                                 }
                                 TapHandler { onTapped: { if (root.noxd.connected && !modelData.connected) root.noxd.runAction({ bluetooth_connect: { device_id: modelData.id || modelData.path || "" } }) } }
+                            }
+                        }
+                    }
+                }
+
+                // ── System tab (CPU/RAM/Disk) ──
+                Flickable {
+                    anchors.fill: parent
+                    contentHeight: systemContent.height + Theme.Tokens.spacingLg
+                    visible: root.activeTab === 4
+                    interactive: contentHeight > height
+                    ColumnLayout {
+                        id: systemContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        spacing: Theme.Tokens.spacingMd
+
+                        Text { text: "System Resources"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
+
+                        // CPU
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
+                            Text { text: "CPU"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium }
+                            Rectangle {
+                                Layout.fillWidth: true; height: 8; radius: 4
+                                color: Theme.Tokens.outlineSubtle
+                                Rectangle {
+                                    width: parent.width * Math.min(1, (systemModel ? systemModel.cpuUsage : 0) / 100)
+                                    height: parent.height; radius: parent.radius
+                                    color: (systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
+                                }
+                            }
+                            Text {
+                                text: systemModel ? Math.round(systemModel.cpuUsage) + "%" : "--"
+                                color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
+                                Layout.preferredWidth: 50
+                            }
+                        }
+
+                        // RAM
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
+                            Text { text: "RAM"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium }
+                            Rectangle {
+                                Layout.fillWidth: true; height: 8; radius: 4
+                                color: Theme.Tokens.outlineSubtle
+                                Rectangle {
+                                    width: parent.width * (systemModel ? systemModel.memoryUsage / 100 : 0)
+                                    height: parent.height; radius: parent.radius
+                                    color: (systemModel && systemModel.memoryUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
+                                }
+                            }
+                            Text {
+                                text: systemModel ? Math.round(systemModel.memoryUsed / 1024) + "G/" + Math.round(systemModel.memoryTotal / 1024) + "G" : "--"
+                                color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
+                            }
+                        }
+
+                        // Disk
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
+                            Text { text: "Disk"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium }
+                            Rectangle {
+                                Layout.fillWidth: true; height: 8; radius: 4
+                                color: Theme.Tokens.outlineSubtle
+                                Rectangle {
+                                    width: parent.width * (systemModel ? systemModel.diskUsage / 100 : 0)
+                                    height: parent.height; radius: parent.radius
+                                    color: (systemModel && systemModel.diskUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
+                                }
+                            }
+                            Text {
+                                text: systemModel ? Math.round(systemModel.diskUsed / 1024) + "G/" + Math.round(systemModel.diskTotal / 1024) + "G" : "--"
+                                color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
+                            }
+                        }
+                    }
+                }
+
+                // ── Input tab (mic, keyboard, touchpad) ──
+                Flickable {
+                    anchors.fill: parent
+                    contentHeight: inputContent.height + Theme.Tokens.spacingLg
+                    visible: root.activeTab === 5
+                    interactive: contentHeight > height
+                    ColumnLayout {
+                        id: inputContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        spacing: Theme.Tokens.spacingMd
+
+                        Text { text: "Input"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
+
+                        // Mic volume
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
+                            Text {
+                                text: audio.inputMuted ? "⊗" : "◌"
+                                color: audio.inputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.tonalPrimary
+                                font.pixelSize: Theme.Tokens.iconMd
+                                TapHandler { onTapped: { if (root.noxd.connected) root.noxd.runAction({ audio_toggle_mute: { target: "input" } }) } }
+                            }
+                            Components.Slider {
+                                Layout.fillWidth: true
+                                value: audio.available ? audio.inputVolume / audio.maxVolume : 0.5
+                                onValueChanged: {
+                                    if (audio.available && root.noxd.connected)
+                                        root.noxd.runAction({ audio_set_volume: { target: "input", volume: Math.round(value * audio.maxVolume) } });
+                                }
+                            }
+                        }
+
+                        // Input devices
+                        Text { text: "Input Devices"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
+                        Repeater {
+                            model: audio.inputs
+                            delegate: Rectangle {
+                                required property var modelData
+                                width: parent ? parent.width : 100
+                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                                radius: Theme.Tokens.radiusSm
+                                color: modelData.active ? Theme.Tokens.tonalPrimaryContainer : "transparent"
+                                border.color: modelData.active ? Theme.Tokens.tonalPrimary : "transparent"
+                                border.width: modelData.active ? 1 : 0
+                                RowLayout {
+                                    anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm
+                                    Text { text: "◌"; color: modelData.active ? Theme.Tokens.tonalPrimary : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.iconSm }
+                                    Text {
+                                        text: modelData.description || modelData.name || "Unknown"
+                                        elide: Text.ElideRight; Layout.fillWidth: true
+                                        color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall
+                                    }
+                                }
+                                TapHandler {
+                                    onTapped: {
+                                        if (root.noxd.connected)
+                                            root.noxd.runAction({ audio_set_default: { target: "input", selector: modelData.name || modelData.description } })
+                                    }
+                                }
+                            }
+                        }
+
+                        // Keyboard layout
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
+                            Text { text: "⌨"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
+                            Text {
+                                text: systemModel ? systemModel.keyboardLayout || "us" : "us"
+                                color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+                }
+
+                // ── Power tab (profiles + battery) ──
+                Flickable {
+                    anchors.fill: parent
+                    contentHeight: powerContent.height + Theme.Tokens.spacingLg
+                    visible: root.activeTab === 6
+                    interactive: contentHeight > height
+                    ColumnLayout {
+                        id: powerContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        spacing: Theme.Tokens.spacingMd
+
+                        Text { text: "Power & Battery"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
+
+                        // Battery
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
+                            visible: battery.available
+                            Text { text: battery.chargingState === "charging" ? "⚡" : battery.chargingState === "full" ? "🔋" : "🪫"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
+                            Rectangle {
+                                Layout.fillWidth: true; height: 12; radius: 6
+                                color: Theme.Tokens.outlineSubtle
+                                border.color: Theme.Tokens.outlineDefault; border.width: 1
+                                Rectangle {
+                                    width: parent.width * Math.min(1, (battery.percentage || 0) / 100)
+                                    height: parent.height; radius: parent.radius
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: (battery.percentage || 0) > 20 ? Theme.Tokens.stateSuccess : Theme.Tokens.stateDanger
+                                }
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: Math.round(battery.percentage || 0) + "%"
+                                    color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                    font.bold: true
+                                }
+                            }
+                        }
+
+                        Components.Divider { Layout.fillWidth: true; visible: power.profilesAvailable }
+
+                        // Power profiles
+                        Text {
+                            text: "Profile"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge
+                            visible: power.profilesAvailable
+                        }
+                        Repeater {
+                            model: power.availableProfiles || ["power-saver", "balanced", "performance"]
+                            delegate: Rectangle {
+                                required property string modelData
+                                Layout.fillWidth: true
+                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                                radius: Theme.Tokens.radiusPill
+                                color: power.activeProfile === modelData ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceVariant
+                                border.color: power.activeProfile === modelData ? Theme.Tokens.tonalPrimary : "transparent"
+                                border.width: power.activeProfile === modelData ? 1 : 0
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: modelData === "power-saver" ? "🪫 Power Saver" : modelData === "balanced" ? "🔋 Balanced" : "⚡ Performance"
+                                    color: power.activeProfile === modelData ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
+                                    font.pixelSize: Theme.Tokens.typographyBodySmall
+                                }
+                                TapHandler { onTapped: { if (root.noxd.connected) root.noxd.runAction({ power_profile_set: { profile: modelData } }) } }
                             }
                         }
                     }

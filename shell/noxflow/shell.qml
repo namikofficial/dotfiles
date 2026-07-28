@@ -72,7 +72,7 @@ ShellRoot {
             screen: modelData
             noxd: daemonClient; audio: audioModel; brightness: brightnessModel
             network: networkModel; bluetooth: bluetoothModel; battery: batteryModel
-            power: powerModel; hyprland: hyprlandModel
+            power: powerModel; hyprland: hyprlandModel; systemModel: systemModel
             Component.onCompleted: {
                 ccTracker.add(modelData, this);
                 surfaceCoordinator.register(this, surfaceCoordinator.typePanel);

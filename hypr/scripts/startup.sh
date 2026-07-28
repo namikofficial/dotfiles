@@ -218,9 +218,9 @@ if command -v gnome-keyring-daemon >/dev/null 2>&1; then
   fi
 fi
 
-log "starting avizo-service"
-run_once avizo-service avizo-service
-# Wayle is the only managed panel shell.
+# NoxFlow island provides visual OSD for volume/brightness.
+# avizo-service is intentionally not started to avoid double OSDs.
+# Panel shell — respects the persisted engine.
 if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   log "showing panel shell"
   "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true

@@ -22,11 +22,11 @@ QtObject {
     readonly property int reconnectAttempt: reconnectCount
     readonly property int queuedActionCount: coalesceTimer.running ? Object.keys(coalesceSlots).length : 0
 
-    // ── Signals ──
+    // ── Signals (names must NOT clash with readonly property change signals) ──
     signal snapshotReceived(var snapshots)
     signal eventReceived(var event)
-    signal connectionStateChanged(string state)
-    signal providerHealthChanged(string provider, string status)
+    signal connectionStateUpdated(string state)
+    signal providerHealthUpdated(string provider, string status)
 
     // ── Socket path ──
     property string socketPath: {
@@ -120,7 +120,7 @@ QtObject {
         reconnectTimer.stop();
         if (socket.connected) return;
         phase = "connecting";
-        connectionStateChanged("connecting");
+        connectionStateUpdated("connecting");
         socket.path = socketPath;
         socket.connected = true;
     }
@@ -134,14 +134,14 @@ QtObject {
             eventDescription = "none";
             errorText = "";
             phase = "negotiating";
-            connectionStateChanged("negotiating");
+            connectionStateUpdated("negotiating");
             // Re-send pending requests that were disconnected mid-flight
             resendPendingRequests();
             sendRequest("get_version", undefined, handleVersion, handleVersionError);
         } else {
             console.warn("noxd socket disconnected", socketPath);
             phase = "disconnected";
-            connectionStateChanged("disconnected");
+            connectionStateUpdated("disconnected");
             subscriptionId = "";
             cancelPendingRequests("disconnected");
             scheduleReconnect();
@@ -237,7 +237,7 @@ QtObject {
                             socket.write(JSON.stringify(request) + "\n");
                             socket.flush();
                         }
-                        return;
+                        continue;  // keep sweeping other entries
                     }
                 }
 
@@ -377,7 +377,7 @@ QtObject {
         }
         negotiatedVersion = info.protocol_version;
         phase = "state";
-        connectionStateChanged("state");
+        connectionStateUpdated("state");
         sendRequest("get_state", undefined, handleState, function(error, msg) {
             failProtocol("get_state failed: " + msg);
         });
@@ -393,7 +393,7 @@ QtObject {
         if (state.settings) emitSettingsEvents(state.settings);
         publishSnapshots(state.providers);
         phase = "subscribing";
-        connectionStateChanged("subscribing");
+        connectionStateUpdated("subscribing");
         sendRequest("subscribe", { providers: [], event_types: [] }, handleSubscription, function(error, msg) {
             failProtocol("subscribe failed: " + msg);
         });
@@ -410,7 +410,7 @@ QtObject {
         subscriptionId = subscription.subscription_id;
         publishSnapshots(subscription.snapshots);
         phase = "subscribed";
-        connectionStateChanged("subscribed");
+        connectionStateUpdated("subscribed");
         console.info("noxd IPC subscribed", streamId, subscriptionId);
     }
 
@@ -497,7 +497,7 @@ QtObject {
         next[snapshot.provider] = snapshot.status;
         health = next;
         if (prev !== snapshot.status) {
-            providerHealthChanged(snapshot.provider, snapshot.status);
+            providerHealthUpdated(snapshot.provider, snapshot.status);
         }
     }
 
@@ -506,7 +506,7 @@ QtObject {
         console.error("noxd protocol failure", message);
         errorText = message;
         phase = "disconnected";
-        connectionStateChanged("disconnected");
+        connectionStateUpdated("disconnected");
         cancelPendingRequests("protocol_failure");
         if (socket.connected) socket.connected = false;
     }

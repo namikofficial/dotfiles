@@ -430,7 +430,7 @@ PanelWindow {
                     implicitWidth: volumeText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: volumeChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
-                    Text { id: volumeText; anchors.centerIn: parent; text: audio.outputMuted ? "◌" : "◉ " + audio.outputVolume + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    Text { id: volumeText; anchors.centerIn: parent; text: audio.outputMuted ? "◌" : "◉ " + audio.outputVolumePercent + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                     HoverHandler { onHoveredChanged: volumeChip.hovered = hovered }
                     TapHandler { onTapped: { root.toggleOutputMute(); volumeChip.forceActiveFocus(); } }
                     Accessible.name: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolume + " percent")

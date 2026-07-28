@@ -79,6 +79,10 @@ enum CommandGroup {
         #[command(subcommand)]
         command: MediaCommand,
     },
+    Panel {
+        #[command(subcommand)]
+        command: PanelCommand,
+    },
     Shell {
         #[command(subcommand)]
         command: ShellCommand,
@@ -252,6 +256,27 @@ enum ShellTarget {
     ControlCenter,
     Panel,
     Notifications,
+}
+#[derive(Subcommand, Debug)]
+enum PanelCommand {
+    List,
+    Toggle {
+        surface: Surface,
+    },
+}
+#[derive(ValueEnum, Clone, Debug)]
+enum Surface {
+    Launcher,
+    Dashboard,
+    Overview,
+    Capture,
+    Control,
+    Notifications,
+    Calendar,
+    Radial,
+    Settings,
+    System,
+    Dnd,
 }
 #[derive(Subcommand, Debug)]
 enum ProfileCommand {
@@ -671,6 +696,49 @@ fn shell_command(command: &ShellCommand) -> Result<(), CliError> {
     }
 }
 
+fn shell_qml_path() -> PathBuf {
+    env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(env::var_os("HOME").unwrap_or_default()).join(".config")
+        })
+        .join("noxflow/shell/shell.qml")
+}
+
+fn toggle_surface(surface: &Surface) -> Result<(), CliError> {
+    let toggle_fn = match surface {
+        Surface::Launcher => "toggleLauncher",
+        Surface::Dashboard | Surface::System => "toggleDashboard",
+        Surface::Overview => "toggleOverview",
+        Surface::Capture => "toggleCapture",
+        Surface::Control => "toggleControl",
+        Surface::Notifications => "toggleNotifications",
+        Surface::Calendar => "toggleCalendar",
+        Surface::Radial => "toggleRadialWheel",
+        Surface::Settings => "toggleSettings",
+        Surface::Dnd => "toggleDnd",
+    };
+    let status = Command::new("quickshell")
+        .args([
+            "ipc",
+            "-p",
+            shell_qml_path().to_str().unwrap_or(""),
+            "call",
+            "noxctl",
+            toggle_fn,
+        ])
+        .status()
+        .map_err(|e| CliError::Local(sanitize(&e.to_string())))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(CliError::Local(format!(
+            "quickshell panel toggle failed with {}",
+            status
+        )))
+    }
+}
+
 fn island_action(command: IslandCommand) -> Result<Action, CliError> {
     Ok(match command {
         IslandCommand::Volume { value } => Action::IslandTestVolume { volume: value },
@@ -930,6 +998,32 @@ fn execute(cli: Cli) -> Result<(), CliError> {
             print_response(&x, cli.json);
             Ok(())
         }
+        CommandGroup::Panel { command } => match command {
+            PanelCommand::List => {
+                let surfaces = [
+                    "launcher",
+                    "dashboard",
+                    "overview",
+                    "capture",
+                    "control",
+                    "notifications",
+                    "calendar",
+                    "radial",
+                    "settings",
+                    "system",
+                    "dnd",
+                ];
+                if cli.json {
+                    println!("{}", serde_json::to_string_pretty(&surfaces).unwrap());
+                } else {
+                    for s in surfaces {
+                        println!("{s}")
+                    }
+                }
+                Ok(())
+            }
+            PanelCommand::Toggle { surface } => toggle_surface(&surface),
+        },
         CommandGroup::Shell {
             command: ShellCommand::Island { command },
         } => {

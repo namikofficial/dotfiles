@@ -104,7 +104,10 @@ hide_panel() {
 }
 
 show_panel() {
-  start_wayle
+  case "$(read_engine)" in
+    noxflow) start_noxflow ;;
+    *) start_wayle ;;
+  esac
 }
 
 status_line() {

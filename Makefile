@@ -36,7 +36,8 @@ install-shell:
 	install -d $(HOME)/.config/noxflow
 	ln -sfn $(CURDIR)/shell/noxflow $(HOME)/.config/noxflow/shell
 
-install: install-bin install-systemd install-shell
+install:
+	./setup/bootstrap-noxflow.sh
 
 clean:
 	$(CARGO) clean --workspace

@@ -11,6 +11,8 @@ ProviderModel {
     property var inputs: []
     property var streams: []
     property int maxVolume: 100
+    readonly property int outputVolumePercent: maxVolume > 0 ? Math.round(outputVolume / maxVolume * 100) : 0
+    readonly property int inputVolumePercent: maxVolume > 0 ? Math.round(inputVolume / maxVolume * 100) : 0
 
     function applySnapshot(snapshot) {
         if (!Utils.applyBase(this, snapshot, providerName)) return false;

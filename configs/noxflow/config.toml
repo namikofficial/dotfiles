@@ -1,0 +1,72 @@
+# NoxFlow daemon configuration
+# Canonical source: dotfiles/configs/noxflow/config.toml
+# Symlinked to ~/.config/noxflow/config.toml
+
+profile = "material-expressive"
+
+[runtime]
+# state_dir overrides XDG_STATE_HOME when set (empty = use env default)
+state_dir = ""
+# socket_path overrides XDG_RUNTIME_DIR when set (empty = use env default)  
+socket_path = ""
+
+[appearance]
+profile = "material-expressive"
+density = "comfortable"
+radius = 14
+
+[shell]
+reduced_motion = false
+
+[bar]
+mode = "normal"
+
+[ai]
+provider = "local"
+endpoint = "http://127.0.0.1:8080/v1"
+model = "qwen3-4b-local"
+api_key = ""
+
+[calendar]
+sync_enabled = false
+
+[island]
+enabled = true
+
+[animation]
+speed = 1.0
+
+[brightness]
+minimum = 1
+step = 10
+external_backend = ""
+
+[audio]
+max_volume = 255
+
+[media]
+mpris_integration = true
+artwork_cache_enabled = true
+artwork_cache_dir = ""
+artwork_cache_max_bytes = 52428800
+artwork_cache_ttl = 3600
+default_player = "spotify"
+
+[network]
+refresh_interval = 15
+wifi_backend = "iwd"
+
+[bluetooth]
+discovery_timeout = 30
+
+[power]
+enabled = true
+
+[providers]
+hyprland = true
+audio = true
+brightness = true
+network = true
+bluetooth = true
+power = true
+media = true

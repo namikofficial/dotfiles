@@ -2,6 +2,8 @@
 Description=NoxFlow desktop state daemon
 PartOf=graphical-session.target
 After=graphical-session.target
+StartLimitIntervalSec=30
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -15,8 +17,6 @@ StateDirectory=noxflow
 UMask=0077
 Restart=on-failure
 RestartSec=2
-StartLimitIntervalSec=30
-StartLimitBurst=5
 ExecStartPre=-/usr/bin/mkdir -p %t/noxflow
 Environment=XDG_RUNTIME_DIR=%t
 KillSignal=SIGTERM

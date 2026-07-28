@@ -6,17 +6,16 @@ local mainMod = ctx.mainMod
 
 -- Launch / session
 exec(mainMod .. " + Return", ctx.terminal)
-exec(mainMod .. " + Space", home .. "/.local/bin/noxctl launcher")
+exec(mainMod .. " + Space", home .. "/.local/bin/noxctl panel toggle launcher")
 
 -- NoxFlow feature keybinds (canonical)
-exec(mainMod .. " + Tab", home .. "/.local/bin/noxctl overview")
-exec(mainMod .. " + N", home .. "/.local/bin/noxctl notifications")
-exec(mainMod .. " + SHIFT + N", home .. "/.config/hypr/scripts/open-notes.sh")
-exec(mainMod .. " + SHIFT + S", home .. "/.local/bin/noxctl capture")
-exec(mainMod .. " + comma", home .. "/.local/bin/noxctl settings")
-exec(mainMod .. " + D", home .. "/.local/bin/noxctl dashboard")
-exec(mainMod .. " + SHIFT + C", home .. "/.local/bin/noxctl calendar")
-exec(mainMod .. " + SHIFT + B", home .. "/.local/bin/noxctl control")
+exec(mainMod .. " + Tab", home .. "/.local/bin/noxctl panel toggle overview")
+exec(mainMod .. " + N", home .. "/.local/bin/noxctl panel toggle notifications")
+exec(mainMod .. " + SHIFT + S", home .. "/.local/bin/noxctl panel toggle capture")
+exec(mainMod .. " + comma", home .. "/.local/bin/noxctl panel toggle settings")
+exec(mainMod .. " + D", home .. "/.local/bin/noxctl panel toggle dashboard")
+exec(mainMod .. " + SHIFT + C", home .. "/.local/bin/noxctl panel toggle calendar")
+exec(mainMod .. " + SHIFT + B", home .. "/.local/bin/noxctl panel toggle control")
 
 -- Developer: panel-engine switcher (undocumented, debug only)
 -- exec(mainMod .. " + SHIFT + Y", home .. "/.config/hypr/scripts/panel-switch.sh toggle-view")
