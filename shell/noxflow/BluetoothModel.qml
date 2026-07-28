@@ -8,6 +8,8 @@ ProviderModel {
     property bool discovering: false
     property var adapters: []
     property var devices: []
+    readonly property var connectedDevices: devices.filter(function(d) { return d.connected === true; })
+    readonly property string displayState: !available || !adapterPresent ? "Bluetooth unavailable" : !powered ? "Bluetooth off" : discovering ? "Discovering" : connectedDevices.length > 0 ? connectedDevices.map(function(d) { return d.name || "Device"; }).join(", ") : "Bluetooth on"
 
     function applySnapshot(snapshot) {
         if (!Utils.applyBase(this, snapshot, providerName)) return false;
