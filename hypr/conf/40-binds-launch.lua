@@ -60,6 +60,7 @@ exec(mainMod .. " + ALT + grave", home .. "/.config/hypr/scripts/sidepanel.sh to
 exec(mainMod .. " + O", home .. "/.config/hypr/scripts/set-wallpaper.sh --pick")
 exec(mainMod .. " + SHIFT + O", home .. "/.config/hypr/scripts/set-wallpaper.sh --next")
 exec(mainMod .. " + ALT + N", home .. "/.config/hypr/scripts/notif-dnd-toggle.sh")
+exec(mainMod .. " + SHIFT + N", home .. "/.config/hypr/scripts/open-notes.sh")
 exec(mainMod .. " + ALT + E", home .. "/.config/hypr/scripts/open-notes.sh")
 bind(mainMod .. " + SHIFT + Q", hl.dsp.window.close())
 exec(mainMod .. " + SHIFT + M", home .. "/.config/hypr/scripts/minimize-window.sh minimize")
