@@ -24,6 +24,9 @@ PanelWindow {
     property bool providerDegraded: hasDegradedProvider()
     property bool urgent: monitorUrgentCount() > 0
 
+    // ── Reduced motion ──
+    readonly property bool reducedMotion: Theme.Tokens.reducedMotion
+
     // ── Morph-origin geometry (screen-space rects for Phase 3 MorphRegistry) ──
     function chipRect(item) {
         if (!item || !item.visible) return Qt.rect(0, 0, 0, 0);
@@ -167,14 +170,14 @@ PanelWindow {
 
     function mediaLabel() {
         if (media.status !== "available" || !media.active || !media.title) return "";
-        var artist = media.artists.length ? " — " + media.artists.join(", ") : "";
+        var artist = media.artists && media.artists.length ? " — " + media.artists.join(", ") : "";
         return media.title + artist;
     }
 
     function networkLabel() {
         if (network.status !== "available") return "";
         if (network.connectivity === "full" || network.connectivity === "limited") return network.connectedSsid || "Network";
-        if (network.ethernet.length) return "Ethernet";
+        if (network.ethernet && network.ethernet.length) return "Ethernet";
         return "Offline";
     }
 
@@ -198,11 +201,13 @@ PanelWindow {
             anchors.rightMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
             spacing: Theme.Tokens.scaled(Theme.Tokens.spacingSm)
 
+            // ── Left: Workspaces + Active Window ──
             RowLayout {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 spacing: Theme.Tokens.scaled(Theme.Tokens.spacingXs)
 
+                // Workspace buttons
                 Repeater {
                     model: root.workspaceEntries
                     delegate: FocusScope {
@@ -235,6 +240,7 @@ PanelWindow {
                             font.family: Theme.Tokens.typographyFontFamily
                             font.pixelSize: Theme.Tokens.typographyLabelMedium
                         }
+                        // Urgent dot
                         Rectangle {
                             visible: workspaceButton.urgent
                             anchors.right: parent.right
@@ -264,6 +270,7 @@ PanelWindow {
                     }
                 }
 
+                // Active window label
                 Text {
                     Layout.maximumWidth: Theme.Tokens.scaled(220)
                     Layout.fillWidth: true
@@ -274,16 +281,19 @@ PanelWindow {
                     font.pixelSize: Theme.Tokens.typographyBodySmall
                     Accessible.name: "Active application: " + text
                 }
+
+                // Urgent indicator
                 Text {
                     visible: root.urgent
-                    text: "!"
+                    text: "\uF06A"  // nf-fa-exclamation-circle
                     color: Theme.Tokens.stateDanger
-                    font.bold: true
+                    font.family: "Symbols Nerd Font Mono"
                     font.pixelSize: Theme.Tokens.typographyTitleMedium
                     Accessible.name: "Urgent window"
                 }
             }
 
+            // ── Media chip ──
             FocusScope {
                 id: mediaChip
                 property bool hovered: false
@@ -300,6 +310,13 @@ PanelWindow {
                 RowLayout {
                     id: mediaRow
                     anchors.centerIn: parent
+                    spacing: Theme.Tokens.spacingXs
+                    Text {
+                        text: "\uF001"  // nf-fa-music
+                        color: Theme.Tokens.tonalSecondary
+                        font.family: "Symbols Nerd Font Mono"
+                        font.pixelSize: Theme.Tokens.typographyBodySmall
+                    }
                     Text {
                         id: mediaText
                         Layout.maximumWidth: Theme.Tokens.scaled(260)
@@ -316,46 +333,7 @@ PanelWindow {
                 Tooltip { target: mediaChip; text: mediaText.text }
             }
 
-            // ── Weather chip (guarded — may not fully resolve in Variants scope) ──
-            FocusScope {
-                id: weatherChip
-                property bool hovered: false
-                readonly property var _w: typeof shellRoot !== "undefined" && shellRoot ? shellRoot.weatherModel || null : null
-                visible: _w && _w.condition !== ""
-                implicitWidth: weatherRow.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
-                implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
-                Layout.maximumWidth: Theme.Tokens.scaled(180)
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.Tokens.radiusSm
-                    color: weatherChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent"
-                }
-                RowLayout {
-                    id: weatherRow
-                    anchors.centerIn: parent
-                    spacing: Theme.Tokens.spacingXs
-                    Text {
-                        text: weatherChip._w ? Math.round(weatherChip._w.temperature) + "°" : "—"
-                        color: Theme.Tokens.tonalSecondary
-                        font.family: Theme.Tokens.typographyFontFamily
-                        font.pixelSize: Theme.Tokens.typographyBodySmall
-                        font.bold: true
-                    }
-                    Text {
-                        text: weatherChip._w ? weatherChip._w.condition : ""
-                        color: Theme.Tokens.textSecondary
-                        font.family: Theme.Tokens.typographyFontFamily
-                        font.pixelSize: Theme.Tokens.typographyLabelSmall
-                        elide: Text.ElideRight
-                        visible: text !== ""
-                    }
-                }
-                HoverHandler { onHoveredChanged: weatherChip.hovered = hovered }
-                TapHandler { onTapped: shellRoot.toggleDashboard() }
-                Tooltip { target: weatherChip; text: weatherChip._w ? weatherChip._w.location + " — " + weatherChip._w.condition + ", " + Math.round(weatherChip._w.temperature) + "°C" : "" }
-            }
-
+            // ── Status cluster (right) ──
             RowLayout {
                 id: statusCluster
                 Layout.fillWidth: true
@@ -363,110 +341,172 @@ PanelWindow {
                 Layout.alignment: Qt.AlignRight
                 spacing: Theme.Tokens.scaled(Theme.Tokens.spacingSm)
 
+                // Network
                 FocusScope {
                     id: networkChip
                     property bool hovered: false
                     visible: root.networkLabel() !== ""
-                    implicitWidth: networkText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitWidth: networkRow.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: networkChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
-                    Text { id: networkText; anchors.centerIn: parent; text: "⌁ " + root.networkLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight }
+                    RowLayout {
+                        id: networkRow
+                        anchors.centerIn: parent
+                        spacing: Theme.Tokens.spacingXs
+                        Text {
+                            text: "\uF1EB"  // nf-fa-wifi
+                            color: Theme.Tokens.textSecondary
+                            font.family: "Symbols Nerd Font Mono"
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                        }
+                        Text {
+                            id: networkText
+                            text: root.networkLabel()
+                            color: Theme.Tokens.textSecondary
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                            elide: Text.ElideRight
+                        }
+                    }
                     HoverHandler { onHoveredChanged: networkChip.hovered = hovered }
                     TapHandler { onTapped: { root.refreshNetwork(); networkChip.forceActiveFocus(); } }
                     Accessible.name: "Network: " + root.networkLabel()
                     Tooltip { target: networkChip; text: "Network: " + root.networkLabel() }
                 }
-                // CPU chip
-                FocusScope {
-                    id: cpuChip
-                    property bool hovered: false
-                    visible: true
-                    implicitWidth: cpuText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
-                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
-                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: cpuChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
-                    Text {
-                        id: cpuText; anchors.centerIn: parent
-                        text: "⚡ " + (typeof systemModel !== "undefined" && systemModel ? systemModel.cpuUsage + "%" : "--")
-                        color: (typeof systemModel !== "undefined" && systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary
-                        font.pixelSize: Theme.Tokens.typographyBodySmall
-                    }
-                    HoverHandler { onHoveredChanged: cpuChip.hovered = hovered }
-                    Tooltip { target: cpuChip; text: "CPU: " + (typeof systemModel !== "undefined" && systemModel ? systemModel.cpuUsage + "% @ " + systemModel.cpuTemp + "°C" : "N/A") }
-                }
-                // RAM chip
-                FocusScope {
-                    id: ramChip
-                    property bool hovered: false
-                    visible: true
-                    implicitWidth: ramText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
-                    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
-                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: ramChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
-                    Text {
-                        id: ramText; anchors.centerIn: parent
-                        text: "💾 " + (typeof systemModel !== "undefined" && systemModel ? systemModel.memPercent + "%" : "--")
-                        color: (typeof systemModel !== "undefined" && systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary
-                        font.pixelSize: Theme.Tokens.typographyBodySmall
-                    }
-                    HoverHandler { onHoveredChanged: ramChip.hovered = hovered }
-                    Tooltip { target: ramChip; text: "RAM: " + (typeof systemModel !== "undefined" && systemModel ? Math.round(systemModel.memUsed / 1024) + "/" + Math.round(systemModel.memTotal / 1024) + " GB" : "N/A") }
-                }
+
+                // Bluetooth
                 FocusScope {
                     id: bluetoothChip
                     property bool hovered: false
                     visible: root.bluetoothLabel() !== ""
-                    implicitWidth: bluetoothText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitWidth: btRow.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: bluetoothChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
-                    Text { id: bluetoothText; anchors.centerIn: parent; text: "◈ " + root.bluetoothLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    RowLayout {
+                        id: btRow
+                        anchors.centerIn: parent
+                        spacing: Theme.Tokens.spacingXs
+                        Text {
+                            text: "\uF294"  // nf-fa-bluetooth
+                            color: Theme.Tokens.textSecondary
+                            font.family: "Symbols Nerd Font Mono"
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                        }
+                        Text {
+                            id: bluetoothText
+                            text: root.bluetoothLabel()
+                            color: Theme.Tokens.textSecondary
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                        }
+                    }
                     HoverHandler { onHoveredChanged: bluetoothChip.hovered = hovered }
                     TapHandler { onTapped: { root.toggleBluetooth(); bluetoothChip.forceActiveFocus(); } }
                     Accessible.name: "Bluetooth: " + root.bluetoothLabel()
                     Tooltip { target: bluetoothChip; text: "Bluetooth: " + root.bluetoothLabel() }
                 }
+
+                // Volume
                 FocusScope {
                     id: volumeChip
                     property bool hovered: false
                     visible: audio.status === "available"
-                    implicitWidth: volumeText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitWidth: volRow.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: volumeChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
-                    Text { id: volumeText; anchors.centerIn: parent; text: audio.outputMuted ? "◌" : "◉ " + audio.outputVolumePercent + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    RowLayout {
+                        id: volRow
+                        anchors.centerIn: parent
+                        spacing: Theme.Tokens.spacingXs
+                        Text {
+                            text: audio.outputMuted ? "\uF026" : "\uF028"  // nf-fa-volume-off / nf-fa-volume-up
+                            color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary
+                            font.family: "Symbols Nerd Font Mono"
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                        }
+                        Text {
+                            id: volumeText
+                            text: audio.outputVolumePercent + "%"
+                            color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                            visible: !audio.outputMuted
+                        }
+                    }
                     HoverHandler { onHoveredChanged: volumeChip.hovered = hovered }
                     TapHandler { onTapped: { root.toggleOutputMute(); volumeChip.forceActiveFocus(); } }
-                    Accessible.name: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolume + " percent")
-                    Tooltip { target: volumeChip; text: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolume + "%") }
+                    Accessible.name: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolumePercent + " percent")
+                    Tooltip { target: volumeChip; text: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolumePercent + "%") }
                 }
+
+                // Battery
                 FocusScope {
                     id: batteryChip
                     property bool hovered: false
                     visible: battery.status === "available" && battery.present && battery.percentage !== null
-                    implicitWidth: batteryText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitWidth: batRow.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: batteryChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
-                    Text { id: batteryText; anchors.centerIn: parent; text: "▰ " + Math.round(battery.percentage) + "%"; color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    RowLayout {
+                        id: batRow
+                        anchors.centerIn: parent
+                        spacing: Theme.Tokens.spacingXs
+                        Text {
+                            text: battery.charging ? "\uF1E6" : battery.critical ? "\uF244" : "\uF240"  // nf-fa-plug / nf-fa-battery-0 / nf-fa-battery-3
+                            color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary
+                            font.family: "Symbols Nerd Font Mono"
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                        }
+                        Text {
+                            id: batteryText
+                            text: Math.round(battery.percentage) + "%"
+                            color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                        }
+                    }
                     HoverHandler { onHoveredChanged: batteryChip.hovered = hovered }
-                    Accessible.name: "Battery: " + batteryText.text
-                    Tooltip { target: batteryChip; text: "Battery: " + Math.round(battery.percentage) + "%" }
+                    Accessible.name: "Battery: " + (batteryText.text || "")
+                    Tooltip { target: batteryChip; text: "Battery: " + (battery.charging ? "Charging, " : "") + Math.round(battery.percentage) + "%" }
                 }
+
+                // Notifications
                 FocusScope {
                     id: notifChip
                     property bool hovered: false
-                    implicitWidth: notifText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+                    implicitWidth: notifRow.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: notifChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
-                    Text {
-                        id: notifText; anchors.centerIn: parent
-                        text: root.showNotificationBadge ? root.notificationModel.notifications.length : "·"
-                        color: root.showNotificationBadge ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted
-                        font.pixelSize: Theme.Tokens.typographyTitleMedium
-                        font.bold: root.showNotificationBadge
+                    RowLayout {
+                        id: notifRow
+                        anchors.centerIn: parent
+                        spacing: Theme.Tokens.spacingXs
+                        Text {
+                            text: root.showNotificationBadge ? "\uF0F3" : "\uF0A2"  // nf-fa-bell / nf-fa-bell-o
+                            color: root.showNotificationBadge ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted
+                            font.family: "Symbols Nerd Font Mono"
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                        }
+                        Text {
+                            id: notifText
+                            visible: root.showNotificationBadge
+                            text: root.notificationModel && root.notificationModel.notifications ? String(root.notificationModel.notifications.length) : ""
+                            color: Theme.Tokens.stateInfo
+                            font.pixelSize: Theme.Tokens.typographyLabelSmall
+                            font.bold: true
+                        }
                     }
                     HoverHandler { onHoveredChanged: notifChip.hovered = hovered }
                     TapHandler { onTapped: shellRoot.toggleNotificationCentre() }
                     Accessible.role: Accessible.Button
-                    Accessible.name: root.showNotificationBadge ? root.notificationModel.notifications.length + " notifications" : "No notifications"
-                    Tooltip { target: notifChip; text: root.showNotificationBadge ? root.notificationModel.notifications.length + " notification(s)" : "Notifications" }
+                    Accessible.name: root.showNotificationBadge
+                        ? (root.notificationModel.notifications.length + " notifications")
+                        : "No notifications"
+                    Tooltip {
+                        target: notifChip
+                        text: root.showNotificationBadge && root.notificationModel && root.notificationModel.notifications
+                            ? root.notificationModel.notifications.length + " notification(s)"
+                            : "Notifications"
+                    }
                 }
+
+                // Health indicator
                 FocusScope {
                     id: healthChip
                     property bool hovered: false
@@ -474,7 +514,14 @@ PanelWindow {
                     implicitWidth: healthText.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingMd)
                     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: healthChip.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
-                    Text { id: healthText; anchors.centerIn: parent; text: "⚠"; color: Theme.Tokens.stateWarning; font.pixelSize: Theme.Tokens.typographyTitleMedium }
+                    Text {
+                        id: healthText
+                        anchors.centerIn: parent
+                        text: "\uF071"  // nf-fa-exclamation-triangle
+                        color: Theme.Tokens.stateWarning
+                        font.family: "Symbols Nerd Font Mono"
+                        font.pixelSize: Theme.Tokens.typographyTitleMedium
+                    }
                     HoverHandler { onHoveredChanged: healthChip.hovered = hovered }
                     Accessible.name: "Shell health degraded"
                     Tooltip { target: healthChip; text: "Shell health degraded" }
@@ -482,7 +529,7 @@ PanelWindow {
             }
         }
 
-        // Keep the clock independent from the variable-width content on either side.
+        // ── Clock (centered, independent of content) ──
         FocusScope {
             id: clockChip
             anchors.centerIn: parent
