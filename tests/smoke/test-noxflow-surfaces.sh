@@ -13,8 +13,14 @@ NC='\033[0m'
 PASS=0
 FAIL=0
 
-log_pass() { printf "  ${GREEN}PASS${NC} %s\n" "$*"; ((PASS++)) || true; }
-log_fail() { printf "  ${RED}FAIL${NC} %s\n" "$*"; ((FAIL++)) || true; }
+log_pass() {
+  printf "  ${GREEN}PASS${NC} %s\n" "$*"
+  ((PASS++)) || true
+}
+log_fail() {
+  printf "  ${RED}FAIL${NC} %s\n" "$*"
+  ((FAIL++)) || true
+}
 log_info() { printf "  ${YELLOW}INFO${NC} %s\n" "$*"; }
 
 SURFACES=(
@@ -31,6 +37,10 @@ SURFACES=(
 NOXCTL="$HOME/.local/bin/noxctl"
 TEST_START="$(date +%s)"
 IPC_PATH="$HOME/.config/noxflow/shell/shell.qml"
+
+toggle_surface() {
+  "$NOXCTL" "$1"
+}
 
 echo "=== NoxFlow Surface Smoke Test ==="
 echo ""
@@ -80,16 +90,16 @@ echo "--- Surface toggle tests ---"
 
 for surface in "${SURFACES[@]}"; do
   # Open
-  if "$NOXCTL" "$surface" 2>/dev/null; then
+  if toggle_surface "$surface" 2>/dev/null; then
     log_pass "noxctl $surface (toggle open)"
   else
     log_fail "noxctl $surface (toggle open) — exit code $?"
   fi
 
-  sleep 0.4  # Let animation complete
+  sleep 0.4 # Let animation complete
 
   # Close
-  if "$NOXCTL" "$surface" 2>/dev/null; then
+  if toggle_surface "$surface" 2>/dev/null; then
     log_pass "noxctl $surface (toggle close)"
   else
     log_fail "noxctl $surface (toggle close) — exit code $?"
@@ -104,7 +114,7 @@ echo ""
 echo "--- Rapid toggle test (launcher, 10x) ---"
 
 for i in $(seq 1 10); do
-  if "$NOXCTL" launcher 2>/dev/null; then
+  if toggle_surface launcher 2>/dev/null; then
     :
   else
     log_fail "Rapid toggle #$i failed"
@@ -114,7 +124,7 @@ done
 
 log_pass "Rapid toggle (launcher 10x) completed"
 # Make sure it's closed
-"$NOXCTL" launcher 2>/dev/null || true
+toggle_surface launcher 2>/dev/null || true
 
 echo ""
 
@@ -137,9 +147,7 @@ echo "--- Cleanup: force-close all surfaces ---"
 
 for surface in "${SURFACES[@]}"; do
   case "$surface" in
-    control) "$NOXCTL" control 2>/dev/null || true ;;
-    notifications) "$NOXCTL" notifications 2>/dev/null || true ;;
-    *) "$NOXCTL" "$surface" 2>/dev/null || true ;;
+    *) toggle_surface "$surface" 2>/dev/null || true ;;
   esac
   sleep 0.1
 done
@@ -147,9 +155,7 @@ done
 # Double-tap close on each: if any were open, first call closes them, second is no-op
 for surface in "${SURFACES[@]}"; do
   case "$surface" in
-    control) "$NOXCTL" control 2>/dev/null || true ;;
-    notifications) "$NOXCTL" notifications 2>/dev/null || true ;;
-    *) "$NOXCTL" "$surface" 2>/dev/null || true ;;
+    *) toggle_surface "$surface" 2>/dev/null || true ;;
   esac
   sleep 0.1
 done

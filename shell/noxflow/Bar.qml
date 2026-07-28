@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import "components"
 import "theme" as Theme
@@ -16,6 +17,7 @@ PanelWindow {
     property var monitor: findMonitor()
     property bool providerDegraded: hasDegradedProvider()
     property bool urgent: monitorUrgentCount() > 0
+    property Process workspaceDispatch: Process { running: false }
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
     readonly property real pillHeight: Theme.Tokens.scaled(32)
 
@@ -24,8 +26,24 @@ PanelWindow {
     readonly property rect mediaChipGeometry: chipRect(mediaPill)
     readonly property rect notificationChipGeometry: chipRect(notifPill)
     readonly property rect statusClusterGeometry: chipRect(statusCluster)
+    readonly property rect networkGeometry: chipRect(netPill)
+    readonly property rect bluetoothGeometry: chipRect(btPill)
+    readonly property rect volumeGeometry: chipRect(volPill)
+    readonly property rect batteryGeometry: chipRect(batPill)
 
-    function registerMorphChips() { var reg = shellRoot.morphRegistry; if (!reg) return; reg.registerChip("clock",clockGeometry); reg.registerChip("media",mediaChipGeometry); reg.registerChip("notification",notificationChipGeometry); reg.registerChip("status",statusClusterGeometry); }
+    function registerMorphChips() {
+        var reg = shellRoot.triggerRegistry;
+        if (!reg) return;
+        reg.registerTrigger("calendar", monitorName, clockGeometry, Theme.Tokens.radiusPill);
+        reg.registerTrigger("media", monitorName, mediaChipGeometry, Theme.Tokens.radiusPill);
+        reg.registerTrigger("notifications", monitorName, notificationChipGeometry, Theme.Tokens.radiusPill);
+        reg.registerTrigger("quick-settings", monitorName, volumeGeometry, Theme.Tokens.radiusPill);
+        reg.registerTrigger("quick-settings", monitorName, networkGeometry, Theme.Tokens.radiusPill, "network");
+        reg.registerTrigger("quick-settings", monitorName, bluetoothGeometry, Theme.Tokens.radiusPill, "bluetooth");
+        reg.registerTrigger("quick-settings", monitorName, volumeGeometry, Theme.Tokens.radiusPill, "volume");
+        reg.registerTrigger("quick-settings", monitorName, batteryGeometry, Theme.Tokens.radiusPill, "battery");
+    }
+    Timer { interval: 250; repeat: true; running: root.visible; onTriggered: root.registerMorphChips() }
     Component.onCompleted: registerMorphChips()
 
     screen: root.screen
@@ -44,12 +62,28 @@ PanelWindow {
     function monitorUrgentCount() { var c=0; for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(wsId(w.workspace))) c++; } return c; }
     function wsUrgent(name) { for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (wsId(w.workspace)===name&&hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(name)) return true; } return false; }
     function hasDegradedProvider() { var ss=noxd.providerHealth||{}; for (var p in ss) if (ss[p]==="degraded") return true; return false; }
-    function focusWS(name) { if (noxd.connected) noxd.runAction({workspace_focus:{workspace:name}}); else { var p=new Process();p.command=["hyprctl","dispatch","workspace",name];p.running=true; } }
-    function cycleWS(d) { noxd.runAction({workspace_cycle:{delta:d}}); }
+    function focusWS(name) {
+        var target = String(name || "").trim();
+        if (!target || target.indexOf("special:") === 0 || !/^[0-9A-Za-z_-]+$/.test(target)) return;
+        // Workspace focus is a compositor dispatch, not a provider action. Use
+        // Hyprland's IPC directly so a slow/degraded noxd cannot swallow a click.
+        workspaceDispatch.running = false;
+        workspaceDispatch.command = ["hyprctl", "dispatch", "hl.dsp.focus({ workspace = \"" + target + "\" })"];
+        workspaceDispatch.running = true;
+    }
+    function cycleWS(d) {
+        var direction = d < 0 ? "e-1" : "e+1";
+        workspaceDispatch.running = false;
+        workspaceDispatch.command = ["hyprctl", "dispatch", "hl.dsp.focus({ workspace = \"" + direction + "\" })"];
+        workspaceDispatch.running = true;
+    }
     function toggleMute() { noxd.runAction({audio_toggle_mute:{target:"output"}}); }
     function refreshNet() { noxd.runAction({network_refresh:{}}); }
     function toggleBT() { noxd.runAction({bluetooth_set_powered:{powered:!bluetooth.powered}}); }
     function toggleMedia() { noxd.runAction({media_play_pause:{}}); }
+    function toggleCalendarFromBar() { shellRoot.coordinator.toggle("calendar", monitorName, clockGeometry); }
+    function toggleNotificationsFromBar() { shellRoot.coordinator.toggle("notifications", monitorName, notificationChipGeometry); }
+    function toggleQuickSettingsFromBar(sourceItem) { shellRoot.coordinator.toggle("quick-settings", monitorName, chipRect(sourceItem || statusCluster)); }
     function activeWinLabel() { var w=hyprland.activeWindow; if (!w||typeof w!=="object") return ""; return String(w.title||w.application_id||w.class||w.appid||"").trim(); }
     function mediaLabel() { if (media.status!=="available"||!media.active||!media.title) return ""; var a=media.artists&&media.artists.length?" — "+media.artists.join(", "):""; return media.title+a; }
     function netLabel() { if (network.status!=="available") return ""; if (network.connectivity==="full"||network.connectivity==="limited") return network.connectedSsid||"Network"; if (network.ethernet&&network.ethernet.length) return "Ethernet"; return "Offline"; }
@@ -123,7 +157,7 @@ PanelWindow {
                 Text { id: mediaText; Layout.maximumWidth: Theme.Tokens.scaled(220); elide: Text.ElideRight; text: root.mediaLabel(); color: Theme.Tokens.tonalSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
             }
             HoverHandler { onHoveredChanged: mediaPill.ho = hovered }
-            TapHandler { onPressedChanged: mediaPill.pr = pressed; onTapped: { root.toggleMedia(); mediaPill.forceActiveFocus(); } }
+            TapHandler { onPressedChanged: mediaPill.pr = pressed; onTapped: { shellRoot.coordinator.toggle("media", monitorName, root.mediaChipGeometry); mediaPill.forceActiveFocus(); } }
         }
 
         // Right status cluster
@@ -139,7 +173,7 @@ PanelWindow {
                     Text { text: root.netLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight }
                 }
                 HoverHandler { onHoveredChanged: netPill.ho = hovered }
-                TapHandler { onTapped: { root.refreshNet(); netPill.forceActiveFocus(); } }
+                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(netPill); netPill.forceActiveFocus(); } }
             }
 
             // Bluetooth pill
@@ -152,7 +186,7 @@ PanelWindow {
                     Text { text: root.btLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                 }
                 HoverHandler { onHoveredChanged: btPill.ho = hovered }
-                TapHandler { onTapped: { root.toggleBT(); btPill.forceActiveFocus(); } }
+                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(btPill); btPill.forceActiveFocus(); } }
             }
 
             // Volume pill
@@ -165,7 +199,7 @@ PanelWindow {
                     Text { text: audio.outputVolumePercent + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; visible: !audio.outputMuted }
                 }
                 HoverHandler { onHoveredChanged: volPill.ho = hovered }
-                TapHandler { onTapped: { root.toggleMute(); volPill.forceActiveFocus(); } }
+                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(volPill); volPill.forceActiveFocus(); } }
             }
 
             // Battery pill
@@ -178,6 +212,7 @@ PanelWindow {
                     Text { text: Math.round(battery.percentage) + "%"; color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                 }
                 HoverHandler { onHoveredChanged: batPill.ho = hovered }
+                TapHandler { onTapped: root.toggleQuickSettingsFromBar(batPill) }
             }
 
             // Notification pill
@@ -191,7 +226,7 @@ PanelWindow {
                     Text { visible: root.showNotificationBadge; text: root.notificationModel && root.notificationModel.notifications ? String(root.notificationModel.notifications.length) : ""; color: Theme.Tokens.stateInfo; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: true }
                 }
                 HoverHandler { onHoveredChanged: notifPill.ho = hovered }
-                TapHandler { onTapped: shellRoot.toggleNotificationCentre() }
+                TapHandler { onTapped: root.toggleNotificationsFromBar() }
             }
 
             // Health dot
@@ -212,7 +247,7 @@ PanelWindow {
             Timer { interval: 1000; repeat: true; running: true; onTriggered: cText.text = Qt.formatTime(new Date(), "HH:mm") }
         }
         HoverHandler { onHoveredChanged: clockPill.ho = hovered }
-        TapHandler { onTapped: shellRoot.toggleCalendar() }
+        TapHandler { onTapped: root.toggleCalendarFromBar() }
     }
 
 

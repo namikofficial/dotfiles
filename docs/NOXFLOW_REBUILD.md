@@ -1,15 +1,17 @@
 # NoxFlow rebuild
 
-This repository is migrating from a Wayle-first desktop to a layered NoxFlow
-shell. Wayle remains the fallback while the new shell is developed.
+This repository uses NoxFlow as the canonical desktop shell. Wayle remains an
+explicit safe-mode fallback while the shell continues to gain optional
+providers.
 
 ## Current foundation
 
 - `core/noxd`: std-only daemon with a versioned status response over an XDG
   runtime Unix socket.
 - `cli/noxctl`: status, doctor, and shell switching entry points.
-- `shell/noxflow`: Quickshell development diagnostics surface and reusable
-  asynchronous noxd IPC client; it contains no production bar yet.
+- `shell/noxflow`: production Quickshell bar, one-panel-at-a-time coordinator,
+  Quick Settings sections, calendar, notifications, media, and reusable
+  asynchronous noxd IPC client.
 - `theme/tokens.toml`: canonical Material design-token source.
 - `shell/noxflow/theme/Tokens.qml`: generated QML token singleton consumed by
   shell primitives.

@@ -4,12 +4,12 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Wayland
 import "../../theme" as Theme
 import "../../components" as Components
 
-PanelWindow {
+Item {
     id: root
+    property var screen
     required property var noxd; required property var notifModel; required property var morphRegistry
 
     Components.SurfaceLifecycle { id: lifecycle }
@@ -19,12 +19,8 @@ PanelWindow {
     property bool showHistory: false
 
     // Right-side panel
-    anchors.top: true; anchors.bottom: true; anchors.right: true
-    margins.top: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
-    margins.bottom: Theme.Tokens.scaled(Theme.Tokens.spacingLg)
-    margins.right: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
     implicitWidth: Theme.Tokens.scaled(380)
-    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    anchors.fill: parent
     visible: lifecycle.active
 
     Connections { target: lifecycle; function onOpened() { showHistory = false; } }

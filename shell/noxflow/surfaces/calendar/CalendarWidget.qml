@@ -4,12 +4,12 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Wayland
 import "../../theme" as Theme
 import "../../components" as Components
 
-PanelWindow {
+Item {
     id: root
+    property var screen
 
     required property var noxd
     required property var calModel
@@ -24,11 +24,8 @@ PanelWindow {
     property bool expanded: false
     property int hoveredDay: -1
 
-    anchors.right: true; anchors.top: true
-    margins.top: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
-    margins.right: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
     implicitWidth: expanded ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(320)
-    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    anchors.fill: parent
     visible: lifecycle.active
 
     Connections {

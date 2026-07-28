@@ -1,0 +1,3 @@
+singleton ShellConfig 1.0 ShellConfig.qml
+singleton Metrics 1.0 Metrics.qml
+singleton Motion 1.0 Motion.qml

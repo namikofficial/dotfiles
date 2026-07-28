@@ -69,13 +69,13 @@ PanelWindow {
     }
 
     // Scrim
-    Rectangle { anchors.fill: parent; color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, 0.15); opacity: lifecycle.active ? 1 : 0; TapHandler { onTapped: lifecycle.requestClose("clickOutside") } }
+    Rectangle { anchors.fill: parent; color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, 0.10); opacity: lifecycle.active ? 1 : 0; TapHandler { onTapped: lifecycle.requestClose("clickOutside") } }
 
     // Card
     Rectangle {
         anchors.centerIn: parent
-        width: Math.min(root.width * 0.55, Theme.Tokens.scaled(580))
-        height: Math.min(root.height * 0.6, Theme.Tokens.scaled(480))
+        width: Math.min(root.width * 0.46, Theme.Tokens.scaled(560))
+        height: Math.min(root.height * 0.52, Theme.Tokens.scaled(440))
         radius: Theme.Tokens.radiusXl; color: Theme.Tokens.surfaceSurfaceContainerHigh
         border.color: Theme.Tokens.outlineDefault; border.width: 1
         scale: root.reducedMotion ? 1.0 : 0.9 + 0.1 * lifecycle.openProgress

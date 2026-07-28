@@ -15,8 +15,9 @@ This repository bootstraps an Arch + Hyprland workstation with reproducible shel
 - `docs/LOCAL_DEVELOPER_WORKFLOW.md` day-to-day developer readiness, project, AI, and recovery workflow
 - `docs/NOXFLOW_LOGGING.md` structured diagnostics, journald integration, and `noxctl logs`
 - `docs/NOXCTL.md` stable NoxFlow CLI commands, JSON output, exit codes, and completions
-- `hypr/` for Hyprland, Wayle-first shell scripts, Rofi, wlogout, lockscreen, and helper scripts
-- `wayle/` for the preferred future shell config
+- `hypr/` for Hyprland, the NoxFlow shell launcher/IPC scripts, Rofi, wlogout, lockscreen, and helpers
+- `shell/noxflow/` for the canonical Quickshell bar, coordinated panels, services, and theme tokens
+- `wayle/` remains an explicit safe-mode fallback and is never started alongside NoxFlow
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
 - `theme/` for GTK visual consistency

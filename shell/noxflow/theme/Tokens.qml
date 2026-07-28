@@ -150,7 +150,8 @@ QtObject {
     readonly property int heightControl: 44
     readonly property int heightField: 48
     readonly property int heightChip: 32
-    readonly property int heightToolbar: 56
+    // Keep the persistent bar thin; panels use their own control metrics.
+    readonly property int heightToolbar: 40
 
     // reduced_motion
     readonly property bool reducedMotionEnabled: false
@@ -165,7 +166,10 @@ QtObject {
     function scale(value, density) { return value * (density === "compact" ? 0.9 : density === "spacious" ? 1.1 : 1.0); }
     function scaled(value) { return scale(value, activeDensity); }
     function duration(value) { return reducedMotion ? reducedMotionDurationScale * value : value; }
-    function withAlpha(value, alpha) { return Qt.rgba(value.r, value.g, value.b, alpha); }
+    function withAlpha(value, alpha) {
+        if (value === undefined || value === null) return Qt.rgba(0, 0, 0, alpha);
+        return Qt.rgba(value.r || 0, value.g || 0, value.b || 0, alpha);
+    }
 
     /// Apply a named theme profile, updating all color properties.
     function applyProfile(name) {

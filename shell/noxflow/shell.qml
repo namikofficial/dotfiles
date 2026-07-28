@@ -8,9 +8,11 @@ import "surfaces/overview" as OverviewSurface
 import "surfaces/capture" as CaptureSurface
 import "surfaces/radialmenu" as RadialSurface
 import "surfaces/calendar" as CalendarSurface
+import "surfaces/media" as MediaSurface
 import "surfaces/dashboard" as DashboardSurface
 import "surfaces/settings" as SettingsSurface
 import "components" as Components
+import "core" as Core
 
 ShellRoot {
     id: shellRoot
@@ -38,10 +40,15 @@ ShellRoot {
     InstanceTracker { id: ncTracker }
     InstanceTracker { id: calTracker }
     InstanceTracker { id: rwTracker }
+    InstanceTracker { id: mediaTracker }
+    Core.PanelController { id: panelController; triggerRegistry: morphRegistry }
+    property alias coordinator: panelController
+    property alias surfaceCoordinator: surfaceCoordinatorInstance
+    property alias triggerRegistry: morphRegistry
 
     // ── Surface Coordinator ──
     Components.SurfaceCoordinator {
-        id: surfaceCoordinator
+        id: surfaceCoordinatorInstance
     }
 
     // ── Daemon snapshot dispatch ──
@@ -64,72 +71,67 @@ ShellRoot {
         }
     }
 
-    // ── Control Centre (per-screen panel via InstanceTracker) ──
+    // ── Unified major-panel host (one PanelWindow per monitor) ──
     Variants {
         model: Quickshell.screens
-        ControlCenter.ControlCentre {
+        Core.MorphSurface {
+            id: morphSurface
             required property var modelData
             screen: modelData
-            noxd: daemonClient; audio: audioModel; brightness: brightnessModel
-            network: networkModel; bluetooth: bluetoothModel; battery: batteryModel
-            power: powerModel; hyprland: hyprlandModel; systemModel: systemModel
+            panelComponents: ({
+                "quick-settings": quickSettingsComponent,
+                "calendar": calendarComponent,
+                "notifications": notificationComponent,
+                "media": mediaComponent
+            })
+            Component {
+                id: quickSettingsComponent
+                ControlCenter.ControlCentre {
+                    screen: morphSurface.screen
+                    noxd: daemonClient; audio: audioModel; brightness: brightnessModel
+                    network: networkModel; bluetooth: bluetoothModel; battery: batteryModel
+                    power: powerModel; hyprland: hyprlandModel; systemModel: systemModel
+                }
+            }
+            Component {
+                id: calendarComponent
+                CalendarSurface.CalendarWidget { screen: morphSurface.screen; noxd: daemonClient; calModel: calendarModel }
+            }
+            Component {
+                id: notificationComponent
+                NotificationSurfaces.NotificationCentre { screen: morphSurface.screen; noxd: daemonClient; notifModel: notificationModel; morphRegistry: morphRegistry }
+            }
+            Component {
+                id: mediaComponent
+                MediaSurface.MediaPanel { screen: morphSurface.screen; noxd: daemonClient; media: mediaModel }
+            }
             Component.onCompleted: {
-                ccTracker.add(modelData, this);
-                surfaceCoordinator.register(this, surfaceCoordinator.typePanel);
+                panelController.registerPanel("quick-settings", this);
+                panelController.registerPanel("calendar", this);
+                panelController.registerPanel("notifications", this);
+                panelController.registerPanel("media", this);
+                surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
             }
             Component.onDestruction: {
-                ccTracker.remove(modelData);
-                surfaceCoordinator.unregister(this);
+                surfaceCoordinatorInstance.unregister(this);
             }
         }
     }
-    function toggleControlCentre() { ccTracker.toggle(); }
-    function openControl()   { var c = ccTracker.forScreen(null); if (c) c.open(); }
-    function closeControl()  { var c = ccTracker.forScreen(null); if (c) c.close(); }
+    function toggleControlCentre() { panelController.toggle("quick-settings"); }
+    function openControl()   { panelController.open("quick-settings"); }
+    function closeControl()  { panelController.close("quick-settings"); }
 
-    // ── Notification Centre (per-screen panel via InstanceTracker) ──
-    Variants {
-        model: Quickshell.screens
-        NotificationSurfaces.NotificationCentre {
-            required property var modelData
-            screen: modelData
-            noxd: daemonClient
-            notifModel: notificationModel
-            morphRegistry: morphRegistry
-            Component.onCompleted: {
-                ncTracker.add(modelData, this);
-                surfaceCoordinator.register(this, surfaceCoordinator.typePanel);
-            }
-            Component.onDestruction: {
-                ncTracker.remove(modelData);
-                surfaceCoordinator.unregister(this);
-            }
-        }
-    }
-    function toggleNotificationCentre() { ncTracker.toggle(); }
-    function openNotifications()   { var n = ncTracker.forScreen(null); if (n) n.open(); }
-    function closeNotifications()  { var n = ncTracker.forScreen(null); if (n) n.close(); }
+    function toggleNotificationCentre() { panelController.toggle("notifications"); }
+    function openNotifications()   { panelController.open("notifications"); }
+    function closeNotifications()  { panelController.close("notifications"); }
 
-    // ── Calendar Widget (per-screen panel via InstanceTracker) ──
-    Variants {
-        model: Quickshell.screens
-        CalendarSurface.CalendarWidget {
-            required property var modelData
-            screen: modelData
-            noxd: daemonClient; calModel: calendarModel
-            Component.onCompleted: {
-                calTracker.add(modelData, this);
-                surfaceCoordinator.register(this, surfaceCoordinator.typePanel);
-            }
-            Component.onDestruction: {
-                calTracker.remove(modelData);
-                surfaceCoordinator.unregister(this);
-            }
-        }
-    }
-    function toggleCalendar() { calTracker.toggle(); }
-    function openCalendar()   { var c = calTracker.forScreen(null); if (c) c.open(); }
-    function closeCalendar()  { var c = calTracker.forScreen(null); if (c) c.close(); }
+    function toggleCalendar() { panelController.toggle("calendar"); }
+    function openCalendar()   { panelController.open("calendar"); }
+    function closeCalendar()  { panelController.close("calendar"); }
+
+    function toggleMediaPanel() { panelController.toggle("media"); }
+    function openMediaPanel() { panelController.open("media"); }
+    function closeMediaPanel() { panelController.close("media"); }
 
     // ── Radial Wheel (per-screen panel via InstanceTracker) ──
     Variants {
@@ -140,11 +142,11 @@ ShellRoot {
             noxd: daemonClient
             Component.onCompleted: {
                 rwTracker.add(modelData, this);
-                surfaceCoordinator.register(this, surfaceCoordinator.typePanel);
+                surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
             }
             Component.onDestruction: {
                 rwTracker.remove(modelData);
-                surfaceCoordinator.unregister(this);
+                surfaceCoordinatorInstance.unregister(this);
             }
         }
     }
@@ -162,8 +164,8 @@ ShellRoot {
         systemModel: systemModel
         screen: Quickshell.activeScreen || null
         onRequestCaptureAfterClose: shellRoot.openCapture()
-        Component.onCompleted: surfaceCoordinator.register(this, surfaceCoordinator.typeModal)
-        Component.onDestruction: surfaceCoordinator.unregister(this)
+        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
+        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
     }
     function toggleDashboard() { dashboard.toggle(); }
     function openDashboard()   { dashboard.open(); }
@@ -174,8 +176,8 @@ ShellRoot {
         id: settingsPanel
         noxd: daemonClient
         screen: Quickshell.activeScreen || null
-        Component.onCompleted: surfaceCoordinator.register(this, surfaceCoordinator.typeModal)
-        Component.onDestruction: surfaceCoordinator.unregister(this)
+        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
+        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
     }
     function toggleSettings() { settingsPanel.toggle(); }
     function openSettings()   { settingsPanel.open(); }
@@ -195,8 +197,8 @@ ShellRoot {
             captureFullScreen.command = ["sh", "-c", "mkdir -p \"$(dirname '" + dest.replace(/'/g, "'\\''") + "')\" && grim \"" + dest.replace(/'/g, "'\\''") + "\" && notify-send 'Screenshot saved' \"" + dest.replace(/'/g, "'\\''") + "\" -t 3000 || notify-send 'Screenshot failed' 'grim returned an error' -u critical"];
             captureFullScreen.running = true;
         }
-        Component.onCompleted: surfaceCoordinator.register(this, surfaceCoordinator.typeModal)
-        Component.onDestruction: surfaceCoordinator.unregister(this)
+        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
+        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
     }
     property Process captureFullScreen: Process { running: false }
     function toggleCapture() { capture.toggle(); }
@@ -209,8 +211,8 @@ ShellRoot {
         clipboardModel: clipboardModel
         screen: Quickshell.activeScreen || null
         onRequestCaptureAfterClose: shellRoot.openCapture()
-        Component.onCompleted: surfaceCoordinator.register(this, surfaceCoordinator.typeModal)
-        Component.onDestruction: surfaceCoordinator.unregister(this)
+        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
+        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
     }
     function toggleLauncher() { launcher.toggle(); }
     function openLauncher()   { launcher.open(); }
@@ -220,8 +222,8 @@ ShellRoot {
         id: overview
         noxd: daemonClient; hyprland: hyprlandModel
         screen: Quickshell.activeScreen || null
-        Component.onCompleted: surfaceCoordinator.register(this, surfaceCoordinator.typeModal)
-        Component.onDestruction: surfaceCoordinator.unregister(this)
+        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
+        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
     }
     function toggleOverview() { overview.toggle(); }
     function openOverview()   { overview.open(); }
@@ -230,11 +232,11 @@ ShellRoot {
     IpcHandler {
         target: "noxctl"
         function toggleControl() { shellRoot.toggleControlCentre(); }
-        function openControl()    { var cc = shellRoot.ccTracker.forScreen(null); if (cc) cc.open(); }
-        function closeControl()   { var cc = shellRoot.ccTracker.forScreen(null); if (cc) cc.close(); }
+        function openControl()    { shellRoot.openControl(); }
+        function closeControl()   { shellRoot.closeControl(); }
         function toggleNotifications() { shellRoot.toggleNotificationCentre(); }
-        function openNotifications()   { var nc = shellRoot.ncTracker.forScreen(null); if (nc) nc.open(); }
-        function closeNotifications()  { var nc = shellRoot.ncTracker.forScreen(null); if (nc) nc.close(); }
+        function openNotifications()   { shellRoot.openNotifications(); }
+        function closeNotifications()  { shellRoot.closeNotifications(); }
         function toggleRadialWheel() { shellRoot.toggleRadialWheel(); }
         function openRadialWheel()   { var rw = shellRoot.rwTracker.forScreen(null); if (rw) rw.open(); }
         function closeRadialWheel()  { var rw = shellRoot.rwTracker.forScreen(null); if (rw) rw.close(); }
@@ -245,8 +247,11 @@ ShellRoot {
         function toggleCapture() { shellRoot.toggleCapture(); }
         function openCapture()   { shellRoot.capture.open(); }
         function toggleCalendar() { shellRoot.toggleCalendar(); }
-        function openCalendar()   { var cal = shellRoot.calTracker.forScreen(null); if (cal) cal.open(); }
-        function closeCalendar()  { var cal = shellRoot.calTracker.forScreen(null); if (cal) cal.close(); }
+        function openCalendar()   { shellRoot.openCalendar(); }
+        function closeCalendar()  { shellRoot.closeCalendar(); }
+        function toggleMediaPanel() { shellRoot.toggleMediaPanel(); }
+        function openMediaPanel() { shellRoot.openMediaPanel(); }
+        function closeMediaPanel() { shellRoot.closeMediaPanel(); }
         function toggleDashboard() { shellRoot.toggleDashboard(); }
         function openDashboard()   { shellRoot.openDashboard(); }
         function closeDashboard()  { shellRoot.closeDashboard(); }
@@ -254,7 +259,13 @@ ShellRoot {
         function openSettings()   { shellRoot.openSettings(); }
         function toggleDnd()      { shellRoot.toggleDnd(); }
         function toggleNightLight() { shellRoot.toggleNightLight(); }
-        function handleEscape()     { shellRoot.surfaceCoordinator.handleEscape(); }
+        function handleEscape()     { return shellRoot.surfaceCoordinator ? shellRoot.surfaceCoordinator.handleEscape() : false; }
+        function toggleQuickSettingsPanel() { return shellRoot.toggleControlCentre(); }
+        function openQuickSettingsPanel()   { return shellRoot.openControl(); }
+        function toggleMediaPanelFromIpc()  { return shellRoot.toggleMediaPanel(); }
+        function openMediaPanelFromIpc()    { return shellRoot.openMediaPanel(); }
+        function closePanel()       { return shellRoot.coordinator.close(); }
+        function panelState()       { return { activePanel: shellRoot.coordinator.activePanel, state: shellRoot.coordinator.state }; }
     }
 
     // ── NoxIsland (per-screen) ──

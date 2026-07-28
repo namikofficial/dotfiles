@@ -48,6 +48,18 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum CommandGroup {
+    /// Direct panel aliases for the common keyboard-first shell actions.
+    Launcher,
+    Dashboard,
+    Overview,
+    Capture,
+    Control,
+    QuickSettings,
+    Notifications,
+    Calendar,
+    MediaPanel,
+    Settings,
+    Close,
     Status {
         provider: Option<String>,
     },
@@ -199,6 +211,8 @@ enum DiscoverAction {
 }
 #[derive(Subcommand, Debug)]
 enum MediaCommand {
+    /// Open or close the shell media surface.
+    Panel,
     Status,
     Play,
     Pause,
@@ -273,6 +287,7 @@ enum Surface {
     Control,
     Notifications,
     Calendar,
+    Media,
     Radial,
     Settings,
     System,
@@ -714,6 +729,7 @@ fn toggle_surface(surface: &Surface) -> Result<(), CliError> {
         Surface::Control => "toggleControl",
         Surface::Notifications => "toggleNotifications",
         Surface::Calendar => "toggleCalendar",
+        Surface::Media => "toggleMediaPanelFromIpc",
         Surface::Radial => "toggleRadialWheel",
         Surface::Settings => "toggleSettings",
         Surface::Dnd => "toggleDnd",
@@ -737,6 +753,43 @@ fn toggle_surface(surface: &Surface) -> Result<(), CliError> {
             status
         )))
     }
+}
+
+fn shell_ipc_call(function: &str) -> Result<(), CliError> {
+    let status = Command::new("quickshell")
+        .args([
+            "ipc",
+            "-p",
+            shell_qml_path().to_str().unwrap_or(""),
+            "call",
+            "noxctl",
+            function,
+        ])
+        .status()
+        .map_err(|e| CliError::Local(sanitize(&e.to_string())))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(CliError::Local(format!(
+            "shell IPC call {function} failed with {status}"
+        )))
+    }
+}
+
+fn toggle_direct_surface(surface: &str) -> Result<(), CliError> {
+    let function = match surface {
+        "launcher" => "toggleLauncher",
+        "dashboard" => "toggleDashboard",
+        "overview" => "toggleOverview",
+        "capture" => "toggleCapture",
+        "control" | "quick-settings" => "toggleQuickSettingsPanel",
+        "notifications" => "toggleNotifications",
+        "calendar" => "toggleCalendar",
+        "media" => "toggleMediaPanelFromIpc",
+        "settings" => "toggleSettings",
+        _ => return Err(CliError::Usage(format!("unknown shell surface: {surface}"))),
+    };
+    shell_ipc_call(function)
 }
 
 fn island_action(command: IslandCommand) -> Result<Action, CliError> {
@@ -771,6 +824,17 @@ fn execute(cli: Cli) -> Result<(), CliError> {
             };
             Ok(())
         }
+        CommandGroup::Launcher => toggle_direct_surface("launcher"),
+        CommandGroup::Dashboard => toggle_direct_surface("dashboard"),
+        CommandGroup::Overview => toggle_direct_surface("overview"),
+        CommandGroup::Capture => toggle_direct_surface("capture"),
+        CommandGroup::Control => toggle_direct_surface("control"),
+        CommandGroup::QuickSettings => toggle_direct_surface("quick-settings"),
+        CommandGroup::Notifications => toggle_direct_surface("notifications"),
+        CommandGroup::Calendar => toggle_direct_surface("calendar"),
+        CommandGroup::MediaPanel => toggle_direct_surface("media"),
+        CommandGroup::Settings => toggle_direct_surface("settings"),
+        CommandGroup::Close => shell_ipc_call("closePanel"),
         CommandGroup::Status { provider } => run_request(
             &c,
             provider
@@ -957,6 +1021,7 @@ fn execute(cli: Cli) -> Result<(), CliError> {
         }
         CommandGroup::Media { command } => {
             let r = match command {
+                MediaCommand::Panel => return toggle_direct_surface("media"),
                 MediaCommand::Status => {
                     return run_request(
                         &c,

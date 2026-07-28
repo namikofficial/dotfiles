@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+usage: shellctl {toggle|open} {calendar|quick-settings|notifications|media} | close | reload | diagnostics
+EOF
+  exit 2
+}
+
+root="${XDG_CONFIG_HOME:-$HOME/.config}/noxflow/shell"
+ipc=(quickshell ipc -p "$root/shell.qml" call noxctl)
+
+command -v quickshell >/dev/null 2>&1 || {
+  echo "shellctl: quickshell is not installed" >&2
+  exit 127
+}
+
+panel_fn() {
+  case "$1:$2" in
+    toggle:calendar) echo toggleCalendar ;;
+    toggle:quick-settings) echo toggleQuickSettingsPanel ;;
+    toggle:notifications) echo toggleNotifications ;;
+    toggle:media) echo toggleMediaPanelFromIpc ;;
+    open:calendar) echo openCalendar ;;
+    open:quick-settings) echo openQuickSettingsPanel ;;
+    open:notifications) echo openNotifications ;;
+    open:media) echo openMediaPanelFromIpc ;;
+    *) return 1 ;;
+  esac
+}
+
+case "${1:-}" in
+  toggle | open)
+    [ "$#" -eq 2 ] || usage
+    mapfile -t call < <(panel_fn "$1" "$2") || usage
+    "${ipc[@]}" "${call[@]}"
+    ;;
+  close)
+    "${ipc[@]}" closePanel
+    ;;
+  reload)
+    "${ipc[@]}" closePanel >/dev/null 2>&1 || true
+    systemctl --user restart noxflow-shell.service
+    ;;
+  diagnostics)
+    exec "${HOME}/.config/hypr/scripts/shell-diagnostics"
+    ;;
+  *) usage ;;
+esac

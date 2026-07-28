@@ -55,6 +55,23 @@ def property_name(group: str, key: str) -> str:
 
 
 def generate(data: dict) -> str:
+    # Tokens.qml contains runtime-only helpers (profile switching, QtQuick
+    # colour operations) that are intentionally not represented in the TOML
+    # source. Preserve that host file while updating canonical token values;
+    # the previous generator silently deleted those helpers on every run.
+    if TARGET.exists():
+        template = TARGET.read_text()
+        for group, values in data.items():
+            if group == "meta":
+                continue
+            for key, value in values.items():
+                name = property_name(group, key)
+                pattern = re.compile(rf"(^\s*(?:readonly\s+)?property\s+\w+\s+{re.escape(name)}:\s*).*$", re.MULTILINE)
+                template, count = pattern.subn(rf"\g<1>{qml_value(value)}", template, count=1)
+                if count != 1:
+                    raise ValueError(f"runtime token export is missing property {name}")
+        return template
+
     lines = ["pragma Singleton", "import QtQml", "", "QtObject {", "    id: root", ""]
     for group, values in data.items():
         if group == "meta":

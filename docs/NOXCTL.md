@@ -15,6 +15,12 @@ noxctl --socket "$XDG_RUNTIME_DIR/noxflow/noxd.sock" --timeout-ms 1000 status
 Useful examples:
 
 ```sh
+noxctl launcher
+noxctl calendar
+noxctl quick-settings
+noxctl notifications
+noxctl media panel
+noxctl close
 noxctl status
 noxctl provider status audio
 noxctl audio volume +5
@@ -30,6 +36,14 @@ noxctl shell use noxflow
 noxctl shell use wayle
 noxctl shell restart
 noxctl shell safe-mode
+```
+
+The direct panel commands are aliases for the more explicit compatibility
+form, so both styles are supported:
+
+```sh
+noxctl calendar
+noxctl panel toggle calendar
 ```
 
 Use `--json` for automation. JSON output contains command data rather than

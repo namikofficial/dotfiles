@@ -146,7 +146,7 @@ button = 40
 control = 44
 field = 48
 chip = 32
-toolbar = 56
+toolbar = 40
 
 [reduced_motion]
 enabled = false

@@ -20,14 +20,15 @@ read_engine() {
   if [ -f "$engine_file" ]; then
     saved="$(cat "$engine_file" 2>/dev/null || true)"
     case "$saved" in
-      noxflow|wayle)
+      noxflow | wayle)
         printf '%s\n' "$saved"
         return 0
         ;;
     esac
   fi
 
-  printf 'wayle\n'
+  # Quickshell is canonical; Wayle is an explicit safe-mode fallback.
+  printf 'noxflow\n'
 }
 
 is_visible() {
