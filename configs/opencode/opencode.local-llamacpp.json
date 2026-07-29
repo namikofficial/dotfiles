@@ -170,10 +170,18 @@
     "chrome-devtools_*": "ask"
   },
   "mcp": {
-    "chrome-devtools": {
+    "local-docs": {
       "type": "local",
       "command": [
-        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp"
+        "/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"
+      ],
+      "enabled": true,
+      "timeout": 15000
+    },
+    "workbench": {
+      "type": "local",
+      "command": [
+        "/home/namik/Documents/code/dotfiles/system/workbench-mcp.sh"
       ],
       "enabled": true,
       "timeout": 30000
@@ -192,6 +200,68 @@
       "enabled": true,
       "timeout": 120000
     },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "npx",
+        "@playwright/mcp@latest"
+      ],
+      "enabled": true
+    },
+    "git": {
+      "type": "local",
+      "command": [
+        "/home/namik/.local/bin/mcp-server-git",
+        "--repository",
+        "/home/namik/Documents/code/dotfiles"
+      ],
+      "enabled": true,
+      "timeout": 30000
+    },
+    "vibe_kanban": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "vibe-kanban@latest",
+        "--mcp"
+      ],
+      "enabled": true
+    },
+    "chrome_devtools": {
+      "type": "local",
+      "command": [
+        "npx",
+        "chrome-devtools-mcp@latest"
+      ],
+      "enabled": true
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp"
+      ],
+      "enabled": true,
+      "timeout": 30000
+    },
+    "filesystem": {
+      "type": "local",
+      "command": [
+        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/mcp-server-filesystem",
+        "/home/namik/Documents/code/dotfiles"
+      ],
+      "enabled": true,
+      "timeout": 30000
+    },
+    "dev_manager": {
+      "type": "local",
+      "command": [
+        "npx",
+        "dev-manager-mcp",
+        "stdio"
+      ],
+      "enabled": true
+    },
     "obsidian": {
       "type": "local",
       "command": [
@@ -208,41 +278,6 @@
       },
       "enabled": true,
       "timeout": 60000
-    },
-    "workbench": {
-      "type": "local",
-      "command": [
-        "/home/namik/Documents/code/dotfiles/system/workbench-mcp.sh"
-      ],
-      "enabled": true,
-      "timeout": 30000
-    },
-    "local-docs": {
-      "type": "local",
-      "command": [
-        "/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"
-      ],
-      "enabled": true,
-      "timeout": 15000
-    },
-    "filesystem": {
-      "type": "local",
-      "command": [
-        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/mcp-server-filesystem",
-        "/home/namik/Documents/code/dotfiles"
-      ],
-      "enabled": true,
-      "timeout": 30000
-    },
-    "git": {
-      "type": "local",
-      "command": [
-        "/home/namik/.local/bin/mcp-server-git",
-        "--repository",
-        "/home/namik/Documents/code/dotfiles"
-      ],
-      "enabled": true,
-      "timeout": 30000
     }
   },
   "lsp": {
@@ -415,7 +450,7 @@
       "top_p": 0.95,
       "steps": 60,
       "color": "info",
-      "prompt": "Implement only the assigned workstream. Follow existing architecture, add or update tests, avoid unrelated rewrites, and report changed files, commands, observed results and unresolved issues. Do not overlap another writer\u2019s ownership.",
+      "prompt": "Implement only the assigned workstream. Follow existing architecture, add or update tests, avoid unrelated rewrites, and report changed files, commands, observed results and unresolved issues. Do not overlap another writer’s ownership.",
       "permission": {
         "edit": {
           "*": "allow",
