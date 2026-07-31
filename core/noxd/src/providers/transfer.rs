@@ -23,6 +23,9 @@ use http_body_util::{BodyExt, Full};
 use noxflow_ipc::{ProviderState, ProviderStatus};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
+use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
+use rustls::{DigitallySignedStruct, SignatureScheme};
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
@@ -332,6 +335,56 @@ fn tls_config(cert_path: &Path, key_path: &Path) -> Result<Arc<rustls::ServerCon
     Ok(Arc::new(config))
 }
 
+#[derive(Debug)]
+struct LocalSendCertVerifier;
+
+impl ServerCertVerifier for LocalSendCertVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: UnixTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
+        Ok(ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        Ok(HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        vec![
+            SignatureScheme::RSA_PKCS1_SHA256,
+            SignatureScheme::RSA_PSS_SHA256,
+            SignatureScheme::ECDSA_NISTP256_SHA256,
+            SignatureScheme::ED25519,
+        ]
+    }
+}
+
+fn localsend_client_config() -> rustls::ClientConfig {
+    rustls::ClientConfig::builder()
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(LocalSendCertVerifier))
+        .with_no_client_auth()
+}
+
 // ── Entry point ──
 
 pub fn start(bus: EventBus, stop: Arc<AtomicBool>, state_dir: PathBuf) -> (thread::JoinHandle<()>, Control) {
@@ -558,6 +611,7 @@ fn add_peer(inner: &Arc<Inner>, ip: &IpAddr, info: &DeviceInfo) {
 use std::collections::HashSet;
 
 async fn run_server(inner: Arc<Inner>, tls: Arc<rustls::ServerConfig>, stop: Arc<AtomicBool>) {
+    let connection_slots = Arc::new(tokio::sync::Semaphore::new(32));
     let listener = match tokio::net::TcpListener::bind(("0.0.0.0", SERVER_PORT)).await {
         Ok(l) => l,
         Err(e) => {
@@ -574,9 +628,14 @@ async fn run_server(inner: Arc<Inner>, tls: Arc<rustls::ServerConfig>, stop: Arc
             Ok(x) => x,
             Err(_) => continue,
         };
+        let slot = match Arc::clone(&connection_slots).try_acquire_owned() {
+            Ok(slot) => slot,
+            Err(_) => continue,
+        };
         let tls = Arc::clone(&tls);
         let inner = Arc::clone(&inner);
         tokio::spawn(async move {
+            let _slot = slot;
             let tls_stream = match tokio_rustls::TlsAcceptor::from(tls)
                 .accept(stream)
                 .await
@@ -587,7 +646,13 @@ async fn run_server(inner: Arc<Inner>, tls: Arc<rustls::ServerConfig>, stop: Arc
             let io = hyper_util::rt::TokioIo::new(tls_stream);
             let svc = hyper::service::service_fn(move |req| handle_http(inner.clone(), req));
             let acceptor = hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new());
-            let _ = acceptor.serve_connection_with_upgrades(io, svc).await;
+            // LocalSend may keep probe connections open. Bound each HTTP/TLS
+            // connection so discovery cannot exhaust noxd's file descriptors.
+            let _ = tokio::time::timeout(
+                Duration::from_secs(3),
+                acceptor.serve_connection_with_upgrades(io, svc),
+            )
+            .await;
         });
     }
 }
@@ -717,6 +782,11 @@ async fn handle_http(
         }
         _ => status_response(404, "not found".to_string()),
     };
+    let mut response = response;
+    response.headers_mut().insert(
+        hyper::header::CONNECTION,
+        hyper::header::HeaderValue::from_static("close"),
+    );
     Ok(response)
 }
 
@@ -934,7 +1004,7 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
     let client = hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
         .build(
             hyper_rustls::HttpsConnectorBuilder::new()
-                .with_webpki_roots()
+                .with_tls_config(localsend_client_config())
                 .https_or_http()
                 .enable_http1()
                 .build(),
