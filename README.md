@@ -20,6 +20,7 @@ This repository bootstraps an Arch + Hyprland workstation with reproducible shel
 - `wayle/` remains an explicit safe-mode fallback and is never started alongside NoxFlow
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
+- `cursor/cursor-flags.conf` and `code/code-flags.conf` for native Wayland app rendering
 - `theme/` for GTK visual consistency
 - `setup/` automation scripts for links and package installation
 - `settings/` schema-driven settings state (`settingsctl` + Settings Hub)
@@ -48,6 +49,7 @@ That command:
 - links GTK theme configs into `~/.config`
 - links portal routing so screen sharing uses XDPH and file picking uses GTK
 - links Chrome flags to `~/.config/chrome-flags.conf`
+- links Cursor and VS Code flags to their per-user configuration files
 - copies MIME defaults (`~/.config/mimeapps.list`) so local handler changes stay machine-specific
 - links your private scripts commands into `~/.local/bin` when `private/scripts` (or another `--scripts-dir`) is available
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
