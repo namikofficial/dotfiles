@@ -143,6 +143,21 @@ pub enum Action {
     IslandTestBrightness {
         percentage: u8,
     },
+    // ── LocalSend / Quick Share (transfer provider) ──
+    TransferDiscover,
+    TransferSend {
+        peer_id: String,
+        paths: Vec<String>,
+    },
+    TransferAccept {
+        session_id: String,
+    },
+    TransferDecline {
+        session_id: String,
+    },
+    TransferCancel {
+        session_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -451,6 +466,34 @@ mod tests {
             let envelope = RequestEnvelope {
                 protocol_version: 1,
                 request_id: "island-test".into(),
+                request: Request::RunAction { action },
+            };
+            let json = serde_json::to_string(&envelope).unwrap();
+            assert_eq!(decode_request(&json).unwrap(), envelope);
+        }
+    }
+
+    #[test]
+    fn transfer_actions_round_trip() {
+        for action in [
+            Action::TransferDiscover,
+            Action::TransferSend {
+                peer_id: "peer-1".into(),
+                paths: vec!["/tmp/a.png".into(), "/tmp/b.jpg".into()],
+            },
+            Action::TransferAccept {
+                session_id: "sess-1".into(),
+            },
+            Action::TransferDecline {
+                session_id: "sess-1".into(),
+            },
+            Action::TransferCancel {
+                session_id: "sess-1".into(),
+            },
+        ] {
+            let envelope = RequestEnvelope {
+                protocol_version: 1,
+                request_id: "transfer-test".into(),
                 request: Request::RunAction { action },
             };
             let json = serde_json::to_string(&envelope).unwrap();

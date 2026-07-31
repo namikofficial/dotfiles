@@ -158,6 +158,7 @@ fn handle_request(
     network: &noxd::providers::network::Control,
     bluetooth: &noxd::providers::bluetooth::Control,
     media: &noxd::providers::media::ControlSender,
+    transfer: &noxd::providers::transfer::Control,
 ) -> Result<Response, IpcError> {
     let result = match request {
         Request::Ping => Response::Pong,
@@ -347,6 +348,21 @@ fn handle_request(
                 Action::MediaSelectPlayer { player } => media
                     .send(noxd::providers::media::CommandRequest::SelectPlayer { player })
                     .map_err(media_error)?,
+                Action::TransferDiscover => transfer
+                    .send(noxd::providers::transfer::CommandRequest::Discover)
+                    .map_err(transfer_error)?,
+                Action::TransferSend { peer_id, paths } => transfer
+                    .send(noxd::providers::transfer::CommandRequest::Send { peer_id, paths })
+                    .map_err(transfer_error)?,
+                Action::TransferAccept { session_id } => transfer
+                    .send(noxd::providers::transfer::CommandRequest::Accept { session_id })
+                    .map_err(transfer_error)?,
+                Action::TransferDecline { session_id } => transfer
+                    .send(noxd::providers::transfer::CommandRequest::Decline { session_id })
+                    .map_err(transfer_error)?,
+                Action::TransferCancel { session_id } => transfer
+                    .send(noxd::providers::transfer::CommandRequest::Cancel { session_id })
+                    .map_err(transfer_error)?,
                 _ => {}
             }
             Response::ActionAccepted(ActionAccepted { action })
@@ -372,6 +388,14 @@ fn bluetooth_error(error: io::Error) -> IpcError {
 }
 
 fn media_error<E: std::fmt::Display>(error: E) -> IpcError {
+    IpcError {
+        code: ErrorCode::Unsupported,
+        message: error.to_string(),
+        details: BTreeMap::new(),
+    }
+}
+
+fn transfer_error<E: std::fmt::Display>(error: E) -> IpcError {
     IpcError {
         code: ErrorCode::Unsupported,
         message: error.to_string(),
@@ -489,6 +513,7 @@ fn handle_client(
     network: noxd::providers::network::Control,
     bluetooth: noxd::providers::bluetooth::Control,
     media: noxd::providers::media::ControlSender,
+    transfer: noxd::providers::transfer::Control,
 ) -> io::Result<()> {
     stream.set_read_timeout(Some(CLIENT_READ_TIMEOUT))?;
     log_event("info", "client_connection", Some(socket), None, None);
@@ -631,6 +656,7 @@ fn handle_client(
                             &network,
                             &bluetooth,
                             &media,
+                            &transfer,
                         ) {
                             Ok(result) => response(request_id, result),
                             Err(error) => error_response(request_id, error),
@@ -831,6 +857,7 @@ fn run() -> io::Result<()> {
         "bluetooth",
         "media",
         "settings",
+        "transfer",
     ] {
         let registration = bus.register_provider(ProviderState {
             provider: provider.into(),
@@ -871,6 +898,11 @@ fn run() -> io::Result<()> {
     );
     let (power_thread, power_control) =
         noxd::providers::power::start(bus.clone(), Arc::clone(&shutting_down));
+    let (transfer_thread, transfer_control) = noxd::providers::transfer::start(
+        bus.clone(),
+        Arc::clone(&shutting_down),
+        config.runtime.state_dir.clone(),
+    );
     let (network_thread, network_control) =
         noxd::providers::network::start(bus.clone(), Arc::clone(&shutting_down));
     let (bluetooth_thread, bluetooth_control) =
@@ -917,6 +949,7 @@ fn run() -> io::Result<()> {
                 let client_network = network_control.clone();
                 let client_bluetooth = bluetooth_control.clone();
                 let client_media = media_control.clone();
+                let client_transfer = transfer_control.clone();
                 clients.push(thread::spawn(move || {
                     if let Err(error) = handle_client(
                         stream,
@@ -929,6 +962,7 @@ fn run() -> io::Result<()> {
                         client_network,
                         client_bluetooth,
                         client_media,
+                        client_transfer,
                     ) {
                         log_event(
                             "error",
@@ -961,6 +995,8 @@ fn run() -> io::Result<()> {
     let _ = brightness_thread.join();
     drop(power_control);
     let _ = power_thread.join();
+    drop(transfer_control);
+    let _ = transfer_thread.join();
     drop(network_control);
     let _ = network_thread.join();
     drop(bluetooth_control);
