@@ -36,7 +36,7 @@ echo "  shell:    $(file "$BIN_DIR/noxflow-shell" | grep -o 'ELF 64-bit\|ELF 32-
 # ── 3. Symlink systemd units ──
 echo "--- Installing systemd units ---"
 mkdir -p "$SYSTEMD_DIR"
-for f in noxd.service noxflow-shell.service noxflow-fallback.service noxflow-session-optional.service; do
+for f in noxd.service noxflow-shell.service noxflow-fallback.service noxflow-session-optional.service localsend.service; do
   if [ -f "$REPO_DIR/systemd/user/$f" ]; then
     ln -sf "$REPO_DIR/systemd/user/$f" "$SYSTEMD_DIR/$f"
     echo "  $f → $SYSTEMD_DIR/$f"

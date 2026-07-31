@@ -1,0 +1,19 @@
+[Unit]
+Description=LocalSend — nearby file sharing daemon
+Documentation=https://github.com/localsend/localsend
+PartOf=graphical-session.target
+After=graphical-session.target xdg-desktop-portal.service
+
+[Service]
+Type=simple
+# NOTE: --hidden crashes on localsend-bin 1.17.0 with
+# "LateInitializationError: Field 'defaultRef' has not been initialized"
+# in hideToTray (appindicator unavailable). Launch plain; the app opens its
+# window but the HTTP API on port 53317 stays up for the shell's
+# TransferService. Revisit --hidden after an upstream fix.
+ExecStart=/usr/bin/localsend
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

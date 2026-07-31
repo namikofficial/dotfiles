@@ -12,6 +12,7 @@ cargo install --path "$repo_dir/cli/noxctl" --root "$install_root" --force
 ln -sfn "$repo_dir/systemd/user/noxd.service" "$unit_dir/noxd.service"
 ln -sfn "$repo_dir/systemd/user/noxflow-shell.service" "$unit_dir/noxflow-shell.service"
 ln -sfn "$repo_dir/systemd/user/noxflow-fallback.service" "$unit_dir/noxflow-fallback.service"
+ln -sfn "$repo_dir/systemd/user/localsend.service" "$unit_dir/localsend.service"
 ln -sfn "$repo_dir/setup/noxflow-shell-launcher.sh" "$bin_dir/noxflow-shell"
 mkdir -p "${XDG_CONFIG_HOME:-${HOME}/.config}/noxflow"
 ln -sfn "$repo_dir/shell/noxflow" "${XDG_CONFIG_HOME:-${HOME}/.config}/noxflow/shell"

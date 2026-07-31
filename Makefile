@@ -31,6 +31,8 @@ install-systemd:
 		$(HOME)/.config/systemd/user/noxflow-fallback.service
 	ln -sfn $(CURDIR)/systemd/user/noxflow-session-optional.service \
 		$(HOME)/.config/systemd/user/noxflow-session-optional.service
+	ln -sfn $(CURDIR)/systemd/user/localsend.service \
+		$(HOME)/.config/systemd/user/localsend.service
 
 install-shell:
 	install -d $(HOME)/.config/noxflow

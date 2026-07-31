@@ -11,8 +11,10 @@ import "surfaces/calendar" as CalendarSurface
 import "surfaces/media" as MediaSurface
 import "surfaces/dashboard" as DashboardSurface
 import "surfaces/settings" as SettingsSurface
+import "surfaces/share" as ShareSurface
 import "components" as Components
 import "core" as Core
+import "services" as Services
 
 ShellRoot {
     id: shellRoot
@@ -30,6 +32,7 @@ ShellRoot {
     NotificationModel { id: notificationModel }
     CalendarModel { id: calendarModel; Component.onCompleted: start() }
     ClipboardModel { id: clipboardModel }
+    Services.TransferService { id: transferService }
     MorphRegistry { id: morphRegistry }
     WeatherModel { id: weatherModel; Component.onCompleted: start() }
     SystemModel { id: systemModel; Component.onCompleted: start() }
@@ -123,6 +126,26 @@ ShellRoot {
             }
         }
     }
+
+    // ── Quick Share (left-side activity panel, per-screen) ──
+    // Coexists with right-side island states (design contract §3.2).
+    Variants {
+        model: Quickshell.screens
+        ShareSurface.QuickSharePanel {
+            required property var modelData
+            screen: modelData
+            noxd: daemonClient
+            transfer: transferService
+            Component.onCompleted: {
+                panelController.registerPanel("quick-share", this);
+                surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
+            }
+            Component.onDestruction: {
+                surfaceCoordinatorInstance.unregister(this);
+            }
+        }
+    }
+
     function toggleControlCentre() { panelController.toggle("quick-settings"); }
     function openControl()   { panelController.open("quick-settings"); }
     function closeControl()  { panelController.close("quick-settings"); }
