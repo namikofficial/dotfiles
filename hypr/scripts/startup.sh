@@ -286,6 +286,28 @@ if [ "${HYPR_LOAD_HYPREXPO_AT_STARTUP:-0}" = "1" ] && [ -f "$hyprexpo_plugin" ];
   ) &
 fi
 
+# scroll-overview plugin (primary overview, replaces the QML overview).
+# Built against the installed Hyprland headers (see setup/scrolloverview-rebuild.sh).
+# Loaded here (not in 95-plugins.lua) because plugin load must happen before the
+# Lua config can reference hl.plugin.scrolloverview. After a Hyprland upgrade the
+# ABI changes: rebuild with setup/scrolloverview-rebuild.sh, then restart.
+scrolloverview_plugin="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/plugins/libscrolloverview.so"
+if [ -f "$scrolloverview_plugin" ]; then
+  log "scheduling scroll-overview plugin load"
+  (
+    sleep 2
+    if ! hyprctl plugin list 2>/dev/null | grep -qi 'scrolloverview'; then
+      hyprctl plugin load "$scrolloverview_plugin" >/dev/null 2>&1 || log "scroll-overview plugin load failed (may need rebuild after Hyprland upgrade)"
+    fi
+    # The Lua config evaluates hl.plugin.scrolloverview at load time. Reload
+    # the config so 95-plugins.lua binds SUPER+TAB to the plugin instead of the
+    # legacy fallback.
+    if hyprctl plugin list 2>/dev/null | grep -qi 'scrolloverview'; then
+      hyprctl reload >/dev/null 2>&1 || true
+    fi
+  ) &
+fi
+
 # Start whichever polkit agent is available.
 for agent in \
   hyprpolkitagent \
