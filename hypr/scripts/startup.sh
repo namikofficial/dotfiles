@@ -221,9 +221,25 @@ fi
 # NoxFlow island provides visual OSD for volume/brightness.
 # avizo-service is intentionally not started to avoid double OSDs.
 # Panel shell — respects the persisted engine.
+# noxflow-shell.service is WantedBy=graphical-session.target and starts on its
+# own; do NOT call `panel-switch.sh show` here. That path probes the shell with
+# a 0.5s sleep and would fall back to Wayle on a slow NoxFlow start, producing
+# a dual-shell. Shell failure is handled by systemd's OnFailure →
+# noxflow-fallback.service. Only start Wayle when the persisted engine is
+# explicitly wayle.
 if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
-  log "showing panel shell"
-  "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
+  _engine_file="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow/panel.engine"
+  _engine=""
+  if [ -f "$_engine_file" ]; then
+    _engine="$(cat "$_engine_file" 2>/dev/null || true)"
+  fi
+  if [ "$_engine" = "wayle" ]; then
+    log "starting Wayle (persisted engine)"
+    "$HOME/.config/hypr/scripts/panel-switch.sh" wayle >/dev/null 2>&1 || true
+  else
+    log "noxflow engine: noxflow-shell.service starts via graphical-session.target"
+  fi
+  unset _engine_file _engine
 fi
 
 log "starting monitor hotplug watcher"
