@@ -58,7 +58,12 @@ Pinned commits for architecture and feature inspiration. See `PLAN.md` for the s
 
 ### yayuuu/hyprland-scroll-overview
 - **URL:** https://github.com/yayuuu/hyprland-scroll-overview
-- **Note:** Do NOT adopt — Hyprland ABI-breaking plugin. QML-only approach in Overview already functional.
+- **Pinned:** (check latest commit)
+- **Decision (2026-07-31):** ADOPTED as the primary window/workspace navigator.
+  Replaces the QML Overview. ABI-breaking — rebuild after every Hyprland
+  upgrade (`hyprpm update && hyprpm enable scrolloverview`, or source build).
+  See `docs/shell-redesign/02-reference-analysis.md` for verified dispatchers,
+  Lua config, gestures, and submap. Previously listed as "Do NOT adopt".
 
 ### binnewbs/arch-hyprland
 - **URL:** https://github.com/binnewbs/arch-hyprland
