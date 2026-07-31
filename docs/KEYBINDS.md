@@ -29,7 +29,7 @@ flowchart LR
 | `Super + M` | Execute command | `~/.local/bin/noxctl panel toggle media` |
 | `Super + V` | Execute command | `~/.local/bin/noxctl panel toggle clipboard` |
 | `Super + S` | Execute command | `~/.local/bin/noxctl panel toggle share` |
-| `Super + W` | Execute command | `~/.config/hypr/scripts/set-wallpaper.sh --pick` |
+| `Super + W` | Execute command | `~/.local/bin/noxctl panel toggle wallpaper` |
 | `Super + Shift + S` | Execute command | `~/.local/bin/noxctl panel toggle capture` |
 | `Super + ,` | Execute command | `~/.local/bin/noxctl panel toggle settings` |
 | `Super + D` | Execute command | `~/.local/bin/noxctl panel toggle dashboard` |

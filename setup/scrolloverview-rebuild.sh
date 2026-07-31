@@ -30,10 +30,21 @@ rebuild_hyprpm() {
     return 1
   fi
 
-  # Add the plugin repository if it is not already known.
-  if ! hyprpm list 2>/dev/null | grep -q 'scroll-overview'; then
-    say "adding plugin repository"
-    hyprpm add "$plugin_repo"
+  # Known pitfall: the FIRST `hyprpm update` needs sudo (header install) and
+  # writes the state store to /var/cache/hyprpm/<user> as root. Every later
+  # non-root `hyprpm add` then fails "Headers outdated" against the root-owned
+  # store. If that error appears, clear the stale store and start fresh:
+  #   sudo rm -rf /var/cache/hyprpm/<user>   # where <user> = $(whoami)
+  local add_out
+  add_out="$(hyprpm add "$plugin_repo" 2>&1 || true)"
+  if ! printf '%s\n' "$add_out" | grep -q 'Plugin repository added\|already'; then
+    if printf '%s\n' "$add_out" | grep -q 'Headers outdated'; then
+      echo "scrolloverview-rebuild: hyprpm state store is root-owned from an earlier sudo run." >&2
+      echo "Fix: sudo rm -rf /var/cache/hyprpm/$(whoami) && $0" >&2
+    else
+      printf 'scrolloverview-rebuild: hyprpm add failed:\n%s\n' "$add_out" >&2
+    fi
+    return 1
   fi
 
   hyprpm update

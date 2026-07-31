@@ -12,6 +12,7 @@ import "surfaces/media" as MediaSurface
 import "surfaces/dashboard" as DashboardSurface
 import "surfaces/settings" as SettingsSurface
 import "surfaces/share" as ShareSurface
+import "surfaces/wallpaper" as WallpaperSurface
 import "components" as Components
 import "core" as Core
 import "services" as Services
@@ -33,6 +34,7 @@ ShellRoot {
     CalendarModel { id: calendarModel; Component.onCompleted: start() }
     ClipboardModel { id: clipboardModel }
     Services.TransferService { id: transferService }
+    WallpaperModel { id: wallpaperModel }
     MorphRegistry { id: morphRegistry }
     WeatherModel { id: weatherModel; Component.onCompleted: start() }
     SystemModel { id: systemModel; Component.onCompleted: start() }
@@ -86,7 +88,8 @@ ShellRoot {
                 "calendar": calendarComponent,
                 "notifications": notificationComponent,
                 "media": mediaComponent,
-                "clipboard": clipboardComponent
+                "clipboard": clipboardComponent,
+                "wallpaper": wallpaperComponent
             })
             Component {
                 id: quickSettingsComponent
@@ -113,12 +116,17 @@ ShellRoot {
                 id: clipboardComponent
                 ClipboardSurface.ClipboardPanel { screen: morphSurface.screen; noxd: daemonClient; clipModel: clipboardModel }
             }
+            Component {
+                id: wallpaperComponent
+                WallpaperSurface.WallpaperPanel { screen: morphSurface.screen; noxd: daemonClient; wallModel: wallpaperModel }
+            }
             Component.onCompleted: {
                 panelController.registerPanel("quick-settings", this);
                 panelController.registerPanel("calendar", this);
                 panelController.registerPanel("notifications", this);
                 panelController.registerPanel("media", this);
                 panelController.registerPanel("clipboard", this);
+                panelController.registerPanel("wallpaper", this);
                 surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
             }
             Component.onDestruction: {
@@ -165,6 +173,10 @@ ShellRoot {
     function toggleClipboardPanel() { panelController.toggle("clipboard"); }
     function openClipboardPanel() { panelController.open("clipboard"); }
     function closeClipboardPanel() { panelController.close("clipboard"); }
+
+    function toggleWallpaperPanel() { panelController.toggle("wallpaper"); }
+    function openWallpaperPanel() { panelController.open("wallpaper"); }
+    function closeWallpaperPanel() { panelController.close("wallpaper"); }
 
     // Quick Share (left-side activity panel; built in M12).
     function toggleSharePanel() { panelController.toggle("quick-share"); }
@@ -293,6 +305,8 @@ ShellRoot {
         function openClipboardPanel()   { return shellRoot.openClipboardPanel(); }
         function toggleSharePanel() { return shellRoot.toggleSharePanel(); }
         function openSharePanel()   { return shellRoot.openSharePanel(); }
+        function toggleWallpaperPanel() { return shellRoot.toggleWallpaperPanel(); }
+        function openWallpaperPanel()   { return shellRoot.openWallpaperPanel(); }
         function closePanel()       { return shellRoot.coordinator.close(); }
         function panelState()       { return { activePanel: shellRoot.coordinator.activePanel, state: shellRoot.coordinator.state }; }
     }
