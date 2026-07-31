@@ -60,6 +60,10 @@ PanelWindow {
     property real expandedOpacity: 0.0
     property real compactTranslate: 0.0
     property real expandedTranslate: 0.0
+    // Origin chip visual (mirrored from the bar chip that opened the panel).
+    property string compactIcon: ""
+    property string compactLabel: ""
+    property color compactAccent: Theme.Tokens.textPrimary
     // Retained window height while collapsing (layer surface stays big until
     // the visual frame has collapsed).
     property bool retainWindow: false
@@ -90,7 +94,8 @@ PanelWindow {
         Behavior on height { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
         Behavior on radius { enabled: Config.Motion.geometry; NumberAnimation { duration: Config.Motion.panelSwitch; easing.type: Easing.OutCubic } }
 
-        // Compact content (clock island) — fades out on open, back on close.
+        // Compact content (origin chip) — mirrors the bar chip that opened the
+        // panel. Fades out on open, back in on close while the frame collapses.
         Item {
             id: compactContent
             anchors.fill: parent
@@ -99,6 +104,26 @@ PanelWindow {
             transform: Translate { y: root.compactTranslate }
             Behavior on opacity { NumberAnimation { duration: Config.Motion.contentExit; easing.type: Easing.OutCubic } }
             Behavior on transform { PropertyAnimation { duration: Config.Motion.contentExit; easing.type: Easing.OutCubic } }
+
+            RowLayout {
+                anchors.centerIn: parent
+                spacing: Theme.Tokens.spacingXs
+                visible: root.compactIcon !== ""
+                Text {
+                    text: root.compactIcon
+                    color: root.compactAccent
+                    font.family: "Symbols Nerd Font Mono"
+                    font.pixelSize: Theme.Tokens.scaled(Theme.Tokens.iconSm)
+                }
+                Text {
+                    text: root.compactLabel
+                    color: Theme.Tokens.textPrimary
+                    font.family: Theme.Tokens.typographyFontFamily
+                    font.pixelSize: Theme.Tokens.typographyBodySmall
+                    font.bold: true
+                    elide: Text.ElideRight
+                }
+            }
         }
 
         // Expanded content (the loaded panel) — fades in after geometry start.
@@ -158,6 +183,28 @@ PanelWindow {
 
     function componentFor(name) { return root.panelComponents ? (root.panelComponents[name] || null) : null; }
 
+    // Origin chip visuals for each panel (mirrors the bar chip).
+    function panelOriginInfo(name) {
+        switch (name) {
+            case "calendar":       return { icon: "\uF133", label: "", accent: Theme.Tokens.textPrimary };
+            case "media":          return { icon: "\uF001", label: "", accent: Theme.Tokens.tonalSecondary };
+            case "notifications":  return { icon: "\uF0F3", label: "", accent: Theme.Tokens.stateInfo };
+            case "quick-settings": return { icon: "\uF013", label: "", accent: Theme.Tokens.textPrimary };
+            case "system-monitor": return { icon: "\uF080", label: "", accent: Theme.Tokens.textPrimary };
+            case "wallpaper":      return { icon: "\uF03E", label: "", accent: Theme.Tokens.textPrimary };
+            case "clipboard":      return { icon: "\uF0EA", label: "", accent: Theme.Tokens.textPrimary };
+            case "quick-share":    return { icon: "\uF064", label: "", accent: Theme.Tokens.textPrimary };
+            default:               return { icon: "\uF013", label: "", accent: Theme.Tokens.textPrimary };
+        }
+    }
+
+    function applyOrigin(name) {
+        var info = panelOriginInfo(name);
+        compactIcon = info.icon;
+        compactLabel = info.label;
+        compactAccent = info.accent;
+    }
+
     function geometryFor(name, rect) {
         var width = name === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(380);
         var height = name === "media" ? Theme.Tokens.scaled(230) :
@@ -193,6 +240,8 @@ PanelWindow {
             surfaceWidth = g.width; surfaceHeight = g.height;
             frameTop = targetTopMargin; frameRight = targetRightMargin;
             frameWidth = g.width; frameHeight = g.height; frameRadius = Theme.Tokens.radiusXl;
+            // Origin chip visual updates for the incoming panel.
+            applyOrigin(name);
             // Crossfade: fade expanded content out quickly, then swap in the
             // new content via the Loader at the midpoint.
             expandedOpacity = 0.35;
@@ -205,6 +254,7 @@ PanelWindow {
         root.morphPhase = MorphSurface.Phase.Preparing;
         activePanel = name;
         content.active = true;
+        applyOrigin(name);
 
         if (hasOrigin) {
             // Phase 1: capture source geometry, size the window to the chip.
