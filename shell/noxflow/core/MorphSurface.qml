@@ -68,6 +68,10 @@ PanelWindow {
     // Retained window height while collapsing (layer surface stays big until
     // the visual frame has collapsed).
     property bool retainWindow: false
+    // True while a close animation is in flight. Guards closePanel() against
+    // double-close and rapid re-open races (stuck-panel bug): a new openPanel()
+    // always cancels a pending close.
+    property bool closing: false
 
     screen: root.screen
     anchors.top: true; anchors.right: true
@@ -155,6 +159,7 @@ PanelWindow {
         interval: Math.max(1, Math.round(Config.Motion.panelSwitch * 0.5))
         repeat: false
         onTriggered: {
+            root.closing = false;
             root.activePanel = root.pendingPanel;
             root.pendingPanel = "";
             // The Loader fades in the new content itself (onLoaded → item.open
@@ -173,6 +178,7 @@ PanelWindow {
         interval: Math.max(1, Math.round(root.morphDuration * 0.9))
         repeat: false
         onTriggered: {
+            root.closing = false;
             root.retainWindow = false;
             root.activePanel = "";
             root.pendingPanel = "";
@@ -220,6 +226,8 @@ PanelWindow {
     // Open a panel with the full phased morph.
     function openPanel(name, rect, section) {
         if (!componentFor(name)) return false;
+        // A new open always cancels a pending close (rapid toggle-close→open).
+        root.closing = false;
         collapseTimer.stop();
         swapTimer.stop();
         if (rect && rect.width > 0 && rect.height > 0) originRect = rect;
@@ -318,7 +326,8 @@ PanelWindow {
     // Close with retained window height: disable interaction, fade content,
     // collapse the frame to the origin, then shrink the window.
     function closePanel() {
-        if (!activePanel && !pendingPanel) return false;
+        if (root.closing || (!activePanel && !pendingPanel)) return false;
+        root.closing = true;
         swapTimer.stop();
         pendingPanel = "";
         root.morphPhase = MorphSurface.Phase.Collapsing;
