@@ -292,6 +292,7 @@ enum Surface {
     Dnd,
     Clipboard,
     Share,
+    Wallpaper,
 }
 #[derive(Subcommand, Debug)]
 enum ProfileCommand {
@@ -733,6 +734,7 @@ fn toggle_surface(surface: &Surface) -> Result<(), CliError> {
         Surface::Settings => "toggleSettings",
         Surface::Clipboard => "toggleClipboardPanel",
         Surface::Share => "toggleSharePanel",
+        Surface::Wallpaper => "toggleWallpaperPanel",
         Surface::Dnd => "toggleDnd",
     };
     let status = Command::new("quickshell")
@@ -788,6 +790,7 @@ fn toggle_direct_surface(surface: &str) -> Result<(), CliError> {
         "media" => "toggleMediaPanelFromIpc",
         "clipboard" => "toggleClipboardPanel",
         "share" | "quick-share" => "toggleSharePanel",
+        "wallpaper" => "toggleWallpaperPanel",
         "settings" => "toggleSettings",
         _ => return Err(CliError::Usage(format!("unknown shell surface: {surface}"))),
     };
@@ -1079,6 +1082,7 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                     "dnd",
                     "clipboard",
                     "share",
+                    "wallpaper",
                 ];
                 if cli.json {
                     println!("{}", serde_json::to_string_pretty(&surfaces).unwrap());

@@ -235,6 +235,11 @@ PanelWindow {
             // Swap: retarget geometry + crossfade content.
             pendingPanel = name;
             root.morphPhase = MorphSurface.Phase.Crossfading;
+            // Close the outgoing panel's own lifecycle before swapping content
+            // (stops its timers, fires its closed() signal).
+            if (content && content.item && typeof content.item.close === "function") {
+                content.item.close();
+            }
             // Immediately size the layer surface to the new target to avoid
             // clipping; the frame retargets to the new geometry.
             topMargin = targetTopMargin; rightMargin = targetRightMargin;
@@ -317,6 +322,11 @@ PanelWindow {
         swapTimer.stop();
         pendingPanel = "";
         root.morphPhase = MorphSurface.Phase.Collapsing;
+        // Let the loaded panel run its own close lifecycle first (stops its
+        // timers, fires its closed() signal), then fade the expanded content.
+        if (content && content.item && typeof content.item.close === "function") {
+            content.item.close();
+        }
         // Disable interaction (content surfaces use lifecycle.active which is
         // driven by their own open()/close(); here we just fade).
         expandedOpacity = 0.0;
