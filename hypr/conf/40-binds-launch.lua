@@ -9,7 +9,7 @@ exec(mainMod .. " + Return", ctx.terminal)
 exec(mainMod .. " + Space", home .. "/.local/bin/noxctl panel toggle launcher")
 
 -- NoxFlow feature keybinds (canonical)
-exec(mainMod .. " + Tab", home .. "/.local/bin/noxctl panel toggle overview")
+-- SUPER+TAB (overview) is owned by hypr/conf/95-plugins.lua (scroll-overview).
 exec(mainMod .. " + N", home .. "/.local/bin/noxctl panel toggle notifications")
 exec(mainMod .. " + SHIFT + S", home .. "/.local/bin/noxctl panel toggle capture")
 exec(mainMod .. " + comma", home .. "/.local/bin/noxctl panel toggle settings")

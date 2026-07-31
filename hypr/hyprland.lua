@@ -93,6 +93,7 @@ for _, rel_path in ipairs({
   "conf/60-binds-media.lua",
   "conf/70-windowrules.lua",
   "conf/90-generated.lua",
+  "conf/95-plugins.lua",
 }) do
   nx.include(config_dir .. "/" .. rel_path)
 end

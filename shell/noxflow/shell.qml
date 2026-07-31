@@ -4,7 +4,6 @@ import Quickshell.Io
 import "surfaces/controlcenter" as ControlCenter
 import "surfaces/notifications" as NotificationSurfaces
 import "surfaces/launcher" as LauncherSurface
-import "surfaces/overview" as OverviewSurface
 import "surfaces/capture" as CaptureSurface
 import "surfaces/radialmenu" as RadialSurface
 import "surfaces/calendar" as CalendarSurface
@@ -217,17 +216,6 @@ ShellRoot {
     function toggleLauncher() { launcher.toggle(); }
     function openLauncher()   { launcher.open(); }
 
-    // ── Workspace Overview (modal, singleton) ──
-    OverviewSurface.Overview {
-        id: overview
-        noxd: daemonClient; hyprland: hyprlandModel
-        screen: Quickshell.activeScreen || null
-        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
-        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
-    }
-    function toggleOverview() { overview.toggle(); }
-    function openOverview()   { overview.open(); }
-
     // ── Global IPC handler for external keybind control ──
     IpcHandler {
         target: "noxctl"
@@ -242,8 +230,6 @@ ShellRoot {
         function closeRadialWheel()  { var rw = shellRoot.rwTracker.forScreen(null); if (rw) rw.close(); }
         function toggleLauncher() { shellRoot.toggleLauncher(); }
         function openLauncher()   { shellRoot.openLauncher(); }
-        function toggleOverview() { shellRoot.toggleOverview(); }
-        function openOverview()   { shellRoot.openOverview(); }
         function toggleCapture() { shellRoot.toggleCapture(); }
         function openCapture()   { shellRoot.capture.open(); }
         function toggleCalendar() { shellRoot.toggleCalendar(); }

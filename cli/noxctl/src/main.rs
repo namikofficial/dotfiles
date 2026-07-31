@@ -51,7 +51,6 @@ enum CommandGroup {
     /// Direct panel aliases for the common keyboard-first shell actions.
     Launcher,
     Dashboard,
-    Overview,
     Capture,
     Control,
     QuickSettings,
@@ -282,7 +281,6 @@ enum PanelCommand {
 enum Surface {
     Launcher,
     Dashboard,
-    Overview,
     Capture,
     Control,
     Notifications,
@@ -724,7 +722,6 @@ fn toggle_surface(surface: &Surface) -> Result<(), CliError> {
     let toggle_fn = match surface {
         Surface::Launcher => "toggleLauncher",
         Surface::Dashboard | Surface::System => "toggleDashboard",
-        Surface::Overview => "toggleOverview",
         Surface::Capture => "toggleCapture",
         Surface::Control => "toggleControl",
         Surface::Notifications => "toggleNotifications",
@@ -780,7 +777,6 @@ fn toggle_direct_surface(surface: &str) -> Result<(), CliError> {
     let function = match surface {
         "launcher" => "toggleLauncher",
         "dashboard" => "toggleDashboard",
-        "overview" => "toggleOverview",
         "capture" => "toggleCapture",
         "control" | "quick-settings" => "toggleQuickSettingsPanel",
         "notifications" => "toggleNotifications",
@@ -826,7 +822,6 @@ fn execute(cli: Cli) -> Result<(), CliError> {
         }
         CommandGroup::Launcher => toggle_direct_surface("launcher"),
         CommandGroup::Dashboard => toggle_direct_surface("dashboard"),
-        CommandGroup::Overview => toggle_direct_surface("overview"),
         CommandGroup::Capture => toggle_direct_surface("capture"),
         CommandGroup::Control => toggle_direct_surface("control"),
         CommandGroup::QuickSettings => toggle_direct_surface("quick-settings"),
@@ -1068,7 +1063,6 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                 let surfaces = [
                     "launcher",
                     "dashboard",
-                    "overview",
                     "capture",
                     "control",
                     "notifications",
