@@ -15,7 +15,6 @@ import "surfaces/share" as ShareSurface
 import "surfaces/wallpaper" as WallpaperSurface
 import "components" as Components
 import "core" as Core
-import "services" as Services
 
 ShellRoot {
     id: shellRoot
@@ -33,7 +32,7 @@ ShellRoot {
     NotificationModel { id: notificationModel }
     CalendarModel { id: calendarModel; Component.onCompleted: start() }
     ClipboardModel { id: clipboardModel }
-    Services.TransferService { id: transferService }
+    TransferModel { id: transferModel; noxd: daemonClient }
     WallpaperModel { id: wallpaperModel }
     MorphRegistry { id: morphRegistry }
     WeatherModel { id: weatherModel; Component.onCompleted: start() }
@@ -72,7 +71,11 @@ ShellRoot {
                 else if (provider === "notifications") notificationModel.applySnapshot(snapshot);
                 else if (provider === "calendar") calendarModel.applySnapshot(snapshot);
                 else if (provider === "clipboard") clipboardModel.applySnapshot(snapshot);
+                else if (provider === "transfer") transferModel.applySnapshot(snapshot);
             }
+        }
+        function onEventReceived(event) {
+            if (event && event.provider === "transfer") transferModel.applyEvent(event);
         }
     }
 
@@ -143,7 +146,7 @@ ShellRoot {
             required property var modelData
             screen: modelData
             noxd: daemonClient
-            transfer: transferService
+            transfer: transferModel
             Component.onCompleted: {
                 panelController.registerPanel("quick-share", this);
                 surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);

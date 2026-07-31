@@ -181,12 +181,19 @@ struct SessionData {
 }
 
 impl Inner {
+    // Full state (devices + sessions) as the provider snapshot.
+    fn full_snapshot(&self) -> Value {
+        let state = self.state.lock().unwrap();
+        json!({ "devices": state.devices, "sessions": state.sessions })
+    }
+
     fn publish_discovery(&self) {
         let state = self.state.lock().unwrap().clone();
         self.bus
             .publish(TransferEvent {
                 event_type: "discovery",
                 data: json!({ "devices": state.devices }),
+                snapshot_value: self.full_snapshot(),
             })
             .ok();
     }
@@ -197,6 +204,7 @@ impl Inner {
             .publish(TransferEvent {
                 event_type: "sessions",
                 data: json!({ "sessions": state.sessions }),
+                snapshot_value: self.full_snapshot(),
             })
             .ok();
     }
@@ -223,6 +231,9 @@ impl Inner {
 struct TransferEvent {
     event_type: &'static str,
     data: Value,
+    // Full state (devices + sessions) to publish as the provider snapshot so
+    // subscribers always see the complete picture, not just the delta.
+    snapshot_value: Value,
 }
 
 impl ProviderEvent for TransferEvent {
@@ -239,11 +250,11 @@ impl ProviderEvent for TransferEvent {
             .unwrap_or_default()
     }
     fn snapshot(&self) -> ProviderState {
-        let inner = self.data.clone();
         ProviderState {
             provider: PROVIDER.into(),
             status: ProviderStatus::Available,
-            data: inner
+            data: self
+                .snapshot_value
                 .as_object()
                 .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
                 .unwrap_or_default(),
@@ -653,8 +664,8 @@ async fn handle_http(
                         })
                         .collect();
                     let mut tokens = HashMap::new();
-                    for (id, _) in &meta.files {
-                        tokens.insert(id.clone(), format!("tok-{}", timestamp()));
+                    for id in meta.files.keys() {
+                        tokens.insert(id.clone(), format!("tok-{}-{}", timestamp(), id));
                     }
                     let session = SessionData {
                         info: SessionInfo {
@@ -667,7 +678,7 @@ async fn handle_http(
                             error: None,
                             created_at: timestamp(),
                         },
-                        file_tokens: tokens,
+                        file_tokens: tokens.clone(),
                         send_files: Vec::new(),
                     };
                     inner.add_session(session);
@@ -675,8 +686,8 @@ async fn handle_http(
                         sessionId: session_id,
                         files: meta
                             .files
-                            .iter()
-                            .map(|(id, _f)| (id.clone(), format!("tok-{}", timestamp())))
+                            .keys()
+                            .filter_map(|id| tokens.get(id).map(|token| (id.clone(), token.clone())))
                             .collect(),
                     };
                     json_response(serde_json::to_string(&resp).unwrap_or_default())
@@ -731,6 +742,9 @@ async fn receive_upload(
         if session.info.direction != "in" {
             return Err("not an inbound session".into());
         }
+        if !matches!(session.info.state.as_str(), "incoming" | "transferring") {
+            return Err(format!("transfer {}", session.info.state));
+        }
         let expected = session.file_tokens.get(file_id).ok_or("unknown file")?.clone();
         let f = session.info.files.iter().find(|f| f.id == file_id).ok_or("unknown file")?;
         (f.name.clone(), f.size, expected)
@@ -739,7 +753,13 @@ async fn receive_upload(
         return Err("invalid token".into());
     }
 
-    let dest = inner.received_dir.join(file_name);
+    // Keep peer-provided names inside the receive directory.
+    let safe_name = Path::new(&file_name)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty() && *name != "." && *name != "..")
+        .unwrap_or("received-file");
+    let dest = inner.received_dir.join(safe_name);
     let mut file = fs::File::create(&dest).map_err(|e| format!("create: {e}"))?;
     let mut body = req.into_body();
     let mut written: u64 = 0;
@@ -825,6 +845,7 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
             inner.bus.publish(TransferEvent {
                 event_type: "sessions",
                 data: json!({ "error": "peer not found" }),
+                snapshot_value: inner.full_snapshot(),
             }).ok();
             return;
         }
@@ -861,6 +882,7 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
         inner.bus.publish(TransferEvent {
             event_type: "sessions",
             data: json!({ "error": "no valid files" }),
+            snapshot_value: inner.full_snapshot(),
         }).ok();
         return;
     }

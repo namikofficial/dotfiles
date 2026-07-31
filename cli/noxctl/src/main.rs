@@ -125,6 +125,31 @@ enum CommandGroup {
 enum ProviderCommand {
     List,
     Status { provider: String },
+    Transfer {
+        #[command(subcommand)]
+        command: TransferCommand,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum TransferCommand {
+    Status,
+    Discover,
+    Send {
+        #[arg(long)]
+        peer_id: String,
+        #[arg(required = true)]
+        paths: Vec<String>,
+    },
+    Accept {
+        session_id: String,
+    },
+    Decline {
+        session_id: String,
+    },
+    Cancel {
+        session_id: String,
+    },
 }
 #[derive(Subcommand, Debug)]
 enum AudioCommand {
@@ -858,6 +883,62 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                     cli.json,
                 )
             }
+            ProviderCommand::Transfer { command } => match command {
+                TransferCommand::Status => run_request(
+                    &c,
+                    Request::GetProviderState {
+                        provider: "transfer".into(),
+                    },
+                    "transfer-status",
+                    cli.json,
+                ),
+                TransferCommand::Discover => {
+                    let response = action(&c, Action::TransferDiscover, "transfer-discover")?;
+                    print_response(&response, cli.json);
+                    Ok(())
+                }
+                TransferCommand::Send { peer_id, paths } => {
+                    if peer_id.trim().is_empty() || paths.is_empty() {
+                        return Err(CliError::Usage(
+                            "peer id and at least one path are required".into(),
+                        ));
+                    }
+                    let response = action(
+                        &c,
+                        Action::TransferSend { peer_id, paths },
+                        "transfer-send",
+                    )?;
+                    print_response(&response, cli.json);
+                    Ok(())
+                }
+                TransferCommand::Accept { session_id } => {
+                    let response = action(
+                        &c,
+                        Action::TransferAccept { session_id },
+                        "transfer-accept",
+                    )?;
+                    print_response(&response, cli.json);
+                    Ok(())
+                }
+                TransferCommand::Decline { session_id } => {
+                    let response = action(
+                        &c,
+                        Action::TransferDecline { session_id },
+                        "transfer-decline",
+                    )?;
+                    print_response(&response, cli.json);
+                    Ok(())
+                }
+                TransferCommand::Cancel { session_id } => {
+                    let response = action(
+                        &c,
+                        Action::TransferCancel { session_id },
+                        "transfer-cancel",
+                    )?;
+                    print_response(&response, cli.json);
+                    Ok(())
+                }
+            },
         },
         CommandGroup::Audio { command } => {
             let r = match command {
