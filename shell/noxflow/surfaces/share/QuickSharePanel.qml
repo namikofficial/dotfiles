@@ -275,6 +275,7 @@ PanelWindow {
             }
         }
     }
+    }
 
     // ── Helpers ──
     function daemonStatusText() {
@@ -345,5 +346,4 @@ PanelWindow {
     function toggle() { lifecycle.toggle(); }
     function open() { lifecycle.open(); }
     function close() { lifecycle.requestClose("close"); }
-}
 }
