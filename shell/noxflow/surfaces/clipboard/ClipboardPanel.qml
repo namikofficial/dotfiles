@@ -2,6 +2,7 @@
 // Keyboard-navigable list of recent clipboard entries with copy/delete/clear.
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io

@@ -26,11 +26,17 @@ QtObject {
 
     property Process scanProc: Process {
         running: false
-        onExited: root._onScanExited(exitCode, exitStatus)
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: function(data) { root._onScanData(data); }
+        }
     }
     property Process currentProc: Process {
         running: false
-        onExited: root._onCurrentExited(exitCode, exitStatus)
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: function(data) { root._onCurrentData(data); }
+        }
     }
 
     // ── Scan ──
@@ -54,15 +60,14 @@ QtObject {
         scanProc.running = true;
     }
 
-    function _onScanExited(code, status) {
+    function _onScanData(data) {
         scanning = false;
-        var out = scanProc.readStdout();
-        if (code !== 0 || !out) {
+        if (!data) {
             error = "wallpaper scan failed";
             walls = [];
             return;
         }
-        var lines = out.split("\n").filter(function(l) { return l.trim() !== ""; });
+        var lines = data.split("\n").filter(function(l) { return l.trim() !== ""; });
         walls = lines.map(function(p) {
             var parts = p.split("/");
             return { path: p, name: parts[parts.length - 1] };
@@ -76,8 +81,8 @@ QtObject {
         currentProc.running = true;
     }
 
-    function _onCurrentExited(code, status) {
-        current = (currentProc.readStdout() || "").trim();
+    function _onCurrentData(data) {
+        current = (data || "").trim();
     }
 
     // ── Apply ──

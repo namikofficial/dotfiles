@@ -41,7 +41,10 @@ QtObject {
     // ── Processes ──
     property Process infoProbe: Process {
         running: false
-        onExited: root._onInfoExited(exitCode, exitStatus)
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: function(data) { root._onInfoData(data); }
+        }
     }
     property Process launchProc: Process { running: false }
 
@@ -62,10 +65,10 @@ QtObject {
         infoProbe.running = true;
     }
 
-    function _onInfoExited(code, status) {
+    function _onInfoData(data) {
         checking = false;
-        var out = infoProbe.readStdout();
-        var ok = code === 0 && out && out.trim() !== "";
+        var out = data || "";
+        var ok = out.trim() !== "";
         daemonUp = ok;
         daemonChecked = true;
         if (ok) {

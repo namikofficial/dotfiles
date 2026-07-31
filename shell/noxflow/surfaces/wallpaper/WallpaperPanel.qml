@@ -4,6 +4,7 @@
 // delegates to theme-pass.sh. No fake state: scan/apply errors surface.
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
