@@ -10,7 +10,14 @@ exec(mainMod .. " + Space", home .. "/.local/bin/noxctl panel toggle launcher")
 
 -- NoxFlow feature keybinds (canonical)
 -- SUPER+TAB (overview) is owned by hypr/conf/95-plugins.lua (scroll-overview).
+-- SUPER+SPACE (launcher) above. SUPER+C → control centre, SUPER+M → media,
+-- SUPER+V → clipboard, SUPER+S → quick share, SUPER+W → wallpaper/theme.
+exec(mainMod .. " + C", home .. "/.local/bin/noxctl panel toggle control")
 exec(mainMod .. " + N", home .. "/.local/bin/noxctl panel toggle notifications")
+exec(mainMod .. " + M", home .. "/.local/bin/noxctl panel toggle media")
+exec(mainMod .. " + V", home .. "/.local/bin/noxctl panel toggle clipboard")
+exec(mainMod .. " + S", home .. "/.local/bin/noxctl panel toggle share")
+exec(mainMod .. " + W", home .. "/.config/hypr/scripts/set-wallpaper.sh --pick")
 exec(mainMod .. " + SHIFT + S", home .. "/.local/bin/noxctl panel toggle capture")
 exec(mainMod .. " + comma", home .. "/.local/bin/noxctl panel toggle settings")
 exec(mainMod .. " + D", home .. "/.local/bin/noxctl panel toggle dashboard")
@@ -67,6 +74,7 @@ exec(mainMod .. " + SHIFT + M", home .. "/.config/hypr/scripts/minimize-window.s
 exec(mainMod .. " + F", home .. "/.config/hypr/scripts/float-toggle-smart.sh")
 bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized" }))
 bind(mainMod .. " + CTRL + F", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
-bind(mainMod .. " + M", hl.dsp.window.fullscreen({ mode = "maximized" }))
+-- SUPER+M is media panel (canonical). Maximized fullscreen lives on SUPER+SHIFT+F.
 bind(mainMod .. " + SHIFT + P", hl.dsp.window.pseudo())
-bind(mainMod .. " + C", hl.dsp.window.center())
+-- SUPER+C is control centre (canonical). Window center moved to SUPER+CTRL+C.
+bind(mainMod .. " + CTRL + C", hl.dsp.window.center())

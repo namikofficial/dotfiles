@@ -5,6 +5,7 @@ import "surfaces/controlcenter" as ControlCenter
 import "surfaces/notifications" as NotificationSurfaces
 import "surfaces/launcher" as LauncherSurface
 import "surfaces/capture" as CaptureSurface
+import "surfaces/clipboard" as ClipboardSurface
 import "surfaces/radialmenu" as RadialSurface
 import "surfaces/calendar" as CalendarSurface
 import "surfaces/media" as MediaSurface
@@ -81,7 +82,8 @@ ShellRoot {
                 "quick-settings": quickSettingsComponent,
                 "calendar": calendarComponent,
                 "notifications": notificationComponent,
-                "media": mediaComponent
+                "media": mediaComponent,
+                "clipboard": clipboardComponent
             })
             Component {
                 id: quickSettingsComponent
@@ -104,11 +106,16 @@ ShellRoot {
                 id: mediaComponent
                 MediaSurface.MediaPanel { screen: morphSurface.screen; noxd: daemonClient; media: mediaModel }
             }
+            Component {
+                id: clipboardComponent
+                ClipboardSurface.ClipboardPanel { screen: morphSurface.screen; noxd: daemonClient; clipModel: clipboardModel }
+            }
             Component.onCompleted: {
                 panelController.registerPanel("quick-settings", this);
                 panelController.registerPanel("calendar", this);
                 panelController.registerPanel("notifications", this);
                 panelController.registerPanel("media", this);
+                panelController.registerPanel("clipboard", this);
                 surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
             }
             Component.onDestruction: {
@@ -131,6 +138,15 @@ ShellRoot {
     function toggleMediaPanel() { panelController.toggle("media"); }
     function openMediaPanel() { panelController.open("media"); }
     function closeMediaPanel() { panelController.close("media"); }
+
+    function toggleClipboardPanel() { panelController.toggle("clipboard"); }
+    function openClipboardPanel() { panelController.open("clipboard"); }
+    function closeClipboardPanel() { panelController.close("clipboard"); }
+
+    // Quick Share (left-side activity panel; built in M12).
+    function toggleSharePanel() { panelController.toggle("quick-share"); }
+    function openSharePanel() { panelController.open("quick-share"); }
+    function closeSharePanel() { panelController.close("quick-share"); }
 
     // ── Radial Wheel (per-screen panel via InstanceTracker) ──
     Variants {
@@ -250,6 +266,10 @@ ShellRoot {
         function openQuickSettingsPanel()   { return shellRoot.openControl(); }
         function toggleMediaPanelFromIpc()  { return shellRoot.toggleMediaPanel(); }
         function openMediaPanelFromIpc()    { return shellRoot.openMediaPanel(); }
+        function toggleClipboardPanel() { return shellRoot.toggleClipboardPanel(); }
+        function openClipboardPanel()   { return shellRoot.openClipboardPanel(); }
+        function toggleSharePanel() { return shellRoot.toggleSharePanel(); }
+        function openSharePanel()   { return shellRoot.openSharePanel(); }
         function closePanel()       { return shellRoot.coordinator.close(); }
         function panelState()       { return { activePanel: shellRoot.coordinator.activePanel, state: shellRoot.coordinator.state }; }
     }
