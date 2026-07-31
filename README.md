@@ -26,6 +26,33 @@ This repository bootstraps an Arch + Hyprland workstation with reproducible shel
 - `settings/` schema-driven settings state (`settingsctl` + Settings Hub)
 - `mime/` managed MIME handlers
 
+## Unified shell redesign (2026-07-31, branch `codex/unified-shell-redesign-20260728`)
+
+One Quickshell process owns bar + central island + panels. Full docs:
+`docs/shell-redesign/` (`00-baseline` → `09-rollback`).
+
+- **Morphing central island** — panels morph from the bar chip that opened
+  them (phased geometry + crossfade, retained window height on collapse)
+- **ScrollOverview plugin** — `SUPER+TAB` (was the deleted QML overview).
+  ABI-breaking: rebuild after Hyprland upgrades via `setup/scrolloverview-rebuild.sh`
+- **Quick Share panel** — `SUPER+S` left-side panel backed by LocalSend
+  (`localsend.service`); transfers are app-owned, panel shows honest daemon state
+- **Clipboard panel** — `SUPER+V` history drawer (wl-copy)
+- **Wallpaper & theme panel** — `SUPER+W` indexed grid + theme pass
+- **Keybind contract** — `SUPER+C` control, `SUPER+M` media, `SUPER+W` wallpaper
+- **Bug fixes** — no volume OSD flash on login; minimize/restore/group workflow
+  repaired; dual-shell startup race removed
+
+### Shell service commands
+
+```sh
+systemctl --user restart noxflow-shell.service   # restart the shell
+systemctl --user restart noxd.service            # restart the daemon
+journalctl --user -u noxflow-shell --no-pager    # shell logs
+journalctl --user -u noxd --no-pager             # daemon logs
+setup/scrolloverview-rebuild.sh --source         # rebuild overview plugin
+```
+
 ## Quick start
 
 ```sh
