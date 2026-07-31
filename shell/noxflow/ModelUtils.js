@@ -5,6 +5,7 @@ function applyBase(model, snapshot, provider) {
             || !snapshot.data || typeof snapshot.data !== "object" || Array.isArray(snapshot.data)) return false;
     model.status = snapshot.status;
     model.data = snapshot.data;
+    model.hasSynced = true;
     return true;
 }
 

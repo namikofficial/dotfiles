@@ -23,6 +23,18 @@ PanelWindow {
     property int displayPercent: Math.round(activityMaximum > 0 ? (activityValue/activityMaximum*100) : activityValue)
     property int lastOutputVolume: audio.outputVolume; property bool lastOutputMuted: audio.outputMuted; property bool lastInputMuted: audio.inputMuted
     property real guardVolume: -1; property real guardBrightness: -1
+    // Guards are seeded only after the first real daemon snapshot. The initial
+    // snapshot must never trigger the OSD (login volume/brightness flash bug).
+    property bool guardsSeeded: false
+
+    // Seed volume/brightness guards from the synced model values. Called on the
+    // first snapshot application (via Connections to hasSynced), and again on
+    // Component.onCompleted for the already-synced case.
+    function seedGuards() {
+        if (!guardsSeeded && audio.hasSynced) guardVolume = audio.outputVolume;
+        if (!guardsSeeded && brightness.hasSynced) guardBrightness = brightness.percentage;
+        if (guardsSeeded || (audio.hasSynced && brightness.hasSynced)) guardsSeeded = true;
+    }
 
     // Priority queue
     property var queue: []
@@ -46,7 +58,7 @@ PanelWindow {
 
     Behavior on implicitHeight { enabled: !root.reducedMotion; NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
 
-    Component.onCompleted: { rendered = false; islandState = "idle"; currentKind = "idle"; guardVolume = audio.outputVolume; guardBrightness = brightness.percentage; }
+    Component.onCompleted: { rendered = false; islandState = "idle"; currentKind = "idle"; root.seedGuards(); }
 
     // Queue
     function enqueue(kind, label, icon, value, maximum, priority, timeout) {
@@ -66,20 +78,31 @@ PanelWindow {
     }
     function shouldExpand(kind) { return ["media","notification","timer","file-transfer","ai-completion","build-result","recording"].indexOf(kind) >= 0; }
     function display(entry) { currentKind = entry.kind; currentPriority = entry.priority; currentStarted = Date.now(); islandState = entry.kind; activityLabel = entry.label; activityIcon = entry.icon; activityValue = Math.max(0,entry.value); activityMaximum = Math.max(1,entry.maximum); expanded = shouldExpand(entry.kind); rendered = true; hideTimer.stop(); hideTimer.interval = entry.timeout; hideTimer.restart(); }
-    function deactivate() { rendered = false; islandState = "idle"; currentKind = "idle"; currentPriority = 0; currentStarted = 0; guardVolume = audio.outputVolume; guardBrightness = brightness.percentage; processQueue(); }
+    function deactivate() { rendered = false; islandState = "idle"; currentKind = "idle"; currentPriority = 0; currentStarted = 0; root.seedGuards(); processQueue(); }
 
     // Events
     Connections { target: noxd
         function onEventReceived(e) { if (!e || !e.provider) return;
-            if (e.provider === "audio" && e.data) { var v = Number(e.data.output_volume); if (isFinite(v)) { lastOutputVolume = v; lastOutputMuted = e.data.output_muted === true; lastInputMuted = e.data.input_muted === true; } if (isFinite(v) && Math.abs(v - guardVolume) > 1) { guardVolume = v; root.enqueue("volume","Volume","\uF028",v,100,root.priVolume,2000); } else if (e.data.output_muted !== undefined && e.data.output_muted !== lastOutputMuted) { root.enqueue("output-mute",e.data.output_muted?"Muted":"Unmuted",e.data.output_muted?"\uF026":"\uF028",v||0,100,root.priOutputMute,2000); } else if (e.data.input_muted !== undefined && e.data.input_muted !== lastInputMuted) { root.enqueue("input-mute",e.data.input_muted?"Mic Muted":"Mic Live","\uF130",0,1,root.priInputMute,2000); } return; }
-            if (e.provider === "brightness" && e.data) { var b = Number(e.data.percentage); if (isFinite(b) && Math.abs(b - guardBrightness) > 1) { guardBrightness = b; root.enqueue("brightness","Brightness","\uF185",b,100,root.priBrightness,2000); } return; }
+            if (e.provider === "audio" && e.data) {
+                var v = Number(e.data.output_volume); if (isFinite(v)) { lastOutputVolume = v; lastOutputMuted = e.data.output_muted === true; lastInputMuted = e.data.input_muted === true; }
+                if (!audio.hasSynced) { root.seedGuards(); return; } // initial snapshot — never display
+                if (isFinite(v) && Math.abs(v - guardVolume) > 1) { guardVolume = v; root.enqueue("volume","Volume","\uF028",v,100,root.priVolume,2000); }
+                else if (e.data.output_muted !== undefined && e.data.output_muted !== lastOutputMuted) { root.enqueue("output-mute",e.data.output_muted?"Muted":"Unmuted",e.data.output_muted?"\uF026":"\uF028",v||0,100,root.priOutputMute,2000); }
+                else if (e.data.input_muted !== undefined && e.data.input_muted !== lastInputMuted) { root.enqueue("input-mute",e.data.input_muted?"Mic Muted":"Mic Live","\uF130",0,1,root.priInputMute,2000); } return; }
+            if (e.provider === "brightness" && e.data) {
+                var b = Number(e.data.percentage); if (isFinite(b) && Math.abs(b - guardBrightness) > 1) { guardBrightness = b; root.enqueue("brightness","Brightness","\uF185",b,100,root.priBrightness,2000); } return; }
             if (e.provider === "media") { var md = e.data || {}; if (md.playback_status === "playing" || md.title) { mediaTitle = md.title||""; mediaArtist = md.artists?(Array.isArray(md.artists)?md.artists.join(", "):String(md.artists)):""; mediaArtwork = md.artwork_url||md.artwork_cache||""; mediaStatus = md.playback_status||""; mediaAvailable = true; root.enqueue("media",mediaTitle,"\uF001",50,100,root.priMedia,5000); } else { mediaAvailable = false; } return; }
             if (e.provider === "notifications") { var nd = e.data||{}; root.enqueue("notification",nd.summary||nd.app_name||"Notification","\uF0F3",1,1,root.priNotification,5000); return; }
             if (e.provider === "power") { var pd = e.data||{}; if (pd.warning === "low_battery"||pd.warning==="critical_battery") root.enqueue("battery-warning","Battery: "+Math.round(pd.percentage||0)+"%","\uF244",1,1,root.priBattery,8000); return; }
         }
     }
-    Connections { target: audio; function onOutputVolumeChanged() { if (!audio.available) return; if (Math.abs(audio.outputVolume - guardVolume) <= 1) return; guardVolume = audio.outputVolume; root.enqueue("volume","Volume","\uF028",audio.outputVolume,audio.maxVolume||100,root.priVolume,2000); } }
-    Connections { target: brightness; function onPercentageChanged() { if (!brightness.available) return; if (Math.abs(brightness.percentage - guardBrightness) <= 1) return; guardBrightness = brightness.percentage; root.enqueue("brightness","Brightness","\uF185",brightness.percentage,100,root.priBrightness,2000); } }
+    Connections { target: audio; function onOutputVolumeChanged() { if (!audio.hasSynced) { root.seedGuards(); return; } if (Math.abs(audio.outputVolume - guardVolume) <= 1) return; guardVolume = audio.outputVolume; root.enqueue("volume","Volume","\uF028",audio.outputVolume,audio.maxVolume||100,root.priVolume,2000); } }
+    Connections { target: brightness; function onPercentageChanged() { if (!brightness.hasSynced) { root.seedGuards(); return; } if (Math.abs(brightness.percentage - guardBrightness) <= 1) return; guardBrightness = brightness.percentage; root.enqueue("brightness","Brightness","\uF185",brightness.percentage,100,root.priBrightness,2000); } }
+
+    // Re-seed guards the moment each provider delivers its first synced value,
+    // in case the island component completes before the daemon snapshot.
+    Connections { target: audio; function onHasSyncedChanged() { root.seedGuards(); } }
+    Connections { target: brightness; function onHasSyncedChanged() { root.seedGuards(); } }
 
     Timer { id: hideTimer; interval: 2000; repeat: false; onTriggered: root.deactivate() }
 
