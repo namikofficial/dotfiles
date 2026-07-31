@@ -6,5 +6,7 @@ After=graphical-session.target
 Type=oneshot
 ExecStart=%h/.config/hypr/scripts/panel-switch.sh fallback
 
-[Install]
-WantedBy=graphical-session.target
+# No [Install] section: this unit must ONLY fire via
+# OnFailure=noxflow-fallback.service on noxflow-shell.service (genuine crash).
+# It must NOT be WantedBy=graphical-session.target — that made it run at every
+# session start and force Wayle on top of a healthy NoxFlow shell.
