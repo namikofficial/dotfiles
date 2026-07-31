@@ -30,6 +30,11 @@ Honest list of what is NOT fully implemented or has known caveats.
   root-owned `/var/cache/hyprpm/<user>` store; later non-root `hyprpm add`
   fails "Headers outdated". Fix documented in
   `setup/scrolloverview-rebuild.sh` and session notes.
+- **Version skew (2026-07-31):** installed package is hyprland 0.56.1-2 but
+  the running session is 0.56.0 (upgraded without restart). The source-built
+  plugin targets 0.56.1 headers and **will load after the next Hyprland
+  restart**. `startup.sh` loads it at session start and reloads the Lua config
+  so SUPER+TAB binds to the plugin. Until then the legacy fallback is active.
 
 ## Morph engine (M6/M7)
 
