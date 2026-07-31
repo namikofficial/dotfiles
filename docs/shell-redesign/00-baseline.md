@@ -44,7 +44,7 @@ vice-versa).
 | `noxd.service` | Desktop state daemon (event bus + 7 providers) | `graphical-session.target` |
 | `noxflow-shell.service` | Quickshell shell (NoxFlow) | `graphical-session.target` |
 | `noxflow-session-optional.service` | Oneshot → `startup.sh` (applets, warmers) | `graphical-session.target` |
-| `noxflow-fallback.service` | Emergency Wayle fallback (OnFailure) | not enabled directly |
+| `noxflow-fallback.service` | Emergency Wayle fallback (OnFailure only; no `[Install]` section) | not enabled |
 | `ai-workbench-*.service` | AI workbench observers | separate |
 
 ### Startup chain

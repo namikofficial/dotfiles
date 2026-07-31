@@ -66,8 +66,11 @@ Honest list of what is NOT fully implemented or has known caveats.
 
 ## General
 
-- **Wayle is masked.** The `noxflow-fallback.service` OnFailure path is a no-op
-  while Wayle stays masked (intentional: single-shell guarantee).
+- **Wayle is the safe-mode fallback, never the default.** `noxflow-fallback.service`
+  has no `[Install]` section (2026-07-31) — it can only fire via
+  `OnFailure=noxflow-shell.service` (genuine crash), never at session start.
+  The old `WantedBy=graphical-session.target` made it run at every login and
+  force Wayle on top of a healthy shell.
 - **Launcher.qml** has a pre-existing qmllint failure (unrelated to this
   redesign; was failing at baseline). Launcher still functions at runtime.
 - **No CI/CD** in the repo; validation is the release gate +

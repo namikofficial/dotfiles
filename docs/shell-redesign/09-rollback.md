@@ -105,10 +105,11 @@ git checkout 575442b                                   # last known-good
 make install-shell && systemctl --user restart noxflow-shell.service
 ```
 
-> **Wayle is masked by default.** The redesign's fallback path intentionally
-> routes failures to `noxflow-fallback.service` (OnFailure), which is a no-op
-> while Wayle stays masked — keeping the system single-shell. Unmask only in a
-> genuine emergency.
+> **Wayle is a safe-mode fallback, not the default.** `noxflow-fallback.service`
+> has no `[Install]` section (2026-07-31) — it fires only via
+> `OnFailure=noxflow-shell.service` (genuine crash). Wayle can be started
+> manually with `panel-switch.sh wayle` but will never auto-start at login.
+> Unmask/start it only in a genuine emergency.
 
 ## 9. Data preserved during rollback
 
