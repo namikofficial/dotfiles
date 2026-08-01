@@ -213,13 +213,20 @@ PanelWindow {
     }
 
     function geometryFor(name, rect) {
+        var hasOrigin = rect && rect.width > 0 && rect.height > 0;
+        if (hasOrigin) return { top: Math.max(0, rect.y), right: Math.max(0, screen.width - rect.x - rect.width), width: rect.width, height: rect.height };
+        return targetGeometryFor(name);
+    }
+
+    // Destination geometry for the expanded panel. Keep this separate from
+    // geometryFor(), whose origin override is intentionally the clicked bar
+    // chip. Mixing the two leaves the loaded panel clipped to chip size.
+    function targetGeometryFor(name) {
         var width = name === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(380);
         var height = name === "media" ? Theme.Tokens.scaled(230) :
             (name === "calendar" ? Theme.Tokens.scaled(650) :
             (name === "notifications" ? Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)) :
             Math.min(Theme.Tokens.scaled(720), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700))));
-        var hasOrigin = rect && rect.width > 0 && rect.height > 0;
-        if (hasOrigin) return { top: Math.max(0, rect.y), right: Math.max(0, screen.width - rect.x - rect.width), width: rect.width, height: rect.height };
         return { top: targetTopMargin, right: targetRightMargin, width: width, height: height };
     }
 
@@ -236,8 +243,8 @@ PanelWindow {
         // Toggle behavior: opening the already-open panel closes it.
         if (activePanel === name && pendingPanel === "") { closePanel(); return true; }
 
-        var g = geometryFor(name, rect);
         var hasOrigin = rect && rect.width > 0 && rect.height > 0;
+        var target = targetGeometryFor(name);
 
         if (activePanel !== "" && activePanel !== name) {
             // Swap: retarget geometry + crossfade content.
@@ -251,9 +258,9 @@ PanelWindow {
             // Immediately size the layer surface to the new target to avoid
             // clipping; the frame retargets to the new geometry.
             topMargin = targetTopMargin; rightMargin = targetRightMargin;
-            surfaceWidth = g.width; surfaceHeight = g.height;
+            surfaceWidth = target.width; surfaceHeight = target.height;
             frameTop = targetTopMargin; frameRight = targetRightMargin;
-            frameWidth = g.width; frameHeight = g.height; frameRadius = Theme.Tokens.radiusXl;
+            frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
             // Origin chip visual updates for the incoming panel.
             applyOrigin(name);
             // Crossfade: fade expanded content out quickly, then swap in the
@@ -285,16 +292,16 @@ PanelWindow {
             // Phase 2: animate window + frame to target.
             Qt.callLater(function() {
                 topMargin = targetTopMargin; rightMargin = targetRightMargin;
-                surfaceWidth = g.width; surfaceHeight = g.height;
+                surfaceWidth = target.width; surfaceHeight = target.height;
                 frameTop = targetTopMargin; frameRight = targetRightMargin;
-                frameWidth = g.width; frameHeight = g.height; frameRadius = Theme.Tokens.radiusXl;
+                frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
                 // Phase 3: crossfade at ~40% of the geometry transition.
                 expandFadeTimer.restart();
             });
         } else {
             // No origin chip: just appear.
-            topMargin = g.top; rightMargin = g.right; surfaceWidth = g.width; surfaceHeight = g.height;
-            frameTop = g.top; frameRight = g.right; frameWidth = g.width; frameHeight = g.height; frameRadius = Theme.Tokens.radiusXl;
+            topMargin = target.top; rightMargin = target.right; surfaceWidth = target.width; surfaceHeight = target.height;
+            frameTop = target.top; frameRight = target.right; frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
             compactOpacity = 0.0; compactTranslate = -Theme.Tokens.scaled(6);
             expandedOpacity = 1.0; expandedTranslate = 0.0;
             root.morphPhase = MorphSurface.Phase.Settled;
