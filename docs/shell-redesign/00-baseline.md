@@ -104,7 +104,7 @@ the exact installed version.
 | Brightness | D-Bus (ddcci/wlroots backends) | `providers/brightness.rs` | `BrightnessModel.qml` |
 | Hyprland state | socket pair (`.socket.sock`/`.socket2.sock`) | `providers/hyprland.rs` | `HyprlandModel.qml` |
 | MPRIS media | D-Bus `org.mpris.MediaPlayer2` | `providers/media.rs` | `MediaModel.qml` |
-| Network (NM) | D-Bus `org.freedesktop.NetworkManager` | `providers/network.rs` | `NetworkModel.qml` |
+| Network (iwd) | iwd station state + systemd-networkd | `providers/network.rs` | `NetworkModel.qml` |
 | Power (UPower) | D-Bus `org.freedesktop.UPower` | `providers/power.rs` | `PowerModel.qml` + `BatteryModel.qml` |
 | Notifications | daemon snapshot + events | (QML-side) | `NotificationModel.qml` |
 | Calendar | `Component.onCompleted: start()` | (QML-side) | `CalendarModel.qml` |

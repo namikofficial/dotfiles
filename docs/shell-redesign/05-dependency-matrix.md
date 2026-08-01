@@ -23,7 +23,7 @@ What each shell surface/backend requires, and whether it's optional.
 | brightness | D-Bus (ddcci/wlroots) | kernel + `brightnessctl` |
 | hyprland | Hyprland sockets | `hyprland` |
 | media | MPRIS D-Bus | any MPRIS player |
-| network | NetworkManager D-Bus | `networkmanager` |
+| network | iwd/iwctl + systemd-networkd | `iwd`, `systemd` |
 | power | UPower D-Bus | `upower` |
 
 ## New in this redesign
