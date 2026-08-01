@@ -66,7 +66,7 @@ noxflow_quick_action_run() {
 
   case "$choice" in
     "Toggle Wi-Fi")
-      wifi_if="$(iwctl station list 2>/dev/null | sed $'s/\033\\[[0-9;]*m//g' | awk '$1 ~ /^(wlan|wlp)/ { print $1; exit }')"
+      wifi_if="$(iwctl station list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '$1 ~ /^(wlan|wlp)/ { print $1; exit }')"
       state="$(iwctl device "$wifi_if" show 2>/dev/null | awk -F: '/Powered/ { gsub(/[[:space:]]/, "", $2); print tolower($2); exit }')"
       if [ "$state" = "on" ]; then
         iwctl device "$wifi_if" set-property Powered off
