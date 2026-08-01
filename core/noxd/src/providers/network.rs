@@ -460,9 +460,9 @@ fn read_snapshot() -> zbus::Result<NetworkState> {
         .skip(4)
         .filter_map(|line| {
             let tokens = line.split_whitespace().collect::<Vec<_>>();
-            let security_index = tokens.iter().position(|value| {
-                matches!(*value, "open" | "psk" | "8021x" | "wep" | "sae")
-            })?;
+            let security_index = tokens
+                .iter()
+                .position(|value| matches!(*value, "open" | "psk" | "8021x" | "wep" | "sae"))?;
             let ssid = tokens[..security_index]
                 .join(" ")
                 .trim_start_matches('>')
