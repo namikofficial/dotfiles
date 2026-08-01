@@ -2,67 +2,56 @@
 
 This workstation standard is:
 
-- `NetworkManager` as the network orchestrator
-- `wpa_supplicant` as the Wi-Fi backend
-- `iwd` not installed and its service masked
+- `iwd`/`iwctl` as the Wi-Fi orchestrator
+- `systemd-networkd` for DHCP and IP configuration
+- `systemd-resolved` for DNS
+- NetworkManager and `wpa_supplicant` disabled to avoid backend contention
 
-## Why
+This keeps one Wi-Fi control path and avoids the unstable dual-band roaming
+observed when the router advertises 2.4 GHz and 5 GHz under one SSID.
 
-- Avoids backend contention (`iwd` vs `wpa_supplicant`) and flaky Wi-Fi behavior.
-- Matches the rest of this dotfiles setup (`nmcli`, tray tooling, panel/network scripts).
-- Keeps Wi-Fi behavior predictable across reboots and package updates.
+## Enforce
 
-## Enforce (idempotent)
-
-Run:
-
-```sh
-./setup/enforce-network-stack.sh
-```
-
-The script will:
-
-- Install `networkmanager` and `wpa_supplicant` if missing
-- Remove `iwd` if installed
-- Mask `iwd.service`
-- Pin NetworkManager backend via `/etc/NetworkManager/conf.d/20-wifi-backend.conf`
-- Restart NetworkManager and print verification output
-
-If the machine is currently online through `iwd`, migrate the active SSID
-through NetworkManager first:
+Run this from a local terminal because it changes system services:
 
 ```sh
 ./setup/enforce-network-stack.sh --ssid "Your Wi-Fi SSID"
 ```
 
-The script uses `nmcli --ask` for credentials when NetworkManager does not
-already have a saved profile, then removes `iwd` after the NetworkManager
-profile exists.
+The script installs iwd, enables iwd/networkd/resolved, disables conflicting
+services, configures iwd to prefer 5 GHz and disable iwlwifi power saving,
+saves the requested iwd profile, and prints verification output.
 
-For dual-band routers that reuse one SSID for 2.4 GHz and 5 GHz, pin the
-known-good 5 GHz BSSID:
+For the known-good 5 GHz access point:
 
 ```sh
-./setup/enforce-network-stack.sh --ssid "Airtel_shub_6992" --bssid "78:BB:C1:13:A6:4A" --channel 161
+./setup/enforce-network-stack.sh --ssid "Airtel_shub_6992" --bssid "78:BB:C1:13:A6:4A" --channel 153
 ```
 
-If `iwd` exits badly and the `wlan0` interface disappears, recover it with:
+The BSSID and channel are verification targets. iwd’s rank settings prefer
+5 GHz and disable 2.4 GHz selection; confirm the actual BSSID/channel with
+`iwctl station <interface> show` after connecting.
+
+## Recovery
+
+If the Wi-Fi interface disappears after a driver or service failure:
 
 ```sh
 ./setup/recover-wifi-netdev.sh
 ```
 
-That restores the NetworkManager Wi-Fi device without creating a Wi-Fi profile.
-To recreate and connect the known 5 GHz profile in one step, use:
+To recreate and connect the known 5 GHz profile:
 
 ```sh
-./setup/recover-wifi-netdev.sh --connect "Airtel_shub_6992" "78:BB:C1:13:A6:4A" 161
+./setup/recover-wifi-netdev.sh --connect "Airtel_shub_6992" "78:BB:C1:13:A6:4A" 153
 ```
 
 ## Expected service state
 
 ```text
-NetworkManager.service   active (running)
-wpa_supplicant.service   active (running)
-iwd.service              masked / inactive
+iwd.service              active (running)
+systemd-networkd.service active (running)
+systemd-resolved.service active (running)
+NetworkManager.service   inactive / disabled
+wpa_supplicant.service   inactive / disabled
 ```

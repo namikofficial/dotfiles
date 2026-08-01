@@ -21,11 +21,11 @@
 use crate::{EventBus, ProviderEvent};
 use http_body_util::{BodyExt, Full};
 use noxflow_ipc::{ProviderState, ProviderStatus};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use rustls::{DigitallySignedStruct, SignatureScheme};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
@@ -141,19 +141,10 @@ pub struct SessionFile {
 #[derive(Debug, Clone)]
 pub enum CommandRequest {
     Discover,
-    Send {
-        peer_id: String,
-        paths: Vec<String>,
-    },
-    Accept {
-        session_id: String,
-    },
-    Decline {
-        session_id: String,
-    },
-    Cancel {
-        session_id: String,
-    },
+    Send { peer_id: String, paths: Vec<String> },
+    Accept { session_id: String },
+    Decline { session_id: String },
+    Cancel { session_id: String },
 }
 
 #[derive(Clone)]
@@ -179,6 +170,7 @@ struct Inner {
 struct SessionData {
     info: SessionInfo,
     file_tokens: HashMap<String, String>,
+    remote_session_id: Option<String>,
     #[allow(dead_code)] // reserved for resumable/retry sends
     send_files: Vec<(String, PathBuf, u64)>, // file_id, path, size
 }
@@ -213,7 +205,10 @@ impl Inner {
     }
 
     fn add_session(&self, session: SessionData) {
-        self.sessions.lock().unwrap().insert(session.info.id.clone(), session);
+        self.sessions
+            .lock()
+            .unwrap()
+            .insert(session.info.id.clone(), session);
         self.refresh_state();
         self.publish_sessions();
     }
@@ -319,15 +314,12 @@ fn tls_config(cert_path: &Path, key_path: &Path) -> Result<Arc<rustls::ServerCon
         .iter()
         .map(|p| rustls::pki_types::CertificateDer::from(p.contents().to_vec()))
         .collect();
-    let key =
-        pem::parse_many(&key_pem)
-            .map_err(|e| format!("parse key: {e}"))?
-            .into_iter()
-            .find(|p| p.tag() == "PRIVATE KEY" || p.tag() == "RSA PRIVATE KEY")
-            .ok_or_else(|| "no private key found".to_string())?;
-    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(
-        key.contents().to_vec().into(),
-    );
+    let key = pem::parse_many(&key_pem)
+        .map_err(|e| format!("parse key: {e}"))?
+        .into_iter()
+        .find(|p| p.tag() == "PRIVATE KEY" || p.tag() == "RSA PRIVATE KEY")
+        .ok_or_else(|| "no private key found".to_string())?;
+    let key = rustls::pki_types::PrivateKeyDer::Pkcs8(key.contents().to_vec().into());
     let config = rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(certs, key)
@@ -387,7 +379,11 @@ fn localsend_client_config() -> rustls::ClientConfig {
 
 // ── Entry point ──
 
-pub fn start(bus: EventBus, stop: Arc<AtomicBool>, state_dir: PathBuf) -> (thread::JoinHandle<()>, Control) {
+pub fn start(
+    bus: EventBus,
+    stop: Arc<AtomicBool>,
+    state_dir: PathBuf,
+) -> (thread::JoinHandle<()>, Control) {
     let (sender, receiver) = mpsc::channel();
     let control = Control { sender };
     let thread = thread::spawn(move || {
@@ -405,11 +401,7 @@ pub fn start(bus: EventBus, stop: Arc<AtomicBool>, state_dir: PathBuf) -> (threa
     (thread, control)
 }
 
-fn run(
-    inner: Arc<Inner>,
-    stop: Arc<AtomicBool>,
-    receiver: mpsc::Receiver<CommandRequest>,
-) {
+fn run(inner: Arc<Inner>, stop: Arc<AtomicBool>, receiver: mpsc::Receiver<CommandRequest>) {
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -494,7 +486,9 @@ fn expire_sessions(inner: Arc<Inner>) {
     {
         let sessions = inner.sessions.lock().unwrap();
         for (id, s) in sessions.iter() {
-            if matches!(s.info.state.as_str(), "incoming" | "offered") && now - s.info.created_at > SESSION_TTL_SECS {
+            if matches!(s.info.state.as_str(), "incoming" | "offered")
+                && now - s.info.created_at > SESSION_TTL_SECS
+            {
                 stale.push(id.clone());
             }
         }
@@ -551,7 +545,9 @@ async fn discover_once(inner: Arc<Inner>) {
         }
     };
     socket.set_multicast_loop_v4(true).ok();
-    socket.join_multicast_v4(MULTICAST_ADDR.parse().unwrap(), "0.0.0.0".parse().unwrap()).ok();
+    socket
+        .join_multicast_v4(MULTICAST_ADDR.parse().unwrap(), "0.0.0.0".parse().unwrap())
+        .ok();
 
     let info = DeviceInfo {
         alias: ALIAS.into(),
@@ -574,11 +570,16 @@ async fn discover_once(inner: Arc<Inner>) {
             .await
             .ok();
         let mut buf = [0u8; 4096];
-        let recv = tokio::time::timeout(Duration::from_millis(100), socket.recv_from(&mut buf)).await;
+        let recv =
+            tokio::time::timeout(Duration::from_millis(100), socket.recv_from(&mut buf)).await;
         if let Ok(Ok((len, src))) = recv {
             let ip = src.ip();
-            if ip.is_loopback() { continue; }
-            if !seen.insert(ip) { continue; }
+            if ip.is_loopback() {
+                continue;
+            }
+            if !seen.insert(ip) {
+                continue;
+            }
             if let Ok(text) = std::str::from_utf8(&buf[..len]) {
                 if let Ok(reply) = serde_json::from_str::<DeviceInfo>(text) {
                     if reply.alias != ALIAS {
@@ -636,16 +637,14 @@ async fn run_server(inner: Arc<Inner>, tls: Arc<rustls::ServerConfig>, stop: Arc
         let inner = Arc::clone(&inner);
         tokio::spawn(async move {
             let _slot = slot;
-            let tls_stream = match tokio_rustls::TlsAcceptor::from(tls)
-                .accept(stream)
-                .await
-            {
+            let tls_stream = match tokio_rustls::TlsAcceptor::from(tls).accept(stream).await {
                 Ok(s) => s,
                 Err(_) => return,
             };
             let io = hyper_util::rt::TokioIo::new(tls_stream);
             let svc = hyper::service::service_fn(move |req| handle_http(inner.clone(), req));
-            let acceptor = hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new());
+            let acceptor =
+                hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new());
             // LocalSend may keep probe connections open. Bound each HTTP/TLS
             // connection so discovery cannot exhaust noxd's file descriptors.
             let _ = tokio::time::timeout(
@@ -744,6 +743,7 @@ async fn handle_http(
                             created_at: timestamp(),
                         },
                         file_tokens: tokens.clone(),
+                        remote_session_id: None,
                         send_files: Vec::new(),
                     };
                     inner.add_session(session);
@@ -752,14 +752,14 @@ async fn handle_http(
                         files: meta
                             .files
                             .keys()
-                            .filter_map(|id| tokens.get(id).map(|token| (id.clone(), token.clone())))
+                            .filter_map(|id| {
+                                tokens.get(id).map(|token| (id.clone(), token.clone()))
+                            })
                             .collect(),
                     };
                     json_response(serde_json::to_string(&resp).unwrap_or_default())
                 }
-                Err(e) => {
-                    status_response(400, format!("invalid body: {e}"))
-                }
+                Err(e) => status_response(400, format!("invalid body: {e}")),
             }
         }
         ("POST", "/api/localsend/v2/upload") => {
@@ -815,8 +815,17 @@ async fn receive_upload(
         if !matches!(session.info.state.as_str(), "incoming" | "transferring") {
             return Err(format!("transfer {}", session.info.state));
         }
-        let expected = session.file_tokens.get(file_id).ok_or("unknown file")?.clone();
-        let f = session.info.files.iter().find(|f| f.id == file_id).ok_or("unknown file")?;
+        let expected = session
+            .file_tokens
+            .get(file_id)
+            .ok_or("unknown file")?
+            .clone();
+        let f = session
+            .info
+            .files
+            .iter()
+            .find(|f| f.id == file_id)
+            .ok_or("unknown file")?;
         (f.name.clone(), f.size, expected)
     };
     if expected_token != token {
@@ -904,7 +913,12 @@ fn status_response(code: u16, msg: String) -> hyper::Response<Full<bytes::Bytes>
 
 // ── Sending ──
 
-async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_id: &str, paths: &[String]) {
+async fn send_to_peer(
+    inner: Arc<Inner>,
+    _tls: Arc<rustls::ServerConfig>,
+    peer_id: &str,
+    paths: &[String],
+) {
     let peer = {
         let state = inner.state.lock().unwrap();
         state.devices.iter().find(|p| p.id == peer_id).cloned()
@@ -912,11 +926,14 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
     let peer = match peer {
         Some(p) => p,
         None => {
-            inner.bus.publish(TransferEvent {
-                event_type: "sessions",
-                data: json!({ "error": "peer not found" }),
-                snapshot_value: inner.full_snapshot(),
-            }).ok();
+            inner
+                .bus
+                .publish(TransferEvent {
+                    event_type: "sessions",
+                    data: json!({ "error": "peer not found" }),
+                    snapshot_value: inner.full_snapshot(),
+                })
+                .ok();
             return;
         }
     };
@@ -934,7 +951,10 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
             }
         };
         let id = format!("f{idx}");
-        let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let name = p
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
         files.insert(
             id.clone(),
             FileMeta {
@@ -949,11 +969,14 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
         path_map.push((id.clone(), p, meta.len()));
     }
     if files.is_empty() {
-        inner.bus.publish(TransferEvent {
-            event_type: "sessions",
-            data: json!({ "error": "no valid files" }),
-            snapshot_value: inner.full_snapshot(),
-        }).ok();
+        inner
+            .bus
+            .publish(TransferEvent {
+                event_type: "sessions",
+                data: json!({ "error": "no valid files" }),
+                snapshot_value: inner.full_snapshot(),
+            })
+            .ok();
         return;
     }
 
@@ -967,7 +990,12 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
             .iter()
             .map(|(id, _, size)| SessionFile {
                 id: id.clone(),
-                name: String::new(),
+                name: path_map
+                    .iter()
+                    .find(|(candidate, _, _)| candidate == id)
+                    .and_then(|(_, path, _)| path.file_name())
+                    .map(|name| name.to_string_lossy().to_string())
+                    .unwrap_or_default(),
                 size: *size,
                 transferred: 0,
                 path: None,
@@ -980,12 +1008,20 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
     inner.add_session(SessionData {
         info: session_info,
         file_tokens: HashMap::new(),
+        remote_session_id: None,
         send_files: path_map.clone(),
     });
 
     // Prepare-upload against the peer.
-    let scheme = if peer.protocol == "http" { "http" } else { "https" };
-    let url = format!("{scheme}://{}:{}/api/localsend/v2/prepare-upload", peer.ip, peer.port);
+    let scheme = if peer.protocol == "http" {
+        "http"
+    } else {
+        "https"
+    };
+    let url = format!(
+        "{scheme}://{}:{}/api/localsend/v2/prepare-upload",
+        peer.ip, peer.port
+    );
     let body = PrepareUploadRequest {
         info: DeviceInfo {
             alias: ALIAS.into(),
@@ -1014,7 +1050,9 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
         .method("POST")
         .uri(&url)
         .header("content-type", "application/json")
-        .body(Full::new(bytes::Bytes::from(serde_json::to_string(&body).unwrap_or_default())))
+        .body(Full::new(bytes::Bytes::from(
+            serde_json::to_string(&body).unwrap_or_default(),
+        )))
         .unwrap();
 
     let resp = match client.request(req).await {
@@ -1037,7 +1075,11 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
         return;
     }
     if status != 200 {
-        fail_session(&inner, &session_id, format!("prepare status {status}: {resp_body}"));
+        fail_session(
+            &inner,
+            &session_id,
+            format!("prepare status {status}: {resp_body}"),
+        );
         return;
     }
     let prepared: PrepareUploadResponse = match serde_json::from_str(&resp_body) {
@@ -1053,10 +1095,19 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
         let mut sessions = inner.sessions.lock().unwrap();
         if let Some(s) = sessions.get_mut(&session_id) {
             s.info.state = "transferring".into();
-            s.file_tokens = prepared.files.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+            s.file_tokens = prepared
+                .files
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            s.remote_session_id = Some(prepared.sessionId.clone());
             for f in &mut s.info.files {
                 if let Some(orig) = path_map.iter().find(|(id, _, _)| id == &f.id) {
-                    f.name = orig.1.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                    f.name = orig
+                        .1
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
                     f.path = Some(orig.1.to_string_lossy().to_string());
                 }
             }
@@ -1065,17 +1116,22 @@ async fn send_to_peer(inner: Arc<Inner>, _tls: Arc<rustls::ServerConfig>, peer_i
     inner.publish_sessions();
 
     // Upload each file.
+    let remote_session_id = prepared.sessionId.clone();
     let mut ok = true;
     for (file_id, path, size) in path_map {
         let token = prepared.files.get(&file_id).cloned().unwrap_or_default();
         let url = format!(
             "{scheme}://{}:{}/api/localsend/v2/upload?sessionId={}&fileId={}&token={}",
-            peer.ip, peer.port, session_id, file_id, token
+            peer.ip, peer.port, remote_session_id, file_id, token
         );
         match upload_file(&client, &url, &path, size, &inner, &session_id, &file_id).await {
             Ok(_) => {}
             Err(e) => {
-                fail_session(&inner, &session_id, format!("upload {}: {e}", path.display()));
+                fail_session(
+                    &inner,
+                    &session_id,
+                    format!("upload {}: {e}", path.display()),
+                );
                 ok = false;
                 break;
             }

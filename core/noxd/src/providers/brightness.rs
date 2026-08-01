@@ -159,7 +159,9 @@ fn run(
                     let updated_backend = state.backend_available;
                     available.store(updated_backend, Ordering::Relaxed);
                     // Only publish if value changed or backend became available
-                    if state.percentage != prev_pct || (updated_backend && !available.load(Ordering::Relaxed)) {
+                    if state.percentage != prev_pct
+                        || (updated_backend && !available.load(Ordering::Relaxed))
+                    {
                         publish_snapshot(&bus, &state, "brightness_changed", true);
                     }
                     last_poll = std::time::Instant::now();

@@ -198,11 +198,9 @@ fn handle_request(
             let value = settings.get(&key)?;
             Response::Setting(SettingValue { key, value })
         }
-        Request::GetSettings => {
-            Response::Settings(SettingsMap {
-                settings: settings.get_all(),
-            })
-        }
+        Request::GetSettings => Response::Settings(SettingsMap {
+            settings: settings.get_all(),
+        }),
         Request::RunAction { action } => {
             if matches!(
                 &action,
@@ -289,8 +287,14 @@ fn handle_request(
                         enabled,
                     ))
                     .map_err(network_error)?,
-                Action::NetworkConnectSaved { uuid } => network
-                    .send(noxd::providers::network::CommandRequest::ConnectSaved(uuid))
+                Action::NetworkConnectSaved { ssid } => network
+                    .send(noxd::providers::network::CommandRequest::ConnectSaved(ssid))
+                    .map_err(network_error)?,
+                Action::NetworkConnect { ssid, passphrase } => network
+                    .send(noxd::providers::network::CommandRequest::Connect { ssid, passphrase })
+                    .map_err(network_error)?,
+                Action::NetworkForget { ssid } => network
+                    .send(noxd::providers::network::CommandRequest::Forget(ssid))
                     .map_err(network_error)?,
                 Action::NetworkDisconnectWifi => network
                     .send(noxd::providers::network::CommandRequest::DisconnectWifi)
@@ -365,7 +369,16 @@ fn handle_request(
                     .map_err(transfer_error)?,
                 _ => {}
             }
-            Response::ActionAccepted(ActionAccepted { action })
+            let accepted_action = match action {
+                Action::NetworkConnect { ssid, .. } => Action::NetworkConnect {
+                    ssid,
+                    passphrase: String::new(),
+                },
+                other => other,
+            };
+            Response::ActionAccepted(ActionAccepted {
+                action: accepted_action,
+            })
         }
     };
     Ok(result)

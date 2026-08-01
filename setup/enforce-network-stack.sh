@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Enforce the workstation Wi-Fi standard:
-# NetworkManager + wpa_supplicant backend, with iwd disabled.
+# Enforce the workstation Wi-Fi standard: iwd + systemd-networkd.
+# Run from a local terminal. The active NetworkManager connection is stopped
+# only after iwd and networkd are ready to take over.
 
 DRY_RUN=0
 AUTO_YES=0
@@ -12,234 +13,158 @@ CHANNEL=""
 
 usage() {
   cat <<'EOF'
-usage: enforce-network-stack.sh [--dry-run] [--yes]
+usage: enforce-network-stack.sh --ssid SSID [--bssid BSSID] [--channel CHANNEL] [--dry-run] [--yes]
 
-  --dry-run  Show the actions without changing the system.
-  --yes      Apply the destructive changes without prompting.
-  --ssid SSID
-             Ensure NetworkManager has a Wi-Fi connection for SSID before
-             removing iwd. If no saved profile exists, nmcli will ask for
-             credentials in an interactive terminal.
-  --bssid BSSID
-             Pin the NetworkManager Wi-Fi profile to a specific access point.
-  --channel CHANNEL
-             Pin the NetworkManager Wi-Fi profile to a specific channel.
+  --ssid SSID       Wi-Fi network to connect after migration (required)
+  --bssid BSSID     Prefer this access point, normally the 5 GHz BSSID
+  --channel CHANNEL Record the expected channel for verification
+  --dry-run         Print actions without changing the system
+  --yes             Skip the confirmation prompt
 EOF
 }
 
-while [ $# -gt 0 ]; do
+while (($#)); do
   case "$1" in
-    --dry-run) DRY_RUN=1 ;;
-    --yes) AUTO_YES=1 ;;
     --ssid)
       SSID="${2:-}"
-      [ -n "$SSID" ] || {
-        echo "--ssid requires a value" >&2
-        exit 1
-      }
       shift
       ;;
     --bssid)
       BSSID="${2:-}"
-      [ -n "$BSSID" ] || {
-        echo "--bssid requires a value" >&2
-        exit 1
-      }
       shift
       ;;
     --channel)
       CHANNEL="${2:-}"
-      [ -n "$CHANNEL" ] || {
-        echo "--channel requires a value" >&2
-        exit 1
-      }
       shift
       ;;
+    --dry-run) DRY_RUN=1 ;;
+    --yes) AUTO_YES=1 ;;
     -h | --help)
       usage
       exit 0
       ;;
     *)
       usage >&2
-      exit 1
+      exit 2
       ;;
   esac
   shift
 done
 
+if [ -z "$SSID" ]; then
+  usage >&2
+  exit 2
+fi
+
 as_root() {
-  if ((EUID == 0)); then
-    "$@"
-  else
-    sudo "$@"
-  fi
+  if ((EUID == 0)); then "$@"; else sudo "$@"; fi
 }
 
 run_root() {
   if ((DRY_RUN)); then
-    printf '[dry-run] sudo %s\n' "$*"
+    printf '[dry-run] sudo'
+    printf ' %q' "$@"
+    printf '\n'
   else
     as_root "$@"
   fi
 }
 
 confirm() {
-  if ((DRY_RUN || AUTO_YES)); then
-    return 0
-  fi
-  printf 'This will remove iwd if installed and restart NetworkManager. Continue? [y/N] '
+  if ((DRY_RUN || AUTO_YES)); then return; fi
+  printf 'This disables NetworkManager/wpa_supplicant and enables iwd/networkd. Continue? [y/N] '
   read -r answer
-  case "${answer:-N}" in
-    y | Y | yes | YES) ;;
-    *)
-      echo "Aborted."
-      exit 1
-      ;;
+  case "${answer:-N}" in y | Y | yes | YES) ;; *)
+    echo 'Aborted.'
+    exit 1
+    ;;
   esac
 }
 
-echo "==> Enforcing NetworkManager + wpa_supplicant policy"
+wifi_if() {
+  iwctl station list 2>/dev/null |
+    sed $'s/\033\\[[0-9;]*m//g' |
+    awk '$1 ~ /^(wlan|wlp)/ { print $1; exit }'
+}
+
+echo '==> Migrating Wi-Fi to iwd + systemd-networkd'
 confirm
 
-nm_wifi_state() {
-  nmcli -t -f WIFI g 2>/dev/null || true
-}
+run_root pacman -S --needed iwd
+run_root systemctl unmask iwd.service
+run_root systemctl enable iwd.service systemd-networkd.service systemd-resolved.service
+run_root mkdir -p /etc/systemd/network
+run_root mkdir -p /etc/iwd
 
-nm_has_wifi_connection() {
-  [ -n "$SSID" ] || return 1
-  nmcli -t -f NAME,TYPE connection show 2>/dev/null |
-    awk -F: '$2 == "802-11-wireless" { print $1 }' |
-    grep -Fx -- "$SSID" >/dev/null 2>&1
-}
-
-nm_connected_wifi_device() {
-  nmcli -t -f DEVICE,TYPE,STATE d 2>/dev/null |
-    awk -F: '$2 == "wifi" && $3 == "connected" { print $1; exit }'
-}
-
-nm_any_wifi_device() {
-  nmcli -t -f DEVICE,TYPE d 2>/dev/null |
-    awk -F: '$2 == "wifi" { print $1; exit }'
-}
-
-iwd_connected_ssid() {
-  command -v iwctl >/dev/null 2>&1 || return 0
-  iwctl station list 2>/dev/null |
-    awk 'NR > 4 && $1 !~ /^-+$/ { print $1; exit }' |
-    while read -r station; do
-      [ -n "$station" ] || continue
-      iwctl station "$station" show 2>/dev/null |
-        awk -F'Connected network[[:space:]]+' '/Connected network/ { print $2; exit }' |
-        sed 's/[[:space:]]*$//'
-    done |
-    sed -n '1p'
-}
-
-if ! pacman -Q networkmanager >/dev/null 2>&1 || ! pacman -Q wpa_supplicant >/dev/null 2>&1; then
-  echo "==> Installing required packages: networkmanager, wpa_supplicant"
-  run_root pacman -S --needed networkmanager wpa_supplicant
-fi
-
-if [ -n "$SSID" ] && ! nm_has_wifi_connection; then
-  echo "==> Creating NetworkManager Wi-Fi profile for: $SSID"
-  if ((DRY_RUN)); then
-    printf '[dry-run] nmcli device wifi connect %q --ask\n' "$SSID"
-  else
-    nmcli device wifi connect "$SSID" --ask
-    nmcli connection modify "$SSID" connection.interface-name ""
-  fi
-fi
-
-if [ -n "$SSID" ] && { [ -n "$BSSID" ] || [ -n "$CHANNEL" ]; }; then
-  echo "==> Pinning NetworkManager Wi-Fi profile to 5 GHz preferences"
-  if ((DRY_RUN)); then
-    printf '[dry-run] nmcli connection modify %q 802-11-wireless.band a' "$SSID"
-    [ -z "$BSSID" ] || printf ' 802-11-wireless.bssid %q' "$BSSID"
-    [ -z "$CHANNEL" ] || printf ' 802-11-wireless.channel %q' "$CHANNEL"
-    printf ' 802-11-wireless.powersave 2 connection.autoconnect-priority 50\n'
-  else
-    nm_args=(
-      connection modify "$SSID"
-      connection.interface-name ""
-      802-11-wireless.band a
-      802-11-wireless.powersave 2
-      connection.autoconnect-priority 50
-    )
-    [ -z "$BSSID" ] || nm_args+=(802-11-wireless.bssid "$BSSID")
-    [ -z "$CHANNEL" ] || nm_args+=(802-11-wireless.channel "$CHANNEL")
-    nmcli "${nm_args[@]}"
-  fi
-fi
-
-if [ -z "$SSID" ] &&
-  [ -n "$(iwd_connected_ssid)" ] &&
-  { [ "$(nm_wifi_state)" != "enabled" ] || [ -z "$(nm_connected_wifi_device)" ]; }; then
-  cat >&2 <<EOF
-Refusing to remove iwd while it appears to own the active Wi-Fi connection.
-
-Run this once from a terminal so NetworkManager saves the Wi-Fi credentials:
-
-  ./setup/enforce-network-stack.sh --ssid "$(iwd_connected_ssid)"
-
-Then rerun this script normally if needed.
-EOF
-  exit 1
-fi
-
-if pacman -Q iwd >/dev/null 2>&1; then
-  echo "==> Removing conflicting package: iwd"
-  run_root pacman -Rns --noconfirm iwd
-fi
-
-echo "==> Masking iwd service to prevent accidental enable"
-run_root systemctl mask iwd.service || true
-
-echo "==> Pinning NetworkManager backend to wpa_supplicant"
-run_root mkdir -p /etc/NetworkManager/conf.d
 if ((DRY_RUN)); then
-  cat <<'EOF'
-[dry-run] write /etc/NetworkManager/conf.d/20-wifi-backend.conf
-[device]
-wifi.backend=wpa_supplicant
-EOF
+  echo '[dry-run] write /etc/iwd/main.conf'
 else
-  cat <<'EOF' | as_root tee /etc/NetworkManager/conf.d/20-wifi-backend.conf >/dev/null
-[device]
-wifi.backend=wpa_supplicant
-EOF
+  printf '%s\n' \
+    '[General]' \
+    'EnableNetworkConfiguration=false' \
+    'RoamThreshold5G=-76' \
+    '' \
+    '[Rank]' \
+    'BandModifier2_4GHz=0.0' \
+    'BandModifier5GHz=1.5' \
+    '' \
+    '[DriverQuirks]' \
+    'PowerSaveDisable=iwlwifi' |
+    as_root tee /etc/iwd/main.conf >/dev/null
 fi
-run_root rm -f /etc/NetworkManager/conf.d/10-iwd.conf
 
-echo "==> Restarting network services"
-run_root systemctl enable --now NetworkManager.service
-run_root systemctl restart NetworkManager.service
-if [ -z "$(nm_any_wifi_device)" ] && lsmod | grep -q '^iwlwifi'; then
-  echo "==> Wi-Fi device missing after iwd removal; reloading Intel Wi-Fi driver"
-  run_root systemctl stop NetworkManager.service
-  run_root modprobe -r iwlmvm iwlwifi
-  run_root modprobe iwlwifi
-  run_root systemctl start NetworkManager.service
+network_file=""
+for candidate in /etc/systemd/network/*.network; do
+  [ -f "$candidate" ] || continue
+  network_file="$candidate"
+  break
+done
+
+if [ -n "$network_file" ]; then
+  echo "==> Reusing existing networkd profile: $network_file"
+elif ((DRY_RUN)); then
+  echo '[dry-run] write /etc/systemd/network/25-wireless.network'
+else
+  printf '%s\n' \
+    '[Match]' \
+    'Name=wl*' \
+    '' \
+    '[Network]' \
+    'DHCP=yes' \
+    'IPv6AcceptRA=yes' \
+    'Domains=~.' |
+    as_root tee /etc/systemd/network/25-wireless.network >/dev/null
 fi
-if [ -n "$SSID" ]; then
-  if ((DRY_RUN)); then
-    printf '[dry-run] sudo nmcli connection reload\n'
-    printf '[dry-run] nmcli connection up %q\n' "$SSID"
-  else
-    run_root nmcli connection reload || true
-    nmcli connection up "$SSID" || true
-  fi
-fi
+
+run_root systemctl restart systemd-networkd.service
+run_root systemctl restart systemd-resolved.service
+run_root ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
+run_root systemctl stop NetworkManager.service
+run_root systemctl stop wpa_supplicant.service
+run_root systemctl disable NetworkManager.service wpa_supplicant.service
+run_root systemctl start iwd.service
 
 if ((DRY_RUN)); then
-  echo
-  echo "==> Dry run complete"
-  exit 0
+  echo "[dry-run] iwctl station <wifi-interface> connect $(printf %q "$SSID")"
+else
+  wifi="$(wifi_if)"
+  if [ -z "$wifi" ]; then
+    echo 'No iwd Wi-Fi station found.' >&2
+    exit 1
+  fi
+  echo "==> Connecting $SSID with iwctl on $wifi"
+  iwctl station "$wifi" connect "$SSID"
 fi
 
 echo
-echo "==> Verification"
-systemctl list-units --type=service | grep -E "NetworkManager|wpa_supplicant|iwd" || true
-echo
-if command -v iw >/dev/null 2>&1; then
-  iw dev | sed -n '1,80p'
+echo '==> Verification'
+systemctl --no-pager --full --type=service --state=active |
+  grep -E '^(iwd|systemd-networkd|systemd-resolved)\.service' || true
+if ! ((DRY_RUN)); then
+  wifi="$(wifi_if)"
+  iwctl station "$wifi" show || true
+  networkctl status "$wifi" --no-pager || true
+  [ -z "$BSSID" ] || echo "Expected BSSID: $BSSID"
+  [ -z "$CHANNEL" ] || echo "Expected channel: $CHANNEL"
 fi

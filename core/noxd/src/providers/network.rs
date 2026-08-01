@@ -1,8 +1,4 @@
-//! Event-driven NetworkManager provider.
-//!
-//! State is read from NetworkManager's system D-Bus API and refreshed when
-//! NetworkManager emits a signal. Actions operate only on existing saved
-//! profiles; this provider never handles secrets or creates profiles.
+//! iwd-backed network provider with systemd-networkd IP state.
 
 use crate::{EventBus, ProviderEvent};
 use noxflow_ipc::{ProviderState, ProviderStatus};
@@ -10,12 +6,13 @@ use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, HashMap},
     io,
+    process::Command,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc, Arc,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use zbus::{
     blocking::{Connection, MessageIterator, Proxy},
@@ -31,7 +28,6 @@ const DEVICE_IFACE: &str = "org.freedesktop.NetworkManager.Device";
 const WIFI_IFACE: &str = "org.freedesktop.NetworkManager.Device.Wireless";
 const ACTIVE_IFACE: &str = "org.freedesktop.NetworkManager.Connection.Active";
 const AP_IFACE: &str = "org.freedesktop.NetworkManager.AccessPoint";
-const SETTINGS_IFACE: &str = "org.freedesktop.NetworkManager.Settings";
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct NetworkState {
@@ -45,6 +41,9 @@ pub struct NetworkState {
     pub active_connection: Option<Value>,
     pub ethernet: Vec<Value>,
     pub connected_ssid: Option<String>,
+    pub connected_bssid: Option<String>,
+    pub frequency: Option<u32>,
+    pub channel: Option<u32>,
     pub signal_strength: Option<u8>,
     pub available_wifi: Vec<Value>,
     pub ipv4: Vec<String>,
@@ -85,6 +84,12 @@ impl NetworkState {
                     option_json(self.connected_ssid.as_deref()),
                 ),
                 ("signal_strength".into(), option_json(self.signal_strength)),
+                (
+                    "connected_bssid".into(),
+                    option_json(self.connected_bssid.as_deref()),
+                ),
+                ("frequency".into(), option_json(self.frequency)),
+                ("channel".into(), option_json(self.channel)),
                 ("available_wifi".into(), json!(self.available_wifi)),
                 ("ipv4".into(), json!(self.ipv4)),
                 ("ipv6".into(), json!(self.ipv6)),
@@ -103,6 +108,8 @@ fn option_json<T: serde::Serialize>(value: T) -> Value {
 pub enum CommandRequest {
     WifiSetEnabled(bool),
     ConnectSaved(String),
+    Connect { ssid: String, passphrase: String },
+    Forget(String),
     DisconnectWifi,
     Refresh,
     VpnSetEnabled { uuid: String, enabled: bool },
@@ -132,6 +139,7 @@ fn run(bus: EventBus, stop: Arc<AtomicBool>, receiver: mpsc::Receiver<CommandReq
     let mut previous = None;
     let mut signal_rx: Option<mpsc::Receiver<()>> = None;
     let mut unavailable = false;
+    let mut last_refresh = Instant::now() - Duration::from_secs(3);
     while !stop.load(Ordering::Relaxed) {
         while let Ok(command) = receiver.try_recv() {
             if let Err(error) = execute(&command) {
@@ -144,8 +152,10 @@ fn run(bus: EventBus, stop: Arc<AtomicBool>, receiver: mpsc::Receiver<CommandReq
         let refresh = signal_rx
             .as_ref()
             .map(|rx| rx.try_recv().is_ok())
-            .unwrap_or(true);
+            .unwrap_or(true)
+            || last_refresh.elapsed() >= Duration::from_secs(2);
         if refresh {
+            last_refresh = Instant::now();
             match read_snapshot() {
                 Ok(state) => {
                     let changed = previous.as_ref() != Some(&state);
@@ -245,7 +255,8 @@ fn proxy<'a>(
     Proxy::new(connection, SERVICE, path, interface)
 }
 
-fn read_snapshot() -> zbus::Result<NetworkState> {
+#[allow(dead_code)]
+fn read_snapshot_networkmanager() -> zbus::Result<NetworkState> {
     let connection = Connection::system()?;
     let manager = proxy(&connection, ROOT, NM_IFACE)?;
     let connectivity: u32 = manager.get_property("Connectivity")?;
@@ -349,6 +360,165 @@ fn read_snapshot() -> zbus::Result<NetworkState> {
     Ok(result)
 }
 
+fn iwctl_station() -> io::Result<String> {
+    let output = Command::new("iwctl").arg("station").arg("list").output()?;
+    if !output.status.success() {
+        return Err(io::Error::other("iwctl station list failed"));
+    }
+    strip_iwctl_ansi(&String::from_utf8_lossy(&output.stdout))
+        .lines()
+        .skip(4)
+        .find_map(|line| {
+            let name = line.split_whitespace().next()?;
+            (name.starts_with("wlan") || name.starts_with("wlp")).then(|| name.to_owned())
+        })
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no iwd station found"))
+}
+
+fn iwctl_output(args: &[&str]) -> io::Result<String> {
+    let output = Command::new("iwctl").args(args).output()?;
+    if !output.status.success() {
+        return Err(io::Error::other(format!(
+            "iwctl command failed: {:?}",
+            args
+        )));
+    }
+    Ok(strip_iwctl_ansi(&String::from_utf8_lossy(&output.stdout)))
+}
+
+fn strip_iwctl_ansi(value: &str) -> String {
+    value
+        .replace("\u{1b}[1;90m", "")
+        .replace("\u{1b}[90m", "")
+        .replace("\u{1b}[0m", "")
+}
+
+fn read_snapshot() -> zbus::Result<NetworkState> {
+    let station = iwctl_station().map_err(|error| zbus::Error::Failure(error.to_string()))?;
+    let details = iwctl_output(&["station", &station, "show"])
+        .map_err(|error| zbus::Error::Failure(error.to_string()))?;
+    let connected_ssid = details
+        .lines()
+        .map(str::trim_start)
+        .find_map(|line| line.strip_prefix("Connected network"))
+        .map(|value| value.trim_start_matches(':').trim().to_owned())
+        .filter(|value| !value.is_empty() && value != "--");
+    let signal_strength = details.lines().map(str::trim_start).find_map(|line| {
+        let value = line.strip_prefix("RSSI")?.trim_start_matches(':').trim();
+        let dbm = value.split_whitespace().next()?.parse::<i32>().ok()?;
+        Some((dbm + 100).clamp(0, 100) as u8)
+    });
+    let connected_bssid = details.lines().map(str::trim_start).find_map(|line| {
+        line.strip_prefix("ConnectedBss")
+            .map(|value| value.trim_start_matches(':').trim().to_owned())
+    });
+    let frequency = details.lines().map(str::trim_start).find_map(|line| {
+        line.strip_prefix("Frequency")
+            .and_then(|value| value.trim_start_matches(':').split_whitespace().next())
+            .and_then(|value| value.parse::<u32>().ok())
+    });
+    let channel = details.lines().map(str::trim_start).find_map(|line| {
+        line.strip_prefix("Channel")
+            .and_then(|value| value.trim_start_matches(':').split_whitespace().next())
+            .and_then(|value| value.parse::<u32>().ok())
+    });
+    let online = Command::new("networkctl")
+        .args(["status", &station, "--no-pager"])
+        .output()
+        .map(|output| {
+            let status = String::from_utf8_lossy(&output.stdout);
+            status.contains("Online state: online") || status.contains("State: routable")
+        })
+        .unwrap_or(false);
+    let ipv4 = Command::new("ip")
+        .args(["-j", "address", "show", "dev", &station])
+        .output()
+        .ok()
+        .and_then(|output| serde_json::from_slice::<Vec<Value>>(&output.stdout).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .flat_map(|item| {
+            item.get("addr_info")
+                .cloned()
+                .unwrap_or(Value::Array(vec![]))
+                .as_array()
+                .cloned()
+                .unwrap_or_default()
+        })
+        .filter(|item| item.get("family").and_then(Value::as_str) == Some("inet"))
+        .filter_map(|item| {
+            Some(format!(
+                "{}/{}",
+                item.get("local")?.as_str()?,
+                item.get("prefixlen")?.as_u64()?
+            ))
+        })
+        .collect();
+    let saved = iwctl_output(&["known-networks", "list"])
+        .unwrap_or_default()
+        .lines()
+        .skip(4)
+        .filter_map(|line| {
+            let value = line.trim();
+            (!value.is_empty() && !value.starts_with('-'))
+                .then(|| value.split_whitespace().next().unwrap_or(value).to_owned())
+        })
+        .collect::<std::collections::HashSet<_>>();
+    let available_wifi = iwctl_output(&["station", &station, "get-networks", "rssi-dbms"])
+        .unwrap_or_default()
+        .lines()
+        .skip(4)
+        .filter_map(|line| {
+            let tokens = line.split_whitespace().collect::<Vec<_>>();
+            let security_index = tokens
+                .iter()
+                .position(|value| matches!(*value, "open" | "psk" | "8021x" | "wep" | "sae"))?;
+            let ssid = tokens[..security_index]
+                .join(" ")
+                .trim_start_matches('>')
+                .trim()
+                .to_owned();
+            let security = tokens[security_index].to_owned();
+            let signal = tokens
+                .last()
+                .and_then(|value| value.parse::<i32>().ok())
+                .map(|value| ((value / 100 + 100).clamp(0, 100)) as u8)
+                .unwrap_or(0);
+            (!ssid.is_empty()).then(|| {
+                json!({
+                    "ssid": ssid,
+                    "strength": signal,
+                    "security": security,
+                    "secure": security != "open",
+                    "saved": saved.contains(&ssid),
+                    "connected": connected_ssid.as_deref() == Some(ssid.as_str()),
+                })
+            })
+        })
+        .collect();
+    let active = connected_ssid.clone().map(|ssid| {
+        json!({"id": ssid, "uuid": connected_ssid.clone().unwrap_or_default(), "type": "wifi", "state": if online { "connected" } else { "connecting" }, "vpn": false, "default": online, "interface": station, "ipv4": ipv4, "ipv6": []})
+    });
+    Ok(NetworkState {
+        connectivity: if online { "full" } else { "none" }.into(),
+        connectivity_check_available: true,
+        connectivity_check_enabled: true,
+        nm_state: if online { "connected" } else { "disconnected" }.into(),
+        networking_enabled: true,
+        wifi_enabled: Some(true),
+        wifi_hardware_enabled: Some(true),
+        active_connection: active,
+        available_wifi,
+        connected_ssid,
+        signal_strength,
+        connected_bssid,
+        frequency,
+        channel,
+        ipv4,
+        ..Default::default()
+    })
+}
+
 fn active_connection(connection: &Connection, path: &str) -> zbus::Result<Value> {
     let active = proxy(connection, path, ACTIVE_IFACE)?;
     let vpn: bool = active.get_property("Vpn").unwrap_or(false);
@@ -412,123 +582,60 @@ fn read_addresses(
 }
 
 fn execute(command: &CommandRequest) -> io::Result<()> {
-    let connection = Connection::system().map_err(io::Error::other)?;
-    let manager = proxy(&connection, ROOT, NM_IFACE).map_err(io::Error::other)?;
+    if let CommandRequest::VpnSetEnabled { .. } = command {
+        return Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "VPN control is not provided by iwd; use the system VPN manager",
+        ));
+    }
     match command {
-        CommandRequest::WifiSetEnabled(enabled) => manager
-            .set_property("WirelessEnabled", *enabled)
-            .map_err(io::Error::other),
+        CommandRequest::WifiSetEnabled(enabled) => {
+            let station = iwctl_station()?;
+            let value = if *enabled { "on" } else { "off" };
+            iwctl_output(&["device", &station, "set-property", "Powered", value]).map(|_| ())
+        }
         CommandRequest::Refresh => {
-            let devices: Vec<OwnedObjectPath> =
-                manager.get_property("Devices").map_err(io::Error::other)?;
-            for path in devices {
-                let device =
-                    proxy(&connection, path.as_str(), DEVICE_IFACE).map_err(io::Error::other)?;
-                if device.get_property::<u32>("DeviceType").unwrap_or(0) == 2 {
-                    let wifi =
-                        proxy(&connection, path.as_str(), WIFI_IFACE).map_err(io::Error::other)?;
-                    let _: () = wifi
-                        .call(
-                            "RequestScan",
-                            &std::collections::HashMap::<String, OwnedValue>::new(),
-                        )
-                        .map_err(io::Error::other)?;
+            let station = iwctl_station()?;
+            iwctl_output(&["station", &station, "scan"]).map(|_| ())
+        }
+        CommandRequest::ConnectSaved(ssid) => {
+            let station = iwctl_station()?;
+            iwctl_output(&["--dont-ask", "station", &station, "connect", ssid]).map(|_| ())
+        }
+        CommandRequest::Connect { ssid, passphrase } => {
+            let station = iwctl_station()?;
+            if passphrase.is_empty() {
+                iwctl_output(&["--dont-ask", "station", &station, "connect", ssid]).map(|_| ())
+            } else {
+                let output = Command::new("iwctl")
+                    .args([
+                        "--passphrase",
+                        passphrase,
+                        "station",
+                        &station,
+                        "connect",
+                        ssid,
+                    ])
+                    .output()?;
+                if output.status.success() {
+                    Ok(())
+                } else {
+                    Err(io::Error::other("iwd rejected the Wi-Fi credentials"))
                 }
             }
-            Ok(())
         }
-        CommandRequest::ConnectSaved(uuid) => {
-            let settings = proxy(
-                &connection,
-                "/org/freedesktop/NetworkManager/Settings",
-                SETTINGS_IFACE,
-            )
-            .map_err(io::Error::other)?;
-            let path: OwnedObjectPath = settings
-                .call("GetConnectionByUuid", &(uuid.as_str(),))
-                .map_err(io::Error::other)?;
-            let device = wifi_device_path(&connection, &manager)?;
-            manager
-                .call::<_, _, OwnedObjectPath>(
-                    "ActivateConnection",
-                    &(path, device, OwnedObjectPath::try_from("/").unwrap()),
-                )
-                .map(|_| ())
-                .map_err(io::Error::other)
+        CommandRequest::Forget(ssid) => {
+            iwctl_output(&["known-networks", ssid, "forget"]).map(|_| ())
         }
         CommandRequest::DisconnectWifi => {
-            let state = read_snapshot().map_err(io::Error::other)?;
-            if let Some(active) = state.active_connection {
-                if active
-                    .get("type")
-                    .and_then(Value::as_str)
-                    .unwrap_or("")
-                    .contains("wireless")
-                {
-                    let paths: Vec<OwnedObjectPath> = manager
-                        .get_property("ActiveConnections")
-                        .map_err(io::Error::other)?;
-                    for path in paths {
-                        let active_proxy = proxy(&connection, path.as_str(), ACTIVE_IFACE)
-                            .map_err(io::Error::other)?;
-                        let uuid = active_proxy
-                            .get_property::<String>("Uuid")
-                            .unwrap_or_default();
-                        drop(active_proxy);
-                        if uuid == active.get("uuid").and_then(Value::as_str).unwrap_or("") {
-                            let _: () = manager
-                                .call("DeactivateConnection", &(path,))
-                                .map_err(io::Error::other)?;
-                            break;
-                        }
-                    }
-                }
-            }
-            Ok(())
+            let station = iwctl_station()?;
+            iwctl_output(&["station", &station, "disconnect"]).map(|_| ())
         }
-        CommandRequest::VpnSetEnabled { uuid, enabled } => {
-            let settings = proxy(
-                &connection,
-                "/org/freedesktop/NetworkManager/Settings",
-                SETTINGS_IFACE,
-            )
-            .map_err(io::Error::other)?;
-            let path: OwnedObjectPath = settings
-                .call("GetConnectionByUuid", &(uuid.as_str(),))
-                .map_err(io::Error::other)?;
-            if *enabled {
-                manager
-                    .call::<_, _, OwnedObjectPath>(
-                        "ActivateConnection",
-                        &(
-                            path,
-                            OwnedObjectPath::try_from("/").unwrap(),
-                            OwnedObjectPath::try_from("/").unwrap(),
-                        ),
-                    )
-                    .map(|_| ())
-                    .map_err(io::Error::other)
-            } else {
-                let paths: Vec<OwnedObjectPath> = manager
-                    .get_property("ActiveConnections")
-                    .map_err(io::Error::other)?;
-                for active_path in paths {
-                    let active = proxy(&connection, active_path.as_str(), ACTIVE_IFACE)
-                        .map_err(io::Error::other)?;
-                    let active_uuid = active.get_property::<String>("Uuid").unwrap_or_default();
-                    drop(active);
-                    if active_uuid == *uuid {
-                        let _: () = manager
-                            .call("DeactivateConnection", &(active_path,))
-                            .map_err(io::Error::other)?;
-                    }
-                }
-                Ok(())
-            }
-        }
+        CommandRequest::VpnSetEnabled { .. } => unreachable!(),
     }
 }
 
+#[allow(dead_code)]
 fn wifi_device_path(connection: &Connection, manager: &Proxy<'_>) -> io::Result<OwnedObjectPath> {
     let devices: Vec<OwnedObjectPath> =
         manager.get_property("Devices").map_err(io::Error::other)?;
@@ -604,6 +711,8 @@ mod tests {
             match command {
                 CommandRequest::WifiSetEnabled(enabled) => self.wifi_enabled = enabled,
                 CommandRequest::ConnectSaved(uuid) => self.connected_uuid = Some(uuid),
+                CommandRequest::Connect { ssid, .. } => self.connected_uuid = Some(ssid),
+                CommandRequest::Forget(_) => self.connected_uuid = None,
                 CommandRequest::DisconnectWifi => self.connected_uuid = None,
                 CommandRequest::Refresh => self.scan_requests += 1,
                 CommandRequest::VpnSetEnabled { uuid, enabled } => {

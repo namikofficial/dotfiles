@@ -13,6 +13,7 @@ FocusScope {
     property string label: ""
     property string helperText: ""
     property bool readOnly: false
+    property bool password: false
     property bool hasError: false
     property bool showClearButton: false
     property int maxLength: 0
@@ -64,6 +65,7 @@ FocusScope {
                         anchors.fill: parent
                         text: root.text
                         readOnly: root.readOnly
+                        echoMode: root.password ? TextInput.Password : TextInput.Normal
                         clip: true
                         verticalAlignment: Text.AlignVCenter
                         color: root.readOnly ? Theme.Tokens.textDisabled : Theme.Tokens.textPrimary

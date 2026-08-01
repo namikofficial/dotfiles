@@ -156,18 +156,8 @@
       "git push": "deny",
       "rm -rf*": "deny"
     },
-    "workbench_*": "allow",
-    "workbench_ai_*": "allow",
-    "workbench_ai_select_project": "ask",
-    "workbench_ai_create_*": "ask",
-    "workbench_ai_run_*": "ask",
-    "workbench_ai_apply_*": "ask",
     "local-docs_*": "allow",
-    "filesystem_*": "ask",
-    "git_*": "ask",
-    "obsidian_*": "ask",
-    "browser_*": "ask",
-    "chrome-devtools_*": "ask"
+    "browser_*": "ask"
   },
   "mcp": {
     "local-docs": {
@@ -177,14 +167,6 @@
       ],
       "enabled": true,
       "timeout": 15000
-    },
-    "workbench": {
-      "type": "local",
-      "command": [
-        "/home/namik/Documents/code/dotfiles/system/workbench-mcp.sh"
-      ],
-      "enabled": true,
-      "timeout": 30000
     },
     "browser": {
       "type": "local",
@@ -199,85 +181,6 @@
       ],
       "enabled": true,
       "timeout": 120000
-    },
-    "playwright": {
-      "type": "local",
-      "command": [
-        "npx",
-        "@playwright/mcp@latest"
-      ],
-      "enabled": true
-    },
-    "git": {
-      "type": "local",
-      "command": [
-        "/home/namik/.local/bin/mcp-server-git",
-        "--repository",
-        "/home/namik/Documents/code/dotfiles"
-      ],
-      "enabled": true,
-      "timeout": 30000
-    },
-    "vibe_kanban": {
-      "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "vibe-kanban@latest",
-        "--mcp"
-      ],
-      "enabled": true
-    },
-    "chrome_devtools": {
-      "type": "local",
-      "command": [
-        "npx",
-        "chrome-devtools-mcp@latest"
-      ],
-      "enabled": true
-    },
-    "chrome-devtools": {
-      "type": "local",
-      "command": [
-        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp"
-      ],
-      "enabled": true,
-      "timeout": 30000
-    },
-    "filesystem": {
-      "type": "local",
-      "command": [
-        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/mcp-server-filesystem",
-        "/home/namik/Documents/code/dotfiles"
-      ],
-      "enabled": true,
-      "timeout": 30000
-    },
-    "dev_manager": {
-      "type": "local",
-      "command": [
-        "npx",
-        "dev-manager-mcp",
-        "stdio"
-      ],
-      "enabled": true
-    },
-    "obsidian": {
-      "type": "local",
-      "command": [
-        "bash",
-        "/home/namik/Documents/code/dotfiles/configs/opencode/obsidian-mcp.sh"
-      ],
-      "environment": {
-        "OBSIDIAN_VAULT_PATH": "/home/namik/Documents/notes/DocsVault",
-        "OBSIDIAN_API_KEY": "{env:OBSIDIAN_API_KEY}",
-        "OBSIDIAN_BASE_URL": "{env:OBSIDIAN_BASE_URL}",
-        "OBSIDIAN_ENABLE_CACHE": "{env:OBSIDIAN_ENABLE_CACHE}",
-        "OBSIDIAN_VERIFY_SSL": "{env:OBSIDIAN_VERIFY_SSL}",
-        "NODE_EXTRA_CA_CERTS": "{env:NODE_EXTRA_CA_CERTS}"
-      },
-      "enabled": true,
-      "timeout": 60000
     }
   },
   "lsp": {

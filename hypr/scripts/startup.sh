@@ -197,11 +197,7 @@ if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
   ) &
 fi
 
-# Start tray applets by default so Wi-Fi/Bluetooth have menu-style controls.
-if [ "$(setting_bool startup.nm_applet_autostart true)" = "true" ]; then
-  log "starting nm-applet"
-  run_once nm-applet nm-applet
-fi
+# Start the Bluetooth tray applet; Wi-Fi is controlled through iwd/NoxFlow.
 if [ "$(setting_bool startup.blueman_applet_autostart true)" = "true" ]; then
   log "starting blueman-applet"
   run_once blueman-applet blueman-applet

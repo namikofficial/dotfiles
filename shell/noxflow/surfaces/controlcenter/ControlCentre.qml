@@ -35,6 +35,10 @@ Item {
     property string wifiActionState: ""
     property string bluetoothActionState: ""
     property string audioActionState: ""
+    property bool wifiConnectDialogVisible: false
+    property string wifiConnectSsid: ""
+    property string wifiConnectSecurity: ""
+    property string wifiConnectPassword: ""
     Timer {
         id: actionStateTimer
         interval: 1800
@@ -74,6 +78,25 @@ Item {
         else root.audioActionState = message;
         actionStateTimer.restart();
     }
+    function openWifiConnect(networkInfo) {
+        root.wifiConnectSsid = String(networkInfo.ssid || "").trim();
+        root.wifiConnectSecurity = String(networkInfo.security || "");
+        root.wifiConnectPassword = "";
+        root.wifiConnectDialogVisible = root.wifiConnectSsid !== "";
+    }
+    function submitWifiConnect() {
+        if (!root.wifiConnectDialogVisible || root.wifiConnectSsid === "" || !root.noxd.connected) return;
+        root.noxd.runAction({ network_connect: { ssid: root.wifiConnectSsid, passphrase: root.wifiConnectPassword } });
+        root.markAction("wifi", "Connecting to " + root.wifiConnectSsid + "…");
+        root.wifiConnectDialogVisible = false;
+        root.wifiConnectPassword = "";
+    }
+    function forgetWifi(ssid) {
+        if (root.noxd.connected) {
+            root.noxd.runAction({ network_forget: { ssid: ssid } });
+            root.markAction("wifi", "Forgetting " + ssid + "…");
+        }
+    }
     function profileName(value) { return value && typeof value === "object" ? String(value.name || "") : String(value || ""); }
     function profileNames() {
         var result = [];
@@ -92,11 +115,47 @@ Item {
     anchors.fill: parent
     visible: lifecycle.active
 
+    Components.PopupContainer {
+        id: wifiConnectPopup
+        visible: root.wifiConnectDialogVisible
+        enabled: visible
+        z: 20
+        anchors.centerIn: parent
+        width: Math.min(parent.width - Theme.Tokens.spacingXl * 2, Theme.Tokens.scaled(360))
+        height: Theme.Tokens.scaled(230)
+        scrim: true
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: Theme.Tokens.spacingSm
+            Text { text: "Connect to Wi‑Fi"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleMedium }
+            Text { text: root.wifiConnectSsid + (root.wifiConnectSecurity ? " · " + root.wifiConnectSecurity : ""); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight; Layout.fillWidth: true }
+            Components.TextField {
+                id: wifiPasswordField
+                visible: root.wifiConnectSecurity !== "open"
+                label: "Password"
+                placeholderText: "Wi‑Fi password"
+                password: true
+                text: root.wifiConnectPassword
+                onTextChanged: root.wifiConnectPassword = text
+                onAccepted: root.submitWifiConnect()
+                Layout.fillWidth: true
+            }
+            Item { Layout.fillHeight: true }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Components.TextButton { text: "Cancel"; onClicked: { root.wifiConnectDialogVisible = false; root.wifiConnectPassword = ""; } }
+                Components.TextButton { text: "Connect"; onClicked: root.submitWifiConnect() }
+            }
+        }
+    }
+
     Connections {
         target: lifecycle
         function onOpened() {
             var tabs = { network: 2, bluetooth: 3, volume: 1, audio: 1, battery: 0, power: 0 };
             if (root.initialSection !== "" && tabs[root.initialSection] !== undefined) root.activeTab = tabs[root.initialSection];
+            if (root.noxd.connected) root.noxd.runAction({ network_refresh: {} });
             dndCheck.command = ["dunstctl", "get-paused"]; dndCheck.running = true;
         }
     }
@@ -504,7 +563,11 @@ Item {
                         }
 
                         Components.Divider { Layout.fillWidth: true }
-                        Text { text: "Available Networks"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Available Networks"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge; Layout.fillWidth: true }
+                            Components.IconButton { iconText: "↻"; accessibleName: "Rescan Wi‑Fi networks"; onClicked: { if (root.noxd.connected) { root.noxd.runAction({ network_refresh: {} }); root.markAction("wifi", "Scanning for networks…"); } } }
+                        }
                         Repeater {
                             model: network.availableWifi
                             delegate: Rectangle {
@@ -519,19 +582,13 @@ Item {
                                     Text { text: modelData.ssid || "Hidden SSID"; elide: Text.ElideRight; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                                     Text { text: modelData.strength ? Array(Math.round(modelData.strength / 25) + 1).join("▂") : ""; color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodySmall }
                                     Text { text: modelData.ssid === network.connectedSsid ? "Connected" : modelData.saved ? "Saved" : "Available"; color: modelData.ssid === network.connectedSsid ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
-                                }
-                                TapHandler {
-                                    onTapped: {
-                                        var ssid = String(modelData.ssid || "").trim();
-                                        if (!ssid || root.wifiConnect.running) return;
-                                        // Scanned APs do not carry saved-profile UUIDs.
-                                        // Bring up the profile by its SSID, which is how
-                                        // NetworkManager names the normal saved profile.
-                                        root.wifiConnect.command = ["nmcli", "connection", "up", "id", ssid];
-                                        root.markAction("wifi", "Connecting to " + ssid + "…");
-                                        root.wifiConnect.running = true;
+                                    Components.TextButton {
+                                        visible: modelData.saved === true
+                                        text: "Forget"
+                                        onClicked: root.forgetWifi(String(modelData.ssid || ""))
                                     }
                                 }
+                                TapHandler { onTapped: root.openWifiConnect(modelData) }
                             }
                         }
 

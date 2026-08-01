@@ -1,4 +1,6 @@
-use noxflow_ipc::{Action, ErrorCode, Request, RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION};
+use noxflow_ipc::{
+    Action, ErrorCode, Request, RequestEnvelope, ResponseEnvelope, PROTOCOL_VERSION,
+};
 use std::{
     fs,
     io::{BufRead, BufReader, Read, Write},
@@ -348,8 +350,8 @@ fn rapid_requests_do_not_crash_daemon() {
             .read_line(&mut line)
             .expect("should read response line");
         assert!(!line.is_empty(), "response {i} should not be empty");
-        let resp: ResponseEnvelope =
-            serde_json::from_str(&line).unwrap_or_else(|e| panic!("invalid JSON on response {i}: {e} — line: {line}"));
+        let resp: ResponseEnvelope = serde_json::from_str(&line)
+            .unwrap_or_else(|e| panic!("invalid JSON on response {i}: {e} — line: {line}"));
         assert_eq!(resp.request_id, format!("rapid-{i}"));
     }
 
@@ -449,7 +451,10 @@ fn settings_survive_restart() {
     let mut line = String::new();
     BufReader::new(stream).read_line(&mut line).unwrap();
     let resp: ResponseEnvelope = serde_json::from_str(&line).unwrap();
-    assert!(resp.error.is_none(), "set_setting should succeed on first daemon");
+    assert!(
+        resp.error.is_none(),
+        "set_setting should succeed on first daemon"
+    );
 
     // Shut down the first daemon gracefully.
     unsafe {

@@ -13,7 +13,7 @@ else
 fi
 echo "notification owner: $(pgrep -af 'dunst|mako|swaync|wayle|quickshell' | rg 'dunst|mako|swaync|wayle' | head -n3 || echo none-detected)"
 echo "audio: wpctl=$(has wpctl) pactl=$(has pactl)"
-echo "network: nmcli=$(has nmcli)"
+echo "network: iwctl=$(has iwctl) networkctl=$(has networkctl)"
 echo "bluetooth: bluetoothctl=$(has bluetoothctl)"
 echo "calendar adapter: $(has gcalcli)"
 echo "matugen: $(has matugen)"

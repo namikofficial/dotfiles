@@ -68,23 +68,23 @@ button:hover {
 
 /* Generated palette overrides. */
 window {
-  background-color: rgba(19,21,24, 0.90);
+  background-color: rgba(19,24,34, 0.90);
 }
 
 button {
   color: #f5f8ff;
-  background-color: rgba(30,31,34, 0.94);
-  border-color: rgba(47,128,132, 0.66);
+  background-color: rgba(30,34,44, 0.94);
+  border-color: rgba(76,118,135, 0.66);
 }
 
 button:hover,
 button:focus,
 button:active {
-  background-color: rgba(50,51,54, 0.98);
-  border-color: #2eacb0;
+  background-color: rgba(50,54,63, 0.98);
+  border-color: #5a9aaf;
 }
 
 #firmware {
-  background-color: rgba(184,107,58, 0.20);
-  border-color: rgba(184,107,58, 0.70);
+  background-color: rgba(165,114,178, 0.20);
+  border-color: rgba(165,114,178, 0.70);
 }

@@ -124,7 +124,9 @@ enum CommandGroup {
 #[derive(Subcommand, Debug)]
 enum ProviderCommand {
     List,
-    Status { provider: String },
+    Status {
+        provider: String,
+    },
     Transfer {
         #[command(subcommand)]
         command: TransferCommand,
@@ -202,11 +204,23 @@ enum PowerProfileCommand {
 #[derive(Subcommand, Debug)]
 enum NetworkCommand {
     Status,
-    Wifi { action: WifiAction },
-    Connect { uuid: String },
+    Wifi {
+        action: WifiAction,
+    },
+    Connect {
+        ssid: String,
+        #[arg(long, default_value = "")]
+        passphrase: String,
+    },
+    Forget {
+        ssid: String,
+    },
     Disconnect,
     Refresh,
-    Vpn { action: WifiAction, uuid: String },
+    Vpn {
+        action: WifiAction,
+        uuid: String,
+    },
 }
 #[derive(ValueEnum, Clone, Debug)]
 enum WifiAction {
@@ -298,9 +312,7 @@ enum ShellTarget {
 #[derive(Subcommand, Debug)]
 enum PanelCommand {
     List,
-    Toggle {
-        surface: Surface,
-    },
+    Toggle { surface: Surface },
 }
 #[derive(ValueEnum, Clone, Debug)]
 enum Surface {
@@ -740,9 +752,7 @@ fn shell_command(command: &ShellCommand) -> Result<(), CliError> {
 fn shell_qml_path() -> PathBuf {
     env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(env::var_os("HOME").unwrap_or_default()).join(".config")
-        })
+        .unwrap_or_else(|| PathBuf::from(env::var_os("HOME").unwrap_or_default()).join(".config"))
         .join("noxflow/shell/shell.qml")
 }
 
@@ -903,20 +913,14 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                             "peer id and at least one path are required".into(),
                         ));
                     }
-                    let response = action(
-                        &c,
-                        Action::TransferSend { peer_id, paths },
-                        "transfer-send",
-                    )?;
+                    let response =
+                        action(&c, Action::TransferSend { peer_id, paths }, "transfer-send")?;
                     print_response(&response, cli.json);
                     Ok(())
                 }
                 TransferCommand::Accept { session_id } => {
-                    let response = action(
-                        &c,
-                        Action::TransferAccept { session_id },
-                        "transfer-accept",
-                    )?;
+                    let response =
+                        action(&c, Action::TransferAccept { session_id }, "transfer-accept")?;
                     print_response(&response, cli.json);
                     Ok(())
                 }
@@ -930,11 +934,8 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                     Ok(())
                 }
                 TransferCommand::Cancel { session_id } => {
-                    let response = action(
-                        &c,
-                        Action::TransferCancel { session_id },
-                        "transfer-cancel",
-                    )?;
+                    let response =
+                        action(&c, Action::TransferCancel { session_id }, "transfer-cancel")?;
                     print_response(&response, cli.json);
                     Ok(())
                 }
@@ -1049,10 +1050,10 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                 NetworkCommand::Wifi { action } => Action::NetworkWifiSetEnabled {
                     enabled: matches!(action, WifiAction::Enable),
                 },
-                NetworkCommand::Connect { uuid } => {
-                    validate_uuid(&uuid)?;
-                    Action::NetworkConnectSaved { uuid }
+                NetworkCommand::Connect { ssid, passphrase } => {
+                    Action::NetworkConnect { ssid, passphrase }
                 }
+                NetworkCommand::Forget { ssid } => Action::NetworkForget { ssid },
                 NetworkCommand::Disconnect => Action::NetworkDisconnectWifi,
                 NetworkCommand::Refresh => Action::NetworkRefresh,
                 NetworkCommand::Vpn { action, uuid } => {

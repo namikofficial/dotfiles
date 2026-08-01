@@ -83,8 +83,9 @@ the structured `unsupported` error.
 
 Network actions are `network_wifi_set_enabled`, `network_connect_saved`,
 `network_disconnect_wifi`, `network_refresh`, and `network_vpn_set_enabled`.
-Saved Wi-Fi and VPN profiles are selected by NetworkManager UUID. These
-actions never create profiles or handle passwords/secrets. The `network`
+Saved Wi-Fi profiles are selected by iwd SSID/profile name. These actions
+never create profiles or handle passwords/secrets. VPN actions are delegated
+to the configured system VPN manager. The `network`
 provider reports connectivity, active connection and Ethernet state, Wi-Fi
 state and scan results, connected SSID, signal strength, IPv4/IPv6 addresses,
 metering, and VPN state.

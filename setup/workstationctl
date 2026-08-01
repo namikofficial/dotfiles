@@ -34,11 +34,11 @@ verify_login() {
   if [[ -n "$igpu" ]]; then ok "Intel recovery renderer: $igpu"; else fail 'Intel DRM card not found'; rc=1; fi
   if command -v uwsm >/dev/null; then ok 'uwsm installed'; else fail 'uwsm missing'; rc=1; fi
   if command -v Hyprland >/dev/null; then ok 'Hyprland installed'; else fail 'Hyprland missing'; rc=1; fi
-  if systemctl is-active --quiet NetworkManager && systemctl is-active --quiet systemd-networkd; then
-    warn 'NetworkManager and systemd-networkd are both active'
+  if systemctl is-active --quiet NetworkManager || systemctl is-active --quiet wpa_supplicant; then
+    warn 'legacy NetworkManager/wpa_supplicant network stack is active'
     rc=1
   else
-    ok 'single active network owner'
+    ok 'iwd is the active Wi-Fi owner'
   fi
   return "$rc"
 }
@@ -113,7 +113,7 @@ Would apply the following root-owned profile:
   - back up managed NVIDIA and boot-entry files under $STATE_ROOT/backups
   - install the Intel-display/NVIDIA-compute stability policy
   - install the independent Hyprland recovery session
-  - disable systemd-networkd and its sockets; keep NetworkManager
+  - enable iwd, systemd-networkd, and systemd-resolved; disable legacy Wi-Fi services
   - mask unused systemd PCR-login measurement units
   - install: ${VIRT_PACKAGES[*]}
   - enable libvirt and add ${SUDO_USER:-namik} to kvm,libvirt
@@ -144,18 +144,13 @@ apply_system() {
   install -Dm644 "$REPO_DIR/sddm/sddm.conf.d/10-noxflow-theme.conf" /etc/sddm.conf.d/10-noxflow-theme.conf
   install -d /usr/share/sddm/themes/noxflow
   cp -a "$REPO_DIR/sddm/noxflow/." /usr/share/sddm/themes/noxflow/
-  if ! nmcli -t -f STATE general 2>/dev/null | grep -qx connected; then
-    fail 'NetworkManager is not connected; refusing to stop systemd-networkd'
+  if ! systemctl is-active --quiet iwd.service; then
+    fail 'iwd is not active; refusing to alter the network stack'
     exit 1
   fi
-  systemctl disable --now \
-    systemd-networkd.service \
-    systemd-networkd-wait-online.service \
-    systemd-networkd.socket \
-    systemd-networkd-resolve-hook.socket \
-    systemd-networkd-varlink.socket \
-    systemd-networkd-varlink-metrics.socket 2>/dev/null || true
-  systemctl enable NetworkManager.service sddm.service
+  systemctl enable --now iwd.service systemd-networkd.service systemd-resolved.service
+  systemctl disable --now NetworkManager.service wpa_supplicant.service 2>/dev/null || true
+  systemctl enable sddm.service
   systemctl mask systemd-pcrlogin@.service 2>/dev/null || true
   systemctl disable nvidia-persistenced.service 2>/dev/null || true
   for entry in /boot/loader/entries/*.conf; do

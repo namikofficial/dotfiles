@@ -51,7 +51,9 @@ impl SettingKind {
                 _ => Err("value must be a boolean".into()),
             },
             SettingKind::Density => match value {
-                Value::String(s) if ["compact", "comfortable", "spacious"].contains(&s.as_str()) => {
+                Value::String(s)
+                    if ["compact", "comfortable", "spacious"].contains(&s.as_str()) =>
+                {
                     Ok(())
                 }
                 Value::String(s) => Err(format!(
@@ -123,7 +125,10 @@ impl SettingsStore {
 
     /// Get all settings.
     pub fn get_all(&self) -> BTreeMap<String, Value> {
-        self.settings.lock().expect("settings mutex poisoned").clone()
+        self.settings
+            .lock()
+            .expect("settings mutex poisoned")
+            .clone()
     }
 
     /// Set a setting value with validation.
@@ -269,9 +274,7 @@ mod tests {
         store
             .set("shell.reduced_motion", Value::Bool(true))
             .unwrap();
-        store
-            .set("island.enabled", Value::Bool(false))
-            .unwrap();
+        store.set("island.enabled", Value::Bool(false)).unwrap();
         let all = store.get_all();
         assert_eq!(all.get("shell.reduced_motion").unwrap(), true);
         assert_eq!(all.get("island.enabled").unwrap(), false);

@@ -6,7 +6,8 @@ Required:
 - `noxd` and `noxctl` built from this repository
 - Hyprland and its IPC socket
 - PipeWire/WirePlumber (`wpctl` or `pactl`)
-- NetworkManager (`nmcli`)
+- iwd (`iwctl`)
+- systemd-networkd (`networkctl`)
 - BlueZ (`bluetoothctl`, optional provider degradation is supported)
 
 Optional:

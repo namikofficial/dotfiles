@@ -232,7 +232,7 @@ pub struct NetworkConfig {
 impl Default for NetworkConfig {
     fn default() -> Self {
         Self {
-            wifi_backend: "NetworkManager".into(),
+            wifi_backend: "iwd".into(),
             vpn_autoconnect: false,
             metered_connection: "detect".into(),
             dns: "system".into(),

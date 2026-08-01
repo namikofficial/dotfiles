@@ -51,12 +51,9 @@ fn unavailable_daemon_has_stable_exit_code_and_error() {
 
 #[test]
 fn invalid_arguments_have_usage_exit_code() {
-    let output = noxctl()
-        .args(["network", "connect", "not-a-uuid"])
-        .output()
-        .unwrap();
+    let output = noxctl().args(["network", "connect"]).output().unwrap();
     assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("valid UUID"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("required"));
 }
 
 #[test]

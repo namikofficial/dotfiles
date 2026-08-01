@@ -96,7 +96,14 @@ pub enum Action {
         enabled: bool,
     },
     NetworkConnectSaved {
-        uuid: String,
+        ssid: String,
+    },
+    NetworkConnect {
+        ssid: String,
+        passphrase: String,
+    },
+    NetworkForget {
+        ssid: String,
     },
     NetworkDisconnectWifi,
     NetworkRefresh,
@@ -388,6 +395,28 @@ mod tests {
         };
         let json = serde_json::to_string(&envelope).unwrap();
         assert_eq!(decode_request(&json).unwrap(), envelope);
+    }
+
+    #[test]
+    fn iwd_network_actions_round_trip() {
+        let actions = [
+            Action::NetworkConnect {
+                ssid: "Phone Hotspot".into(),
+                passphrase: "secret-password".into(),
+            },
+            Action::NetworkForget {
+                ssid: "Old Network".into(),
+            },
+        ];
+        for action in actions {
+            let envelope = RequestEnvelope {
+                protocol_version: 1,
+                request_id: "network-iwd".into(),
+                request: Request::RunAction { action },
+            };
+            let json = serde_json::to_string(&envelope).unwrap();
+            assert_eq!(decode_request(&json).unwrap(), envelope);
+        }
     }
 
     #[test]
