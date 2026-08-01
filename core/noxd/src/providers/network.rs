@@ -459,9 +459,16 @@ fn read_snapshot() -> zbus::Result<NetworkState> {
         .lines()
         .skip(4)
         .filter_map(|line| {
-            let value = line.trim();
-            (!value.is_empty() && !value.starts_with('-'))
-                .then(|| value.split_whitespace().next().unwrap_or(value).to_owned())
+            let tokens = line.split_whitespace().collect::<Vec<_>>();
+            let security_index = tokens.iter().position(|value| {
+                matches!(*value, "open" | "psk" | "8021x" | "wep" | "sae")
+            })?;
+            let ssid = tokens[..security_index]
+                .join(" ")
+                .trim_start_matches('>')
+                .trim()
+                .to_owned();
+            (!ssid.is_empty()).then_some(ssid)
         })
         .collect::<std::collections::HashSet<_>>();
     let available_wifi = iwctl_output(&["station", &station, "get-networks", "rssi-dbms"])
