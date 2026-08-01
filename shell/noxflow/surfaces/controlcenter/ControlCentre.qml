@@ -39,6 +39,13 @@ Item {
     property string wifiConnectSsid: ""
     property string wifiConnectSecurity: ""
     property string wifiConnectPassword: ""
+    property bool wifiConnectSaved: false
+    property bool wifiPasswordVisible: false
+    property string wifiFlowStage: "review"
+    property string wifiBackgroundAttemptSsid: ""
+    property string wifiBackgroundStatus: ""
+    property int wifiAttemptSerial: 0
+    property int wifiActiveAttempt: 0
     property bool wifiScanPending: false
     property bool wifiConnectionPending: false
     property string wifiError: ""
@@ -60,6 +67,7 @@ Item {
                 root.wifiConnectionState = "failed";
                 root.wifiError = "The Wi‑Fi connection timed out. Try again.";
                 root.wifiConnectionMessage = root.wifiError;
+                root.wifiFlowStage = "failed";
                 root.markAction("wifi", "Connection failed");
             }
         }
@@ -71,6 +79,8 @@ Item {
         onTriggered: {
             root.wifiConnectDialogVisible = false;
             root.wifiConnectPassword = "";
+            root.wifiPasswordVisible = false;
+            root.wifiFlowStage = "review";
             root.wifiConnectionState = "idle";
             root.wifiConnectionMessage = "";
         }
@@ -105,51 +115,83 @@ Item {
     function openWifiConnect(networkInfo) {
         root.wifiConnectSsid = String(networkInfo.ssid || "").trim();
         root.wifiConnectSecurity = String(networkInfo.security || "");
+        root.wifiConnectSaved = networkInfo.saved === true;
         root.wifiConnectPassword = "";
+        root.wifiPasswordVisible = false;
         root.wifiError = "";
         root.wifiConnectionState = "idle";
         root.wifiConnectionMessage = "";
         root.wifiConnectionPending = false;
+        root.wifiFlowStage = root.wifiConnectSaved || root.wifiConnectSecurity === "open" ? "review" : "credentials";
+        root.wifiBackgroundAttemptSsid = "";
+        root.wifiBackgroundStatus = "";
         wifiConnectionTimeout.stop();
         wifiSuccessTimer.stop();
         root.wifiConnectDialogVisible = root.wifiConnectSsid !== "";
     }
-    function submitWifiConnect() {
+    function useAnotherWifiPassword() {
+        root.wifiFlowStage = "credentials";
+        root.wifiConnectionState = "idle";
+        root.wifiError = "";
+        root.wifiConnectionMessage = "Enter a new password for this saved network.";
+        root.wifiPasswordVisible = false;
+        Qt.callLater(function() { wifiPasswordField.forceActiveFocus(); });
+    }
+    function submitWifiConnect(useSavedProfile) {
         if (!root.wifiConnectDialogVisible || root.wifiConnectSsid === "" || !root.noxd.connected) return;
         if (root.wifiConnectionPending) return;
-        if (root.wifiConnectSecurity !== "open" && root.wifiConnectPassword === "") {
+        var savedProfile = useSavedProfile === true && root.wifiConnectSaved;
+        if (!savedProfile && root.wifiConnectSecurity !== "open" && root.wifiConnectPassword === "") {
             root.wifiError = "Enter the Wi‑Fi password to continue";
             root.wifiConnectionState = "failed";
+            root.wifiFlowStage = "credentials";
             return;
         }
-        var accepted = root.noxd.runAction({ network_connect: { ssid: root.wifiConnectSsid, passphrase: root.wifiConnectPassword } });
+        root.wifiAttemptSerial += 1;
+        root.wifiActiveAttempt = root.wifiAttemptSerial;
+        var action = savedProfile
+            ? { network_connect_saved: { ssid: root.wifiConnectSsid } }
+            : { network_connect: { ssid: root.wifiConnectSsid, passphrase: root.wifiConnectPassword } };
+        var accepted = root.noxd.runAction(action);
         if (!accepted) {
             root.wifiConnectionState = "failed";
             root.wifiError = "NoxFlow is not connected to the network service. Try again.";
             root.wifiConnectionMessage = root.wifiError;
+            root.wifiFlowStage = "failed";
             return;
         }
         root.markAction("wifi", "Connecting to " + root.wifiConnectSsid + "…");
         root.wifiConnectionPending = true;
         root.wifiConnectionState = "connecting";
-        root.wifiConnectionMessage = "Connecting… keep this dialog open to retry if needed.";
+        root.wifiFlowStage = "connecting";
+        root.wifiConnectionMessage = savedProfile ? "Using the saved iwd profile…" : "Connecting securely…";
         root.wifiError = "";
+        root.wifiBackgroundAttemptSsid = "";
+        root.wifiBackgroundStatus = "";
         wifiConnectionTimeout.restart();
     }
     function cancelWifiConnect() {
         wifiConnectionTimeout.stop();
         wifiSuccessTimer.stop();
+        if (root.wifiConnectionPending) {
+            root.wifiBackgroundAttemptSsid = root.wifiConnectSsid;
+            root.wifiBackgroundStatus = "Connecting to " + root.wifiConnectSsid + "…";
+        }
         root.wifiConnectionPending = false;
         root.wifiConnectionState = "idle";
         root.wifiConnectionMessage = "";
         root.wifiError = "";
         root.wifiConnectDialogVisible = false;
-        root.wifiConnectPassword = "";
+        root.wifiFlowStage = "review";
     }
     function forgetWifi(ssid) {
         if (root.noxd.connected) {
             root.noxd.runAction({ network_forget: { ssid: ssid } });
             root.markAction("wifi", "Forgetting " + ssid + "…");
+            if (ssid === root.wifiConnectSsid) {
+                root.wifiConnectDialogVisible = false;
+                root.wifiConnectionPending = false;
+            }
         }
     }
     function profileName(value) { return value && typeof value === "object" ? String(value.name || "") : String(value || ""); }
@@ -175,24 +217,77 @@ Item {
     anchors.fill: parent
     visible: lifecycle.active
 
-    Components.PopupContainer {
-        id: wifiConnectPopup
+    Rectangle {
+        id: wifiConnectionFlow
         visible: root.wifiConnectDialogVisible
         enabled: visible
         z: 20
-        anchors.centerIn: parent
-        width: Math.min(parent.width - Theme.Tokens.spacingXl * 2, Theme.Tokens.scaled(360))
-        height: Theme.Tokens.scaled(300)
-        scrim: true
+        anchors.fill: parent
+        radius: Theme.Tokens.radiusXl
+        color: Theme.Tokens.surfaceSurfaceContainerHigh
+        border.color: Theme.Tokens.tonalPrimary
+        border.width: 1
+        opacity: visible ? 1 : 0
+        scale: visible ? 1 : 0.97
+        Behavior on opacity { NumberAnimation { duration: Theme.Tokens.durationShort; easing.type: Easing.OutCubic } }
+        Behavior on scale { NumberAnimation { duration: Theme.Tokens.durationShort; easing.type: Easing.OutCubic } }
         onVisibleChanged: {
             if (visible && root.wifiConnectSecurity !== "open")
                 Qt.callLater(function() { wifiPasswordField.forceActiveFocus(); });
         }
         ColumnLayout {
             anchors.fill: parent
-            spacing: Theme.Tokens.spacingSm
-            Text { text: "Connect to Wi‑Fi"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleMedium }
-            Text { text: root.wifiConnectSsid + (root.wifiConnectSecurity ? " · " + root.wifiConnectSecurity : ""); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight; Layout.fillWidth: true }
+            anchors.margins: Theme.Tokens.spacingLg
+            spacing: Theme.Tokens.spacingMd
+
+            RowLayout {
+                Layout.fillWidth: true
+                Components.IconButton {
+                    iconText: "‹"
+                    accessibleName: "Back to Wi‑Fi networks"
+                    onClicked: root.cancelWifiConnect()
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+                    Text { text: "Wi‑Fi connection"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true }
+                    Text { text: root.wifiFlowStage === "connecting" ? "Establishing a secure link" : root.wifiFlowStage === "failed" ? "Connection needs attention" : "Choose how to connect"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                }
+                Components.IconButton {
+                    iconText: "✕"
+                    accessibleName: "Close Wi‑Fi connection flow"
+                    onClicked: root.cancelWifiConnect()
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: Theme.Tokens.scaled(112)
+                radius: Theme.Tokens.radiusLg
+                color: Theme.Tokens.tonalPrimaryContainer
+                border.color: Theme.Tokens.tonalPrimary
+                border.width: 1
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.Tokens.spacingLg
+                    spacing: Theme.Tokens.spacingMd
+                    Rectangle {
+                        Layout.preferredWidth: Theme.Tokens.scaled(56)
+                        Layout.preferredHeight: Theme.Tokens.scaled(56)
+                        radius: Theme.Tokens.radiusPill
+                        color: Theme.Tokens.tonalPrimary
+                        Text { anchors.centerIn: parent; text: "⌁"; color: Theme.Tokens.tonalOnPrimary; font.pixelSize: Theme.Tokens.iconLg }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.Tokens.scaled(3)
+                        Text { text: root.wifiConnectSsid; color: Theme.Tokens.tonalOnPrimaryContainer; font.pixelSize: Theme.Tokens.typographyTitleMedium; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+                        Text { text: (root.wifiConnectSaved ? "Saved profile" : root.wifiConnectSecurity === "open" ? "Open network" : "Password protected") + (root.wifiConnectSecurity ? " · " + root.wifiConnectSecurity : ""); color: Theme.Tokens.tonalOnPrimaryContainer; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                        Text { text: root.wifiConnectionState === "connected" ? "Connected" : root.wifiConnectionState === "connecting" ? "Connecting…" : "Ready to connect"; color: Theme.Tokens.tonalOnPrimaryContainer; font.pixelSize: Theme.Tokens.typographyLabelSmall }
+                    }
+                }
+            }
+
             Text {
                 visible: root.wifiConnectionMessage !== "" && root.wifiConnectionState !== "failed"
                 text: root.wifiConnectionMessage
@@ -203,11 +298,14 @@ Item {
             }
             Components.TextField {
                 id: wifiPasswordField
-                visible: root.wifiConnectSecurity !== "open"
+                visible: root.wifiConnectSecurity !== "open" && root.wifiFlowStage === "credentials"
                 enabled: !root.wifiConnectionPending
                 label: "Password"
                 placeholderText: "Wi‑Fi password"
                 password: true
+                showPasswordToggle: true
+                passwordVisible: root.wifiPasswordVisible
+                onPasswordVisibilityToggled: function(visible) { root.wifiPasswordVisible = visible }
                 hasError: root.wifiError !== ""
                 text: root.wifiConnectPassword
                 onTextChanged: root.wifiConnectPassword = text
@@ -222,12 +320,37 @@ Item {
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true
             }
-            Item { Layout.fillHeight: true; visible: root.wifiConnectionState !== "connecting" }
+            Item { Layout.fillHeight: true }
+            Rectangle {
+                visible: root.wifiConnectionState === "connecting"
+                Layout.fillWidth: true
+                height: Theme.Tokens.scaled(54)
+                radius: Theme.Tokens.radiusMd
+                color: Theme.Tokens.surfaceSurfaceContainer
+                border.color: Theme.Tokens.outlineSubtle
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.Tokens.spacingMd
+                    Text { text: "◌"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
+                    Text { text: "Waiting for iwd and networkd…"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; Layout.fillWidth: true }
+                    Components.TextButton { text: "Cancel"; onClicked: root.cancelWifiConnect() }
+                }
+            }
             RowLayout {
+                visible: root.wifiConnectionState !== "connecting"
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Components.TextButton { text: root.wifiConnectionState === "failed" ? "Retry" : "Connect"; enabled: !root.wifiConnectionPending; onClicked: root.submitWifiConnect() }
-                Components.TextButton { text: "Cancel"; onClicked: root.cancelWifiConnect() }
+                Components.TextButton { visible: root.wifiFlowStage === "credentials"; text: root.wifiConnectionState === "failed" ? "Retry" : "Connect"; enabled: !root.wifiConnectionPending; onClicked: root.submitWifiConnect(false) }
+                Components.TextButton { visible: root.wifiConnectSaved && (root.wifiFlowStage === "review" || root.wifiFlowStage === "failed"); text: root.wifiFlowStage === "failed" ? "Retry saved" : "Connect saved"; enabled: !root.wifiConnectionPending; onClicked: root.submitWifiConnect(true) }
+                Components.TextButton { visible: root.wifiConnectSecurity === "open" && root.wifiFlowStage === "review"; text: "Connect"; enabled: !root.wifiConnectionPending; onClicked: root.submitWifiConnect(false) }
+                Components.TextButton { visible: root.wifiFlowStage !== "connecting"; text: "Cancel"; onClicked: root.cancelWifiConnect() }
+            }
+            RowLayout {
+                visible: root.wifiConnectionState !== "connecting" && root.wifiConnectSaved
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Components.TextButton { text: "Use another password"; onClicked: root.useAnotherWifiPassword() }
+                Components.TextButton { text: "Forget"; onClicked: root.forgetWifi(root.wifiConnectSsid) }
             }
         }
     }
@@ -252,9 +375,13 @@ Item {
                 wifiConnectionTimeout.stop();
                 root.wifiError = "";
                 root.wifiConnectionState = "connected";
+                root.wifiFlowStage = "connected";
                 root.wifiConnectionMessage = "Connected successfully.";
                 root.markAction("wifi", "Connected");
                 wifiSuccessTimer.restart();
+            } else if (root.wifiBackgroundAttemptSsid !== "" && network.connectedSsid === root.wifiBackgroundAttemptSsid) {
+                root.wifiBackgroundStatus = "Connected to " + root.wifiBackgroundAttemptSsid;
+                root.wifiBackgroundAttemptSsid = "";
             }
         }
     }
@@ -271,8 +398,12 @@ Item {
                 root.wifiConnectionState = "failed";
                 root.wifiError = String(event.data.message || "The Wi‑Fi connection failed. Try again.");
                 root.wifiConnectionMessage = root.wifiError;
+                root.wifiFlowStage = "failed";
                 root.wifiConnectDialogVisible = true;
                 root.markAction("wifi", "Connection failed");
+            } else if (event.event_type === "action_failed" && action === "connect" && ssid === root.wifiBackgroundAttemptSsid) {
+                root.wifiBackgroundStatus = String(event.data.message || "Connection failed. Open the network to retry.");
+                root.wifiBackgroundAttemptSsid = "";
             } else if (event.event_type === "action_failed" && action === "refresh") {
                 root.wifiScanPending = false;
                 root.wifiError = String(event.data.message || "Wi‑Fi scan failed. Try again.");
@@ -715,6 +846,21 @@ Item {
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
+                        Rectangle {
+                            visible: root.wifiBackgroundStatus !== ""
+                            Layout.fillWidth: true
+                            height: Theme.Tokens.scaled(44)
+                            radius: Theme.Tokens.radiusMd
+                            color: root.wifiBackgroundStatus.indexOf("Connected") === 0 ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
+                            border.color: root.wifiBackgroundStatus.indexOf("Connected") === 0 ? Theme.Tokens.tonalPrimary : Theme.Tokens.outlineSubtle
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: Theme.Tokens.spacingSm
+                                Text { text: root.wifiBackgroundStatus.indexOf("Connected") === 0 ? "✓" : "◌"; color: root.wifiBackgroundStatus.indexOf("Connected") === 0 ? Theme.Tokens.stateSuccess : Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconSm }
+                                Text { text: root.wifiBackgroundStatus; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight; Layout.fillWidth: true }
+                                Components.TextButton { text: "Dismiss"; onClicked: { root.wifiBackgroundStatus = ""; root.wifiBackgroundAttemptSsid = ""; } }
+                            }
+                        }
                         Item {
                             visible: root.wifiList().length === 0
                             Layout.fillWidth: true
@@ -750,12 +896,13 @@ Item {
                                     }
                                     Text { text: modelData.strength !== undefined ? Math.round(modelData.strength) + "%" : "—"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelSmall }
                                     Components.TextButton {
+                                        id: forgetButton
                                         visible: modelData.saved === true
                                         text: "Forget"
                                         onClicked: root.forgetWifi(String(modelData.ssid || ""))
                                     }
                                 }
-                                TapHandler { onTapped: root.openWifiConnect(modelData) }
+                                TapHandler { enabled: !forgetButton.pressed; onTapped: root.openWifiConnect(modelData) }
                             }
                         }
 

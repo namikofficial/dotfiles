@@ -400,6 +400,9 @@ mod tests {
     #[test]
     fn iwd_network_actions_round_trip() {
         let actions = [
+            Action::NetworkConnectSaved {
+                ssid: "Saved Home Wi-Fi".into(),
+            },
             Action::NetworkConnect {
                 ssid: "Phone Hotspot".into(),
                 passphrase: "secret-password".into(),

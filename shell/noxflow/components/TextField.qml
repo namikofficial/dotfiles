@@ -14,10 +14,13 @@ FocusScope {
     property string helperText: ""
     property bool readOnly: false
     property bool password: false
+    property bool showPasswordToggle: false
+    property bool passwordVisible: false
     property bool hasError: false
     property bool showClearButton: false
     property int maxLength: 0
     signal accepted()
+    signal passwordVisibilityToggled(bool visible)
 
     implicitWidth: Theme.Tokens.scaled(280)
     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightField + (label ? Theme.Tokens.spacingLg + 14 : 0))
@@ -65,7 +68,7 @@ FocusScope {
                         anchors.fill: parent
                         text: root.text
                         readOnly: root.readOnly
-                        echoMode: root.password ? TextInput.Password : TextInput.Normal
+                        echoMode: root.password && !root.passwordVisible ? TextInput.Password : TextInput.Normal
                         clip: true
                         verticalAlignment: Text.AlignVCenter
                         color: root.readOnly ? Theme.Tokens.textDisabled : Theme.Tokens.textPrimary
@@ -90,6 +93,16 @@ FocusScope {
                         visible: input.text === "" && !input.activeFocus
                         clip: true
                     }
+                }
+
+                Text {
+                    visible: root.password && root.showPasswordToggle
+                    text: root.passwordVisible ? "◉" : "◌"
+                    color: root.activeFocus ? Theme.Tokens.tonalPrimary : Theme.Tokens.textMuted
+                    font.pixelSize: Theme.Tokens.typographyBodyMedium
+                    Accessible.role: Accessible.Button
+                    Accessible.name: root.passwordVisible ? "Hide password" : "Show password"
+                    TapHandler { onTapped: root.passwordVisibilityToggled(!root.passwordVisible) }
                 }
 
                 Text {

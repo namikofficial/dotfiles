@@ -159,6 +159,7 @@ ShellRoot {
 
     function toggleControlCentre() { panelController.toggle("quick-settings"); }
     function openControl()   { panelController.open("quick-settings"); }
+    function openControlSection(section) { panelController.open("quick-settings", "", null, section); }
     function closeControl()  { panelController.close("quick-settings"); }
 
     function toggleNotificationCentre() { panelController.toggle("notifications"); }
@@ -308,6 +309,7 @@ ShellRoot {
         function handleEscape()     { return shellRoot.surfaceCoordinator ? shellRoot.surfaceCoordinator.handleEscape() : false; }
         function toggleQuickSettingsPanel() { return shellRoot.toggleControlCentre(); }
         function openQuickSettingsPanel()   { return shellRoot.openControl(); }
+        function openNetworkPanel()         { return shellRoot.openControlSection("network"); }
         function toggleMediaPanelFromIpc()  { return shellRoot.toggleMediaPanel(); }
         function openMediaPanelFromIpc()    { return shellRoot.openMediaPanel(); }
         function toggleClipboardPanel() { return shellRoot.toggleClipboardPanel(); }
