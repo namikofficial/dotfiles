@@ -14,7 +14,7 @@ ProviderModel {
     readonly property var incoming: sessions.filter(function(s) { return s.direction === "in"; })
     readonly property var outgoing: sessions.filter(function(s) { return s.direction === "out"; })
     readonly property var pendingIncoming: incoming.filter(function(s) { return s.state === "incoming" || s.state === "offered"; })
-    readonly property var activeTransfers: sessions.filter(function(s) { return s.state === "transferring"; })
+    readonly property var activeTransfers: sessions.filter(function(s) { return s.state === "offered" || s.state === "transferring"; })
     readonly property var activeIncoming: incoming.filter(function(s) { return s.state === "incoming" || s.state === "offered" || s.state === "transferring"; })
     readonly property var activeOutgoing: outgoing.filter(function(s) { return s.state === "transferring"; })
     readonly property int incomingCount: pendingIncoming.length
