@@ -155,7 +155,9 @@ inside a `run_action` request.
 | Action name | Params |
 |-------------|--------|
 | `network_wifi_set_enabled` | `{ enabled: bool }` |
-| `network_connect_saved` | `{ uuid: string }` |
+| `network_connect_saved` | `{ ssid: string }` |
+| `network_connect` | `{ ssid: string, passphrase: string }` |
+| `network_forget` | `{ ssid: string }` |
 | `network_disconnect_wifi` | — |
 | `network_refresh` | — |
 | `network_vpn_set_enabled` | `{ uuid: string, enabled: bool }` |

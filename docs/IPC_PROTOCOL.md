@@ -82,10 +82,12 @@ power-profiles-daemon leaves the provider degraded and profile changes return
 the structured `unsupported` error.
 
 Network actions are `network_wifi_set_enabled`, `network_connect_saved`,
-`network_disconnect_wifi`, `network_refresh`, and `network_vpn_set_enabled`.
-Saved Wi-Fi profiles are selected by iwd SSID/profile name. These actions
-never create profiles or handle passwords/secrets. VPN actions are delegated
-to the configured system VPN manager. The `network`
+`network_connect`, `network_forget`, `network_disconnect_wifi`,
+`network_refresh`, and `network_vpn_set_enabled`. iwd profiles are selected
+by SSID. `network_connect` accepts an SSID and passphrase for interactive
+hotspot/new-network onboarding; the passphrase is never persisted by noxd or
+returned in the accepted-action response. VPN actions are delegated to the
+configured system VPN manager. The `network`
 provider reports connectivity, active connection and Ethernet state, Wi-Fi
 state and scan results, connected SSID, signal strength, IPv4/IPv6 addresses,
 metering, and VPN state.
