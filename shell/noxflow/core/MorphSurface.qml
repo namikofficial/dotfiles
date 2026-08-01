@@ -38,7 +38,7 @@ PanelWindow {
     readonly property real targetTopMargin: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
     readonly property real targetRightMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
     readonly property real targetBottomMargin: Theme.Tokens.scaled(Theme.Tokens.spacingLg)
-    readonly property real targetWidth: activePanel === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(380)
+    readonly property real targetWidth: activePanel === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth)
     readonly property real targetHeight: activePanel === "media" ? Theme.Tokens.scaled(230) :
         (activePanel === "calendar" ? Theme.Tokens.scaled(650) :
         (activePanel === "notifications" ? Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)) :
@@ -72,6 +72,9 @@ PanelWindow {
     // double-close and rapid re-open races (stuck-panel bug): a new openPanel()
     // always cancels a pending close.
     property bool closing: false
+    // Prevent the host from interpreting the initial hidden state of a newly
+    // loaded child as a user-requested close.
+    property bool contentReady: false
 
     screen: root.screen
     anchors.top: true; anchors.right: true
@@ -144,10 +147,33 @@ PanelWindow {
             Behavior on opacity { NumberAnimation { duration: Config.Motion.contentEnter; easing.type: Easing.OutCubic } }
             Behavior on transform { PropertyAnimation { duration: Config.Motion.contentEnter; easing.type: Easing.OutCubic } }
             onLoaded: {
+                root.contentReady = false;
                 if (item && root.initialSection !== "" && item.initialSection !== undefined)
                     item.initialSection = root.initialSection;
                 if (item && typeof item.open === "function") item.open();
+                contentReadyTimer.restart();
             }
+        }
+
+        // Child surfaces own their lifecycle because they also expose Escape
+        // and close buttons. Once such a child becomes hidden by itself, the
+        // morph host must collapse too, otherwise an empty frame remains.
+        Connections {
+            target: content.item
+            function onVisibleChanged() {
+                if (root.contentReady && !root.closing && root.activePanel !== "" && content.item && !content.item.visible)
+                    root.closePanel();
+            }
+        }
+    }
+
+    Timer {
+        id: contentReadyTimer
+        interval: Math.max(1, root.morphDuration + 24)
+        repeat: false
+        onTriggered: {
+            if (root.activePanel !== "" && !root.closing)
+                root.contentReady = true;
         }
     }
 
@@ -222,7 +248,7 @@ PanelWindow {
     // geometryFor(), whose origin override is intentionally the clicked bar
     // chip. Mixing the two leaves the loaded panel clipped to chip size.
     function targetGeometryFor(name) {
-        var width = name === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(380);
+        var width = name === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth);
         var height = name === "media" ? Theme.Tokens.scaled(230) :
             (name === "calendar" ? Theme.Tokens.scaled(650) :
             (name === "notifications" ? Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)) :
@@ -235,6 +261,7 @@ PanelWindow {
         if (!componentFor(name)) return false;
         // A new open always cancels a pending close (rapid toggle-close→open).
         root.closing = false;
+        root.contentReady = false;
         collapseTimer.stop();
         swapTimer.stop();
         if (rect && rect.width > 0 && rect.height > 0) originRect = rect;
@@ -335,6 +362,8 @@ PanelWindow {
     function closePanel() {
         if (root.closing || (!activePanel && !pendingPanel)) return false;
         root.closing = true;
+        root.contentReady = false;
+        contentReadyTimer.stop();
         swapTimer.stop();
         pendingPanel = "";
         root.morphPhase = MorphSurface.Phase.Collapsing;

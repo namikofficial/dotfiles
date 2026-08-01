@@ -22,19 +22,23 @@ ProviderModel {
     function applySnapshot(snapshot) {
         if (!Utils.applyBase(this, snapshot, providerName)) return false;
         var next = snapshot.data;
-        connectivity = Utils.stringOr(next.connectivity, "unknown");
-        connectedSsid = Utils.stringOr(next.connected_ssid, "");
-        signalStrength = Utils.nullableNumber(next.signal_strength);
-        activeConnection = next.active_connection === undefined ? null : next.active_connection;
-        ethernet = Array.isArray(next.ethernet) ? next.ethernet : [];
-        availableWifi = Array.isArray(next.available_wifi) ? next.available_wifi : [];
-        ipv4 = Array.isArray(next.ipv4) ? next.ipv4 : [];
-        ipv6 = Array.isArray(next.ipv6) ? next.ipv6 : [];
-        vpn = Array.isArray(next.vpn) ? next.vpn : [];
-        metered = next.metered === true;
-        networkingEnabled = next.networking_enabled === true;
-        wifiEnabled = Utils.nullableBool(next.wifi_enabled);
-        wifiHardwareEnabled = Utils.nullableBool(next.wifi_hardware_enabled);
+        // Provider events are partial updates. Preserve fields that are not
+        // present instead of turning a valid full snapshot into empty lists.
+        connectivity = Utils.stringOr(next.connectivity, connectivity);
+        connectedSsid = Utils.stringOr(next.connected_ssid, connectedSsid);
+        if (next.signal_strength !== undefined)
+            signalStrength = Utils.nullableNumber(next.signal_strength);
+        if (next.active_connection !== undefined)
+            activeConnection = next.active_connection;
+        if (Array.isArray(next.ethernet)) ethernet = next.ethernet;
+        if (Array.isArray(next.available_wifi)) availableWifi = next.available_wifi;
+        if (Array.isArray(next.ipv4)) ipv4 = next.ipv4;
+        if (Array.isArray(next.ipv6)) ipv6 = next.ipv6;
+        if (Array.isArray(next.vpn)) vpn = next.vpn;
+        if (next.metered !== undefined) metered = next.metered === true;
+        if (next.networking_enabled !== undefined) networkingEnabled = next.networking_enabled === true;
+        if (next.wifi_enabled !== undefined) wifiEnabled = Utils.nullableBool(next.wifi_enabled);
+        if (next.wifi_hardware_enabled !== undefined) wifiHardwareEnabled = Utils.nullableBool(next.wifi_hardware_enabled);
         return true;
     }
 }

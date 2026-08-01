@@ -12,14 +12,20 @@ Rectangle {
     property color statusColor: Theme.Tokens.textSecondary
     property bool showToggle: false
     property bool toggleChecked: false
+    property bool hovered: false
+    property bool pressed: false
     signal clicked()
     signal toggleChanged(bool value)
 
-    height: Theme.Tokens.scaled(52)
+    // Two lines of copy plus vertical padding need more than the old 52px
+    // tile; the previous height made subtitles collide with the next row.
+    height: Theme.Tokens.scaled(68)
     radius: Theme.Tokens.radiusMd
-    color: Theme.Tokens.surfaceSurface
+    color: root.pressed ? Theme.Tokens.surfaceSurfaceContainerHighest : root.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : Theme.Tokens.surfaceSurface
     border.color: Theme.Tokens.outlineSubtle
     border.width: 1
+    scale: root.pressed ? 0.985 : root.hovered ? 1.01 : 1.0
+    Behavior on scale { NumberAnimation { duration: Theme.Tokens.durationShort; easing.type: Easing.OutCubic } }
 
     RowLayout {
         anchors.fill: parent
@@ -32,7 +38,7 @@ Rectangle {
         }
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 0
+            spacing: Theme.Tokens.scaled(3)
             Text {
                 text: root.label
                 color: Theme.Tokens.textPrimary
@@ -56,7 +62,8 @@ Rectangle {
         }
     }
     TapHandler {
+        onPressedChanged: root.pressed = pressed
         onTapped: { if (root.active && !root.showToggle) root.clicked() }
     }
-    HoverHandler { cursorShape: Qt.PointingHandCursor }
+    HoverHandler { cursorShape: Qt.PointingHandCursor; onHoveredChanged: root.hovered = hovered }
 }

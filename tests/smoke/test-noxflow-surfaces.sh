@@ -26,7 +26,6 @@ log_info() { printf "  ${YELLOW}INFO${NC} %s\n" "$*"; }
 SURFACES=(
   "launcher"
   "dashboard"
-  "overview"
   "control"
   "notifications"
   "calendar"
@@ -79,7 +78,7 @@ if quickshell ipc -p "$IPC_PATH" call noxctl toggleDnd >/dev/null 2>&1; then
   log_pass "IPC handshake works (toggleDnd succeeded)"
 else
   log_fail "IPC handshake FAILED — is quickshell running with the right path?"
-  echo "  quickshell process: $(ps aux | grep quickshell | grep -v grep)"
+  echo "  quickshell process: $(pgrep -af quickshell || true)"
   exit 1
 fi
 
@@ -107,6 +106,16 @@ for surface in "${SURFACES[@]}"; do
 
   sleep 0.2
 done
+
+# Capture a rendered panel for screenshot-driven layout checks when grim is
+# available. The file is intentionally outside the repository.
+if command -v grim >/dev/null 2>&1; then
+  toggle_surface control 2>/dev/null || true
+  sleep 0.5
+  if grim /tmp/noxflow-smoke-control.png 2>/dev/null; then
+    log_info "Screenshot saved to /tmp/noxflow-smoke-control.png"
+  fi
+fi
 
 echo ""
 
@@ -145,22 +154,34 @@ echo ""
 # ── Force-close all surfaces for clean exit ──
 echo "--- Cleanup: force-close all surfaces ---"
 
-for surface in "${SURFACES[@]}"; do
-  case "$surface" in
-    *) toggle_surface "$surface" 2>/dev/null || true ;;
-  esac
-  sleep 0.1
+# Use explicit close IPC rather than toggles: cleanup must be idempotent even
+# when a preceding test failed or a panel was already closed.
+for close_call in \
+  closePanel \
+  closeNotifications \
+  closeCalendar \
+  closeLauncher \
+  closeDashboard \
+  closeCapture \
+  closeSettings \
+  closeRadialWheel; do
+  quickshell ipc -p "$IPC_PATH" call noxctl "$close_call" >/dev/null 2>&1 || true
 done
+sleep 0.5
+log_info "All surfaces explicitly closed"
 
-# Double-tap close on each: if any were open, first call closes them, second is no-op
-for surface in "${SURFACES[@]}"; do
-  case "$surface" in
-    *) toggle_surface "$surface" 2>/dev/null || true ;;
-  esac
-  sleep 0.1
-done
-
-log_info "All surfaces toggled closed"
+# A full-screen quickshell layer after cleanup means an invisible modal is
+# still alive and can intercept input. Keep this diagnostic-only on compositors
+# that do not expose layer output.
+if command -v hyprctl >/dev/null 2>&1; then
+  EXTRA_LAYERS=$(hyprctl layers -a 2>/dev/null | awk '/namespace: quickshell/ && /xywh: 0 40/ { count++ } END { print count+0 }')
+  if [ "$EXTRA_LAYERS" -eq 0 ]; then
+    log_pass "No full-screen quickshell layer remains after cleanup"
+  else
+    log_fail "$EXTRA_LAYERS full-screen quickshell layer(s) remain after cleanup"
+    hyprctl layers -a 2>/dev/null | sed -n '/namespace: quickshell/,+2p' | head -20
+  fi
+fi
 
 echo ""
 

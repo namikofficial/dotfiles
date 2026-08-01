@@ -39,16 +39,40 @@ Item {
     property string wifiConnectSsid: ""
     property string wifiConnectSecurity: ""
     property string wifiConnectPassword: ""
+    property bool wifiScanPending: false
+    property bool wifiConnectionPending: false
+    property string wifiError: ""
+    property string wifiConnectionState: "idle"
+    property string wifiConnectionMessage: ""
     Timer {
         id: actionStateTimer
         interval: 1800
         repeat: false
         onTriggered: { root.wifiActionState = ""; root.bluetoothActionState = ""; root.audioActionState = ""; }
     }
-    property Process wifiConnect: Process {
-        running: false
-        onExited: {
-            if (root.noxd.connected) root.noxd.runAction({ network_refresh: {} });
+    Timer {
+        id: wifiConnectionTimeout
+        interval: 12000
+        repeat: false
+        onTriggered: {
+            if (root.wifiConnectionPending) {
+                root.wifiConnectionPending = false;
+                root.wifiConnectionState = "failed";
+                root.wifiError = "The Wi‑Fi connection timed out. Try again.";
+                root.wifiConnectionMessage = root.wifiError;
+                root.markAction("wifi", "Connection failed");
+            }
+        }
+    }
+    Timer {
+        id: wifiSuccessTimer
+        interval: 900
+        repeat: false
+        onTriggered: {
+            root.wifiConnectDialogVisible = false;
+            root.wifiConnectPassword = "";
+            root.wifiConnectionState = "idle";
+            root.wifiConnectionMessage = "";
         }
     }
 
@@ -82,12 +106,43 @@ Item {
         root.wifiConnectSsid = String(networkInfo.ssid || "").trim();
         root.wifiConnectSecurity = String(networkInfo.security || "");
         root.wifiConnectPassword = "";
+        root.wifiError = "";
+        root.wifiConnectionState = "idle";
+        root.wifiConnectionMessage = "";
+        root.wifiConnectionPending = false;
+        wifiConnectionTimeout.stop();
+        wifiSuccessTimer.stop();
         root.wifiConnectDialogVisible = root.wifiConnectSsid !== "";
     }
     function submitWifiConnect() {
         if (!root.wifiConnectDialogVisible || root.wifiConnectSsid === "" || !root.noxd.connected) return;
-        root.noxd.runAction({ network_connect: { ssid: root.wifiConnectSsid, passphrase: root.wifiConnectPassword } });
+        if (root.wifiConnectionPending) return;
+        if (root.wifiConnectSecurity !== "open" && root.wifiConnectPassword === "") {
+            root.wifiError = "Enter the Wi‑Fi password to continue";
+            root.wifiConnectionState = "failed";
+            return;
+        }
+        var accepted = root.noxd.runAction({ network_connect: { ssid: root.wifiConnectSsid, passphrase: root.wifiConnectPassword } });
+        if (!accepted) {
+            root.wifiConnectionState = "failed";
+            root.wifiError = "NoxFlow is not connected to the network service. Try again.";
+            root.wifiConnectionMessage = root.wifiError;
+            return;
+        }
         root.markAction("wifi", "Connecting to " + root.wifiConnectSsid + "…");
+        root.wifiConnectionPending = true;
+        root.wifiConnectionState = "connecting";
+        root.wifiConnectionMessage = "Connecting… keep this dialog open to retry if needed.";
+        root.wifiError = "";
+        wifiConnectionTimeout.restart();
+    }
+    function cancelWifiConnect() {
+        wifiConnectionTimeout.stop();
+        wifiSuccessTimer.stop();
+        root.wifiConnectionPending = false;
+        root.wifiConnectionState = "idle";
+        root.wifiConnectionMessage = "";
+        root.wifiError = "";
         root.wifiConnectDialogVisible = false;
         root.wifiConnectPassword = "";
     }
@@ -103,6 +158,11 @@ Item {
         var source = power && Array.isArray(power.availableProfiles) ? power.availableProfiles : [];
         for (var i = 0; i < source.length; i++) { var name = profileName(source[i]); if (name !== "") result.push(name); }
         return result.length > 0 ? result : ["power-saver", "balanced", "performance"];
+    }
+    function wifiList() {
+        if (network && network.data && Array.isArray(network.data.available_wifi))
+            return network.data.available_wifi;
+        return network && Array.isArray(network.availableWifi) ? network.availableWifi : [];
     }
 
     property bool focusEnabled: false
@@ -122,30 +182,52 @@ Item {
         z: 20
         anchors.centerIn: parent
         width: Math.min(parent.width - Theme.Tokens.spacingXl * 2, Theme.Tokens.scaled(360))
-        height: Theme.Tokens.scaled(230)
+        height: Theme.Tokens.scaled(300)
         scrim: true
+        onVisibleChanged: {
+            if (visible && root.wifiConnectSecurity !== "open")
+                Qt.callLater(function() { wifiPasswordField.forceActiveFocus(); });
+        }
         ColumnLayout {
             anchors.fill: parent
             spacing: Theme.Tokens.spacingSm
             Text { text: "Connect to Wi‑Fi"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleMedium }
             Text { text: root.wifiConnectSsid + (root.wifiConnectSecurity ? " · " + root.wifiConnectSecurity : ""); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight; Layout.fillWidth: true }
+            Text {
+                visible: root.wifiConnectionMessage !== "" && root.wifiConnectionState !== "failed"
+                text: root.wifiConnectionMessage
+                color: Theme.Tokens.tonalPrimary
+                font.pixelSize: Theme.Tokens.typographyBodySmall
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
             Components.TextField {
                 id: wifiPasswordField
                 visible: root.wifiConnectSecurity !== "open"
+                enabled: !root.wifiConnectionPending
                 label: "Password"
                 placeholderText: "Wi‑Fi password"
                 password: true
+                hasError: root.wifiError !== ""
                 text: root.wifiConnectPassword
                 onTextChanged: root.wifiConnectPassword = text
                 onAccepted: root.submitWifiConnect()
                 Layout.fillWidth: true
             }
-            Item { Layout.fillHeight: true }
+            Text {
+                visible: root.wifiError !== ""
+                text: root.wifiError
+                color: Theme.Tokens.stateDanger
+                font.pixelSize: Theme.Tokens.typographyBodySmall
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            Item { Layout.fillHeight: true; visible: root.wifiConnectionState !== "connecting" }
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Components.TextButton { text: "Cancel"; onClicked: { root.wifiConnectDialogVisible = false; root.wifiConnectPassword = ""; } }
-                Components.TextButton { text: "Connect"; onClicked: root.submitWifiConnect() }
+                Components.TextButton { text: root.wifiConnectionState === "failed" ? "Retry" : "Connect"; enabled: !root.wifiConnectionPending; onClicked: root.submitWifiConnect() }
+                Components.TextButton { text: "Cancel"; onClicked: root.cancelWifiConnect() }
             }
         }
     }
@@ -155,8 +237,47 @@ Item {
         function onOpened() {
             var tabs = { network: 2, bluetooth: 3, volume: 1, audio: 1, battery: 0, power: 0 };
             if (root.initialSection !== "" && tabs[root.initialSection] !== undefined) root.activeTab = tabs[root.initialSection];
-            if (root.noxd.connected) root.noxd.runAction({ network_refresh: {} });
             dndCheck.command = ["dunstctl", "get-paused"]; dndCheck.running = true;
+        }
+    }
+
+    Connections {
+        target: network
+        function onAvailableWifiChanged() {
+            root.wifiScanPending = false;
+        }
+        function onConnectedSsidChanged() {
+            if (root.wifiConnectionPending && network.connectedSsid === root.wifiConnectSsid && network.connectedSsid !== "") {
+                root.wifiConnectionPending = false;
+                wifiConnectionTimeout.stop();
+                root.wifiError = "";
+                root.wifiConnectionState = "connected";
+                root.wifiConnectionMessage = "Connected successfully.";
+                root.markAction("wifi", "Connected");
+                wifiSuccessTimer.restart();
+            }
+        }
+    }
+
+    Connections {
+        target: noxd
+        function onEventReceived(event) {
+            if (!event || event.provider !== "network" || !event.data) return;
+            var action = String(event.data.action || "");
+            var ssid = String(event.data.ssid || "");
+            if (root.wifiConnectionPending && event.event_type === "action_failed" && action === "connect" && ssid === root.wifiConnectSsid) {
+                root.wifiConnectionPending = false;
+                wifiConnectionTimeout.stop();
+                root.wifiConnectionState = "failed";
+                root.wifiError = String(event.data.message || "The Wi‑Fi connection failed. Try again.");
+                root.wifiConnectionMessage = root.wifiError;
+                root.wifiConnectDialogVisible = true;
+                root.markAction("wifi", "Connection failed");
+            } else if (event.event_type === "action_failed" && action === "refresh") {
+                root.wifiScanPending = false;
+                root.wifiError = String(event.data.message || "Wi‑Fi scan failed. Try again.");
+                root.markAction("wifi", "Scan failed");
+            }
         }
     }
 
@@ -253,6 +374,7 @@ Item {
                 // Quick tab
                 Flickable {
                     anchors.fill: parent
+                    contentWidth: width
                     contentHeight: quickContent.height + Theme.Tokens.spacingLg
                     visible: root.activeTab === 0
                     interactive: contentHeight > height
@@ -265,7 +387,7 @@ Item {
                         Components.ControlTile {
                             icon: network.connectivity === "full" || network.connectedSsid !== "" ? "⌁" : "⌁"
                             label: network.displayState
-                            subtitle: root.wifiActionState || (network.wifiEnabled === false ? "Enable Wi-Fi to connect" : network.availableWifi.length + " networks visible")
+                            subtitle: root.wifiActionState || (network.wifiEnabled === false ? "Enable Wi-Fi to connect" : root.wifiList().length + " networks visible")
                             active: network.wifiUsable
                             statusColor: network.connectivity === "full" ? Theme.Tokens.stateSuccess : network.connectivity === "limited" ? Theme.Tokens.stateWarning : Theme.Tokens.stateDanger
                             onClicked: root.activeTab = 2
@@ -409,6 +531,7 @@ Item {
                 // Audio tab
                 Flickable {
                     anchors.fill: parent
+                    contentWidth: width
                     contentHeight: audioContent.height + Theme.Tokens.spacingLg
                     visible: root.activeTab === 1
                     interactive: contentHeight > height
@@ -530,6 +653,7 @@ Item {
                 // Network tab
                 Flickable {
                     anchors.fill: parent
+                    contentWidth: width
                     contentHeight: networkContent.height + Theme.Tokens.spacingLg
                     visible: root.activeTab === 2
                     interactive: contentHeight > height
@@ -556,32 +680,75 @@ Item {
                             }
                         }
                         Text { text: network.displayState; color: network.connectivity === "full" ? Theme.Tokens.stateSuccess : network.connectivity === "limited" ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                        Text {
+                        Rectangle {
+                            Layout.fillWidth: true
                             visible: network.connectedSsid !== ""
-                            text: "Connected to: " + network.connectedSsid
-                            color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
+                            height: Theme.Tokens.scaled(58)
+                            radius: Theme.Tokens.radiusMd
+                            color: Theme.Tokens.tonalPrimaryContainer
+                            border.color: Theme.Tokens.tonalPrimary
+                            border.width: 1
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: Theme.Tokens.spacingMd
+                                Text { text: "⌁"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    Text { text: network.connectedSsid; color: Theme.Tokens.tonalOnPrimaryContainer; font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+                                    Text { text: "Connected" + (network.signalStrength !== null ? " · " + network.signalStrength + "% signal" : ""); color: Theme.Tokens.tonalOnPrimaryContainer; font.pixelSize: Theme.Tokens.typographyLabelSmall }
+                                }
+                            }
                         }
 
                         Components.Divider { Layout.fillWidth: true }
                         RowLayout {
                             Layout.fillWidth: true
                             Text { text: "Available Networks"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge; Layout.fillWidth: true }
-                            Components.IconButton { iconText: "↻"; accessibleName: "Rescan Wi‑Fi networks"; onClicked: { if (root.noxd.connected) { root.noxd.runAction({ network_refresh: {} }); root.markAction("wifi", "Scanning for networks…"); } } }
+                            Components.IconButton { iconText: root.wifiScanPending ? "…" : "↻"; accessibleName: "Rescan Wi‑Fi networks"; enabled: !root.wifiScanPending && root.noxd.connected; onClicked: { root.wifiScanPending = true; root.wifiError = ""; root.noxd.runAction({ network_refresh: {} }); root.markAction("wifi", "Scanning for networks…"); } }
+                        }
+                        Text {
+                            visible: root.wifiError !== ""
+                            text: root.wifiError
+                            color: Theme.Tokens.stateDanger
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                        Item {
+                            visible: root.wifiList().length === 0
+                            Layout.fillWidth: true
+                            height: Theme.Tokens.scaled(96)
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.wifiScanPending ? "Scanning for nearby networks…" : network.available ? "No networks found. Press Rescan to search." : "Network provider unavailable"
+                                color: Theme.Tokens.textMuted
+                                font.pixelSize: Theme.Tokens.typographyBodyMedium
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                width: parent.width
+                            }
                         }
                         Repeater {
-                            model: network.availableWifi
+                            model: root.wifiList()
                             delegate: Rectangle {
                                 required property var modelData
-                                width: parent ? parent.width : 100
-                                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
-                                radius: Theme.Tokens.radiusSm
-                                color: Theme.Tokens.surfaceSurfaceContainer
+                                width: networkContent.width
+                                height: Theme.Tokens.scaled(56)
+                                radius: Theme.Tokens.radiusMd
+                                color: modelData.connected ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
+                                border.color: modelData.connected ? Theme.Tokens.tonalPrimary : Theme.Tokens.outlineSubtle
+                                border.width: 1
                                 RowLayout {
                                     anchors.fill: parent
                                     anchors.margins: Theme.Tokens.spacingSm
-                                    Text { text: modelData.ssid || "Hidden SSID"; elide: Text.ElideRight; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                                    Text { text: modelData.strength ? Array(Math.round(modelData.strength / 25) + 1).join("▂") : ""; color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                                    Text { text: modelData.ssid === network.connectedSsid ? "Connected" : modelData.saved ? "Saved" : "Available"; color: modelData.ssid === network.connectedSsid ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 0
+                                        Text { text: modelData.ssid || "Hidden SSID"; elide: Text.ElideRight; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: modelData.connected === true }
+                                        Text { text: (modelData.security === "open" ? "Open network" : "Password required") + (modelData.saved ? " · Saved" : ""); color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
+                                    }
+                                    Text { text: modelData.strength !== undefined ? Math.round(modelData.strength) + "%" : "—"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelSmall }
                                     Components.TextButton {
                                         visible: modelData.saved === true
                                         text: "Forget"
@@ -619,6 +786,7 @@ Item {
                 // Bluetooth tab
                 Flickable {
                     anchors.fill: parent
+                    contentWidth: width
                     contentHeight: bluetoothContent.height + Theme.Tokens.spacingLg
                     visible: root.activeTab === 3
                     interactive: contentHeight > height
@@ -701,6 +869,7 @@ Item {
                 // ── System tab (CPU/RAM/Disk) ──
                 Flickable {
                     anchors.fill: parent
+                    contentWidth: width
                     contentHeight: systemContent.height + Theme.Tokens.spacingLg
                     visible: root.activeTab === 4
                     interactive: contentHeight > height
@@ -775,6 +944,7 @@ Item {
                 // ── Input tab (mic, keyboard, touchpad) ──
                 Flickable {
                     anchors.fill: parent
+                    contentWidth: width
                     contentHeight: inputContent.height + Theme.Tokens.spacingLg
                     visible: root.activeTab === 5
                     interactive: contentHeight > height
@@ -851,6 +1021,7 @@ Item {
                 // ── Power tab (profiles + battery) ──
                 Flickable {
                     anchors.fill: parent
+                    contentWidth: width
                     contentHeight: powerContent.height + Theme.Tokens.spacingLg
                     visible: root.activeTab === 6
                     interactive: contentHeight > height

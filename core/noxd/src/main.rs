@@ -27,8 +27,11 @@ use std::{
 
 const MAX_FRAME_BYTES: usize = 64 * 1024;
 const ACCEPT_POLL_INTERVAL: Duration = Duration::from_millis(50);
-const CLIENT_READ_TIMEOUT: Duration = Duration::from_secs(1);
-const CLIENT_WRITE_TIMEOUT: Duration = Duration::from_secs(1);
+// Clients stay connected while waiting for provider events; one second is
+// shorter than a normal shell startup and causes EAGAIN to be treated as a
+// fatal disconnect before the subscription handshake completes.
+const CLIENT_READ_TIMEOUT: Duration = Duration::from_secs(10);
+const CLIENT_WRITE_TIMEOUT: Duration = Duration::from_secs(10);
 
 fn timestamp() -> u64 {
     SystemTime::now()
@@ -528,6 +531,12 @@ fn handle_client(
     media: noxd::providers::media::ControlSender,
     transfer: noxd::providers::transfer::Control,
 ) -> io::Result<()> {
+    // The listener is nonblocking for accept polling, and accepted Unix
+    // streams can inherit that mode. Client reads are handled on their own
+    // thread with a timeout, so force blocking mode here; otherwise an
+    // ordinary EAGAIN is treated as a fatal client disconnect and the shell
+    // loses its subscription before provider snapshots arrive.
+    stream.set_nonblocking(false)?;
     stream.set_read_timeout(Some(CLIENT_READ_TIMEOUT))?;
     log_event("info", "client_connection", Some(socket), None, None);
     let (outbound, messages) = std::sync::mpsc::sync_channel(DEFAULT_QUEUE_CAPACITY);
@@ -539,7 +548,19 @@ fn handle_client(
     let mut frame = Vec::with_capacity(MAX_FRAME_BYTES.min(4096));
     loop {
         frame.clear();
-        match read_frame(&mut reader, &mut frame)? {
+        let frame_status = match read_frame(&mut reader, &mut frame) {
+            Ok(status) => status,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+                ) =>
+            {
+                continue
+            }
+            Err(error) => return Err(error),
+        };
+        match frame_status {
             FrameStatus::EndOfStream => break,
             FrameStatus::Unterminated => {
                 log_event(

@@ -234,6 +234,7 @@ ShellRoot {
     }
     function toggleSettings() { settingsPanel.toggle(); }
     function openSettings()   { settingsPanel.open(); }
+    function closeSettings()  { settingsPanel.close(); }
 
     // ── DND / Night Light (IPC convenience) ──
     property Process dndToggle: Process { command: ["dunstctl", "toggle"]; running: false }
@@ -256,6 +257,7 @@ ShellRoot {
     property Process captureFullScreen: Process { running: false }
     function toggleCapture() { capture.toggle(); }
     function openCapture()   { capture.open(); }
+    function closeCapture()  { capture.close(); }
 
     // ── Universal Launcher (modal, singleton, full-screen overlay) ──
     LauncherSurface.Launcher {
@@ -269,6 +271,7 @@ ShellRoot {
     }
     function toggleLauncher() { launcher.toggle(); }
     function openLauncher()   { launcher.open(); }
+    function closeLauncher()  { launcher.close(); }
 
     // ── Global IPC handler for external keybind control ──
     IpcHandler {
@@ -281,11 +284,13 @@ ShellRoot {
         function closeNotifications()  { shellRoot.closeNotifications(); }
         function toggleRadialWheel() { shellRoot.toggleRadialWheel(); }
         function openRadialWheel()   { var rw = shellRoot.rwTracker.forScreen(null); if (rw) rw.open(); }
-        function closeRadialWheel()  { var rw = shellRoot.rwTracker.forScreen(null); if (rw) rw.close(); }
+        function closeRadialWheel()  { shellRoot.closeRadialWheel(); }
         function toggleLauncher() { shellRoot.toggleLauncher(); }
         function openLauncher()   { shellRoot.openLauncher(); }
+        function closeLauncher()  { shellRoot.closeLauncher(); }
         function toggleCapture() { shellRoot.toggleCapture(); }
         function openCapture()   { shellRoot.capture.open(); }
+        function closeCapture()  { shellRoot.closeCapture(); }
         function toggleCalendar() { shellRoot.toggleCalendar(); }
         function openCalendar()   { shellRoot.openCalendar(); }
         function closeCalendar()  { shellRoot.closeCalendar(); }
@@ -297,6 +302,7 @@ ShellRoot {
         function closeDashboard()  { shellRoot.closeDashboard(); }
         function toggleSettings() { shellRoot.toggleSettings(); }
         function openSettings()   { shellRoot.openSettings(); }
+        function closeSettings()  { shellRoot.closeSettings(); }
         function toggleDnd()      { shellRoot.toggleDnd(); }
         function toggleNightLight() { shellRoot.toggleNightLight(); }
         function handleEscape()     { return shellRoot.surfaceCoordinator ? shellRoot.surfaceCoordinator.handleEscape() : false; }

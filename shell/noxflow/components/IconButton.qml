@@ -13,6 +13,7 @@ FocusScope {
     implicitWidth: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightIconButton)
     opacity: enabled ? 1.0 : Theme.Tokens.opacityDisabled
+    scale: pressed ? 0.96 : hovered ? 1.03 : 1.0
     focus: false
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
@@ -26,6 +27,7 @@ FocusScope {
         border.color: root.activeFocus ? Theme.Tokens.outlineFocus : root.checked ? Theme.Tokens.tonalPrimary : "transparent"
         border.width: root.activeFocus || root.checked ? 1 : 0
     }
+    Behavior on scale { NumberAnimation { duration: Theme.Tokens.durationShort; easing.type: Easing.OutCubic } }
     Text { anchors.centerIn: parent; text: root.iconText; color: root.checked ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.iconMd }
     HoverHandler { onHoveredChanged: root.hovered = hovered }
     TapHandler {

@@ -136,17 +136,45 @@ pub fn start(bus: EventBus, stop: Arc<AtomicBool>) -> (thread::JoinHandle<()>, C
 }
 
 fn run(bus: EventBus, stop: Arc<AtomicBool>, receiver: mpsc::Receiver<CommandRequest>) {
-    let mut previous = None;
+    let mut previous: Option<NetworkState> = None;
     let mut signal_rx: Option<mpsc::Receiver<()>> = None;
     let mut unavailable = false;
     let mut last_refresh = Instant::now() - Duration::from_secs(3);
+    let mut force_publish = false;
     while !stop.load(Ordering::Relaxed) {
         while let Ok(command) = receiver.try_recv() {
-            if let Err(error) = execute(&command) {
-                eprintln!(
-                    "{{\"provider\":\"network\",\"event\":\"action_failed\",\"error\":{}}}",
-                    json!(error.to_string())
-                );
+            match execute(&command) {
+                Ok(()) if matches!(command, CommandRequest::Refresh) => {
+                    // Always publish a complete post-scan snapshot, even if
+                    // the visible SSID set is unchanged from the last poll.
+                    force_publish = true;
+                    last_refresh = Instant::now() - Duration::from_secs(3);
+                }
+                Ok(()) => {}
+                Err(error) => {
+                    let message = error.to_string();
+                    eprintln!(
+                        "{{\"provider\":\"network\",\"event\":\"action_failed\",\"error\":{}}}",
+                        json!(message)
+                    );
+                    let mut data = BTreeMap::from([
+                        ("action".into(), json!(action_name(&command))),
+                        ("code".into(), json!(action_error_code(&message))),
+                        ("message".into(), json!(user_action_error(&message))),
+                    ]);
+                    if let Some(ssid) = action_ssid(&command) {
+                        data.insert("ssid".into(), json!(ssid));
+                    }
+                    let snapshot = previous
+                        .clone()
+                        .unwrap_or_default()
+                        .snapshot(ProviderStatus::Available);
+                    let _ = bus.publish(NetworkEvent {
+                        event_type: "action_failed".into(),
+                        data,
+                        snapshot,
+                    });
+                }
             }
         }
         let refresh = signal_rx
@@ -158,7 +186,7 @@ fn run(bus: EventBus, stop: Arc<AtomicBool>, receiver: mpsc::Receiver<CommandReq
             last_refresh = Instant::now();
             match read_snapshot() {
                 Ok(state) => {
-                    let changed = previous.as_ref() != Some(&state);
+                    let changed = force_publish || previous.as_ref() != Some(&state);
                     if changed {
                         let _ = bus.publish(NetworkEvent {
                             event_type: "state_changed".into(),
@@ -169,6 +197,7 @@ fn run(bus: EventBus, stop: Arc<AtomicBool>, receiver: mpsc::Receiver<CommandReq
                         let _ = bus.update_snapshot(state.snapshot(ProviderStatus::Available));
                     }
                     previous = Some(state);
+                    force_publish = false;
                     unavailable = false;
                     if signal_rx.is_none() {
                         signal_rx = subscribe_signals();
@@ -192,16 +221,10 @@ fn run(bus: EventBus, stop: Arc<AtomicBool>, receiver: mpsc::Receiver<CommandReq
 }
 
 fn changed_data(state: &NetworkState) -> BTreeMap<String, Value> {
-    BTreeMap::from([
-        ("connectivity".into(), json!(state.connectivity)),
-        (
-            "connected_ssid".into(),
-            option_json(state.connected_ssid.as_deref()),
-        ),
-        ("wifi_enabled".into(), option_json(state.wifi_enabled)),
-        ("signal_strength".into(), option_json(state.signal_strength)),
-        ("metered".into(), json!(state.metered)),
-    ])
+    // Network consumers need the complete scan result on every state event.
+    // A partial payload can contain connected_ssid while omitting
+    // available_wifi, which makes the shell render a false empty state.
+    state.snapshot(ProviderStatus::Available).data
 }
 
 struct NetworkEvent {
@@ -378,9 +401,15 @@ fn iwctl_station() -> io::Result<String> {
 fn iwctl_output(args: &[&str]) -> io::Result<String> {
     let output = Command::new("iwctl").args(args).output()?;
     if !output.status.success() {
+        let detail = String::from_utf8_lossy(&output.stderr).trim().to_owned();
         return Err(io::Error::other(format!(
-            "iwctl command failed: {:?}",
-            args
+            "iwctl command failed: {:?}{}",
+            args,
+            if detail.is_empty() {
+                String::new()
+            } else {
+                format!(": {detail}")
+            }
         )));
     }
     Ok(strip_iwctl_ansi(&String::from_utf8_lossy(&output.stdout)))
@@ -391,6 +420,44 @@ fn strip_iwctl_ansi(value: &str) -> String {
         .replace("\u{1b}[1;90m", "")
         .replace("\u{1b}[90m", "")
         .replace("\u{1b}[0m", "")
+}
+
+fn parse_iwctl_networks(
+    output: &str,
+    saved: &std::collections::HashSet<String>,
+    connected_ssid: Option<&str>,
+) -> Vec<Value> {
+    output
+        .lines()
+        .skip(4)
+        .filter_map(|line| {
+            let tokens = line.split_whitespace().collect::<Vec<_>>();
+            let security_index = tokens
+                .iter()
+                .position(|value| matches!(*value, "open" | "psk" | "8021x" | "wep" | "sae"))?;
+            let ssid = tokens[..security_index]
+                .join(" ")
+                .trim_start_matches('>')
+                .trim()
+                .to_owned();
+            let security = tokens[security_index].to_owned();
+            let signal = tokens
+                .last()
+                .and_then(|value| value.parse::<i32>().ok())
+                .map(|value| ((value / 100 + 100).clamp(0, 100)) as u8)
+                .unwrap_or(0);
+            (!ssid.is_empty()).then(|| {
+                json!({
+                    "ssid": ssid,
+                    "strength": signal,
+                    "security": security,
+                    "secure": security != "open",
+                    "saved": saved.contains(&ssid),
+                    "connected": connected_ssid == Some(ssid.as_str()),
+                })
+            })
+        })
+        .collect()
 }
 
 fn read_snapshot() -> zbus::Result<NetworkState> {
@@ -471,38 +538,11 @@ fn read_snapshot() -> zbus::Result<NetworkState> {
             (!ssid.is_empty()).then_some(ssid)
         })
         .collect::<std::collections::HashSet<_>>();
-    let available_wifi = iwctl_output(&["station", &station, "get-networks", "rssi-dbms"])
-        .unwrap_or_default()
-        .lines()
-        .skip(4)
-        .filter_map(|line| {
-            let tokens = line.split_whitespace().collect::<Vec<_>>();
-            let security_index = tokens
-                .iter()
-                .position(|value| matches!(*value, "open" | "psk" | "8021x" | "wep" | "sae"))?;
-            let ssid = tokens[..security_index]
-                .join(" ")
-                .trim_start_matches('>')
-                .trim()
-                .to_owned();
-            let security = tokens[security_index].to_owned();
-            let signal = tokens
-                .last()
-                .and_then(|value| value.parse::<i32>().ok())
-                .map(|value| ((value / 100 + 100).clamp(0, 100)) as u8)
-                .unwrap_or(0);
-            (!ssid.is_empty()).then(|| {
-                json!({
-                    "ssid": ssid,
-                    "strength": signal,
-                    "security": security,
-                    "secure": security != "open",
-                    "saved": saved.contains(&ssid),
-                    "connected": connected_ssid.as_deref() == Some(ssid.as_str()),
-                })
-            })
-        })
-        .collect();
+    let available_wifi = parse_iwctl_networks(
+        &iwctl_output(&["station", &station, "get-networks", "rssi-dbms"]).unwrap_or_default(),
+        &saved,
+        connected_ssid.as_deref(),
+    );
     let active = connected_ssid.clone().map(|ssid| {
         json!({"id": ssid, "uuid": connected_ssid.clone().unwrap_or_default(), "type": "wifi", "state": if online { "connected" } else { "connecting" }, "vpn": false, "default": online, "interface": station, "ipv4": ipv4, "ipv6": []})
     });
@@ -627,7 +667,12 @@ fn execute(command: &CommandRequest) -> io::Result<()> {
                 if output.status.success() {
                     Ok(())
                 } else {
-                    Err(io::Error::other("iwd rejected the Wi-Fi credentials"))
+                    let detail = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+                    Err(io::Error::other(if detail.is_empty() {
+                        "iwd rejected the Wi-Fi credentials".to_owned()
+                    } else {
+                        format!("iwd rejected the Wi-Fi credentials: {detail}")
+                    }))
                 }
             }
         }
@@ -639,6 +684,57 @@ fn execute(command: &CommandRequest) -> io::Result<()> {
             iwctl_output(&["station", &station, "disconnect"]).map(|_| ())
         }
         CommandRequest::VpnSetEnabled { .. } => unreachable!(),
+    }
+}
+
+fn action_name(command: &CommandRequest) -> &'static str {
+    match command {
+        CommandRequest::WifiSetEnabled(_) => "wifi_power",
+        CommandRequest::ConnectSaved(_) | CommandRequest::Connect { .. } => "connect",
+        CommandRequest::Forget(_) => "forget",
+        CommandRequest::DisconnectWifi => "disconnect",
+        CommandRequest::Refresh => "refresh",
+        CommandRequest::VpnSetEnabled { .. } => "vpn",
+    }
+}
+
+fn action_ssid(command: &CommandRequest) -> Option<&str> {
+    match command {
+        CommandRequest::ConnectSaved(ssid)
+        | CommandRequest::Connect { ssid, .. }
+        | CommandRequest::Forget(ssid) => Some(ssid),
+        _ => None,
+    }
+}
+
+fn action_error_code(message: &str) -> &'static str {
+    let message = message.to_ascii_lowercase();
+    if message.contains("credential")
+        || message.contains("passphrase")
+        || message.contains("password")
+    {
+        "credentials_rejected"
+    } else if message.contains("no iwd station")
+        || message.contains("adapter")
+        || message.contains("device not found")
+    {
+        "adapter_unavailable"
+    } else if message.contains("timeout") || message.contains("timed out") {
+        "timeout"
+    } else if message.contains("not found") || message.contains("network") {
+        "network_unavailable"
+    } else {
+        "action_failed"
+    }
+}
+
+fn user_action_error(message: &str) -> &'static str {
+    match action_error_code(message) {
+        "credentials_rejected" => "Wi‑Fi password was rejected. Check it and try again.",
+        "adapter_unavailable" => "The Wi‑Fi adapter is unavailable.",
+        "timeout" => "The Wi‑Fi connection timed out. Try again.",
+        "network_unavailable" => "That network is no longer available. Rescan and try again.",
+        _ => "The Wi‑Fi action failed. Try again.",
     }
 }
 
@@ -745,6 +841,32 @@ mod tests {
         assert_eq!(snapshot.data["connectivity"], json!("portal"));
         assert_eq!(snapshot.data["connected_ssid"], json!("Cafe"));
         assert_eq!(snapshot.data["signal_strength"], json!(72));
+    }
+
+    #[test]
+    fn parses_iwctl_networks_with_spaces_and_ansi_markers() {
+        let output = "Available networks\n---\nNetwork name Security Signal\n---\n  > Home Hotspot psk -5100\n      Cafe open -8200\n";
+        let saved = ["Home Hotspot".to_owned()].into_iter().collect();
+        let networks = parse_iwctl_networks(output, &saved, Some("Home Hotspot"));
+        assert_eq!(networks.len(), 2);
+        assert_eq!(networks[0]["ssid"], json!("Home Hotspot"));
+        assert_eq!(networks[0]["strength"], json!(49));
+        assert_eq!(networks[0]["saved"], json!(true));
+        assert_eq!(networks[0]["connected"], json!(true));
+        assert_eq!(networks[1]["secure"], json!(false));
+    }
+
+    #[test]
+    fn classifies_connection_errors_without_exposing_credentials() {
+        assert_eq!(
+            action_error_code("iwd rejected the Wi-Fi credentials: authentication failed"),
+            "credentials_rejected"
+        );
+        assert_eq!(
+            user_action_error("iwd rejected the Wi-Fi credentials: secret-passphrase"),
+            "Wi‑Fi password was rejected. Check it and try again."
+        );
+        assert!(!user_action_error("password=secret-passphrase").contains("secret-passphrase"));
     }
 
     #[test]

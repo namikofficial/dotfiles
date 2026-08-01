@@ -40,6 +40,10 @@ QtObject {
     property string eventDescription: "none"
     property string errorText: ""
     property var health: ({})
+    // Event frames contain only changed fields. Keep the last complete
+    // provider snapshot so models never lose arrays such as available_wifi
+    // when a later event only updates connectivity or signal strength.
+    property var snapshotCache: ({})
     property string phase: "idle"
     property int retryDelay: 250
     property int requestCounter: 0
@@ -484,10 +488,24 @@ QtObject {
 
     // ── Snapshot dispatching ──
     function publishSnapshots(snapshots) {
+        var mergedSnapshots = {};
         for (var provider in snapshots) {
-            if (Protocol.providerSnapshot(snapshots[provider])) updateHealth(snapshots[provider]);
+            var snapshot = snapshots[provider];
+            if (!Protocol.providerSnapshot(snapshot)) continue;
+            var previous = snapshotCache[provider];
+            var merged = snapshot;
+            if (previous && previous.status === "available" && snapshot.status === "available"
+                    && previous.data && snapshot.data) {
+                var data = {};
+                for (var key in previous.data) data[key] = previous.data[key];
+                for (var changedKey in snapshot.data) data[changedKey] = snapshot.data[changedKey];
+                merged = { provider: snapshot.provider, status: snapshot.status, data: data };
+            }
+            snapshotCache[provider] = merged;
+            mergedSnapshots[provider] = merged;
+            updateHealth(merged);
         }
-        root.snapshotReceived(snapshots);
+        root.snapshotReceived(mergedSnapshots);
     }
 
     function updateHealth(snapshot) {
