@@ -11,4 +11,4 @@ wifi_if="$(iwctl station list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '$1 
   echo false
   exit
 }
-iwctl device "$wifi_if" show 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk -F: '/Powered/ { gsub(/[[:space:]]/, "", $2); print tolower($2) == "on" ? "true" : "false"; found=1; exit } END { if (!found) print "false" }'
+iwctl device "$wifi_if" show 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '/Powered[[:space:]]/ { print tolower($NF) == "on" ? "true" : "false"; found=1; exit } END { if (!found) print "false" }'
