@@ -1,0 +1,42 @@
+{
+  "chat.mcp.gallery.enabled": true,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+  "git.ignoreRebaseWarning": true,
+  "workbench.colorCustomizations": {
+    "editor.background": "#201c25",
+    "editor.foreground": "#f5f8ff",
+    "activityBar.background": "#201c25",
+    "activityBar.foreground": "#f5f8ff",
+    "statusBar.background": "#2f95b1",
+    "statusBar.foreground": "#201c25",
+    "sideBar.background": "#201c25",
+    "sideBar.foreground": "#f5f8ff",
+    "titleBar.activeBackground": "#201c25",
+    "titleBar.activeForeground": "#f5f8ff",
+    "tab.activeBackground": "#201c25",
+    "tab.activeForeground": "#f5f8ff",
+    "tab.inactiveForeground": "#a4a4ac"
+  },
+  "github.copilot.enable": {
+    "*": false,
+    "plaintext": false,
+    "markdown": false,
+    "scminput": false,
+    "dotenv": false
+  },
+  "workbench.editorAssociations": {
+    "*.copilotmd": "vscode.markdown.preview.editor",
+    "{git,gitlens,chat-editing-snapshot-text-model,copilot,git-graph,git-graph-3}:*.qrc": "default",
+    "*.qrc": "qt-core.qrcEditor"
+  },
+  "qt-core.additionalQtPaths": [
+    {
+      "name": "Qt-5.15.19-linux-g++-x86_64_from_PATH",
+      "path": "/usr/bin/qmake"
+    }
+  ],
+  "sops.enabled": true,
+  "sops.binPath": "/usr/bin/sops",
+  "sops.defaults.ageKeyFile": "/home/namik/Documents/code/dotfiles/private/scripts/noxorigin/sops/age/keys.txt"
+}
