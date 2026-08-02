@@ -3,6 +3,9 @@
 The `signageos.signageos-vscode-sops` extension can decrypt supported SOPS files
 in memory and re-encrypt them when they are saved. No `SOPS_AGE_KEY_FILE`
 export or command-line flags are needed after the dotfiles setup is installed.
+The managed settings associate `*.env.sops` with the `dotenv` language; without
+that association VS Code opens the ciphertext as ordinary text and you will see
+`ENC[...]` instead of the decrypted editor.
 
 ## One-time setup
 
@@ -12,7 +15,7 @@ From the dotfiles repository:
 ./setup/install-vscode-sops.sh
 ```
 
-The installer preserves the existing VS Code user settings in a timestamped
+The installer installs both the SOPS and dotenv extensions. It preserves the existing VS Code user settings in a timestamped
 backup and links VS Code to `code/vscode-user-settings.json`. The managed
 settings point SOPS at the private age key in the private scripts submodule.
 
@@ -27,10 +30,16 @@ Open an encrypted environment file normally:
 code /home/namik/Documents/code/noxorigin/workspace/infra/env/staging.env.sops
 ```
 
-Edit `NOX_RESEND_API_KEY`, save the file, and close it. VS Code shows the
+After installation, reload the VS Code window if it was already open. The
+status bar should identify the file as `dotenv`. Edit `NOX_RESEND_API_KEY`, save
+the file, and close it. VS Code shows the
 decrypted dotenv contents while editing; the file on disk remains encrypted.
 Repeat for `production.env.sops` when the production secret is also being
 rotated.
+
+If you still see `ENC[...]`, check that both extensions are installed and that
+the file language is `dotenv`. Do not manually decrypt the file into the
+workspace.
 
 Validate without printing the secret:
 
@@ -38,6 +47,19 @@ Validate without printing the secret:
 cd /home/namik/Documents/code/noxorigin/workspace/infra
 ./scripts/validate-sops-env.sh
 ```
+
+From any directory, the local shell helpers avoid path and key-file flags:
+
+```zsh
+nox-env-edit staging
+nox-env-edit production
+nox-env-validate staging
+nox-env-validate production
+nox-help
+```
+
+The validator checks all encrypted deployment environments and reports only
+file names and placeholder status; it does not print secret values.
 
 Commit only the encrypted files:
 

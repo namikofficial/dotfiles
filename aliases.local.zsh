@@ -16,6 +16,71 @@ alias wellvantage='cd ~/Documents/code/WellVantage'
 alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
 
+NOXORIGIN_HOME="${NOXORIGIN_HOME:-$HOME/Documents/code/noxorigin}"
+NOX_DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
+NOX_SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-$NOX_DOTFILES_HOME/private/scripts/noxorigin/sops/age/keys.txt}"
+
+nox-ensure-root() {
+  if [[ ! -d "$NOXORIGIN_HOME" ]]; then
+    print -u2 "NoxOrigin workspace not found: $NOXORIGIN_HOME"
+    return 1
+  fi
+}
+
+nox-env-file() {
+  local environment="${1:-}"
+  case "$environment" in
+    staging|production) ;;
+    *)
+      print -u2 "Usage: nox-env-edit staging|production"
+      return 2
+      ;;
+  esac
+  printf '%s/workspace/infra/env/%s.env.sops\n' "$NOXORIGIN_HOME" "$environment"
+}
+
+nox-env-edit() {
+  nox-ensure-root || return
+  local env_file
+  env_file="$(nox-env-file "$1")" || return
+  [[ -f "$env_file" ]] || { print -u2 "Encrypted environment file not found: $env_file"; return 1; }
+  code "$env_file"
+}
+
+nox-env-validate() {
+  nox-ensure-root || return
+  local environment="${1:-}"
+  case "$environment" in
+    staging|production) ;;
+    *)
+      print -u2 "Usage: nox-env-validate staging|production"
+      return 2
+      ;;
+  esac
+  [[ -r "$NOX_SOPS_AGE_KEY_FILE" ]] || {
+    print -u2 "SOPS age key is not readable: $NOX_SOPS_AGE_KEY_FILE"
+    return 1
+  }
+  SOPS_AGE_KEY_FILE="$NOX_SOPS_AGE_KEY_FILE" \
+    "$NOXORIGIN_HOME/workspace/infra/scripts/validate-sops-env.sh"
+}
+
+nox-infra-edit() {
+  nox-ensure-root || return
+  code "$NOXORIGIN_HOME/workspace/infra" "$@"
+}
+
+nox-help() {
+  print 'NoxOrigin shortcuts:'
+  print '  noxorigin              Open the umbrella workspace'
+  print '  noxcrm                 Enter the NoxCRM workspace'
+  print '  nox-billings           Enter the Nox-Billings workspace'
+  print '  nox-env-edit staging   Edit encrypted staging environment in VS Code'
+  print '  nox-env-edit production Edit encrypted production environment in VS Code'
+  print '  nox-env-validate NAME  Validate encrypted deployment environment'
+  print '  nox-infra-edit         Open workspace infrastructure'
+}
+
 noxcrm-edit() {
   code /home/namik/Documents/code/noxorigin/workspace "$@"
 }

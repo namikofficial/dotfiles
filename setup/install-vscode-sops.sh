@@ -14,6 +14,7 @@ fail() {
 }
 
 command -v sops >/dev/null 2>&1 || fail "sops is not installed or is not on PATH"
+command -v code >/dev/null 2>&1 || fail "code command is not installed or is not on PATH"
 [[ -f "$managed_settings" ]] || fail "managed settings file is missing: $managed_settings"
 [[ -f "$age_key_file" ]] || fail "age key file is missing: $age_key_file"
 [[ -r "$age_key_file" ]] || fail "age key file is not readable: $age_key_file"
@@ -36,7 +37,24 @@ fi
 
 chmod 600 "$age_key_file"
 
+install_extension() {
+  local extension_id="$1"
+  if ! code --list-extensions | grep -Fxq "$extension_id"; then
+    printf 'Installing VS Code extension %s\n' "$extension_id"
+    code --install-extension "$extension_id" --force >/dev/null
+  fi
+}
+
+install_extension "signageos.signageos-vscode-sops"
+install_extension "mikestead.dotenv"
+
+code --list-extensions | grep -Fxq "signageos.signageos-vscode-sops" \
+  || fail "SOPS VS Code extension is not installed"
+code --list-extensions | grep -Fxq "mikestead.dotenv" \
+  || fail "dotenv VS Code extension is not installed"
+
 printf 'VS Code SOPS settings installed.\n'
 printf 'Settings: %s\n' "$live_settings"
 printf 'Age key: %s (mode %s)\n' "$age_key_file" "$(stat -c '%a' "$age_key_file")"
-printf 'Open encrypted .sops files directly in VS Code and save normally.\n'
+printf 'Extensions: signageos.signageos-vscode-sops, mikestead.dotenv\n'
+printf 'Reload VS Code, then open encrypted .env.sops files and save normally.\n'

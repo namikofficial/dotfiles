@@ -30,6 +30,12 @@
     "{git,gitlens,chat-editing-snapshot-text-model,copilot,git-graph,git-graph-3}:*.qrc": "default",
     "*.qrc": "qt-core.qrcEditor"
   },
+  "files.associations": {
+    "*.env.sops": "dotenv"
+  },
+  "files.exclude": {
+    "**/.decrypted~*": true
+  },
   "qt-core.additionalQtPaths": [
     {
       "name": "Qt-5.15.19-linux-g++-x86_64_from_PATH",
