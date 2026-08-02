@@ -47,6 +47,28 @@ nox-env-edit() {
   code "$env_file"
 }
 
+nox-billings-env-edit() {
+  local environment="${1:-}"
+  case "$environment" in
+    staging|production) ;;
+    *) print -u2 "Usage: nox-billings-env-edit staging|production"; return 2 ;;
+  esac
+  local env_file="$NOXORIGIN_HOME/nox-billings/deploy/server/env.${environment}.env.sops"
+  [[ -f "$env_file" ]] || { print -u2 "Encrypted environment file not found: $env_file"; return 1; }
+  code "$env_file"
+}
+
+nox-tickets-env-edit() {
+  local environment="${1:-}"
+  case "$environment" in
+    staging|production) ;;
+    *) print -u2 "Usage: nox-tickets-env-edit staging|production"; return 2 ;;
+  esac
+  local env_file="$NOXORIGIN_HOME/nox-tickets/deploy/server/env.${environment}.env.sops"
+  [[ -f "$env_file" ]] || { print -u2 "Encrypted environment file not found: $env_file"; return 1; }
+  code "$env_file"
+}
+
 nox-env-validate() {
   nox-ensure-root || return
   local environment="${1:-}"
@@ -77,6 +99,8 @@ nox-help() {
   print '  nox-billings           Enter the Nox-Billings workspace'
   print '  nox-env-edit staging   Edit encrypted staging environment in VS Code'
   print '  nox-env-edit production Edit encrypted production environment in VS Code'
+  print '  nox-billings-env-edit NAME Edit Nox-Billings encrypted environment'
+  print '  nox-tickets-env-edit NAME Edit Nox-Tickets encrypted environment'
   print '  nox-env-validate NAME  Validate encrypted deployment environment'
   print '  nox-infra-edit         Open workspace infrastructure'
 }

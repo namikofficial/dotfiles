@@ -53,6 +53,8 @@ From any directory, the local shell helpers avoid path and key-file flags:
 ```zsh
 nox-env-edit staging
 nox-env-edit production
+nox-billings-env-edit staging
+nox-tickets-env-edit staging
 nox-env-validate staging
 nox-env-validate production
 nox-help
