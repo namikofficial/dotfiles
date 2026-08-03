@@ -329,6 +329,7 @@ enum Surface {
     Dnd,
     Clipboard,
     Share,
+    Sync,
     Wallpaper,
 }
 #[derive(Subcommand, Debug)]
@@ -769,6 +770,7 @@ fn toggle_surface(surface: &Surface) -> Result<(), CliError> {
         Surface::Settings => "toggleSettings",
         Surface::Clipboard => "toggleClipboardPanel",
         Surface::Share => "toggleSharePanel",
+        Surface::Sync => "toggleSyncPanel",
         Surface::Wallpaper => "toggleWallpaperPanel",
         Surface::Dnd => "toggleDnd",
     };
@@ -825,6 +827,7 @@ fn toggle_direct_surface(surface: &str) -> Result<(), CliError> {
         "media" => "toggleMediaPanelFromIpc",
         "clipboard" => "toggleClipboardPanel",
         "share" | "quick-share" => "toggleSharePanel",
+        "sync" => "toggleSyncPanel",
         "wallpaper" => "toggleWallpaperPanel",
         "settings" => "toggleSettings",
         _ => return Err(CliError::Usage(format!("unknown shell surface: {surface}"))),

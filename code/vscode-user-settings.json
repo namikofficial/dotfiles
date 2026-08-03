@@ -1,29 +1,63 @@
 {
   "chat.mcp.gallery.enabled": true,
+  "terminal.integrated.profiles.linux": {
+    "zsh (dotfiles)": {
+      "path": "/usr/bin/zsh",
+      "args": [
+        "-l"
+      ],
+      "env": {
+        "SHELL": "/usr/bin/zsh",
+        "ZSH_ENABLE_EXTRA_PLUGINS": "1"
+      }
+    }
+  },
+  "terminal.integrated.defaultProfile.linux": "zsh (dotfiles)",
+  "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font Mono, JetBrainsMono Nerd Font, JetBrains Mono, monospace",
+  "terminal.integrated.fontSize": 13,
+  "terminal.integrated.lineHeight": 1.15,
+  "terminal.integrated.cursorStyle": "line",
+  "terminal.integrated.scrollback": 10000,
+  "terminal.integrated.shellIntegration.enabled": true,
+  "terminal.integrated.enableMultiLinePasteWarning": "auto",
+  "editor.fontFamily": "JetBrainsMono Nerd Font Mono, JetBrainsMono Nerd Font, JetBrains Mono, monospace",
+  "editor.fontLigatures": true,
+  "editor.fontSize": 13,
+  "editor.minimap.enabled": false,
+  "editor.renderWhitespace": "boundary",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  "editor.stickyScroll.enabled": true,
+  "editor.formatOnSave": false,
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "workbench.startupEditor": "none",
+  "workbench.editor.enablePreview": false,
   "git.confirmSync": false,
   "git.autofetch": true,
   "git.ignoreRebaseWarning": true,
   "workbench.colorCustomizations": {
-    "editor.background": "#201c25",
-    "editor.foreground": "#f5f8ff",
-    "activityBar.background": "#201c25",
-    "activityBar.foreground": "#f5f8ff",
-    "statusBar.background": "#2f95b1",
-    "statusBar.foreground": "#201c25",
-    "sideBar.background": "#201c25",
-    "sideBar.foreground": "#f5f8ff",
-    "titleBar.activeBackground": "#201c25",
-    "titleBar.activeForeground": "#f5f8ff",
-    "tab.activeBackground": "#201c25",
-    "tab.activeForeground": "#f5f8ff",
-    "tab.inactiveForeground": "#a4a4ac"
+    "editor.background": "#04060b",
+    "editor.foreground": "#e8eefc",
+    "activityBar.background": "#04060b",
+    "activityBar.foreground": "#e8eefc",
+    "statusBar.background": "#d36d36",
+    "statusBar.foreground": "#04060b",
+    "sideBar.background": "#04060b",
+    "sideBar.foreground": "#e8eefc",
+    "titleBar.activeBackground": "#04060b",
+    "titleBar.activeForeground": "#e8eefc",
+    "tab.activeBackground": "#04060b",
+    "tab.activeForeground": "#e8eefc",
+    "tab.inactiveForeground": "#9196a0"
   },
   "github.copilot.enable": {
-    "*": false,
+    "*": true,
     "plaintext": false,
     "markdown": false,
-    "scminput": false,
-    "dotenv": false
+    "scminput": false
   },
   "workbench.editorAssociations": {
     "*.copilotmd": "vscode.markdown.preview.editor",
@@ -44,5 +78,11 @@
   ],
   "sops.enabled": true,
   "sops.binPath": "/usr/bin/sops",
-  "sops.defaults.ageKeyFile": "/home/namik/Documents/code/dotfiles/private/scripts/noxorigin/sops/age/keys.txt"
+  "sops.defaults.ageKeyFile": "/home/namik/Documents/code/dotfiles/private/scripts/noxorigin/sops/age/keys.txt",
+  "gitlens.ai.model": "vscode",
+  "gitlens.ai.vscode.model": "copilotcli:",
+  "github.copilot.nextEditSuggestions.eagerness": "high",
+  "yaml.disableSchemaDetection": [
+    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml"
+  ]
 }

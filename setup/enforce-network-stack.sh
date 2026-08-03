@@ -95,6 +95,7 @@ run_root systemctl unmask iwd.service
 run_root systemctl enable iwd.service systemd-networkd.service systemd-resolved.service
 run_root mkdir -p /etc/systemd/network
 run_root mkdir -p /etc/iwd
+run_root mkdir -p /etc/systemd/system/systemd-networkd-wait-online.service.d
 
 if ((DRY_RUN)); then
   echo '[dry-run] write /etc/iwd/main.conf'
@@ -111,6 +112,16 @@ else
     '[DriverQuirks]' \
     'PowerSaveDisable=iwlwifi' |
     as_root tee /etc/iwd/main.conf >/dev/null
+fi
+
+if ((DRY_RUN)); then
+  echo '[dry-run] write /etc/systemd/system/systemd-networkd-wait-online.service.d/10-wlan-only.conf'
+else
+  printf '%s\n' \
+    '[Service]' \
+    'ExecStart=' \
+    'ExecStart=/usr/lib/systemd/systemd-networkd-wait-online --interface=wlan0 --ipv4' |
+    as_root tee /etc/systemd/system/systemd-networkd-wait-online.service.d/10-wlan-only.conf >/dev/null
 fi
 
 network_file=""
@@ -138,6 +149,7 @@ fi
 
 run_root systemctl restart systemd-networkd.service
 run_root systemctl restart systemd-resolved.service
+run_root systemctl daemon-reload
 run_root ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 run_root systemctl stop NetworkManager.service

@@ -30,6 +30,7 @@ SURFACES=(
   "notifications"
   "calendar"
   "settings"
+  "sync"
   "capture"
 )
 
@@ -164,6 +165,7 @@ for close_call in \
   closeDashboard \
   closeCapture \
   closeSettings \
+  closeSyncPanel \
   closeRadialWheel; do
   quickshell ipc -p "$IPC_PATH" call noxctl "$close_call" >/dev/null 2>&1 || true
 done

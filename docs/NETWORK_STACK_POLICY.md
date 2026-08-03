@@ -32,6 +32,15 @@ The BSSID and channel are verification targets. iwd’s rank settings prefer
 5 GHz and disable 2.4 GHz selection; confirm the actual BSSID/channel with
 `iwctl station <interface> show` after connecting.
 
+To avoid a two-minute boot delay from unplugged Ethernet or Docker bridge
+interfaces, apply the online-wait optimization:
+
+```sh
+sudo ./setup/optimize-network-stack.sh
+```
+
+This limits `systemd-networkd-wait-online` to the active `wlan0` IPv4 route.
+
 ## Recovery
 
 If the Wi-Fi interface disappears after a driver or service failure:

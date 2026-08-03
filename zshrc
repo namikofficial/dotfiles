@@ -3,8 +3,8 @@
 typeset -g ZSH_HIGHLIGHT_WARNINGS=0
 
 # Android belongs to the workstation environment, not one project's config.
-if [ -r "$HOME/.config/environment.d/60-android.conf" ]; then
-  source "$HOME/.config/environment.d/60-android.conf"
+if [ -r "$HOME/.config/dotfiles/android-env.sh" ]; then
+  source "$HOME/.config/dotfiles/android-env.sh"
 fi
 
 # Color support for prompt/completion

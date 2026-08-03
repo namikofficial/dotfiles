@@ -11,6 +11,7 @@ PanelWindow {
     required property var noxd; required property var hyprland; required property var audio
     required property var battery; required property var network; required property var bluetooth
     required property var media; required property var notificationModel; required property var systemModel
+    required property var transfer; required property var syncthing
     property bool showNotificationBadge: !!(notificationModel && notificationModel.notifications && notificationModel.notifications.length > 0)
     property string monitorName: screen && screen.name ? screen.name : ""
     property var workspaceEntries: buildWorkspaceEntries()
@@ -45,6 +46,7 @@ PanelWindow {
     readonly property rect bluetoothGeometry: chipRect(btPill)
     readonly property rect volumeGeometry: chipRect(volPill)
     readonly property rect batteryGeometry: chipRect(batPill)
+    readonly property rect syncGeometry: chipRect(syncPill)
 
     function registerMorphChips() {
         var reg = shellRoot.triggerRegistry;
@@ -57,6 +59,7 @@ PanelWindow {
         reg.registerTrigger("quick-settings", monitorName, bluetoothGeometry, Theme.Tokens.radiusPill, "bluetooth");
         reg.registerTrigger("quick-settings", monitorName, volumeGeometry, Theme.Tokens.radiusPill, "volume");
         reg.registerTrigger("quick-settings", monitorName, batteryGeometry, Theme.Tokens.radiusPill, "battery");
+        reg.registerTrigger("sync", monitorName, syncGeometry, Theme.Tokens.radiusPill);
     }
     Timer { interval: 250; repeat: true; running: root.visible; onTriggered: root.registerMorphChips() }
     Timer {
@@ -127,6 +130,8 @@ PanelWindow {
     function mediaLabel() { if (media.status!=="available"||!media.active||!media.title) return ""; var a=media.artists&&media.artists.length?" — "+media.artists.join(", "):""; return media.title+a; }
     function netLabel() { if (network.status!=="available") return ""; if (network.connectivity==="full"||network.connectivity==="limited") return network.connectedSsid||"Network"; if (network.ethernet&&network.ethernet.length) return "Ethernet"; return "Offline"; }
     function btLabel() { if (bluetooth.status!=="available"||!bluetooth.adapterPresent) return ""; for (var i=0;i<bluetooth.devices.length;i++) if (bluetooth.devices[i].connected===true) return bluetooth.devices[i].name||"Bluetooth"; return bluetooth.powered?"Bluetooth":""; }
+    function syncActive() { return transfer.hasActiveTransfers || syncthing.syncing; }
+    function syncWarning() { return syncthing.hasErrors || (!syncthing.serviceActive && !syncthing.apiReachable); }
 
     // ── Main layout: background is transparent, chips float as individual pills ──
     RowLayout {
@@ -197,6 +202,37 @@ PanelWindow {
             }
             HoverHandler { onHoveredChanged: mediaPill.ho = hovered }
             TapHandler { onPressedChanged: mediaPill.pr = pressed; onTapped: { shellRoot.coordinator.toggle("media", monitorName, root.mediaChipGeometry); mediaPill.forceActiveFocus(); } }
+        }
+
+        FocusScope {
+            id: syncPill; property bool ho: false; property bool pr: false
+            implicitWidth: Math.max(pillHeight, syncRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
+            activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: "Sync"
+            Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: syncPill.pr ? Theme.Tokens.tonalPrimaryContainer : syncPill.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.65) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.45) }
+            RowLayout { id: syncRow; anchors.centerIn: parent; spacing: 4
+                Text { text: "⇄"; color: root.syncWarning() ? Theme.Tokens.stateWarning : root.syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                Text { text: "Sync"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                Rectangle {
+                    width: 6
+                    height: 6
+                    radius: 3
+                    color: root.syncWarning() ? Theme.Tokens.stateWarning : root.syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.stateSuccess
+                    SequentialAnimation on opacity {
+                        running: root.syncActive() && !Theme.Tokens.reducedMotion
+                        loops: Animation.Infinite
+                        NumberAnimation {
+                            to: 0.25
+                            duration: 600
+                        }
+                        NumberAnimation {
+                            to: 1
+                            duration: 600
+                        }
+                    }
+                }
+            }
+            HoverHandler { onHoveredChanged: syncPill.ho = hovered }
+            TapHandler { onPressedChanged: syncPill.pr = pressed; onTapped: { shellRoot.coordinator.toggle("sync", monitorName, root.syncGeometry); syncPill.forceActiveFocus(); } }
         }
 
         // Right status cluster

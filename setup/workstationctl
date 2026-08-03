@@ -103,7 +103,8 @@ backup_system() {
 apply_user() {
   "$SCRIPT_DIR/bootstrap.sh" --no-local-ai --no-zsh-plugins --no-tmux-plugins
   ln -sfn "$SCRIPT_DIR/workstationctl" "$HOME/.local/bin/workstationctl"
-  ln -sfn "$REPO_DIR/android/android-env.sh" "$HOME/.config/environment.d/60-android.conf"
+  ln -sfn "$REPO_DIR/android/android-env.conf" "$HOME/.config/environment.d/60-android.conf"
+  ln -sfn "$REPO_DIR/android/android-env.sh" "$HOME/.config/dotfiles/android-env.sh"
   ok 'user configuration linked'
 }
 

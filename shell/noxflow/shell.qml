@@ -33,6 +33,7 @@ ShellRoot {
     CalendarModel { id: calendarModel; Component.onCompleted: start() }
     ClipboardModel { id: clipboardModel }
     TransferModel { id: transferModel; noxd: daemonClient }
+    SyncthingModel { id: syncthingModel; Component.onCompleted: start() }
     WallpaperModel { id: wallpaperModel }
     MorphRegistry { id: morphRegistry }
     WeatherModel { id: weatherModel; Component.onCompleted: start() }
@@ -157,6 +158,22 @@ ShellRoot {
         }
     }
 
+    Variants {
+        model: Quickshell.screens
+        ShareSurface.SyncPanel {
+            required property var modelData
+            screen: modelData
+            noxd: daemonClient
+            transfer: transferModel
+            syncthing: syncthingModel
+            Component.onCompleted: {
+                panelController.registerPanel("sync", this)
+                surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel)
+            }
+            Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
+        }
+    }
+
     function toggleControlCentre() { panelController.toggle("quick-settings"); }
     function openControl()   { panelController.open("quick-settings"); }
     function openControlSection(section) { panelController.open("quick-settings", "", null, section); }
@@ -186,6 +203,9 @@ ShellRoot {
     function toggleSharePanel() { panelController.toggle("quick-share"); }
     function openSharePanel() { panelController.open("quick-share"); }
     function closeSharePanel() { panelController.close("quick-share"); }
+    function toggleSyncPanel() { panelController.toggle("sync"); }
+    function openSyncPanel() { panelController.open("sync"); }
+    function closeSyncPanel() { panelController.close("sync"); }
 
     // ── Radial Wheel (per-screen panel via InstanceTracker) ──
     Variants {
@@ -314,8 +334,11 @@ ShellRoot {
         function openMediaPanelFromIpc()    { return shellRoot.openMediaPanel(); }
         function toggleClipboardPanel() { return shellRoot.toggleClipboardPanel(); }
         function openClipboardPanel()   { return shellRoot.openClipboardPanel(); }
-        function toggleSharePanel() { return shellRoot.toggleSharePanel(); }
-        function openSharePanel()   { return shellRoot.openSharePanel(); }
+         function toggleSharePanel() { return shellRoot.toggleSharePanel(); }
+         function openSharePanel()   { return shellRoot.openSharePanel(); }
+         function toggleSyncPanel() { return shellRoot.toggleSyncPanel(); }
+         function openSyncPanel() { return shellRoot.openSyncPanel(); }
+         function closeSyncPanel() { return shellRoot.closeSyncPanel(); }
         function toggleWallpaperPanel() { return shellRoot.toggleWallpaperPanel(); }
         function openWallpaperPanel()   { return shellRoot.openWallpaperPanel(); }
         function closePanel()       { return shellRoot.coordinator.close(); }
@@ -339,9 +362,11 @@ ShellRoot {
             required property var modelData
             noxd: daemonClient; hyprland: hyprlandModel; audio: audioModel
             battery: batteryModel; network: networkModel; bluetooth: bluetoothModel; media: mediaModel
-            notificationModel: notificationModel
-            systemModel: systemModel
-            screen: modelData
+             notificationModel: notificationModel
+             systemModel: systemModel
+             transfer: transferModel
+             syncthing: syncthingModel
+             screen: modelData
         }
     }
 }

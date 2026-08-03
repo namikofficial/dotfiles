@@ -11,7 +11,7 @@ window {
 }
 
 button {
-  color: #f5f8ff;
+  color: #e8eefc;
   background-color: rgba(36, 37, 41, 0.94);
   border: 1px solid rgba(111, 148, 201, 0.45);
   border-radius: 14px;
@@ -68,23 +68,23 @@ button:hover {
 
 /* Generated palette overrides. */
 window {
-  background-color: rgba(19,24,34, 0.90);
+  background-color: rgba(4,6,11, 0.90);
 }
 
 button {
-  color: #f5f8ff;
-  background-color: rgba(30,34,44, 0.94);
-  border-color: rgba(76,118,135, 0.66);
+  color: #e8eefc;
+  background-color: rgba(15,17,22, 0.94);
+  border-color: rgba(148,83,50, 0.66);
 }
 
 button:hover,
 button:focus,
 button:active {
-  background-color: rgba(50,54,63, 0.98);
-  border-color: #5a9aaf;
+  background-color: rgba(37,38,43, 0.98);
+  border-color: #d36d36;
 }
 
 #firmware {
-  background-color: rgba(165,114,178, 0.20);
-  border-color: rgba(165,114,178, 0.70);
+  background-color: rgba(207,238,158, 0.20);
+  border-color: rgba(207,238,158, 0.70);
 }

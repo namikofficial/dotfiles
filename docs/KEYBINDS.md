@@ -54,6 +54,7 @@ flowchart LR
 | `Super + H` | Execute command | `~/.local/bin/hypr-phone menu` |
 | `Super + Shift + H` | Execute command | `~/.local/bin/hypr-phone mirror --profile default` |
 | `Super + Ctrl + H` | Execute command | `~/.config/hypr/scripts/syncthing-control.sh open-ui` |
+| `Super + Ctrl + S` | Execute command | `~/.local/bin/noxctl panel toggle sync` |
 | `Super + Alt + H` | Hyprland action | `workspace.toggle_special phone` |
 | `Super + Escape` | Execute command | `~/.config/hypr/scripts/power-menu.sh` |
 | `Super + Ctrl + L` | Execute command | `~/.config/hypr/scripts/lock.sh` |
