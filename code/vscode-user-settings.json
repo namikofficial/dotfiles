@@ -39,19 +39,19 @@
   "git.autofetch": true,
   "git.ignoreRebaseWarning": true,
   "workbench.colorCustomizations": {
-    "editor.background": "#04060b",
-    "editor.foreground": "#e8eefc",
-    "activityBar.background": "#04060b",
-    "activityBar.foreground": "#e8eefc",
-    "statusBar.background": "#d36d36",
-    "statusBar.foreground": "#04060b",
-    "sideBar.background": "#04060b",
-    "sideBar.foreground": "#e8eefc",
-    "titleBar.activeBackground": "#04060b",
-    "titleBar.activeForeground": "#e8eefc",
-    "tab.activeBackground": "#04060b",
-    "tab.activeForeground": "#e8eefc",
-    "tab.inactiveForeground": "#9196a0"
+    "editor.background": "#180e2a",
+    "editor.foreground": "#f5f8ff",
+    "activityBar.background": "#180e2a",
+    "activityBar.foreground": "#f5f8ff",
+    "statusBar.background": "#6557b4",
+    "statusBar.foreground": "#180e2a",
+    "sideBar.background": "#180e2a",
+    "sideBar.foreground": "#f5f8ff",
+    "titleBar.activeBackground": "#180e2a",
+    "titleBar.activeForeground": "#f5f8ff",
+    "tab.activeBackground": "#180e2a",
+    "tab.activeForeground": "#f5f8ff",
+    "tab.inactiveForeground": "#a19fae"
   },
   "github.copilot.enable": {
     "*": true,
@@ -83,12 +83,6 @@
   "gitlens.ai.vscode.model": "copilotcli:",
   "github.copilot.nextEditSuggestions.eagerness": "high",
   "yaml.disableSchemaDetection": [
-    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml",
-    "**/.github/workflows/*.yml",
-    "**/.github/workflows/*.yaml",
-    "**/.gitea/workflows/*.yml",
-    "**/.gitea/workflows/*.yaml",
-    "**/.forgejo/workflows/*.yml",
-    "**/.forgejo/workflows/*.yaml"
+    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml"
   ]
 }
