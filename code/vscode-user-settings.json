@@ -83,6 +83,12 @@
   "gitlens.ai.vscode.model": "copilotcli:",
   "github.copilot.nextEditSuggestions.eagerness": "high",
   "yaml.disableSchemaDetection": [
-    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml"
+    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml",
+    "**/.github/workflows/*.yml",
+    "**/.github/workflows/*.yaml",
+    "**/.gitea/workflows/*.yml",
+    "**/.gitea/workflows/*.yaml",
+    "**/.forgejo/workflows/*.yml",
+    "**/.forgejo/workflows/*.yaml"
   ]
 }
