@@ -8,7 +8,7 @@ import Quickshell.Io
 import "../../theme" as Theme
 import "../../components" as Components
 
-PanelWindow {
+Item {
     id: root
     required property var noxd
     required property var hyprland
@@ -52,14 +52,7 @@ PanelWindow {
     readonly property string defaultIcon: "\uF15B"
     readonly property var emptyLabels: ["No applications found","No open windows","No matching commands","","Ask anything\u2026","No clipboard history"]
 
-    anchors.top: true
-    anchors.bottom: true
-    anchors.left: true
-    anchors.right: true
-    exclusiveZone: 0
-    aboveWindows: true
-    focusable: true
-    color: "transparent"
+    anchors.fill: parent
     visible: lifecycle.active
 
     Connections {
@@ -69,15 +62,15 @@ PanelWindow {
     }
 
     // Scrim
-    Rectangle { anchors.fill: parent; color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, 0.10); opacity: lifecycle.active ? 1 : 0; TapHandler { onTapped: lifecycle.requestClose("clickOutside") } }
+    Rectangle { anchors.fill: parent; color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, Theme.Tokens.glassScrimAlpha); opacity: lifecycle.active ? 1 : 0; TapHandler { onTapped: lifecycle.requestClose("clickOutside") } }
 
     // Card
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(root.width * 0.46, Theme.Tokens.scaled(560))
         height: Math.min(root.height * 0.52, Theme.Tokens.scaled(440))
-        radius: Theme.Tokens.radiusXl; color: Theme.Tokens.surfaceSurfaceContainerHigh
-        border.color: Theme.Tokens.outlineDefault; border.width: 1
+        radius: Theme.Tokens.radiusXl; color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
+        border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
         scale: root.reducedMotion ? 1.0 : 0.9 + 0.1 * lifecycle.openProgress
         opacity: lifecycle.openProgress
 
@@ -93,10 +86,10 @@ PanelWindow {
             RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.spacingXs
                 Repeater { model: root.modes
                     delegate: Rectangle { required property int index; required property string modelData
-                        Layout.fillWidth: true; height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusPill
+                        Layout.fillWidth: true; Layout.preferredWidth: Theme.Tokens.scaled(88); Layout.minimumWidth: Theme.Tokens.scaled(64); height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusPill
                         color: root.activeMode === index ? Theme.Tokens.tonalPrimaryContainer : "transparent"
                         border.color: root.activeMode === index ? Theme.Tokens.tonalPrimary : "transparent"; border.width: root.activeMode === index ? 1 : 0
-                        Text { anchors.centerIn: parent; text: modelData
+                        Text { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingXs; text: modelData; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                             color: root.activeMode === index ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
                             font.pixelSize: Theme.Tokens.typographyLabelMedium }
                         TapHandler { onTapped: { root.activeMode = index; root.resetAi(); root.filterResults() } }
@@ -176,7 +169,45 @@ PanelWindow {
     function buildDefaultApps() { return [{ title:"Dolphin", icon:"\uF07C", subtitle:"File manager", action:"launch", actionParams:{command:"dolphin"} }, { title:"Firefox", icon:"\uF269", subtitle:"Browser", action:"launch", actionParams:{command:"firefox"} }, { title:"Kitty", icon:"\uF120", subtitle:"Terminal", action:"launch", actionParams:{command:"kitty"} }, { title:"Code", icon:"\uF121", subtitle:"VS Code", action:"launch", actionParams:{command:"code"} }, { title:"Settings", icon:"\uF013", subtitle:"Settings", action:"launch", actionParams:{command:"gnome-control-center"} }, { title:"Obsidian", icon:"\uF044", subtitle:"Notes", action:"launch", actionParams:{command:"obsidian"} }] }
 
     // ── Filtering ──
-    function filterResults() { if (activeMode === 0 && !root.scanStarted) { appCache = buildDefaultApps(); scanDesktopFiles() } var q = searchText.toLowerCase().trim(); selectedIndex = 0; if (activeMode === 4) { filteredResults = []; return } if (activeMode === 5) { if (!root.clipboardModel) { filteredResults = []; return } var ci = root.clipboardModel.asLauncherItems(20); filteredResults = q === "" ? ci : ci.filter(function(i) { return i.title.toLowerCase().indexOf(q) >= 0 }); return } if (activeMode === 3) { if (q === "") { filteredResults = []; return } filteredResults = [{ title:"= "+evaluateCalc(q), icon:"\uF1EC", subtitle:q }]; return } var src = activeMode === 0 ? buildAppResults() : activeMode === 1 ? buildWindowResults() : buildCommandResults(); if (q === "") { filteredResults = src.slice(0, 20); return } var r = []; for (var i = 0; i < src.length; i++) { var item = src[i]; if (((item.title||"")+" "+(item.subtitle||"")).toLowerCase().indexOf(q) >= 0) { r.push(item); if (r.length >= 30) break } } filteredResults = r }
+    function matchScore(item, query) {
+        var title = String(item.title || item.name || "").toLowerCase();
+        var haystack = (title + " " + String(item.subtitle || "")).toLowerCase();
+        if (query === "") return 0;
+        var exact = title === query ? 1000 : 0;
+        var prefix = title.indexOf(query) === 0 ? 500 : title.indexOf(query) >= 0 ? 250 : 0;
+        var cursor = 0;
+        for (var i = 0; i < query.length; i++) {
+            var at = haystack.indexOf(query[i], cursor);
+            if (at < 0) return -1;
+            cursor = at + 1;
+        }
+        return exact + prefix + Math.max(0, 100 - cursor);
+    }
+    function ranked(items, query, limit) {
+        var scored = [];
+        for (var i = 0; i < items.length; i++) {
+            var score = matchScore(items[i], query);
+            if (query === "" || score >= 0) scored.push({ item: items[i], score: score });
+        }
+        scored.sort(function(a, b) { return b.score - a.score; });
+        return scored.slice(0, limit || 30).map(function(entry) { return entry.item; });
+    }
+    function filterResults() {
+        if (activeMode === 0 && !root.scanStarted) { appCache = buildDefaultApps(); scanDesktopFiles(); }
+        var q = searchText.toLowerCase().trim();
+        selectedIndex = 0;
+        if (activeMode === 4) { filteredResults = []; return; }
+        if (activeMode === 5) {
+            if (!root.clipboardModel) { filteredResults = []; return; }
+            filteredResults = ranked(root.clipboardModel.asLauncherItems(20), q, 20); return;
+        }
+        if (activeMode === 3) {
+            if (q === "") { filteredResults = []; return; }
+            filteredResults = [{ title:"= " + evaluateCalc(q), icon:"\uF1EC", subtitle:q, action:"copy_result", actionParams:{value:evaluateCalc(q)} }]; return;
+        }
+        var src = activeMode === 0 ? buildAppResults() : activeMode === 1 ? buildWindowResults() : buildCommandResults();
+        filteredResults = ranked(src, q, q === "" ? 20 : 30);
+    }
     function buildAppResults() { return appCache.length > 0 ? appCache : buildDefaultApps() }
     function buildWindowResults() { try { if (!hyprland || !hyprland.windows) return []; var out = []; var wins = hyprland.windows; for (var i = 0; i < wins.length; i++) { var w = wins[i]; if (!w) continue; var wsLabel = ""; if (w.workspace) wsLabel = "ws " + (w.workspace.name || w.workspace.id || ""); out.push({ title:w.title||"Untitled", icon:"\uF2D2", subtitle:wsLabel, action:"focus_window", actionParams:{address:w.address||""} }) } return out } catch(e) { return [] } }
     function buildCommandResults() { return [{ title:"Lock", icon:"\uF023", subtitle:"Lock the screen", action:"lock", actionParams:{} }, { title:"Suspend", icon:"\uF186", subtitle:"Suspend to RAM", action:"suspend", actionParams:{} }, { title:"Reboot", icon:"\uF01E", subtitle:"Reboot the system", action:"reboot", actionParams:{} }, { title:"Power Off", icon:"\uF011", subtitle:"Shut down", action:"power_off", actionParams:{} }, { title:"Dolphin", icon:"\uF07C", subtitle:"Open file manager", action:"launch", actionParams:{command:"dolphin"} }, { title:"Screenshot", icon:"\uF030", subtitle:"Take a screenshot", action:"screenshot", actionParams:{} }, { title:"Reload shell", icon:"\uF021", subtitle:"Reload NoxFlow shell", action:"reload_shell", actionParams:{} }] }
@@ -184,7 +215,7 @@ PanelWindow {
     // Safe calculator
     function evaluateCalc(expr) { try { var tokens = []; var num = ""; for (var i = 0; i < expr.length; i++) { var ch = expr[i]; if (/[0-9.]/.test(ch)) { num += ch; continue } if (num) { tokens.push({t:"num",v:parseFloat(num)}); num = "" } if (ch === ' ') continue; if ('+-*/()%'.indexOf(ch) >= 0) { tokens.push({t:ch,v:ch}); continue } } if (num) tokens.push({t:"num",v:parseFloat(num)}); if (tokens.length === 0) return "?"; var pos = 0; function peek() { return pos < tokens.length ? tokens[pos] : null } function consume() { return pos < tokens.length ? tokens[pos++] : null } function parseExpr() { var left = parseTerm(); while (peek() && (peek().t === '+' || peek().t === '-')) { var op = consume().v; var right = parseTerm(); left = op === '+' ? left+right : left-right } return left } function parseTerm() { var left = parseFactor(); while (peek() && (peek().t === '*' || peek().t === '/' || peek().t === '%')) { var op = consume().v; var right = parseFactor(); if (op === '*') left *= right; else if (op === '/') { if (right === 0) throw "div0"; left /= right } else left %= right } return left } function parseFactor() { if (peek() && peek().t === '-') { consume(); return -parseFactor() } if (peek() && peek().t === '(') { consume(); var val = parseExpr(); if (peek() && peek().t === ')') consume(); return val } var tok = consume(); if (!tok || tok.t !== "num") throw "bad"; return tok.v } var result = parseExpr(); if (typeof result === "number" && isFinite(result)) return String(Math.round(result*100)/100); return "?" } catch(e) { return "?" } }
     function moveList(d) { if (filteredResults.length === 0) return; selectedIndex = (selectedIndex + d + filteredResults.length) % filteredResults.length; resultsList.currentIndex = selectedIndex }
-    function activateSelected() { if (selectedIndex < 0 || selectedIndex >= filteredResults.length) return; var item = filteredResults[selectedIndex]; if (!item || !item.action) return; switch (item.action) { case "launch": if (item.actionParams && item.actionParams.command) { launchProcess.command = ["sh","-c",item.actionParams.command]; launchProcess.running = true } lifecycle.requestClose("action"); break; case "focus_window": if (root.noxd && root.noxd.connected && item.actionParams && item.actionParams.address) root.noxd.runAction({window_focus:{address:item.actionParams.address}}); lifecycle.requestClose("action"); break; case "lock": if (root.noxd && root.noxd.connected) root.noxd.runAction({lock:{}}); lifecycle.requestClose("action"); break; case "suspend": if (root.noxd && root.noxd.connected) root.noxd.runAction({suspend:{}}); lifecycle.requestClose("action"); break; case "reboot": if (root.noxd && root.noxd.connected) root.noxd.runAction({reboot:{}}); lifecycle.requestClose("action"); break; case "power_off": if (root.noxd && root.noxd.connected) root.noxd.runAction({power_off:{}}); lifecycle.requestClose("action"); break; case "screenshot": lifecycle.requestClose("screenshot"); break; case "reload_shell": launchProcess.command = ["systemctl","--user","restart","noxflow-shell"]; launchProcess.running = true; lifecycle.requestClose("action"); break; default: if (root.noxd && root.noxd.connected) { var a = {}; a[item.action] = item.actionParams || {}; root.noxd.runAction(a) } lifecycle.requestClose("action"); break } }
+    function activateSelected() { if (selectedIndex < 0 || selectedIndex >= filteredResults.length) return; var item = filteredResults[selectedIndex]; if (!item || !item.action) return; switch (item.action) { case "launch": if (item.actionParams && item.actionParams.command) { launchProcess.command = [item.actionParams.command]; launchProcess.running = true } lifecycle.requestClose("action"); break; case "focus_window": if (root.noxd && root.noxd.connected && item.actionParams && item.actionParams.address) root.noxd.runAction({window_focus:{address:item.actionParams.address}}); lifecycle.requestClose("action"); break; case "lock": if (root.noxd && root.noxd.connected) root.noxd.runAction({lock:{}}); lifecycle.requestClose("action"); break; case "suspend": if (root.noxd && root.noxd.connected) root.noxd.runAction({suspend:{}}); lifecycle.requestClose("action"); break; case "reboot": if (root.noxd && root.noxd.connected) root.noxd.runAction({reboot:{}}); lifecycle.requestClose("action"); break; case "power_off": if (root.noxd && root.noxd.connected) root.noxd.runAction({power_off:{}}); lifecycle.requestClose("action"); break; case "screenshot": lifecycle.requestClose("screenshot"); break; case "reload_shell": launchProcess.command = ["systemctl","--user","restart","noxflow-shell.service"]; launchProcess.running = true; lifecycle.requestClose("action"); break; default: if (root.noxd && root.noxd.connected) { var a = {}; a[item.action] = item.actionParams || {}; root.noxd.runAction(a) } lifecycle.requestClose("action"); break } }
 
     function toggle() { lifecycle.toggle() }
     function open() { lifecycle.open() }

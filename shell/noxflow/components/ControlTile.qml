@@ -21,8 +21,8 @@ Rectangle {
     // tile; the previous height made subtitles collide with the next row.
     height: Theme.Tokens.scaled(68)
     radius: Theme.Tokens.radiusMd
-    color: root.pressed ? Theme.Tokens.surfaceSurfaceContainerHighest : root.hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : Theme.Tokens.surfaceSurface
-    border.color: Theme.Tokens.outlineSubtle
+    color: root.pressed ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHighest, 0.86) : root.hovered ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.76) : Theme.Tokens.glass(Theme.Tokens.surfaceSurface, Theme.Tokens.glassCardAlpha)
+    border.color: Theme.Tokens.glass(Theme.Tokens.outlineSubtle, Theme.Tokens.glassBorderAlpha)
     border.width: 1
     scale: root.pressed ? 0.985 : root.hovered ? 1.01 : 1.0
     Behavior on scale { NumberAnimation { duration: Theme.Tokens.durationShort; easing.type: Easing.OutCubic } }

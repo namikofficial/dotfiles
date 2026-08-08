@@ -10,15 +10,15 @@ Rectangle {
     property bool interactive: false
     property bool hovered: false
     property bool pressed: false
-    color: root.tonalColor
+    color: Theme.Tokens.glass(root.tonalColor, Theme.Tokens.glassCardAlpha)
     radius: root.cornerRadius
-    border.color: root.elevationLevel > 0 ? Theme.Tokens.outlineSubtle : "transparent"
+    border.color: root.elevationLevel > 0 ? Theme.Tokens.glass(Theme.Tokens.outlineSubtle, Theme.Tokens.glassBorderAlpha) : "transparent"
     border.width: root.elevationLevel > 0 ? 1 : 0
     opacity: enabled ? 1.0 : Theme.Tokens.opacityDisabled
 
     states: State {
         name: "hovered"
         when: root.interactive && root.hovered && root.enabled
-        PropertyChanges { target: root; color: Theme.Tokens.withAlpha(root.tonalColor, 0.92) }
+        PropertyChanges { target: root; color: Theme.Tokens.glass(root.tonalColor, Math.min(0.88, Theme.Tokens.glassCardAlpha + 0.12)) }
     }
 }

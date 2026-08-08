@@ -39,8 +39,8 @@ Item {
 
         Rectangle {
             anchors.fill: parent; radius: Theme.Tokens.radiusXl
-            color: Theme.Tokens.surfaceSurfaceContainerHigh
-            border.color: Theme.Tokens.outlineDefault; border.width: 1
+            color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
+            border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
             opacity: root.openProgress; scale: 0.9 + 0.1 * root.openProgress
             transformOrigin: Item.TopRight
 
@@ -77,8 +77,8 @@ Item {
                         height: grid.cellHeight - Theme.Tokens.spacingSm
                         radius: Theme.Tokens.radiusMd
                         clip: true
-                        color: Theme.Tokens.surfaceSurfaceHighest
-                        border.color: root.isCurrent(modelData.path) ? Theme.Tokens.tonalPrimary
+                            color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, Theme.Tokens.glassCardAlpha)
+                            border.color: root.isCurrent(modelData.path) ? Theme.Tokens.tonalPrimary
                             : grid.currentIndex === index ? Theme.Tokens.outlineFocus : "transparent"
                         border.width: root.isCurrent(modelData.path) ? 2 : (grid.currentIndex === index ? 2 : 0)
 
@@ -104,7 +104,7 @@ Item {
                         Rectangle {
                             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                             height: Theme.Tokens.scaled(22)
-                            color: Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.85)
+                            color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.86)
                             Text { anchors.fill: parent; anchors.leftMargin: Theme.Tokens.spacingXs; verticalAlignment: Text.AlignVCenter
                                 text: modelData.name; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyLabelSmall
                                 elide: Text.ElideRight }

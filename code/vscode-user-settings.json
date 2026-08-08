@@ -39,19 +39,19 @@
   "git.autofetch": true,
   "git.ignoreRebaseWarning": true,
   "workbench.colorCustomizations": {
-    "editor.background": "#180e2a",
-    "editor.foreground": "#f5f8ff",
-    "activityBar.background": "#180e2a",
-    "activityBar.foreground": "#f5f8ff",
-    "statusBar.background": "#6557b4",
-    "statusBar.foreground": "#180e2a",
-    "sideBar.background": "#180e2a",
-    "sideBar.foreground": "#f5f8ff",
-    "titleBar.activeBackground": "#180e2a",
-    "titleBar.activeForeground": "#f5f8ff",
-    "tab.activeBackground": "#180e2a",
-    "tab.activeForeground": "#f5f8ff",
-    "tab.inactiveForeground": "#a19fae"
+    "editor.background": "#151218",
+    "editor.foreground": "#f5eee9",
+    "activityBar.background": "#151218",
+    "activityBar.foreground": "#f5eee9",
+    "statusBar.background": "#c7957b",
+    "statusBar.foreground": "#151218",
+    "sideBar.background": "#151218",
+    "sideBar.foreground": "#f5eee9",
+    "titleBar.activeBackground": "#151218",
+    "titleBar.activeForeground": "#f5eee9",
+    "tab.activeBackground": "#151218",
+    "tab.activeForeground": "#f5eee9",
+    "tab.inactiveForeground": "#afa2a1"
   },
   "github.copilot.enable": {
     "*": true,
@@ -70,6 +70,14 @@
   "files.exclude": {
     "**/.decrypted~*": true
   },
+  "files.watcherExclude": {
+    "**/.git/objectsnode_modulestarget.gradlebuild.cxxandroid/app/buildnode_modules": true,
+    "**/target": true,
+    "**/.gradle": true,
+    "**/build": true,
+    "**/.cxx": true
+  },
+  "typescript.disableAutomaticTypeAcquisition": true,
   "qt-core.additionalQtPaths": [
     {
       "name": "Qt-5.15.19-linux-g++-x86_64_from_PATH",
@@ -83,6 +91,12 @@
   "gitlens.ai.vscode.model": "copilotcli:",
   "github.copilot.nextEditSuggestions.eagerness": "high",
   "yaml.disableSchemaDetection": [
-    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml"
+    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml",
+    "**/.github/workflows/*.yml",
+    "**/.github/workflows/*.yaml",
+    "**/.gitea/workflows/*.yml",
+    "**/.gitea/workflows/*.yaml",
+    "**/.forgejo/workflows/*.yml",
+    "**/.forgejo/workflows/*.yaml"
   ]
 }

@@ -47,8 +47,8 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.Tokens.radiusXl
-        color: Theme.Tokens.surfaceSurfaceContainerHigh
-        border.color: Theme.Tokens.outlineDefault; border.width: 1
+        color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
+        border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
         opacity: root.openProgress
         scale: 0.85 + 0.15 * root.openProgress
         transformOrigin: Item.TopRight
@@ -212,7 +212,7 @@ Item {
                                         ? Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip) + 24, Theme.Tokens.scaled(80))
                                         : Theme.Tokens.scaled(Theme.Tokens.heightChip)
                                     radius: Theme.Tokens.radiusSm
-                                    color: Theme.Tokens.surfaceSurfaceContainerHigh
+                                    color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, Theme.Tokens.glassCardAlpha)
 
                                     ColumnLayout {
                                         anchors.fill: parent

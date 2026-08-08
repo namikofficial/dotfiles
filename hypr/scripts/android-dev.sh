@@ -23,15 +23,22 @@ choose_avd() {
 case "${1:-menu}" in
   studio) exec android-studio ;;
   code) exec code "${2:-.}" ;;
-  start)
+  start | start-fast)
     command -v emulator >/dev/null || {
       printf 'Install Android Emulator from SDK Manager.\n' >&2
       exit 1
     }
+    mode="$1"
     avd="${2:-$(choose_avd)}"
+    memory="${NOX_ANDROID_EMULATOR_MEMORY_MB:-3072}"
+    cores="${NOX_ANDROID_EMULATOR_CORES:-2}"
+    if [[ "$mode" == start-fast ]]; then
+      memory=4096
+      cores=4
+    fi
     exec emulator -avd "$avd" -accel on -gpu host \
-      -memory "${NOX_ANDROID_EMULATOR_MEMORY_MB:-4096}" \
-      -cores "${NOX_ANDROID_EMULATOR_CORES:-4}" -no-boot-anim
+      -memory "$memory" -cores "$cores" -no-boot-anim -no-audio \
+      -camera-back none -camera-front none -no-metrics
     ;;
   stop) adb emu kill ;;
   logcat) exec kitty --title Logcat -e adb logcat -v color ;;
@@ -58,7 +65,7 @@ case "${1:-menu}" in
     esac
     ;;
   *)
-    printf 'Usage: %s {menu|studio|code|start [AVD]|stop|logcat|devices|health|install-emulator}\n' "$0" >&2
+    printf 'Usage: %s {menu|studio|code|start [AVD]|start-fast [AVD]|stop|logcat|devices|health|install-emulator}\n' "$0" >&2
     exit 2
     ;;
 esac

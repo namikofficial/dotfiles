@@ -52,6 +52,11 @@ PanelWindow {
     Component.onCompleted: initSettings()
 
     anchors.top: true; anchors.bottom: true; anchors.left: true; anchors.right: true
+    // The normal bar reserves 40px, so explicitly pull this fullscreen
+    // capture surface back over that band. Otherwise drag selection starts
+    // below the topbar and y=0 can never be selected.
+    margins.top: -Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
+    margins.bottom: 0
     exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
     visible: lifecycle.active
 
@@ -61,6 +66,7 @@ PanelWindow {
             showToolbar = false; showOcrResult = false; showWordOverlay = false
             hasSelection = false; selecting = false
             selX = 0; selY = 0; selW = 0; selH = 0
+            Qt.callLater(function() { focusRoot.forceActiveFocus(); })
         }
     }
 
@@ -82,7 +88,7 @@ PanelWindow {
     // ── Scrim ──
     Rectangle {
         anchors.fill: parent
-        color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, 0.6)
+        color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, Theme.Tokens.glassScrimAlpha)
 
         Rectangle {
             x: root.selX; y: root.selY; width: root.selW; height: root.selH
@@ -161,8 +167,8 @@ PanelWindow {
         height: Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
         implicitWidth: toolbarRow.width + Theme.Tokens.scaled(Theme.Tokens.spacingXl)
         radius: Theme.Tokens.radiusPill
-        color: Theme.Tokens.surfaceSurfaceContainerHigh
-        border.color: Theme.Tokens.outlineDefault; border.width: 1
+        color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, Theme.Tokens.glassPanelAlpha)
+        border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
         visible: root.showToolbar
         opacity: root.showToolbar ? 1 : 0
         scale: root.showToolbar ? 1 : 0.8
@@ -223,8 +229,8 @@ PanelWindow {
         width: Math.min(parent.width * 0.5, Theme.Tokens.scaled(500))
         height: Math.min(parent.height * 0.4, Theme.Tokens.scaled(300))
         radius: Theme.Tokens.radiusXl
-        color: Theme.Tokens.surfaceSurfaceContainerHigh
-        border.color: Theme.Tokens.outlineDefault; border.width: 1
+        color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, Theme.Tokens.glassPanelAlpha)
+        border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
         visible: root.showOcrResult
         opacity: root.showOcrResult ? 1 : 0
 
@@ -313,9 +319,15 @@ PanelWindow {
     }
 
     // ── Actions ──
-    function performAction(action) {
-        var region = Math.round(root.selX) + "," + Math.round(root.selY) + " "
+    function globalRegion() {
+        var ox = root.screen && root.screen.x !== undefined ? Number(root.screen.x) : 0
+        var oy = root.screen && root.screen.y !== undefined ? Number(root.screen.y) : 0
+        return Math.round(ox + root.selX) + "," + Math.round(oy + root.selY) + " "
             + Math.round(root.selW) + "x" + Math.round(root.selH)
+    }
+
+    function performAction(action) {
+        var region = root.globalRegion()
 
         switch (action) {
             case "copy":
@@ -389,8 +401,7 @@ PanelWindow {
     property string ocrBuffer: ""
 
     function performOcr() {
-        var region = Math.round(root.selX) + "," + Math.round(root.selY) + " "
-            + Math.round(root.selW) + "x" + Math.round(root.selH)
+        var region = root.globalRegion()
         root.showToolbar = false; root.showOcrResult = true
         root.ocrText = "Recognizing text…"; root.ocrWords = []; root.analysisType = ""
 
@@ -436,8 +447,7 @@ PanelWindow {
             notifyProcess.command = ["sh", "-c",
                 "notify-send 'OCR Copied' '" + snippet.replace(/'/g, "'\\''") + "' -t 3000"]
             notifyProcess.running = true
-            var region2 = Math.round(root.selX) + "," + Math.round(root.selY) + " "
-                + Math.round(root.selW) + "x" + Math.round(root.selH)
+            var region2 = root.globalRegion()
             tsvProcess.command = ["sh", "-c",
                 "grim -g \"" + region2 + "\" -s 2 - | tesseract stdin stdout -l "
                 + root.ocrLanguage + " tsv 2>/dev/null"]

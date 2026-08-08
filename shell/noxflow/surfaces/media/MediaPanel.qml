@@ -23,8 +23,8 @@ Item {
         Keys.onEscapePressed: lifecycle.requestClose("escape")
         Rectangle {
             anchors.fill: parent; radius: Theme.Tokens.radiusXl
-            color: Theme.Tokens.surfaceSurfaceContainerHigh
-            border.color: Theme.Tokens.outlineDefault; border.width: 1
+            color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
+            border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
             opacity: root.openProgress; scale: 0.92 + 0.08 * root.openProgress
             transformOrigin: Item.TopRight
             ColumnLayout {

@@ -33,16 +33,21 @@ PanelWindow {
     property bool active: activePanel !== "" || pendingPanel !== ""
     property real topMargin: targetTopMargin
     property real rightMargin: targetRightMargin
-    property real surfaceWidth: targetWidth
+    property real surfaceWidth: targetSurfaceWidth
     property real surfaceHeight: targetHeight
-    readonly property real targetTopMargin: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
-    readonly property real targetRightMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+    readonly property real targetTopMargin: Theme.Tokens.scaled(Theme.Tokens.spacingXs)
+    // The host spans the monitor so the visual frame can stay centered under
+    // the Dynamic Island. Keeping the layer full-width also makes every
+    // panel transition use the same coordinate space as the bar triggers.
+    readonly property real targetRightMargin: 0
     readonly property real targetBottomMargin: Theme.Tokens.scaled(Theme.Tokens.spacingLg)
-    readonly property real targetWidth: activePanel === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth)
+    readonly property real targetWidth: activePanel === "calendar" ? Theme.Tokens.scaled(520) : activePanel === "sync" ? Theme.Tokens.scaled(520) : activePanel === "quick-share" ? Theme.Tokens.scaled(460) : activePanel === "launcher" ? Theme.Tokens.scaled(620) : Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth)
+    readonly property real targetSurfaceWidth: screen ? screen.width : Theme.Tokens.scaled(1920)
     readonly property real targetHeight: activePanel === "media" ? Theme.Tokens.scaled(230) :
         (activePanel === "calendar" ? Theme.Tokens.scaled(650) :
+        (activePanel === "launcher" ? Theme.Tokens.scaled(520) :
         (activePanel === "notifications" ? Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)) :
-        Math.min(Theme.Tokens.scaled(720), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700))))
+        Math.min(Theme.Tokens.scaled(720), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)))))
     readonly property int morphDuration: Config.Motion.panelOpen
     property bool switching: pendingPanel !== ""
 
@@ -53,7 +58,7 @@ PanelWindow {
     // Visual frame geometry (animates between chip and panel).
     property real frameTop: topMargin
     property real frameRight: rightMargin
-    property real frameWidth: surfaceWidth
+    property real frameWidth: targetWidth
     property real frameHeight: surfaceHeight
     property real frameRadius: Theme.Tokens.radiusXl
     // Content choreography.
@@ -92,11 +97,12 @@ PanelWindow {
     // ── Visual frame (the morphing surface) ──
     Rectangle {
         id: frame
-        anchors.top: parent.top; anchors.right: parent.right
+        anchors.top: parent.top
+        x: Math.max(0, (parent.width - root.frameWidth) / 2)
         width: root.frameWidth; height: root.frameHeight
         radius: root.frameRadius
-        color: Theme.Tokens.surfaceSurfaceContainerHigh
-        border.color: Theme.Tokens.outlineDefault; border.width: 1
+        color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
+        border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
 
         Behavior on width { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
         Behavior on height { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
@@ -248,11 +254,13 @@ PanelWindow {
     // geometryFor(), whose origin override is intentionally the clicked bar
     // chip. Mixing the two leaves the loaded panel clipped to chip size.
     function targetGeometryFor(name) {
-        var width = name === "calendar" ? Theme.Tokens.scaled(520) : Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth);
-        var height = name === "media" ? Theme.Tokens.scaled(230) :
-            (name === "calendar" ? Theme.Tokens.scaled(650) :
-            (name === "notifications" ? Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)) :
-            Math.min(Theme.Tokens.scaled(720), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700))));
+        var width = name === "calendar" ? Theme.Tokens.scaled(520) : name === "sync" ? Theme.Tokens.scaled(520) : name === "quick-share" ? Theme.Tokens.scaled(460) : name === "launcher" ? Theme.Tokens.scaled(620) : Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth);
+        var height = Math.min(Theme.Tokens.scaled(720), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700));
+        if (name === "media") height = Theme.Tokens.scaled(230);
+        else if (name === "calendar") height = Theme.Tokens.scaled(650);
+        else if (name === "sync") height = Theme.Tokens.scaled(680);
+        else if (name === "quick-share") height = Theme.Tokens.scaled(560);
+        else if (name === "notifications") height = Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700));
         return { top: targetTopMargin, right: targetRightMargin, width: width, height: height };
     }
 
@@ -285,7 +293,7 @@ PanelWindow {
             // Immediately size the layer surface to the new target to avoid
             // clipping; the frame retargets to the new geometry.
             topMargin = targetTopMargin; rightMargin = targetRightMargin;
-            surfaceWidth = target.width; surfaceHeight = target.height;
+            surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
             frameTop = targetTopMargin; frameRight = targetRightMargin;
             frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
             // Origin chip visual updates for the incoming panel.
@@ -308,7 +316,7 @@ PanelWindow {
             // Phase 1: capture source geometry, size the window to the chip.
             var sourceG = geometryFor(name, rect);
             topMargin = sourceG.top; rightMargin = sourceG.right;
-            surfaceWidth = sourceG.width; surfaceHeight = sourceG.height;
+            surfaceWidth = targetSurfaceWidth; surfaceHeight = sourceG.height;
             frameTop = sourceG.top; frameRight = sourceG.right;
             frameWidth = sourceG.width; frameHeight = sourceG.height;
             frameRadius = Theme.Tokens.radiusPill;
@@ -319,7 +327,7 @@ PanelWindow {
             // Phase 2: animate window + frame to target.
             Qt.callLater(function() {
                 topMargin = targetTopMargin; rightMargin = targetRightMargin;
-                surfaceWidth = target.width; surfaceHeight = target.height;
+                surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
                 frameTop = targetTopMargin; frameRight = targetRightMargin;
                 frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
                 // Phase 3: crossfade at ~40% of the geometry transition.
@@ -327,7 +335,7 @@ PanelWindow {
             });
         } else {
             // No origin chip: just appear.
-            topMargin = target.top; rightMargin = target.right; surfaceWidth = target.width; surfaceHeight = target.height;
+            topMargin = target.top; rightMargin = target.right; surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
             frameTop = target.top; frameRight = target.right; frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
             compactOpacity = 0.0; compactTranslate = -Theme.Tokens.scaled(6);
             expandedOpacity = 1.0; expandedTranslate = 0.0;
@@ -391,7 +399,7 @@ PanelWindow {
             collapseTimer.restart();
         } else {
             // No origin: fade out and unmount.
-            topMargin = g.top; rightMargin = g.right; surfaceWidth = g.width; surfaceHeight = g.height;
+            topMargin = g.top; rightMargin = g.right; surfaceWidth = targetSurfaceWidth; surfaceHeight = g.height;
             collapseTimer.interval = Math.max(1, Math.round(Config.Motion.contentExit));
             collapseTimer.restart();
         }

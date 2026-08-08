@@ -93,7 +93,10 @@ ShellRoot {
                 "notifications": notificationComponent,
                 "media": mediaComponent,
                 "clipboard": clipboardComponent,
-                "wallpaper": wallpaperComponent
+                "wallpaper": wallpaperComponent,
+                "launcher": launcherComponent,
+                "quick-share": quickShareComponent,
+                "sync": syncComponent
             })
             Component {
                 id: quickSettingsComponent
@@ -124,6 +127,25 @@ ShellRoot {
                 id: wallpaperComponent
                 WallpaperSurface.WallpaperPanel { screen: morphSurface.screen; noxd: daemonClient; wallModel: wallpaperModel }
             }
+            Component {
+                id: launcherComponent
+                LauncherSurface.Launcher {
+                    noxd: daemonClient; hyprland: hyprlandModel; clipboardModel: clipboardModel
+                    onRequestCaptureAfterClose: shellRoot.openCapture()
+                }
+            }
+            Component {
+                id: quickShareComponent
+                ShareSurface.QuickSharePanel {
+                    screen: morphSurface.screen; noxd: daemonClient; transfer: transferModel
+                }
+            }
+            Component {
+                id: syncComponent
+                ShareSurface.SyncPanel {
+                    screen: morphSurface.screen; noxd: daemonClient; transfer: transferModel; syncthing: syncthingModel
+                }
+            }
             Component.onCompleted: {
                 panelController.registerPanel("quick-settings", this);
                 panelController.registerPanel("calendar", this);
@@ -131,46 +153,14 @@ ShellRoot {
                 panelController.registerPanel("media", this);
                 panelController.registerPanel("clipboard", this);
                 panelController.registerPanel("wallpaper", this);
-                surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
-            }
-            Component.onDestruction: {
-                surfaceCoordinatorInstance.unregister(this);
-            }
-        }
-    }
-
-    // ── Quick Share (left-side activity panel, per-screen) ──
-    // Coexists with right-side island states (design contract §3.2).
-    Variants {
-        model: Quickshell.screens
-        ShareSurface.QuickSharePanel {
-            required property var modelData
-            screen: modelData
-            noxd: daemonClient
-            transfer: transferModel
-            Component.onCompleted: {
+                panelController.registerPanel("launcher", this);
                 panelController.registerPanel("quick-share", this);
+                panelController.registerPanel("sync", this);
                 surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
             }
             Component.onDestruction: {
                 surfaceCoordinatorInstance.unregister(this);
             }
-        }
-    }
-
-    Variants {
-        model: Quickshell.screens
-        ShareSurface.SyncPanel {
-            required property var modelData
-            screen: modelData
-            noxd: daemonClient
-            transfer: transferModel
-            syncthing: syncthingModel
-            Component.onCompleted: {
-                panelController.registerPanel("sync", this)
-                surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel)
-            }
-            Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
         }
     }
 
@@ -276,23 +266,19 @@ ShellRoot {
         Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
     }
     property Process captureFullScreen: Process { running: false }
-    function toggleCapture() { capture.toggle(); }
-    function openCapture()   { capture.open(); }
+    function toggleCapture() {
+        if (capture.visible) { capture.close(); return; }
+        panelController.closeAll();
+        capture.open();
+    }
+    function openCapture()   { panelController.closeAll(); capture.open(); }
     function closeCapture()  { capture.close(); }
 
-    // ── Universal Launcher (modal, singleton, full-screen overlay) ──
-    LauncherSurface.Launcher {
-        id: launcher
-        noxd: daemonClient; hyprland: hyprlandModel
-        clipboardModel: clipboardModel
-        screen: Quickshell.activeScreen || null
-        onRequestCaptureAfterClose: shellRoot.openCapture()
-        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
-        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
-    }
-    function toggleLauncher() { launcher.toggle(); }
-    function openLauncher()   { launcher.open(); }
-    function closeLauncher()  { launcher.close(); }
+    // Launcher is mounted in the same per-monitor morph host as every other
+    // shell surface. The public functions remain unchanged for IPC/keybinds.
+    function toggleLauncher() { panelController.toggle("launcher"); }
+    function openLauncher()   { panelController.open("launcher"); }
+    function closeLauncher()  { panelController.close("launcher"); }
 
     // ── Global IPC handler for external keybind control ──
     IpcHandler {
@@ -310,7 +296,7 @@ ShellRoot {
         function openLauncher()   { shellRoot.openLauncher(); }
         function closeLauncher()  { shellRoot.closeLauncher(); }
         function toggleCapture() { shellRoot.toggleCapture(); }
-        function openCapture()   { shellRoot.capture.open(); }
+        function openCapture()   { shellRoot.openCapture(); }
         function closeCapture()  { shellRoot.closeCapture(); }
         function toggleCalendar() { shellRoot.toggleCalendar(); }
         function openCalendar()   { shellRoot.openCalendar(); }
@@ -345,28 +331,17 @@ ShellRoot {
         function panelState()       { return { activePanel: shellRoot.coordinator.activePanel, state: shellRoot.coordinator.state }; }
     }
 
-    // ── NoxIsland (per-screen) ──
+    // ── Unified top chrome (per-screen) ──
     Variants {
         model: Quickshell.screens
-        NoxIsland {
+        TopChrome {
             required property var modelData
-            noxd: daemonClient; audio: audioModel; brightness: brightnessModel
             screen: modelData
-        }
-    }
-
-    // ── Bar (per-screen) ──
-    Variants {
-        model: Quickshell.screens
-        Bar {
-            required property var modelData
             noxd: daemonClient; hyprland: hyprlandModel; audio: audioModel
-            battery: batteryModel; network: networkModel; bluetooth: bluetoothModel; media: mediaModel
-             notificationModel: notificationModel
-             systemModel: systemModel
-             transfer: transferModel
-             syncthing: syncthingModel
-             screen: modelData
+            battery: batteryModel; network: networkModel; bluetooth: bluetoothModel
+            media: mediaModel; notificationModel: notificationModel
+            systemModel: systemModel; transfer: transferModel; syncthing: syncthingModel
+            brightness: brightnessModel
         }
     }
 }

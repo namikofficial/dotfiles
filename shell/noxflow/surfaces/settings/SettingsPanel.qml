@@ -35,7 +35,7 @@ PanelWindow {
     // ── Scrim ──
     Rectangle {
         anchors.fill: parent
-        color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, 0.6)
+        color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, Theme.Tokens.glassScrimAlpha)
         opacity: root.openProgress
         TapHandler { onTapped: lifecycle.requestClose("clickOutside") }
     }
@@ -46,8 +46,8 @@ PanelWindow {
         width: Math.min(parent.width * 0.7, Theme.Tokens.scaled(520))
         height: Math.min(parent.height * 0.75, Theme.Tokens.scaled(500))
         radius: Theme.Tokens.radiusXl
-        color: Theme.Tokens.surfaceSurfaceContainerHigh
-        border.color: Theme.Tokens.outlineDefault; border.width: 1
+        color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
+        border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
         scale: 0.85 + 0.15 * root.openProgress
         opacity: root.openProgress
 

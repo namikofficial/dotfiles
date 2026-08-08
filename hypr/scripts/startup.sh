@@ -147,7 +147,7 @@ fi
   if [ -x "$HOME/.config/hypr/scripts/scratchpad-manager.sh" ]; then
     "$HOME/.config/hypr/scripts/scratchpad-manager.sh" menu >/dev/null 2>&1 || true
   fi
-  if command -v curl >/dev/null 2>&1 && command -v llama-swap-manager >/dev/null 2>&1; then
+  if [ "${HYPR_AUTOSTART_LOCAL_LLM:-0}" = "1" ] && command -v curl >/dev/null 2>&1 && command -v llama-swap-manager >/dev/null 2>&1; then
     if ! curl -fsS --max-time 1 "${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}" >/dev/null 2>&1; then
       llama-swap-manager start >/dev/null 2>&1 || true
     fi
@@ -232,9 +232,13 @@ if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   if [ "$_engine" = "wayle" ]; then
     log "starting Wayle (persisted engine)"
     "$HOME/.config/hypr/scripts/panel-switch.sh" wayle >/dev/null 2>&1 || true
-  else
-    log "noxflow engine: noxflow-shell.service starts via graphical-session.target"
-  fi
+else
+  log "noxflow engine: noxflow-shell.service starts via graphical-session.target"
+  # Clean up a stale fallback process from an earlier session. Wayle must not
+  # remain as a second layer-shell bar above the NoxFlow rail.
+  systemctl --user stop wayle.service >/dev/null 2>&1 || true
+  pkill -x wayle >/dev/null 2>&1 || true
+fi
   unset _engine_file _engine
 fi
 

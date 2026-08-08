@@ -68,6 +68,8 @@ QtObject {
             return;
         }
         var lines = data.split("\n").filter(function(l) { return l.trim() !== ""; });
+        var rejected = /(^|[^a-z])(anime|waifu|manga|hentai|kawaii|girl|girls|woman|women|character|avatar|hollow[ -]?knight|game[-_ ]?art|fanart|illustration)([^a-z]|$)/i;
+        lines = lines.filter(function(p) { return !rejected.test(p.split("/").pop()); });
         walls = lines.map(function(p) {
             var parts = p.split("/");
             return { path: p, name: parts[parts.length - 1] };

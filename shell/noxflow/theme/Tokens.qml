@@ -17,57 +17,57 @@ QtObject {
     readonly property string appearanceTransparency: "balanced"
 
     // ── Tonal (writable — switched by applyProfile) ──
-    property color tonalBackground: "#090B10"
-    property color tonalPrimary: "#8FA8FF"
-    property color tonalOnPrimary: "#101A3A"
-    property color tonalPrimaryContainer: "#293A75"
-    property color tonalOnPrimaryContainer: "#DCE3FF"
-    property color tonalSecondary: "#7CE0D3"
-    property color tonalOnSecondary: "#08201D"
-    property color tonalSecondaryContainer: "#20504A"
-    property color tonalOnSecondaryContainer: "#B8F3EA"
-    property color tonalTertiary: "#D4B6F2"
-    property color tonalOnTertiary: "#261334"
-    property color tonalTertiaryContainer: "#503A68"
-    property color tonalOnTertiaryContainer: "#EFDFFF"
+    property color tonalBackground: "#151218"
+    property color tonalPrimary: "#D6A083"
+    property color tonalOnPrimary: "#2A1813"
+    property color tonalPrimaryContainer: "#5A3931"
+    property color tonalOnPrimaryContainer: "#F8DCCB"
+    property color tonalSecondary: "#9DB9A6"
+    property color tonalOnSecondary: "#152019"
+    property color tonalSecondaryContainer: "#30483A"
+    property color tonalOnSecondaryContainer: "#D1E8D4"
+    property color tonalTertiary: "#B7A3C7"
+    property color tonalOnTertiary: "#21172A"
+    property color tonalTertiaryContainer: "#493A50"
+    property color tonalOnTertiaryContainer: "#EBDCF0"
 
     // ── Surface (writable) ──
-    property color surfaceSurface: "#11141C"
-    property color surfaceSurfaceContainerLow: "#0E1117"
-    property color surfaceSurfaceContainer: "#181C27"
-    property color surfaceSurfaceContainerHigh: "#222838"
-    property color surfaceSurfaceContainerHighest: "#2C3344"
-    property color surfaceSurfaceVariant: "#303749"
-    property color surfaceInverseSurface: "#E1E5EF"
-    property color surfaceInverseOnSurface: "#282B33"
+    property color surfaceSurface: "#1C1820"
+    property color surfaceSurfaceContainerLow: "#17141A"
+    property color surfaceSurfaceContainer: "#241F29"
+    property color surfaceSurfaceContainerHigh: "#302A36"
+    property color surfaceSurfaceContainerHighest: "#3D3442"
+    property color surfaceSurfaceVariant: "#463B49"
+    property color surfaceInverseSurface: "#F0E8E0"
+    property color surfaceInverseOnSurface: "#2B2529"
 
     // ── Text (writable) ──
-    property color textPrimary: "#F2F5FA"
-    property color textSecondary: "#D7DEEA"
-    property color textMuted: "#9EA8B8"
-    property color textDisabled: "#687181"
-    property color textOnPrimary: "#101A3A"
-    property color textOnSecondary: "#08201D"
-    property color textOnSurfaceVariant: "#C0C8D8"
+    property color textPrimary: "#F5EEE9"
+    property color textSecondary: "#DED4D0"
+    property color textMuted: "#AFA2A1"
+    property color textDisabled: "#71666C"
+    property color textOnPrimary: "#2A1813"
+    property color textOnSecondary: "#152019"
+    property color textOnSurfaceVariant: "#CBBEC0"
 
     // ── Outline (writable) ──
-    property color outlineDefault: "#596276"
-    property color outlineSubtle: "#303749"
-    property color outlineStrong: "#AAB5C9"
-    property color outlineFocus: "#B8C7FF"
+    property color outlineDefault: "#6E5D69"
+    property color outlineSubtle: "#4A3D49"
+    property color outlineStrong: "#B9A4A2"
+    property color outlineFocus: "#E0B39A"
 
     // ── State (writable) ──
-    property color stateSuccess: "#7ADFA4"
-    property color stateOnSuccess: "#092616"
-    property color stateWarning: "#F2C66D"
-    property color stateOnWarning: "#2B2107"
-    property color stateDanger: "#FF7993"
-    property color stateOnDanger: "#3A0713"
-    property color stateInfo: "#8DC9FF"
-    property color stateOnInfo: "#08233A"
+    property color stateSuccess: "#A9D3A7"
+    property color stateOnSuccess: "#152016"
+    property color stateWarning: "#E5C184"
+    property color stateOnWarning: "#2B2111"
+    property color stateDanger: "#E79A9A"
+    property color stateOnDanger: "#32191D"
+    property color stateInfo: "#A8C4D0"
+    property color stateOnInfo: "#17242A"
     property color stateHoverOverlay: "#FFFFFF"
     property color statePressedOverlay: "#000000"
-    property color stateFocusOverlay: "#B8C7FF"
+    property color stateFocusOverlay: "#E0B39A"
     property color stateDisabledOverlay: "#FFFFFF"
 
     // spacing
@@ -138,11 +138,21 @@ QtObject {
     readonly property real opacitySubtle: 0.8
     readonly property real opacityFull: 1.0
 
+    // Moderate glass: surfaces remain legible while the wallpaper contributes
+    // atmosphere. Keep these centralized so every surface can be tuned together.
+    readonly property real glassPanelAlpha: 0.82
+    readonly property real glassCardAlpha: 0.68
+    readonly property real glassOverlayAlpha: 0.54
+    readonly property real glassBorderAlpha: 0.52
+    readonly property real glassScrimAlpha: 0.24
+
     // blur
     readonly property int blurNone: 0
     readonly property int blurSubtle: 8
     readonly property int blurMedium: 16
     readonly property int blurStrong: 28
+
+    readonly property int glassBlur: 16
 
     // height
     readonly property int heightIconButton: 40
@@ -170,6 +180,7 @@ QtObject {
         if (value === undefined || value === null) return Qt.rgba(0, 0, 0, alpha);
         return Qt.rgba(value.r || 0, value.g || 0, value.b || 0, alpha);
     }
+    function glass(value, alpha) { return withAlpha(value, alpha === undefined ? glassPanelAlpha : alpha); }
 
     /// Apply a named theme profile, updating all color properties.
     function applyProfile(name) {

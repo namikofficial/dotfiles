@@ -43,6 +43,12 @@ SCRIPTS_BIN="${SCRIPTS_BIN:-$SCRIPTS_HOME/bin}"
 export DOTFILES_HOME SCRIPTS_HOME SCRIPTS_BIN
 unset zshrc_source zshrc_dir scripts_candidate
 
+# Local Google GTM/Analytics OAuth files stay outside the dotfiles repository.
+# These variables contain paths only; credentials and tokens are never tracked.
+export GTM_CREDENTIALS_FILE="${GTM_CREDENTIALS_FILE:-$HOME/.config/gtm-mcp/credentials.json}"
+export GTM_TOKEN_FILE="${GTM_TOKEN_FILE:-$HOME/.config/gtm-mcp/token.json}"
+export GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-$HOME/.config/gcloud/application_default_credentials.json}"
+
 # Optional startup profiler.
 if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
   zmodload zsh/zprof

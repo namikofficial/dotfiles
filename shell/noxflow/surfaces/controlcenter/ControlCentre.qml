@@ -224,8 +224,8 @@ Item {
         z: 20
         anchors.fill: parent
         radius: Theme.Tokens.radiusXl
-        color: Theme.Tokens.surfaceSurfaceContainerHigh
-        border.color: Theme.Tokens.tonalPrimary
+        color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
+        border.color: Theme.Tokens.glass(Theme.Tokens.tonalPrimary, Theme.Tokens.glassBorderAlpha)
         border.width: 1
         opacity: visible ? 1 : 0
         scale: visible ? 1 : 0.97
@@ -424,8 +424,8 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: Theme.Tokens.radiusXl
-        color: Theme.Tokens.surfaceSurfaceContainerHigh
-        border.color: Theme.Tokens.outlineDefault
+        color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
+        border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha)
         border.width: 1
         // MorphSurface owns the geometry transition. Keep the actual surface
         // opaque and stable so the panel never looks disabled during opening.

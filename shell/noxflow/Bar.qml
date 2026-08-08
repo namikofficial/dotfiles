@@ -6,8 +6,9 @@ import Quickshell.Wayland
 import "components"
 import "theme" as Theme
 
-PanelWindow {
+Item {
     id: root
+    property var screen
     required property var noxd; required property var hyprland; required property var audio
     required property var battery; required property var network; required property var bluetooth
     required property var media; required property var notificationModel; required property var systemModel
@@ -38,7 +39,7 @@ PanelWindow {
     readonly property real pillHeight: Theme.Tokens.scaled(32)
 
     function chipRect(item) { if (!item || !item.visible) return Qt.rect(0,0,0,0); var p = item.mapToItem(null,0,0); return Qt.rect(p.x,p.y,item.width,item.height); }
-    readonly property rect clockGeometry: chipRect(clockPill)
+    readonly property rect clockGeometry: Qt.rect(0, 0, 0, 0)
     readonly property rect mediaChipGeometry: chipRect(mediaPill)
     readonly property rect notificationChipGeometry: chipRect(notifPill)
     readonly property rect statusClusterGeometry: chipRect(statusCluster)
@@ -74,12 +75,6 @@ PanelWindow {
         }
     }
     Component.onCompleted: registerMorphChips()
-
-    screen: root.screen
-    anchors.top: true; anchors.left: true; anchors.right: true
-    exclusiveZone: Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
-    implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
-    color: "transparent"
 
     function objVal(o,a,b,f) { if (o&&o[a]!==undefined&&o[a]!==null) return o[a]; if (o&&b&&o[b]!==undefined&&o[b]!==null) return o[b]; return f; }
     function wsId(v) { if (v&&typeof v==="object") return objVal(v,"id","name",""); return v===undefined||v===null?"":String(v); }
@@ -133,7 +128,6 @@ PanelWindow {
     function syncActive() { return transfer.hasActiveTransfers || syncthing.syncing; }
     function syncWarning() { return syncthing.hasErrors || (!syncthing.serviceActive && !syncthing.apiReachable); }
 
-    // ── Main layout: background is transparent, chips float as individual pills ──
     RowLayout {
         anchors.fill: parent
         anchors.leftMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
@@ -141,7 +135,14 @@ PanelWindow {
         spacing: Theme.Tokens.scaled(6)
 
         // Left: workspaces
-        RowLayout { id: wsCluster; spacing: Theme.Tokens.scaled(4)
+        RowLayout {
+            id: wsCluster
+            spacing: Theme.Tokens.scaled(4)
+            // Repeater delegates do not contribute their implicit widths to
+            // RowLayout reliably. Reserve the real workspace footprint so
+            // the title/status controls can never paint over the chips.
+            Layout.minimumWidth: root.workspaceEntries.length * (root.pillHeight + Theme.Tokens.scaled(4))
+            Layout.preferredWidth: Layout.minimumWidth
             Repeater {
                 model: root.workspaceEntries
                 delegate: FocusScope {
@@ -158,12 +159,12 @@ PanelWindow {
 
                     // Pill background (always visible — no outer bar needed)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
-                        color: wsb.pr ? Theme.Tokens.tonalPrimaryContainer : wsb.active ? "#8FA8FF" : wsb.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.6) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.4)
+                        color: wsb.pr ? Theme.Tokens.tonalPrimaryContainer : wsb.active ? Theme.Tokens.tonalPrimary : wsb.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
                         border.color: wsb.active ? Theme.Tokens.tonalPrimary : wsb.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: wsb.active ? 1 : wsb.activeFocus ? 2 : 0
                         opacity: wsb.active ? 1.0 : wsb.occupied ? 0.85 : 0.55
                     }
                     Text { id: wlbl; anchors.centerIn: parent; text: modelData
-                        color: wsb.active ? "#101A3A" : wsb.occupied ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted
+                        color: wsb.active ? Theme.Tokens.tonalOnPrimary : wsb.occupied ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted
                         font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium; font.bold: wsb.active }
                     Rectangle { visible: wsb.urg; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 1; width: 6; height: 6; radius: 3; color: Theme.Tokens.stateDanger }
                     HoverHandler { onHoveredChanged: wsb.ho = hovered }
@@ -177,12 +178,9 @@ PanelWindow {
         }
 
         // Active window label (fades into the bar, low opacity)
-        Text {
-            Layout.fillWidth: true; Layout.minimumWidth: Theme.Tokens.scaled(40)
-            Layout.maximumWidth: Theme.Tokens.scaled(200)
-            elide: Text.ElideRight; text: root.activeWinLabel()
-            color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodySmall
-        }
+        // The active-window title belongs in the expanded island. Keeping it
+        // out of the transparent rail prevents long titles from colliding
+        // with workspace chips or the centered island.
 
         // Media pill
         FocusScope {
@@ -195,44 +193,13 @@ PanelWindow {
             Accessible.name: mediaText.text !== "" ? "Media: " + mediaText.text : ""
             Accessible.role: Accessible.Button
             Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
-                color: mediaPill.pr ? Theme.Tokens.tonalSecondaryContainer : mediaPill.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.6) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.4) }
+                color: mediaPill.pr ? Theme.Tokens.tonalSecondaryContainer : mediaPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
             RowLayout { id: mediaRow; anchors.centerIn: parent; spacing: 4
                 Text { text: "\uF001"; color: Theme.Tokens.tonalSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
                 Text { id: mediaText; Layout.maximumWidth: Theme.Tokens.scaled(220); elide: Text.ElideRight; text: root.mediaLabel(); color: Theme.Tokens.tonalSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
             }
             HoverHandler { onHoveredChanged: mediaPill.ho = hovered }
             TapHandler { onPressedChanged: mediaPill.pr = pressed; onTapped: { shellRoot.coordinator.toggle("media", monitorName, root.mediaChipGeometry); mediaPill.forceActiveFocus(); } }
-        }
-
-        FocusScope {
-            id: syncPill; property bool ho: false; property bool pr: false
-            implicitWidth: Math.max(pillHeight, syncRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
-            activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: "Sync"
-            Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: syncPill.pr ? Theme.Tokens.tonalPrimaryContainer : syncPill.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.65) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.45) }
-            RowLayout { id: syncRow; anchors.centerIn: parent; spacing: 4
-                Text { text: "⇄"; color: root.syncWarning() ? Theme.Tokens.stateWarning : root.syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                Text { text: "Sync"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                Rectangle {
-                    width: 6
-                    height: 6
-                    radius: 3
-                    color: root.syncWarning() ? Theme.Tokens.stateWarning : root.syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.stateSuccess
-                    SequentialAnimation on opacity {
-                        running: root.syncActive() && !Theme.Tokens.reducedMotion
-                        loops: Animation.Infinite
-                        NumberAnimation {
-                            to: 0.25
-                            duration: 600
-                        }
-                        NumberAnimation {
-                            to: 1
-                            duration: 600
-                        }
-                    }
-                }
-            }
-            HoverHandler { onHoveredChanged: syncPill.ho = hovered }
-            TapHandler { onPressedChanged: syncPill.pr = pressed; onTapped: { shellRoot.coordinator.toggle("sync", monitorName, root.syncGeometry); syncPill.forceActiveFocus(); } }
         }
 
         // Right status cluster
@@ -242,7 +209,7 @@ PanelWindow {
             FocusScope { id: netPill; property bool ho: false; visible: root.netLabel() !== ""
                 implicitWidth: Math.max(pillHeight, netRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
                 activeFocusOnTab: true; Accessible.name: "Network: " + root.netLabel()
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: netPill.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.6) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.4) }
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: netPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
                 RowLayout { id: netRow; anchors.centerIn: parent; spacing: 4
                     Text { text: "\uF1EB"; color: Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
                     Text { text: root.netLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight }
@@ -255,7 +222,7 @@ PanelWindow {
             FocusScope { id: btPill; property bool ho: false; visible: root.btLabel() !== ""
                 implicitWidth: Math.max(pillHeight, btRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
                 activeFocusOnTab: true; Accessible.name: "Bluetooth: " + root.btLabel()
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: btPill.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.6) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.4) }
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: btPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
                 RowLayout { id: btRow; anchors.centerIn: parent; spacing: 4
                     Text { text: "\uF294"; color: Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
                     Text { text: root.btLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
@@ -268,7 +235,7 @@ PanelWindow {
             FocusScope { id: volPill; property bool ho: false; visible: audio.status === "available"
                 implicitWidth: Math.max(pillHeight, volRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
                 activeFocusOnTab: true; Accessible.name: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolumePercent + " percent")
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: volPill.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.6) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.4) }
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: volPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
                 RowLayout { id: volRow; anchors.centerIn: parent; spacing: 4
                     Text { text: audio.outputMuted ? "\uF026" : "\uF028"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
                     Text { text: audio.outputVolumePercent + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; visible: !audio.outputMuted }
@@ -281,7 +248,7 @@ PanelWindow {
             FocusScope { id: batPill; property bool ho: false; visible: battery.status === "available" && battery.present && battery.percentage !== null
                 implicitWidth: Math.max(pillHeight, batRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
                 activeFocusOnTab: true; Accessible.name: "Battery: " + Math.round(battery.percentage) + "%"
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: batPill.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.6) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.4) }
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: batPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
                 RowLayout { id: batRow; anchors.centerIn: parent; spacing: 4
                     Text { text: battery.charging ? "\uF1E6" : battery.critical ? "\uF244" : "\uF240"; color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
                     Text { text: Math.round(battery.percentage) + "%"; color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
@@ -290,12 +257,40 @@ PanelWindow {
                 TapHandler { onTapped: root.toggleQuickSettingsFromBar(batPill, "battery") }
             }
 
+            // Sync belongs with the right-side status controls. Keeping it out
+            // of the flexible middle region prevents it from drifting or
+            // colliding with the active-window label and centered clock.
+            FocusScope {
+                id: syncPill; property bool ho: false; property bool pr: false
+                implicitWidth: Math.max(pillHeight, syncRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
+                activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: "Sync"
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: syncPill.pr ? Theme.Tokens.tonalPrimaryContainer : syncPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.80) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.66) }
+                RowLayout { id: syncRow; anchors.centerIn: parent; spacing: 4
+                    Text { text: "⇄"; color: root.syncWarning() ? Theme.Tokens.stateWarning : root.syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    Text { text: "Sync"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    Rectangle {
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: root.syncWarning() ? Theme.Tokens.stateWarning : root.syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.stateSuccess
+                        SequentialAnimation on opacity {
+                            running: root.syncActive() && !Theme.Tokens.reducedMotion
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 0.25; duration: 600 }
+                            NumberAnimation { to: 1; duration: 600 }
+                        }
+                    }
+                }
+                HoverHandler { onHoveredChanged: syncPill.ho = hovered }
+                TapHandler { onPressedChanged: syncPill.pr = pressed; onTapped: { shellRoot.coordinator.toggle("sync", monitorName, root.syncGeometry); syncPill.forceActiveFocus(); } }
+            }
+
             // Notification pill
             FocusScope { id: notifPill; property bool ho: false
                 implicitWidth: Math.max(pillHeight, notifR.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
                 activeFocusOnTab: true; Accessible.role: Accessible.Button
                 Accessible.name: root.showNotificationBadge ? root.notificationModel.notifications.length + " notifications" : "No notifications"
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: notifPill.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.6) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.4) }
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: notifPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
                 RowLayout { id: notifR; anchors.centerIn: parent; spacing: 4
                     Text { text: root.showNotificationBadge ? "\uF0F3" : "\uF0A2"; color: root.showNotificationBadge ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
                     Text { visible: root.showNotificationBadge; text: root.notificationModel && root.notificationModel.notifications ? String(root.notificationModel.notifications.length) : ""; color: Theme.Tokens.stateInfo; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: true }
@@ -308,22 +303,5 @@ PanelWindow {
             Rectangle { visible: root.providerDegraded; width: Theme.Tokens.scaled(8); height: Theme.Tokens.scaled(8); radius: Theme.Tokens.scaled(4); color: Theme.Tokens.stateWarning; HoverHandler {} }
         }
     }
-
-    // Clock pill (centered on top of the RowLayout via z-index)
-    FocusScope {
-        id: clockPill; anchors.centerIn: parent; z: 10; property bool ho: false
-        implicitWidth: Math.max(Theme.Tokens.scaled(60), cText.implicitWidth + Theme.Tokens.scaled(20))
-        implicitHeight: Theme.Tokens.scaled(34)
-        activeFocusOnTab: true; Accessible.name: "Current time: " + cText.text
-        Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
-            color: clockPill.ho ? Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceHighest, 0.7) : Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceContainerHigh, 0.5) }
-        Text { id: cText; anchors.centerIn: parent; text: Qt.formatTime(new Date(), "HH:mm")
-            color: Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyTitleMedium; font.bold: true
-            Timer { interval: 1000; repeat: true; running: true; onTriggered: cText.text = Qt.formatTime(new Date(), "HH:mm") }
-        }
-        HoverHandler { onHoveredChanged: clockPill.ho = hovered }
-        TapHandler { onTapped: root.toggleCalendarFromBar() }
-    }
-
 
 }

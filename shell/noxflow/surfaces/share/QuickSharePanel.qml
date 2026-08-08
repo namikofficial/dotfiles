@@ -5,7 +5,7 @@ import Quickshell.Wayland
 import "../../theme" as Theme
 import "../../components" as Components
 
-PanelWindow {
+Item {
     id: root
     property var screen
     required property var noxd
@@ -13,17 +13,7 @@ PanelWindow {
     Components.SurfaceLifecycle { id: lifecycle }
     property alias openProgress: lifecycle.openProgress
     Behavior on openProgress { NumberAnimation { duration: lifecycle.animDuration; easing.type: lifecycle.easingType } }
-    screen: root.screen
-    anchors.left: true
-    anchors.top: true
-    margins.left: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
-    margins.top: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingSm)
-    implicitWidth: Theme.Tokens.scaled(360)
-    implicitHeight: Math.min(Theme.Tokens.scaled(560), root.screen ? root.screen.height - margins.top - Theme.Tokens.scaled(24) : Theme.Tokens.scaled(560))
-    exclusiveZone: 0
-    aboveWindows: true
-    focusable: true
-    color: "transparent"
+    anchors.fill: parent
     visible: lifecycle.active
 
     Connections {
@@ -47,8 +37,8 @@ PanelWindow {
         Rectangle {
             anchors.fill: parent
             radius: Theme.Tokens.radiusXl
-            color: Theme.Tokens.surfaceSurfaceContainerHigh
-            border.color: Theme.Tokens.outlineDefault
+            color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
+            border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha)
             border.width: 1
             opacity: root.openProgress
             scale: 0.92 + root.openProgress * 0.08
