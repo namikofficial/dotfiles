@@ -2,7 +2,7 @@ local ctx = assert(NOX_HYPR, "NOX_HYPR context missing")
 
 hl.config({
   general = {
-    gaps_in = 6,
+    gaps_in = 4,
     gaps_out = 8,
     border_size = 2,
     resize_on_border = false,
@@ -17,7 +17,7 @@ hl.config({
     },
   },
   decoration = {
-    rounding = 14,
+    rounding = 12,
     rounding_power = 2,
     active_opacity = 1.0,
     inactive_opacity = 0.93,
@@ -31,13 +31,13 @@ hl.config({
     },
     blur = {
       enabled = true,
-      size = 10,
-      passes = 3,
+      size = 2,
+      passes = 2,
       vibrancy = 0.24,
     },
     motion_blur = {
       enabled = true,
-      samples = 6,
+      samples = 8,
     },
   },
   dwindle = {
