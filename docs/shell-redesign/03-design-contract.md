@@ -14,9 +14,8 @@ arbitrary animation durations once motion tokens exist.
 ```
 base desktop (windows, wallpaper)
   ├─ TopBar (persistent, per-screen, layer-shell)
-  │    ├─ workspaces (left)
+  │    ├─ workspaces + focused-app marker + CPU/RAM/temperature pills (left)
   │    ├─ central clock island (origin for morphs)
-  │    ├─ active-window label
   │    ├─ media pill
   │    └─ status cluster (network, bluetooth, volume, battery, notifications)
   ├─ CentralIsland (per-screen, below bar; OSD + morph origin)

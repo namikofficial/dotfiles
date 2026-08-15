@@ -46,10 +46,9 @@ Item {
                 // Header
                 RowLayout { Layout.fillWidth: true
                     Text { text: "Clipboard"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true; Layout.fillWidth: true }
-                    Text { text: "Clear"; color: Theme.Tokens.stateInfo; font.pixelSize: Theme.Tokens.typographyLabelMedium
+                    Components.TextButton { text: "Clear"; accessibleName: "Clear clipboard history"
                         visible: clipModel.count > 0
-                        TapHandler { onTapped: clipModel.clearAll() }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor } }
+                        onClicked: clipModel.clearAll() }
                     Components.IconButton { iconText: "\uF00D"; accessibleName: "Close clipboard"; onClicked: lifecycle.requestClose("closeButton") }
                 }
 

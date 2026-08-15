@@ -98,6 +98,9 @@ PanelWindow {
                         delegate: Rectangle {
                             required property string modelData; required property int index
                             readonly property bool isActive: Theme.Tokens.currentProfile === modelData
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Accessible.name: "Apply " + modelData + " theme"
 
                             Layout.fillWidth: true; height: Theme.Tokens.scaled(48)
                             radius: Theme.Tokens.radiusMd
@@ -170,12 +173,19 @@ PanelWindow {
 
                             TapHandler {
                                 onTapped: {
-                                    Theme.Tokens.applyProfile(modelData)
-                                    if (root.noxd && root.noxd.connected)
-                                        root.noxd.setSetting("appearance.profile", modelData)
+                                    parent.forceActiveFocus()
+                                    parent.applyTheme()
                                 }
                             }
                             HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            Keys.onReturnPressed: applyTheme()
+                            Keys.onSpacePressed: applyTheme()
+
+                            function applyTheme() {
+                                Theme.Tokens.applyProfile(modelData)
+                                if (root.noxd && root.noxd.connected)
+                                    root.noxd.setSetting("appearance.profile", modelData)
+                            }
                         }
                     }
 
@@ -214,6 +224,7 @@ PanelWindow {
                             font.pixelSize: Theme.Tokens.typographyBodyMedium; Layout.fillWidth: true
                         }
                         Components.Toggle {
+                            accessibleName: "Reduced motion"
                             checked: Theme.Tokens.reducedMotion
                             onToggled: {
                                 Theme.Tokens.reducedMotion = value

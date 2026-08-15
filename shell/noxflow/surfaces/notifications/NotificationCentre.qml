@@ -39,17 +39,16 @@ Item {
             // Header
             RowLayout { Layout.fillWidth: true
                 Text { text: root.showHistory ? "History" : "Notifications"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true; Layout.fillWidth: true }
-                Text { text: "Clear"; color: Theme.Tokens.stateInfo; font.pixelSize: Theme.Tokens.typographyLabelMedium
+                Components.TextButton { text: "Clear"; accessibleName: root.showHistory ? "Clear notification history" : "Clear notifications"
                     visible: (!root.showHistory && notifModel.notifications.length > 0) || (root.showHistory && notifModel.history.length > 0)
-                    TapHandler { onTapped: root.showHistory ? notifModel.clearHistory() : notifModel.clearAll() }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor } }
+                    onClicked: root.showHistory ? notifModel.clearHistory() : notifModel.clearAll() }
                 Components.IconButton { iconText: "\uF00D"; accessibleName: "Close"; onClicked: lifecycle.requestClose("closeButton") }
             }
 
             // DND (only in active tab)
             RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd; visible: !root.showHistory
                 Text { text: "Do Not Disturb"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; Layout.fillWidth: true }
-                Components.Toggle { checked: notifModel.dnd; onToggled: notifModel.toggleDnd() }
+                Components.Toggle { accessibleName: "Do Not Disturb"; checked: notifModel.dnd; onToggled: notifModel.toggleDnd() }
             }
 
             Components.Divider { Layout.fillWidth: true }
@@ -57,17 +56,21 @@ Item {
             // Tab picker
             RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.spacingXs
                 Rectangle { Layout.fillWidth: true; height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusPill
+                    activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: "Active notifications tab"
                     color: !root.showHistory ? Theme.Tokens.tonalPrimaryContainer : "transparent"
                     border.color: !root.showHistory ? Theme.Tokens.tonalPrimary : "transparent"; border.width: !root.showHistory ? 1 : 0
                     Text { anchors.centerIn: parent; text: "Active (" + notifModel.notifications.length + ")"
                         color: !root.showHistory ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelMedium }
-                    TapHandler { onTapped: root.showHistory = false } HoverHandler { cursorShape: Qt.PointingHandCursor } }
+                    TapHandler { onTapped: { root.showHistory = false; parent.forceActiveFocus(); } } HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    Keys.onReturnPressed: root.showHistory = false; Keys.onSpacePressed: root.showHistory = false }
                 Rectangle { Layout.fillWidth: true; height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusPill
+                    activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: "Notification history tab"
                     color: root.showHistory ? Theme.Tokens.tonalPrimaryContainer : "transparent"
                     border.color: root.showHistory ? Theme.Tokens.tonalPrimary : "transparent"; border.width: root.showHistory ? 1 : 0
                     Text { anchors.centerIn: parent; text: "History (" + notifModel.history.length + ")"
                         color: root.showHistory ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelMedium }
-                    TapHandler { onTapped: root.showHistory = true } HoverHandler { cursorShape: Qt.PointingHandCursor } }
+                    TapHandler { onTapped: { root.showHistory = true; parent.forceActiveFocus(); } } HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    Keys.onReturnPressed: root.showHistory = true; Keys.onSpacePressed: root.showHistory = true }
             }
 
             // List area

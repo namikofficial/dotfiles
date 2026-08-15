@@ -87,13 +87,16 @@ Item {
                 Repeater { model: root.modes
                     delegate: Rectangle { required property int index; required property string modelData
                         Layout.fillWidth: true; Layout.preferredWidth: Theme.Tokens.scaled(88); Layout.minimumWidth: Theme.Tokens.scaled(64); height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusPill
+                        activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: modelData + " launcher mode"
                         color: root.activeMode === index ? Theme.Tokens.tonalPrimaryContainer : "transparent"
                         border.color: root.activeMode === index ? Theme.Tokens.tonalPrimary : "transparent"; border.width: root.activeMode === index ? 1 : 0
                         Text { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingXs; text: modelData; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                             color: root.activeMode === index ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
                             font.pixelSize: Theme.Tokens.typographyLabelMedium }
-                        TapHandler { onTapped: { root.activeMode = index; root.resetAi(); root.filterResults() } }
+                        TapHandler { onTapped: { parent.forceActiveFocus(); root.activeMode = index; root.resetAi(); root.filterResults() } }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        Keys.onReturnPressed: { root.activeMode = index; root.resetAi(); root.filterResults() }
+                        Keys.onSpacePressed: { root.activeMode = index; root.resetAi(); root.filterResults() }
                     }
                 }
             }

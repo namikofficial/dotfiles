@@ -6,13 +6,14 @@ FocusScope {
     property real value: 0.5
     property real from: 0
     property real to: 1
+    property string accessibleName: "Slider"
     signal moved(real value)
     implicitWidth: 240
     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightControl)
     opacity: enabled ? 1.0 : Theme.Tokens.opacityDisabled
     activeFocusOnTab: true
     Accessible.role: Accessible.Slider
-    Accessible.name: "Slider"
+    Accessible.name: root.accessibleName
     // Accessible.value: root.value  // not available in this Qt version
     Rectangle { anchors.verticalCenter: parent.verticalCenter; x: 0; width: parent.width; height: 4; radius: 2; color: Theme.Tokens.outlineSubtle }
     Rectangle { anchors.verticalCenter: parent.verticalCenter; x: 0; width: Math.max(0, root.width * ((root.value - root.from) / (root.to - root.from))); height: 4; radius: 2; color: Theme.Tokens.tonalPrimary }

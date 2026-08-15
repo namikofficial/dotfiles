@@ -24,6 +24,7 @@ import "../config" as Config
 // the frame has collapsed.
 PanelWindow {
     id: root
+    signal panelClosed(string panelName)
     required property var screen
     required property var panelComponents
     property string activePanel: ""
@@ -210,6 +211,7 @@ PanelWindow {
         interval: Math.max(1, Math.round(root.morphDuration * 0.9))
         repeat: false
         onTriggered: {
+            var closedPanel = root.activePanel;
             root.closing = false;
             root.retainWindow = false;
             root.activePanel = "";
@@ -217,6 +219,7 @@ PanelWindow {
             root.morphPhase = MorphSurface.Phase.Settled;
             root.compactOpacity = 1.0;
             root.compactTranslate = 0.0;
+            root.panelClosed(closedPanel);
         }
     }
 

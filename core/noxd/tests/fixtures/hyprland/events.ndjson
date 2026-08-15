@@ -1,5 +1,10 @@
 workspace>>2
+workspacev2>>2,dev
+focusedmon>>eDP-1,2
+focusedmonv2>>eDP-1,2
 activewindow>>kitty,Terminal
+activewindowv2>>0xabc
+windowtitlev2>>0xabc,Terminal, project
 fullscreen>>1
 changefloating>>1
 urgent>>0xabc

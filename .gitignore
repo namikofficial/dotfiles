@@ -40,3 +40,4 @@ external/waylandar-backend/*.ics
 external/waylandar-backend/__pycache__/
 external/waylandar-backend/cache_*.json
 .codegraph/
+nvim/tools/node_modules/

@@ -20,6 +20,8 @@ PanelWindow {
     required property var transfer
     required property var syncthing
     required property var brightness
+    required property var updates
+    required property var calModel
 
     screen: root.screen
     anchors.top: true; anchors.left: true; anchors.right: true
@@ -38,6 +40,7 @@ PanelWindow {
         battery: root.battery; network: root.network; bluetooth: root.bluetooth
         media: root.media; notificationModel: root.notificationModel
         systemModel: root.systemModel; transfer: root.transfer; syncthing: root.syncthing
+        updates: root.updates
     }
 
     NoxIsland {
@@ -45,6 +48,8 @@ PanelWindow {
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         screen: root.screen
         noxd: root.noxd; audio: root.audio; brightness: root.brightness
+        hyprland: root.hyprland
+        calModel: root.calModel
         z: 10
     }
 }

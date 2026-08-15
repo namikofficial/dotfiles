@@ -296,7 +296,7 @@ neither).
 | Provider name | Emitted by | Data shape |
 |---------------|-----------|------------|
 | `settings` | Settings manager | `{ key, value }` — a setting was changed |
-| `hyprland` | Hyprland provider | `{ active_workspace, workspaces, active_window, monitors, ... }` |
+| `hyprland` | Hyprland provider | `{ focused_monitor, active_workspace, workspaces, active_window, monitors, ... }` |
 | `audio` | Audio provider | `{ output_volume, input_volume, output_muted, input_muted, outputs, inputs, ... }` |
 | `brightness` | Brightness provider | `{ percentage, minimum, step, backend_available, ... }` |
 | `power` | Power provider | `{ battery_present, percentage, charging_state, active_profile, ... }` |
@@ -308,6 +308,8 @@ neither).
 
 - Events within a single provider are ordered by `sequence`.
 - Events across different providers have no guaranteed ordering.
+- Hyprland focus/workspace events publish event-backed state immediately; a
+  subsequent `state_reconciled` event may refine it from compositor queries.
 - The first event(s) after a subscription ACK reflect state changes
   that occurred after the snapshot was captured.
 - A slow subscriber (bounded channel full) is silently dropped:

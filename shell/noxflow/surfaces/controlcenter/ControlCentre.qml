@@ -358,7 +358,7 @@ Item {
     Connections {
         target: lifecycle
         function onOpened() {
-            var tabs = { network: 2, bluetooth: 3, volume: 1, audio: 1, battery: 0, power: 0 };
+            var tabs = { network: 2, bluetooth: 3, volume: 1, audio: 1, battery: 0, power: 0, system: 4 };
             if (root.initialSection !== "" && tabs[root.initialSection] !== undefined) root.activeTab = tabs[root.initialSection];
             dndCheck.command = ["dunstctl", "get-paused"]; dndCheck.running = true;
         }
@@ -479,6 +479,10 @@ Item {
                             color: root.activeTab === index ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
                             border.color: root.activeTab === index ? Theme.Tokens.tonalPrimary : Theme.Tokens.outlineSubtle
                             border.width: 1
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Accessible.name: modelData + " tab"
+                            Accessible.description: root.activeTab === index ? "Selected" : ""
                             Text {
                                 id: tabLabel
                                 anchors.centerIn: parent
@@ -487,8 +491,12 @@ Item {
                                 font.pixelSize: Theme.Tokens.typographyLabelSmall
                                 font.family: Theme.Tokens.typographyFontFamily
                             }
-                            TapHandler { onTapped: root.activeTab = index }
+                            TapHandler { onTapped: { root.activeTab = index; parent.forceActiveFocus(); } }
                             HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            Keys.onReturnPressed: root.activeTab = index
+                            Keys.onSpacePressed: root.activeTab = index
+                            Keys.onLeftPressed: root.activeTab = Math.max(0, index - 1)
+                            Keys.onRightPressed: root.activeTab = Math.min(6, index + 1)
                         }
                     }
                 }
@@ -540,6 +548,7 @@ Item {
                             statusColor: root.focusEnabled ? Theme.Tokens.tonalPrimary : Theme.Tokens.textSecondary
                             toggleChecked: root.focusEnabled
                             showToggle: true
+                            Accessible.name: "Do Not Disturb"
                             onToggleChanged: function(value) {
                                 if (root.dndBusy) return;
                                 root.dndBusy = true;
@@ -557,6 +566,7 @@ Item {
                             Text { text: "☼"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
                             Components.Slider {
                                 Layout.fillWidth: true
+                                accessibleName: "Screen brightness"
                                 value: brightness.available ? brightness.percentage / 100 : 0.5
                                 onMoved: root.queueBrightness(value)
                             }
@@ -578,6 +588,7 @@ Item {
                             }
                             Components.Slider {
                                 Layout.fillWidth: true
+                                accessibleName: "Output volume"
                                 value: audio.available ? audio.outputVolume / audio.maxVolume : 0.5
                                 onMoved: root.queueVolume(value)
                             }
@@ -688,6 +699,7 @@ Item {
                             }
                             Components.Slider {
                                 Layout.fillWidth: true
+                                accessibleName: "Output volume"
                                 value: audio.available ? audio.outputVolume / audio.maxVolume : 0.5
                                 onMoved: function(value) {
                                     if (audio.available && root.noxd.connected)
@@ -742,6 +754,7 @@ Item {
                             }
                             Components.Slider {
                                 Layout.fillWidth: true
+                                accessibleName: "Input volume"
                                 value: audio.available ? audio.inputVolume / audio.maxVolume : 0.5
                                 onMoved: function(value) {
                                     if (audio.available && root.noxd.connected)
@@ -800,6 +813,7 @@ Item {
                             Text { text: "Wi-Fi"; color: Theme.Tokens.textPrimary }
                             Item { Layout.fillWidth: true }
                             Components.Toggle {
+                                accessibleName: "Wi-Fi"
                                 enabled: network.available
                                 checked: network.wifiEnabled === true
                                 onToggled: function(value) {
@@ -921,6 +935,7 @@ Item {
                                     anchors.margins: Theme.Tokens.spacingSm
                                     Text { text: modelData.name || "VPN"; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                                     Components.Toggle {
+                                        accessibleName: (modelData.name || "VPN") + " connection"
                                         checked: modelData.active === true
                                         onToggled: function(value) { if (root.noxd.connected) root.noxd.runAction({ network_vpn_set_enabled: { uuid: modelData.uuid || "", enabled: value } }) }
                                     }
@@ -948,6 +963,7 @@ Item {
                             Text { text: "Bluetooth"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
                             Item { Layout.fillWidth: true }
                             Components.Toggle {
+                                accessibleName: "Bluetooth"
                                 enabled: bluetooth.adapterPresent
                                 checked: bluetooth.powered
                                 onToggled: function(value) {
@@ -1042,7 +1058,7 @@ Item {
                                 }
                             }
                             Text {
-                                text: systemModel ? Math.round(systemModel.cpuUsage) + "%" : "--"
+                                text: systemModel && systemModel.ready ? Math.round(systemModel.cpuUsage) + "%" : "--"
                                 color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
                                 Layout.preferredWidth: 50
                             }
@@ -1056,15 +1072,44 @@ Item {
                                 Layout.fillWidth: true; height: 8; radius: 4
                                 color: Theme.Tokens.outlineSubtle
                                 Rectangle {
-                                    width: parent.width * (systemModel ? systemModel.memoryUsage / 100 : 0)
+                                    width: parent.width * Math.min(1, (systemModel ? systemModel.memPercent : 0) / 100)
                                     height: parent.height; radius: parent.radius
-                                    color: (systemModel && systemModel.memoryUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
+                                    color: (systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
                                 }
                             }
                             Text {
-                                text: systemModel ? Math.round(systemModel.memoryUsed / 1024) + "G/" + Math.round(systemModel.memoryTotal / 1024) + "G" : "--"
+                                text: systemModel && systemModel.ready ? (systemModel.memUsed / 1024 / 1024).toFixed(1) + "G/" + (systemModel.memTotal / 1024 / 1024).toFixed(1) + "G (" + Math.round(systemModel.memPercent) + "%)" : "--"
                                 color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
                             }
+                        }
+
+                        // Temperature
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
+                            Text { text: "Temp"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: systemModel && systemModel.ready && systemModel.cpuTemp > 0 ? Math.round(systemModel.cpuTemp) + "°C" : "Unavailable"
+                                color: (systemModel && systemModel.cpuTemp > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary
+                                font.pixelSize: Theme.Tokens.typographyBodySmall
+                            }
+                        }
+
+                        // GPU
+                        RowLayout {
+                            visible: !!systemModel && systemModel.gpuAvailable
+                            Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
+                            Text { text: systemModel && systemModel.gpuName ? systemModel.gpuName : "GPU"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; elide: Text.ElideRight; Layout.maximumWidth: 150 }
+                            Rectangle {
+                                Layout.fillWidth: true; height: 8; radius: 4
+                                color: Theme.Tokens.outlineSubtle
+                                Rectangle {
+                                    width: parent.width * Math.min(1, (systemModel ? systemModel.gpuUsage : 0) / 100)
+                                    height: parent.height; radius: parent.radius
+                                    color: (systemModel && systemModel.gpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
+                                }
+                            }
+                            Text { text: systemModel ? Math.round(systemModel.gpuUsage) + "%" : "--"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
                         }
 
                         // Disk
@@ -1075,13 +1120,13 @@ Item {
                                 Layout.fillWidth: true; height: 8; radius: 4
                                 color: Theme.Tokens.outlineSubtle
                                 Rectangle {
-                                    width: parent.width * (systemModel ? systemModel.diskUsage / 100 : 0)
+                                    width: parent.width * Math.min(1, (systemModel ? systemModel.diskPercent : 0) / 100)
                                     height: parent.height; radius: parent.radius
-                                    color: (systemModel && systemModel.diskUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
+                                    color: (systemModel && systemModel.diskPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
                                 }
                             }
                             Text {
-                                text: systemModel ? Math.round(systemModel.diskUsed / 1024) + "G/" + Math.round(systemModel.diskTotal / 1024) + "G" : "--"
+                                text: systemModel && systemModel.ready ? (systemModel.diskUsed / 1024 / 1024).toFixed(1) + "G/" + (systemModel.diskTotal / 1024 / 1024).toFixed(1) + "G (" + Math.round(systemModel.diskPercent) + "%)" : "--"
                                 color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
                             }
                         }
@@ -1114,6 +1159,7 @@ Item {
                             }
                             Components.Slider {
                                 Layout.fillWidth: true
+                                accessibleName: "Microphone volume"
                                 value: audio.available ? audio.inputVolume / audio.maxVolume : 0.5
                                 onMoved: function(value) {
                                     if (audio.available && root.noxd.connected)

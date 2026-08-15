@@ -17,6 +17,11 @@ Rectangle {
     signal clicked()
     signal toggleChanged(bool value)
 
+    activeFocusOnTab: root.active
+    Accessible.role: root.showToggle ? Accessible.CheckBox : Accessible.Button
+    Accessible.name: root.label + (root.subtitle !== "" ? ", " + root.subtitle : "")
+    Accessible.checked: root.showToggle && root.toggleChecked
+
     // Two lines of copy plus vertical padding need more than the old 52px
     // tile; the previous height made subtitles collide with the next row.
     height: Theme.Tokens.scaled(68)
@@ -58,6 +63,7 @@ Rectangle {
             id: controlToggle
             visible: root.showToggle
             checked: root.toggleChecked
+            accessibleName: root.label
             onToggled: function(value) { root.toggleChanged(value) }
         }
     }
@@ -66,4 +72,13 @@ Rectangle {
         onTapped: { if (root.active && !root.showToggle) root.clicked() }
     }
     HoverHandler { cursorShape: Qt.PointingHandCursor; onHoveredChanged: root.hovered = hovered }
+    Keys.onSpacePressed: root.activate()
+    Keys.onReturnPressed: root.activate()
+
+    function activate() {
+        if (!root.active) return;
+        root.forceActiveFocus();
+        if (root.showToggle) root.toggleChanged(!root.toggleChecked);
+        else root.clicked();
+    }
 }

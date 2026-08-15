@@ -281,6 +281,7 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true; visible: root.ocrWords.length > 0
                 Components.Toggle {
+                    accessibleName: "Show word highlights"
                     checked: root.showWordOverlay
                     onToggled: root.showWordOverlay = !root.showWordOverlay
                 }

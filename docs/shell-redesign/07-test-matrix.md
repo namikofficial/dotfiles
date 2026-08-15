@@ -94,6 +94,9 @@ systemd-analyze --user verify systemd/user/*.service
 | 38 | Minimize/restore | `SUPER+SHIFT+M` then `SUPER+ALT+M` | Window returns to original workspace |
 | 39 | Group + minimize | Group 2 windows, minimize, restore | Group intact; window returns |
 | 40 | Fullscreen restore | Minimize fullscreen window, restore | Fullscreen restored |
+| 40a | Workspace focus feedback | Switch rapidly by click and keyboard | Target chip updates immediately, then confirms without flicker |
+| 40b | Active app chip | Focus windows and change a tab title | Active chip shows the app marker/name; tooltip title stays current |
+| 40c | Empty and multi-monitor workspaces | Focus empty workspaces on each monitor | Each monitor retains its own active chip; no workspace list disappears |
 
 ## 8. System
 
@@ -106,6 +109,8 @@ systemd-analyze --user verify systemd/user/*.service
 | 45 | Backend crash | Kill noxd → restart | Providers recover; shell reconnects |
 | 46 | Memory | Open/close all panels 20× | No unbounded growth (watch `ps` RSS) |
 | 47 | QML warnings | `journalctl --user -u noxflow-shell` | Zero warnings/errors (except benign FileView first-run) |
+| 48 | Application opacity | Compare focused/background apps on light and dark wallpapers | Focused app is 0.96, inactive apps 0.84, text remains readable |
+| 49 | Opaque stability exception | Focus/unfocus Android Studio | Android Studio remains fully opaque |
 
 ---
 

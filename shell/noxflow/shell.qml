@@ -37,7 +37,8 @@ ShellRoot {
     WallpaperModel { id: wallpaperModel }
     MorphRegistry { id: morphRegistry }
     WeatherModel { id: weatherModel; Component.onCompleted: start() }
-    SystemModel { id: systemModel; Component.onCompleted: start() }
+    SystemModel { id: systemModelInstance; Component.onCompleted: start() }
+    UpdateModel { id: updateModel; Component.onCompleted: start() }
     CaptureSurface.QuickSnipSettings { id: quickSnipSettings; Component.onCompleted: load() }
 
     // ── Per-screen instance trackers ──
@@ -104,7 +105,7 @@ ShellRoot {
                     screen: morphSurface.screen
                     noxd: daemonClient; audio: audioModel; brightness: brightnessModel
                     network: networkModel; bluetooth: bluetoothModel; battery: batteryModel
-                    power: powerModel; hyprland: hyprlandModel; systemModel: systemModel
+                    power: powerModel; hyprland: hyprlandModel; systemModel: systemModelInstance
                 }
             }
             Component {
@@ -157,6 +158,10 @@ ShellRoot {
                 panelController.registerPanel("quick-share", this);
                 panelController.registerPanel("sync", this);
                 surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
+            }
+            Connections {
+                target: morphSurface
+                function onPanelClosed(panelName) { panelController.surfaceClosed(panelName, morphSurface); }
             }
             Component.onDestruction: {
                 surfaceCoordinatorInstance.unregister(this);
@@ -225,7 +230,7 @@ ShellRoot {
         audio: audioModel; battery: batteryModel; network: networkModel
         calModel: calendarModel
         weatherModel: weatherModel
-        systemModel: systemModel
+        systemModel: systemModelInstance
         screen: Quickshell.activeScreen || null
         onRequestCaptureAfterClose: shellRoot.openCapture()
         Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
@@ -340,8 +345,9 @@ ShellRoot {
             noxd: daemonClient; hyprland: hyprlandModel; audio: audioModel
             battery: batteryModel; network: networkModel; bluetooth: bluetoothModel
             media: mediaModel; notificationModel: notificationModel
-            systemModel: systemModel; transfer: transferModel; syncthing: syncthingModel
-            brightness: brightnessModel
+            systemModel: systemModelInstance; transfer: transferModel; syncthing: syncthingModel
+            brightness: brightnessModel; updates: updateModel
+ calModel: calendarModel
         }
     }
 }

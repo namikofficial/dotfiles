@@ -1,137 +1,95 @@
 return {
   {
+    "folke/snacks.nvim",
+    priority = 1000,
+    lazy = false,
+    ---@type snacks.Config
+    opts = {
+      bigfile = { enabled = true, notify = false },
+      dashboard = { enabled = true },
+      explorer = { enabled = true, replace_netrw = true, trash = true },
+      indent = { enabled = true, animate = { enabled = false } },
+      input = { enabled = true },
+      notifier = { enabled = true, timeout = 3000 },
+      picker = { enabled = true },
+      quickfile = { enabled = true },
+      scratch = { enabled = true },
+      scope = { enabled = true },
+      terminal = { enabled = true },
+      animate = { enabled = false },
+      scroll = { enabled = false },
+      statuscolumn = { enabled = false },
+      words = { enabled = false },
+      styles = {
+        notification = { wo = { winblend = 5 } },
+        terminal = { wo = { winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder" } },
+      },
+    },
+    keys = {
+      { "<leader>e", function() Snacks.explorer() end, desc = "File explorer" },
+      { "<leader><space>", function() Snacks.picker.smart() end, desc = "Smart files" },
+      { "<leader>ff", function() Snacks.picker.files({ cwd = require("noxflow.utils").buf_root(0) }) end, desc = "Find files" },
+      { "<leader>fg", function() Snacks.picker.grep({ cwd = require("noxflow.utils").buf_root(0) }) end, desc = "Live grep" },
+      { "<leader>fb", function() Snacks.picker.buffers() end, desc = "Find buffers" },
+      { "<leader>fr", function() Snacks.picker.recent() end, desc = "Recent files" },
+      { "<leader>fp", function() Snacks.picker.projects() end, desc = "Projects" },
+      { "<leader>fh", function() Snacks.picker.help() end, desc = "Help tags" },
+      { "<leader>fc", function() Snacks.picker.files({ cwd = vim.fn.stdpath("config") }) end, desc = "Config files" },
+      { "<leader>ss", function() Snacks.picker.lsp_symbols() end, desc = "Document symbols" },
+      { "<leader>sS", function() Snacks.picker.lsp_workspace_symbols() end, desc = "Workspace symbols" },
+      { "<leader>sw", function() Snacks.picker.grep_word({ cwd = require("noxflow.utils").buf_root(0) }) end, desc = "Search word" },
+      { "<leader>gg", function() Snacks.lazygit() end, desc = "LazyGit" },
+      { "<leader>tt", function() Snacks.terminal.toggle(nil, { cwd = require("noxflow.utils").buf_root(0), id = "shell:" .. require("noxflow.utils").buf_root(0) }) end, desc = "Project terminal" },
+      { "<leader>tf", function() Snacks.terminal.toggle(nil, { cwd = require("noxflow.utils").buf_root(0), id = "shell-float:" .. require("noxflow.utils").buf_root(0), win = { style = "float" } }) end, desc = "Floating terminal" },
+      { "<leader>bd", function() Snacks.bufdelete() end, desc = "Delete buffer" },
+      { "<leader>bo", function() Snacks.bufdelete.other() end, desc = "Delete other buffers" },
+      { "gd", function() Snacks.picker.lsp_definitions() end, desc = "Go to definition" },
+      { "<leader>wv", "<cmd>vsplit<cr>", desc = "Vertical split" },
+      { "<leader>ws", "<cmd>split<cr>", desc = "Horizontal split" },
+      { "<leader>wq", "<cmd>close<cr>", desc = "Close window" },
+    },
+  },
+  {
     "folke/which-key.nvim",
     event = "VeryLazy",
     opts = {
       delay = 300,
       spec = {
         { "<leader>f", group = "find" },
-        { "<leader>b", group = "buffer" },
-        { "<leader>c", group = "code" },
-        { "<leader>d", group = "debug" },
+        { "<leader>s", group = "search" },
         { "<leader>g", group = "git" },
-        { "<leader>n", group = "noxflow" },
-        { "<leader>s", group = "split" },
+        { "<leader>c", group = "code" },
+        { "<leader>x", group = "diagnostics" },
+        { "<leader>a", group = "agents" },
         { "<leader>t", group = "terminal" },
+        { "<leader>b", group = "buffers" },
+        { "<leader>w", group = "windows" },
       },
     },
   },
   {
-    "nvim-telescope/telescope.nvim",
-    branch = "0.1.x",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-telescope/telescope-fzf-native.nvim",
-    },
-    config = function()
-      local telescope = require("telescope")
-      telescope.setup({
-        defaults = {
-          layout_strategy = "horizontal",
-          sorting_strategy = "ascending",
-          layout_config = {
-            prompt_position = "top",
-          },
-        },
-        pickers = {
-          find_files = {
-            hidden = true,
-          },
-        },
-      })
-      pcall(telescope.load_extension, "fzf")
-
-      local builtin = require("telescope.builtin")
-      vim.keymap.set("n", "<C-p>", builtin.find_files, { desc = "Find files" })
-      vim.keymap.set("n", "<leader>ff", builtin.find_files, { desc = "Find files" })
-      vim.keymap.set("n", "<leader>fg", builtin.live_grep, { desc = "Live grep" })
-      vim.keymap.set("n", "<leader>fb", builtin.buffers, { desc = "Find buffers" })
-      vim.keymap.set("n", "<leader>fh", builtin.help_tags, { desc = "Help tags" })
-    end,
-  },
-  {
-    "nvim-telescope/telescope-fzf-native.nvim",
-    build = "make",
-  },
-  {
-    "stevearc/oil.nvim",
-    dependencies = { "nvim-tree/nvim-web-devicons" },
-    opts = {
-      default_file_explorer = true,
-      view_options = {
-        show_hidden = true,
-      },
+    "christoomey/vim-tmux-navigator",
+    cmd = {
+      "TmuxNavigateLeft",
+      "TmuxNavigateDown",
+      "TmuxNavigateUp",
+      "TmuxNavigateRight",
+      "TmuxNavigatePrevious",
     },
     keys = {
-      { "-", "<cmd>Oil<cr>", desc = "Open parent directory" },
+      { "<C-h>", "<cmd><C-U>TmuxNavigateLeft<cr>", desc = "Navigate left" },
+      { "<C-j>", "<cmd><C-U>TmuxNavigateDown<cr>", desc = "Navigate down" },
+      { "<C-k>", "<cmd><C-U>TmuxNavigateUp<cr>", desc = "Navigate up" },
+      { "<C-l>", "<cmd><C-U>TmuxNavigateRight<cr>", desc = "Navigate right" },
     },
   },
   {
-    "lewis6991/gitsigns.nvim",
+    "tpope/vim-sleuth",
     event = "BufReadPre",
-    opts = {},
-  },
-  {
-    "akinsho/toggleterm.nvim",
-    version = "*",
-    opts = {
-      direction = "float",
-      float_opts = {
-        border = "rounded",
-      },
-      open_mapping = [[<c-\>]],
-      shade_terminals = false,
-      start_in_insert = true,
-    },
-    config = function(_, opts)
-      require("toggleterm").setup(opts)
-
-      local Terminal = require("toggleterm.terminal").Terminal
-      local lazygit = Terminal:new({
-        cmd = "lazygit",
-        dir = "git_dir",
-        direction = "float",
-        hidden = true,
-      })
-
-      vim.keymap.set("n", "<leader>gg", function()
-        lazygit:toggle()
-      end, { desc = "LazyGit" })
-      vim.keymap.set("n", "<leader>tt", "<cmd>ToggleTerm<cr>", { desc = "Toggle terminal" })
-      vim.keymap.set("n", "<leader>tf", "<cmd>ToggleTerm direction=float<cr>", { desc = "Float terminal" })
-      vim.keymap.set("n", "<leader>th", "<cmd>ToggleTerm direction=horizontal<cr>", { desc = "Horizontal terminal" })
-      vim.keymap.set("n", "<leader>tv", "<cmd>ToggleTerm direction=vertical size=80<cr>", { desc = "Vertical terminal" })
-    end,
-  },
-  {
-    "kdheepak/lazygit.nvim",
-    dependencies = {
-      "akinsho/toggleterm.nvim",
-      "nvim-lua/plenary.nvim",
-    },
-    cmd = {
-      "LazyGit",
-      "LazyGitCurrentFile",
-      "LazyGitFilter",
-      "LazyGitFilterCurrentFile",
-    },
-  },
-  {
-    "numToStr/Comment.nvim",
-    event = "VeryLazy",
-    opts = {},
   },
   {
     "windwp/nvim-autopairs",
     event = "InsertEnter",
     opts = {},
-  },
-  {
-    "christoomey/vim-tmux-navigator",
-    lazy = false,
-  },
-  {
-    "tpope/vim-sleuth",
-    event = "BufReadPre",
   },
 }

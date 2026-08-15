@@ -77,6 +77,8 @@ Item {
                         height: grid.cellHeight - Theme.Tokens.spacingSm
                         radius: Theme.Tokens.radiusMd
                         clip: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: "Apply wallpaper " + modelData.name
                             color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, Theme.Tokens.glassCardAlpha)
                             border.color: root.isCurrent(modelData.path) ? Theme.Tokens.tonalPrimary
                             : grid.currentIndex === index ? Theme.Tokens.outlineFocus : "transparent"

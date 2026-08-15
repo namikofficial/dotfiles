@@ -418,6 +418,19 @@ Notes path defaults:
 - Scratch file: `~/Documents/notes/inbox.md`
 - `open-notes.sh` prefers Obsidian when it is installed, then falls back to official VS Code.
 
+## Dolphin + archive workflow
+
+Install the KDE-native archive handler and configure Dolphin’s file associations:
+
+```sh
+./setup/install-packages.sh
+./setup/configure-file-associations.sh
+```
+
+This installs Ark with ZIP, RAR, 7z, TAR, and compressed TAR support, makes
+Dolphin the default folder handler, and leaves Prism Launcher assigned only to
+its Minecraft modpack ZIP type.
+
 ## Timeshift daily auto snapshots (keep latest 5)
 
 ```sh

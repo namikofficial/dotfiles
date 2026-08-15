@@ -5,17 +5,28 @@
 
 import QtQuick; import QtQuick.Layouts; import Quickshell; import Quickshell.Wayland
 import "theme" as Theme
+import "surfaces/calendar" as CalendarSurface
 
 Item {
     id: root
     property var screen
     required property var noxd; required property var audio; required property var brightness
+    required property var hyprland
+    required property var calModel
 
     readonly property var states: ["idle","volume","brightness","media","mic","recording","timer","notification","output-mute","input-mute","file-transfer","ai-completion","build-result","battery-warning","network-warning"]
     property string islandState: "idle"; property bool rendered: true; property bool expanded: false
     property bool idleHovered: false
     property bool hoverExpanded: false
     property bool pointerInside: false
+    // While a major panel is open the island yields the stage: it fades out so
+    // the panel morph (which originates from the island geometry) reads as the
+    // island itself expanding. OSD entries are suppressed during panels.
+    property bool panelOpen: false
+    property bool calendarExpanded: false
+    // Active window title shown in the idle hover-expanded state.
+    property string activeWin: hyprland && hyprland.activeWindow && typeof hyprland.activeWindow === "object"
+        ? String(hyprland.activeWindow.title || hyprland.activeWindow.class || hyprland.activeWindow.application_id || "").trim() : ""
     readonly property bool visualExpanded: expanded || hoverExpanded
     property date now: new Date()
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
@@ -59,7 +70,9 @@ Item {
     // Transparent layer-shell host. The island is the only opaque object in
     // this layer; the top bar underneath remains fully transparent.
     visible: rendered
-    implicitHeight: visualExpanded ? Theme.Tokens.scaled(76) : Theme.Tokens.scaled(38)
+    // The Dynamic Island is persistent chrome. It must not disappear when a
+    // surface opens; the surface grows from this same island instead.
+    implicitHeight: calendarExpanded ? Theme.Tokens.scaled(650) : visualExpanded ? Theme.Tokens.scaled(76) : Theme.Tokens.scaled(38)
 
     readonly property real pillW: Theme.Tokens.scaled(190)
     readonly property real expandW: screen ? Math.min(screen.width * 0.42, Theme.Tokens.scaled(450)) : Theme.Tokens.scaled(450)
@@ -85,8 +98,50 @@ Item {
         display(top);
     }
     function shouldExpand(kind) { return ["media","notification","timer","file-transfer","ai-completion","build-result","recording"].indexOf(kind) >= 0; }
-    function display(entry) { currentKind = entry.kind; currentPriority = entry.priority; currentStarted = Date.now(); islandState = entry.kind; activityLabel = entry.label; activityIcon = entry.icon; activityValue = Math.max(0,entry.value); activityMaximum = Math.max(1,entry.maximum); expanded = shouldExpand(entry.kind); rendered = true; hideTimer.stop(); hideTimer.interval = entry.timeout; hideTimer.restart(); }
+    function display(entry) {
+        if (root.panelOpen) return; // panels own the stage; skip OSD
+        currentKind = entry.kind; currentPriority = entry.priority; currentStarted = Date.now(); islandState = entry.kind; activityLabel = entry.label; activityIcon = entry.icon; activityValue = Math.max(0,entry.value); activityMaximum = Math.max(1,entry.maximum); expanded = shouldExpand(entry.kind); rendered = true; hideTimer.stop(); hideTimer.interval = entry.timeout; hideTimer.restart();
+    }
     function deactivate() { rendered = true; expanded = false; islandState = "idle"; currentKind = "idle"; currentPriority = 0; currentStarted = 0; root.seedGuards(); processQueue(); }
+
+    // Map the current activity to the panel it expands into. Clicking a live
+    // island state morphs it into the full panel (the island is the hub, not
+    // a dead-end OSD).
+    function panelForIslandState() {
+        switch (root.islandState) {
+            case "media":          return { panel: "media", section: "" };
+            case "notification":   return { panel: "notifications", section: "" };
+            case "file-transfer":  return { panel: "sync", section: "" };
+            case "timer":          return { panel: "calendar", section: "" };
+            case "volume":
+            case "output-mute":
+            case "input-mute":     return { panel: "quick-settings", section: "volume" };
+            case "brightness":     return { panel: "quick-settings", section: "" };
+            case "battery-warning": return { panel: "quick-settings", section: "battery" };
+            case "network-warning": return { panel: "quick-settings", section: "network" };
+            default:               return null;
+        }
+    }
+    function openPanelFromIsland() {
+        if (root.islandState === "idle") {
+            // The clock/calendar is part of the island. Do not route this
+            // interaction through MorphSurface, which creates a separate
+            // panel window. Mount the calendar content in this same surface.
+            root.calendarExpanded = !root.calendarExpanded;
+            if (root.calendarExpanded) inlineCalendar.open();
+            else inlineCalendar.close();
+            return;
+        }
+        var target = root.panelForIslandState();
+        if (target && target.panel)
+            shellRoot.coordinator.toggle(target.panel, root.screen && root.screen.name ? root.screen.name : "", root.islandGeometry(), target.section);
+    }
+
+    // Yield to panels: fade the island while any major panel is open.
+    Connections {
+        target: shellRoot.coordinator
+        function onActivePanelChanged() { root.panelOpen = shellRoot.coordinator.activePanel !== ""; }
+    }
 
     // Events
     Connections { target: noxd
@@ -118,10 +173,34 @@ Item {
     Timer { id: hoverOpenTimer; interval: 180; repeat: false; onTriggered: { if (root.pointerInside && root.islandState === "idle") root.hoverExpanded = true; } }
     Timer { id: hoverCloseTimer; interval: 300; repeat: false; onTriggered: { if (!root.pointerInside) root.hoverExpanded = false; } }
 
+    Item {
+        id: inlineCalendarHost
+        visible: root.calendarExpanded
+        z: 20
+        width: Theme.Tokens.scaled(520)
+        height: Theme.Tokens.scaled(650)
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        CalendarSurface.CalendarWidget {
+            id: inlineCalendar
+            anchors.fill: parent
+            screen: root.screen
+            noxd: root.noxd
+            calModel: root.calModel
+        }
+        Connections {
+            target: inlineCalendar
+            function onVisibleChanged() {
+                if (!inlineCalendar.visible) root.calendarExpanded = false;
+            }
+        }
+    }
+
     // Centered pill/card
     Rectangle {
         id: islandCard
         anchors.centerIn: parent
+        visible: !root.calendarExpanded
         width: root.visualExpanded ? root.expandW : root.pillW; height: parent.height
         radius: root.visualExpanded ? Theme.Tokens.radiusXl : Theme.Tokens.radiusPill
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, Theme.Tokens.glassPanelAlpha)
@@ -133,12 +212,14 @@ Item {
             Text { text: root.islandState === "idle" ? "\uF017" : root.activityIcon; color: Theme.Tokens.tonalPrimary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: root.visualExpanded ? Theme.Tokens.iconLg : Theme.Tokens.iconSm; Layout.alignment: Qt.AlignVCenter }
             ColumnLayout { Layout.fillWidth: true; spacing: root.visualExpanded ? Theme.Tokens.scaled(Theme.Tokens.spacingXs) : 0
                 Text { text: root.islandState === "idle" ? Qt.formatTime(root.now, "HH:mm") : root.activityLabel; color: Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: root.islandState === "idle" ? Theme.Tokens.typographyTitleMedium : root.visualExpanded ? Theme.Tokens.typographyLabelLarge : Theme.Tokens.typographyBodySmall; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
-                Text { visible: root.islandState === "idle" && root.hoverExpanded; text: Qt.formatDate(root.now, "ddd, d MMM") + "  ·  Open calendar"; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
+                Text { visible: root.islandState === "idle" && root.hoverExpanded; text: Qt.formatDate(root.now, "ddd, d MMM") + (root.activeWin !== "" ? "  ·  " + root.activeWin : "") + "  ·  Open calendar"; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight; Layout.fillWidth: true }
                 Rectangle { Layout.fillWidth: true; height: root.visualExpanded ? 5 : 3; radius: 2; color: Theme.Tokens.outlineSubtle; visible: root.activityMaximum > 1 && root.activityValue >= 0
                     Rectangle { width: parent.width * Math.min(1,root.activityValue/root.activityMaximum); height: parent.height; radius: parent.radius; color: root.islandState === "brightness" ? Theme.Tokens.stateWarning : root.islandState === "battery-warning" ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
                         Behavior on width { enabled: !root.reducedMotion; NumberAnimation { duration: 120; easing.type: Easing.OutCubic } } } }
             }
             Text { visible: !root.visualExpanded && root.islandState !== "idle" && root.activityMaximum > 1; text: root.displayPercent + "%"; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; Layout.alignment: Qt.AlignVCenter }
+            // Affordance: expanded activities morph into their panel on click.
+            Text { visible: root.visualExpanded && root.panelForIslandState() !== null; text: "\uF054"; color: Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconSm; Layout.alignment: Qt.AlignVCenter }
         }
         HoverHandler {
             cursorShape: Qt.PointingHandCursor
@@ -154,7 +235,7 @@ Item {
                 }
             }
         }
-        TapHandler { onTapped: if (root.islandState === "idle") shellRoot.coordinator.toggle("calendar", root.screen && root.screen.name ? root.screen.name : "", root.islandGeometry()) }
+        TapHandler { onTapped: root.openPanelFromIsland() }
     }
 
     function islandGeometry() {

@@ -157,4 +157,17 @@ QtObject {
         setRequested(stateIdle);
         state = PanelController.State.Hidden;
     }
+
+    // Keep controller state synchronized when a child surface closes itself.
+    function surfaceClosed(name, instance) {
+        if (activePanel !== name) return;
+        if (instance && surface(name) !== instance) return;
+        previousPanel = name;
+        activePanel = "";
+        isInteractive = false;
+        isAnimating = false;
+        setRequested(stateIdle);
+        state = PanelController.State.Hidden;
+        panelChanged("", name);
+    }
 }

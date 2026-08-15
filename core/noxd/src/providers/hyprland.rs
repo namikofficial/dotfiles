@@ -20,13 +20,14 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 pub const PROVIDER: &str = "hyprland";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct HyprlandState {
+    pub focused_monitor: String,
     pub active_workspace: Option<Value>,
     pub workspaces: Vec<Value>,
     pub active_window: Option<Value>,
@@ -43,6 +44,10 @@ pub struct HyprlandState {
 impl HyprlandState {
     fn data(&self, status: ProviderStatus) -> ProviderState {
         let mut data = BTreeMap::new();
+        data.insert(
+            "focused_monitor".into(),
+            self.focused_monitor.clone().into(),
+        );
         data.insert(
             "active_workspace".into(),
             self.active_workspace.clone().unwrap_or(Value::Null),
@@ -75,8 +80,6 @@ enum Query {
     Windows,
     ActiveWindow,
     Monitors,
-    Fullscreen,
-    Layout,
 }
 
 #[derive(Debug, Clone)]
@@ -94,7 +97,12 @@ impl ProviderEvent for HyprlandEvent {
         &self.event_type
     }
     fn data(&self) -> BTreeMap<String, Value> {
-        self.data.clone()
+        // IPC event frames are also used as the QML provider snapshot. Keep
+        // the event payload, but include the refreshed complete state so
+        // window/workspace changes cannot leave the shell with stale arrays.
+        let mut data = self.snapshot.data.clone();
+        data.extend(self.data.clone());
+        data
     }
     fn snapshot(&self) -> ProviderState {
         self.snapshot.clone()
@@ -103,8 +111,35 @@ impl ProviderEvent for HyprlandEvent {
 
 pub fn socket_dir() -> Option<PathBuf> {
     let runtime = env::var_os("XDG_RUNTIME_DIR")?;
-    let signature = env::var_os("HYPRLAND_INSTANCE_SIGNATURE")?;
-    Some(PathBuf::from(runtime).join("hypr").join(signature))
+    // Prefer the explicit instance signature when the daemon was launched from
+    // a Hyprland session (hyprctl/terminal environment).
+    if let Some(signature) = env::var_os("HYPRLAND_INSTANCE_SIGNATURE") {
+        let dir = PathBuf::from(&runtime).join("hypr").join(signature);
+        if dir.join(".socket2.sock").exists() {
+            return Some(dir);
+        }
+    }
+    // systemd user services never inherit HYPRLAND_INSTANCE_SIGNATURE, so
+    // discover the newest live instance under $XDG_RUNTIME_DIR/hypr/ — the
+    // same resolution hyprctl itself uses.
+    let hypr_root = PathBuf::from(&runtime).join("hypr");
+    let mut best: Option<(SystemTime, PathBuf)> = None;
+    if let Ok(entries) = std::fs::read_dir(&hypr_root) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.join(".socket2.sock").exists() {
+                continue;
+            }
+            if let Ok(metadata) = std::fs::metadata(&path) {
+                if let Ok(modified) = metadata.modified() {
+                    if best.as_ref().map(|(t, _)| modified > *t).unwrap_or(true) {
+                        best = Some((modified, path));
+                    }
+                }
+            }
+        }
+    }
+    best.map(|(_, path)| path)
 }
 
 /// Dispatch a workspace action through Hyprland's command socket.
@@ -175,8 +210,24 @@ where
                     }
                     match line {
                         Ok(line) => {
-                            if let Some(event) = apply_event(&line, &state, &dir) {
+                            if let Some((event, refreshes)) = apply_event(&line, &state) {
+                                // Publish the event-backed state first. Socket queries are
+                                // authoritative reconciliation and must never delay visible
+                                // workspace/window focus feedback.
                                 let _ = bus.publish(event);
+                                let mut reconciled = false;
+                                for query in refreshes {
+                                    reconciled |= refresh_query(&dir, query, &state).is_ok();
+                                }
+                                if reconciled {
+                                    if let Ok(current) = state.lock() {
+                                        let _ = bus.publish(HyprlandEvent {
+                                            event_type: "state_reconciled".into(),
+                                            data: BTreeMap::new(),
+                                            snapshot: current.data(ProviderStatus::Available),
+                                        });
+                                    }
+                                }
                             }
                         }
                         Err(_) => break,
@@ -206,8 +257,8 @@ fn connect_and_sync(dir: &Path, state: &Mutex<HyprlandState>) -> io::Result<Unix
         (Query::Windows, "j/clients"),
         (Query::ActiveWindow, "j/activewindow"),
         (Query::Monitors, "j/monitors"),
-        (Query::Fullscreen, "j/fullscreenstate"),
-        (Query::Layout, "j/layouts"),
+        // fullscreen/layout endpoints were removed from Hyprland ≥ 0.56
+        // ("unknown request"); both fields are driven by events instead.
     ];
     let mut values = HashMap::new();
     for (kind, request) in queries {
@@ -236,20 +287,8 @@ fn connect_and_sync(dir: &Path, state: &Mutex<HyprlandState>) -> io::Result<Unix
         .cloned()
         .map(normalize_window);
     current.monitors = values.get(&Query::Monitors).map(array).unwrap_or_default();
-    current.fullscreen = values
-        .get(&Query::Fullscreen)
-        .and_then(Value::as_object)
-        .and_then(|v| v.get("fullscreen"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    current.layout = values
-        .get(&Query::Layout)
-        .and_then(|v| v.as_array())
-        .and_then(|v| v.first())
-        .and_then(|v| v.get("name"))
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .into();
+    // Hyprland 0.56 removed the fullscreenstate/layout JSON endpoints.
+    // These fields remain event-driven and start with their safe defaults.
     recompute_flags(&mut current);
     Ok(event)
 }
@@ -259,6 +298,16 @@ fn array(value: &Value) -> Vec<Value> {
 }
 
 fn recompute_flags(state: &mut HyprlandState) {
+    if let Some(name) = state.monitors.iter().find_map(|monitor| {
+        monitor
+            .get("focused")
+            .and_then(Value::as_bool)
+            .filter(|focused| *focused)
+            .and_then(|_| monitor.get("name"))
+            .and_then(Value::as_str)
+    }) {
+        state.focused_monitor = name.to_owned();
+    }
     state.urgent_windows = state
         .windows
         .iter()
@@ -284,62 +333,97 @@ fn recompute_flags(state: &mut HyprlandState) {
         .unwrap_or(false);
 }
 
-fn apply_event(line: &str, state: &Mutex<HyprlandState>, dir: &Path) -> Option<HyprlandEvent> {
+fn apply_event(line: &str, state: &Mutex<HyprlandState>) -> Option<(HyprlandEvent, Vec<Query>)> {
     let (kind, payload) = line.split_once(">>")?;
     let kind = kind.trim();
     let mut current = state.lock().ok()?;
-    let needs = match kind {
-        "workspace" | "focusedmon" => {
-            current.active_workspace = Some(json!({"name": normalize(payload)}));
-            Some(Query::ActiveWorkspace)
+    let refreshes = match kind {
+        "workspace" => {
+            set_active_workspace(&mut current, None, json!({"name": normalize(payload)}));
+            vec![Query::Workspaces, Query::ActiveWorkspace, Query::Monitors]
+        }
+        "workspacev2" => {
+            let (id, name) = split_once(payload);
+            set_active_workspace(&mut current, None, workspace_value(id, name));
+            vec![Query::Workspaces, Query::ActiveWorkspace, Query::Monitors]
+        }
+        "focusedmon" => {
+            let (monitor, workspace) = split_once(payload);
+            current.focused_monitor = monitor.clone();
+            set_active_workspace(&mut current, Some(&monitor), json!({"name": workspace}));
+            vec![Query::ActiveWorkspace, Query::Monitors]
+        }
+        "focusedmonv2" => {
+            let (monitor, workspace_id) = split_once(payload);
+            current.focused_monitor = monitor.clone();
+            set_active_workspace(
+                &mut current,
+                Some(&monitor),
+                workspace_value(workspace_id, String::new()),
+            );
+            vec![Query::ActiveWorkspace, Query::Monitors]
         }
         "openwindow" | "closewindow" | "movewindow" | "urgent" | "windowtitle" => {
-            Some(Query::Windows)
+            if kind == "closewindow" {
+                clear_active_window_if_address(&mut current, payload);
+            }
+            vec![Query::Windows, Query::Workspaces, Query::ActiveWindow]
         }
-        "activewindow" => Some(Query::ActiveWindow),
+        "windowtitlev2" => {
+            let (address, title) = split_once(payload);
+            update_window_title(&mut current, &address, &title);
+            Vec::new()
+        }
+        "activewindow" => {
+            apply_active_window_payload(&mut current, payload);
+            vec![Query::ActiveWindow]
+        }
+        "activewindowv2" => {
+            apply_active_window_address(&mut current, payload);
+            vec![Query::ActiveWindow]
+        }
         "monitoradded" | "monitorremoved" | "monitoraddedv2" | "monitorremovedv2" => {
-            Some(Query::Monitors)
+            vec![Query::Monitors, Query::Workspaces]
         }
         "fullscreen" => {
             current.fullscreen = payload.trim() == "1";
-            None
+            Vec::new()
         }
-        "changefloating" => {
-            current.floating = payload.trim() == "1";
-            None
+        "changefloating" | "changefloatingmode" => {
+            current.floating = payload.rsplit(',').next().unwrap_or(payload).trim() == "1";
+            Vec::new()
         }
         "activelayout" => {
-            current.layout = normalize(payload);
-            None
+            current.layout = payload
+                .rsplit_once(',')
+                .map(|(_, v)| normalize(v))
+                .unwrap_or_else(|| normalize(payload));
+            Vec::new()
         }
         "submap" => {
             current.submap = normalize(payload);
-            None
+            Vec::new()
         }
         _ => return None,
     };
-    drop(current);
-    if let Some(query) = needs {
-        refresh_query(dir, query, state).ok();
-    }
-    let current = state.lock().ok()?;
+    recompute_flags(&mut current);
     let mut data = BTreeMap::new();
     data.insert("payload".into(), Value::String(normalize(payload)));
-    Some(HyprlandEvent {
+    let event = HyprlandEvent {
         event_type: normalize(kind),
         data,
         snapshot: current.data(ProviderStatus::Available),
-    })
+    };
+    Some((event, refreshes))
 }
 
 fn refresh_query(dir: &Path, query: Query, state: &Mutex<HyprlandState>) -> io::Result<()> {
     let request = match query {
-        Query::Workspaces | Query::ActiveWorkspace => "j/activeworkspace",
+        Query::Workspaces => "j/workspaces",
+        Query::ActiveWorkspace => "j/activeworkspace",
         Query::Windows => "j/clients",
         Query::ActiveWindow => "j/activewindow",
         Query::Monitors => "j/monitors",
-        Query::Fullscreen => "j/fullscreenstate",
-        Query::Layout => "j/layouts",
     };
     let response = query_json(dir, request)?;
     let value: Value = serde_json::from_str(&response).map_err(io::Error::other)?;
@@ -352,25 +436,117 @@ fn refresh_query(dir: &Path, query: Query, state: &Mutex<HyprlandState>) -> io::
         }
         Query::ActiveWindow => current.active_window = Some(normalize_window(value)),
         Query::Monitors => current.monitors = array(&value),
-        Query::Fullscreen => {
-            current.fullscreen = value
-                .get("fullscreen")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-        }
-        Query::Layout => {
-            current.layout = value
-                .as_array()
-                .and_then(|v| v.first())
-                .and_then(|v| v.get("name"))
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .into()
-        }
-        Query::ActiveWorkspace | Query::Workspaces => current.active_workspace = Some(value),
+        Query::Workspaces => current.workspaces = array(&value),
+        Query::ActiveWorkspace => current.active_workspace = Some(value),
     }
     recompute_flags(&mut current);
     Ok(())
+}
+
+fn split_once(payload: &str) -> (String, String) {
+    payload
+        .split_once(',')
+        .map(|(first, rest)| (normalize(first), normalize(rest)))
+        .unwrap_or_else(|| (normalize(payload), String::new()))
+}
+
+fn workspace_value(id: String, name: String) -> Value {
+    if name.is_empty() {
+        json!({"id": id.parse::<i64>().ok().map(Value::from).unwrap_or(Value::String(id))})
+    } else {
+        json!({"id": id.parse::<i64>().ok().map(Value::from).unwrap_or(Value::String(id)), "name": name})
+    }
+}
+
+fn set_active_workspace(state: &mut HyprlandState, monitor: Option<&str>, workspace: Value) {
+    state.active_workspace = Some(workspace.clone());
+    let Some(monitor_name) = monitor else { return };
+    for entry in &mut state.monitors {
+        if entry.get("name").and_then(Value::as_str) == Some(monitor_name) {
+            if let Some(object) = entry.as_object_mut() {
+                object.insert("activeWorkspace".into(), workspace.clone());
+                object.insert("active_workspace".into(), workspace.clone());
+            }
+        }
+    }
+}
+
+fn same_address(left: &str, right: &str) -> bool {
+    left.trim().trim_start_matches("0x") == right.trim().trim_start_matches("0x")
+}
+
+fn active_address(state: &HyprlandState) -> String {
+    state
+        .active_window
+        .as_ref()
+        .and_then(|window| window.get("address"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_owned()
+}
+
+fn clear_active_window_if_address(state: &mut HyprlandState, address: &str) {
+    if same_address(&active_address(state), address) {
+        state.active_window = None;
+    }
+}
+
+fn apply_active_window_address(state: &mut HyprlandState, payload: &str) {
+    let address = normalize(payload);
+    if address.is_empty() {
+        state.active_window = None;
+        return;
+    }
+    state.active_window = state
+        .windows
+        .iter()
+        .find(|window| {
+            window
+                .get("address")
+                .and_then(Value::as_str)
+                .map(|candidate| same_address(candidate, &address))
+                .unwrap_or(false)
+        })
+        .cloned()
+        .or_else(|| Some(json!({"address": address})));
+}
+
+fn apply_active_window_payload(state: &mut HyprlandState, payload: &str) {
+    let (class, title) = split_once(payload);
+    if class.is_empty() && title.is_empty() {
+        state.active_window = None;
+        return;
+    }
+    let cached = state.windows.iter().find(|window| {
+        window.get("class").and_then(Value::as_str) == Some(class.as_str())
+            && window.get("title").and_then(Value::as_str) == Some(title.as_str())
+    });
+    state.active_window = cached.cloned().or_else(|| {
+        Some(normalize_window(json!({
+            "class": class,
+            "title": title,
+        })))
+    });
+}
+
+fn update_window_title(state: &mut HyprlandState, address: &str, title: &str) {
+    for window in &mut state.windows {
+        let matches = window
+            .get("address")
+            .and_then(Value::as_str)
+            .map(|candidate| same_address(candidate, address))
+            .unwrap_or(false);
+        if matches {
+            if let Some(object) = window.as_object_mut() {
+                object.insert("title".into(), Value::String(title.to_owned()));
+            }
+        }
+    }
+    if same_address(&active_address(state), address) {
+        if let Some(object) = state.active_window.as_mut().and_then(Value::as_object_mut) {
+            object.insert("title".into(), Value::String(title.to_owned()));
+        }
+    }
 }
 
 fn normalize(value: &str) -> String {
@@ -402,7 +578,10 @@ fn normalize_window(mut value: Value) -> Value {
 fn query_json(dir: &Path, request: &str) -> io::Result<String> {
     let mut stream = UnixStream::connect(dir.join(".socket.sock"))?;
     stream.set_read_timeout(Some(Duration::from_secs(2)))?;
-    stream.write_all(format!("{request}\n").as_bytes())?;
+    // Match hyprctl exactly: the request is written bare and the server reads
+    // until EOF. A trailing newline is rejected as "unknown request" on
+    // Hyprland ≥ 0.56.
+    stream.write_all(request.as_bytes())?;
     stream.shutdown(std::net::Shutdown::Write)?;
     let mut bytes = Vec::new();
     io::Read::read_to_end(&mut stream, &mut bytes)?;
@@ -415,23 +594,13 @@ mod tests {
 
     #[test]
     fn malformed_events_are_ignored() {
-        assert!(apply_event(
-            "not-an-event",
-            &Mutex::new(HyprlandState::default()),
-            Path::new("/missing")
-        )
-        .is_none());
+        assert!(apply_event("not-an-event", &Mutex::new(HyprlandState::default())).is_none());
     }
     #[test]
     fn event_names_and_payloads_are_normalized() {
-        let e = apply_event(
-            "submap>>  resize\0",
-            &Mutex::new(HyprlandState::default()),
-            Path::new("/missing"),
-        )
-        .unwrap();
-        assert_eq!(e.event_type, "submap");
-        assert_eq!(e.snapshot.data["submap"], "resize");
+        let e = apply_event("submap>>  resize\0", &Mutex::new(HyprlandState::default())).unwrap();
+        assert_eq!(e.0.event_type, "submap");
+        assert_eq!(e.0.snapshot.data["submap"], "resize");
     }
 
     #[test]
@@ -439,7 +608,7 @@ mod tests {
         let state = Mutex::new(HyprlandState::default());
         let mut seen = Vec::new();
         for line in include_str!("../../tests/fixtures/hyprland/events.ndjson").lines() {
-            if let Some(event) = apply_event(line, &state, Path::new("/missing")) {
+            if let Some((event, _)) = apply_event(line, &state) {
                 seen.push(event.event_type);
             }
         }
@@ -447,7 +616,12 @@ mod tests {
             seen,
             [
                 "workspace",
+                "workspacev2",
+                "focusedmon",
+                "focusedmonv2",
                 "activewindow",
+                "activewindowv2",
+                "windowtitlev2",
                 "fullscreen",
                 "changefloating",
                 "urgent",
@@ -463,5 +637,70 @@ mod tests {
             normalize_window(json!({"class": " org.example.App ", "title": "  Hello\u{0000}  "}));
         assert_eq!(window["application_id"], "org.example.App");
         assert_eq!(window["title"], "Hello");
+    }
+
+    #[test]
+    fn workspace_events_apply_before_reconciliation() {
+        let state = Mutex::new(HyprlandState {
+            workspaces: vec![json!({"id": 1, "name": "1"})],
+            monitors: vec![
+                json!({"name": "eDP-1", "focused": true, "activeWorkspace": {"id": 1, "name": "1"}}),
+            ],
+            ..HyprlandState::default()
+        });
+        let (event, refreshes) = apply_event("focusedmon>>eDP-1,3", &state).unwrap();
+        assert_eq!(event.snapshot.data["focused_monitor"], "eDP-1");
+        assert_eq!(event.snapshot.data["active_workspace"]["name"], "3");
+        assert_eq!(
+            event.snapshot.data["monitors"][0]["activeWorkspace"]["name"],
+            "3"
+        );
+        assert_eq!(
+            event.snapshot.data["workspaces"].as_array().unwrap().len(),
+            1
+        );
+        assert_eq!(refreshes, vec![Query::ActiveWorkspace, Query::Monitors]);
+    }
+
+    #[test]
+    fn v2_workspace_and_window_events_are_normalized() {
+        let state = Mutex::new(HyprlandState {
+            windows: vec![json!({"address": "0xabc", "class": "kitty", "title": "Old"})],
+            ..HyprlandState::default()
+        });
+        let (focus, _) = apply_event("activewindowv2>>abc", &state).unwrap();
+        assert_eq!(focus.snapshot.data["active_window"]["title"], "Old");
+        let (title, refreshes) = apply_event("windowtitlev2>>0xabc,One, two", &state).unwrap();
+        assert_eq!(title.snapshot.data["active_window"]["title"], "One, two");
+        assert!(refreshes.is_empty());
+        let (workspace, _) = apply_event("workspacev2>>7,dev", &state).unwrap();
+        assert_eq!(workspace.snapshot.data["active_workspace"]["id"], 7);
+        assert_eq!(workspace.snapshot.data["active_workspace"]["name"], "dev");
+    }
+
+    #[test]
+    fn legacy_active_window_preserves_titles_with_commas_and_empty_focus() {
+        let state = Mutex::new(HyprlandState::default());
+        let (event, _) = apply_event("activewindow>>firefox,Docs, issue 42", &state).unwrap();
+        assert_eq!(
+            event.snapshot.data["active_window"]["application_id"],
+            "firefox"
+        );
+        assert_eq!(
+            event.snapshot.data["active_window"]["title"],
+            "Docs, issue 42"
+        );
+        let (empty, _) = apply_event("activewindow>>,", &state).unwrap();
+        assert_eq!(empty.snapshot.data["active_window"], Value::Null);
+    }
+
+    #[test]
+    fn closing_the_active_window_clears_it_without_waiting_for_query() {
+        let state = Mutex::new(HyprlandState {
+            active_window: Some(json!({"address": "0xabc", "title": "Terminal"})),
+            ..HyprlandState::default()
+        });
+        let (event, _) = apply_event("closewindow>>abc", &state).unwrap();
+        assert_eq!(event.snapshot.data["active_window"], Value::Null);
     }
 }

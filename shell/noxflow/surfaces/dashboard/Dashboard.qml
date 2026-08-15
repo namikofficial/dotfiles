@@ -1,5 +1,5 @@
 // Dashboard — full-screen personal command centre.
-// Super+D to open. Shows: weather, agenda, system health, git status, quick actions.
+// Super+D to open. Shows: weather, agenda, system health, and quick actions.
 
 import QtQuick
 import QtQuick.Layouts
@@ -31,9 +31,6 @@ PanelWindow {
         NumberAnimation { duration: lifecycle.animDuration; easing.type: lifecycle.easingType }
     }
 
-    property string gitBranch: ""
-    property string gitStatus: ""
-
     property Process dashProcess: Process { command: []; running: false }
 
     anchors.top: true; anchors.bottom: true; anchors.left: true; anchors.right: true
@@ -44,7 +41,6 @@ PanelWindow {
         target: lifecycle
         function onOpened() {
             calModel.today();
-            refreshGit();
             if (calModel.events.length === 0) calModel.syncGCal();
         }
         function onClosed() {
@@ -523,28 +519,6 @@ PanelWindow {
                         }
                     }
 
-                    // Git (stub)
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: Theme.Tokens.scaled(40)
-                        radius: Theme.Tokens.radiusMd
-                        color: Theme.Tokens.surfaceSurfaceContainer
-                        visible: root.gitBranch !== ""
-                        RowLayout {
-                            anchors.fill: parent; anchors.margins: Theme.Tokens.spacingMd
-                            Text { text: "⑂"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
-                            Text {
-                                text: root.gitBranch; color: Theme.Tokens.textPrimary
-                                font.pixelSize: Theme.Tokens.typographyBodyMedium
-                                Layout.fillWidth: true; elide: Text.ElideRight
-                            }
-                            Text {
-                                text: root.gitStatus; color: Theme.Tokens.textSecondary
-                                font.pixelSize: Theme.Tokens.typographyLabelSmall
-                            }
-                        }
-                    }
-
                     Components.Divider { Layout.fillWidth: true; Layout.topMargin: Theme.Tokens.spacingSm }
 
                     Text {
@@ -607,8 +581,4 @@ PanelWindow {
     function open() { lifecycle.open() }
     function close() { lifecycle.requestClose("close") }
 
-    function refreshGit() {
-        gitBranch = "main"
-        gitStatus = "clean"
-    }
 }

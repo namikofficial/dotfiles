@@ -164,7 +164,7 @@ minimize/restore, workspace-id-normalized restore.
 | Surface | File | Role |
 |---|---|---|
 | Entry | `shell/noxflow/shell.qml` (293 ln) | wires 15+ surfaces, IPC handler |
-| Bar | `shell/noxflow/Bar.qml` (293 ln) | workspaces, clock pill, media pill, status cluster |
+| Bar | `shell/noxflow/Bar.qml` | workspaces, CPU/RAM/temperature pills, clock pill, media pill, status cluster |
 | Island (OSD) | `shell/noxflow/NoxIsland.qml` (119 ln) | priority-queue contextual pill |
 | Panel host | `shell/noxflow/core/MorphSurface.qml` (130 ln) | PanelWindow + Behavior morphs |
 | Controller | `shell/noxflow/core/PanelController.qml` (100 ln) | panel state machine |

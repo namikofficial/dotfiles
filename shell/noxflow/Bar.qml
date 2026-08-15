@@ -5,6 +5,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import "components"
 import "theme" as Theme
+import "WorkspacePresentation.js" as WorkspacePresentation
 
 Item {
     id: root
@@ -13,28 +14,49 @@ Item {
     required property var battery; required property var network; required property var bluetooth
     required property var media; required property var notificationModel; required property var systemModel
     required property var transfer; required property var syncthing
+    required property var updates
     property bool showNotificationBadge: !!(notificationModel && notificationModel.notifications && notificationModel.notifications.length > 0)
     property string monitorName: screen && screen.name ? screen.name : ""
-    property var workspaceEntries: buildWorkspaceEntries()
+    // Explicitly refreshed when noxd publishes a Hyprland snapshot. A binding
+    // to a JavaScript function was unreliable here because nested array
+    // changes did not always invalidate the delegate model.
+    property var workspaceEntries: []
     property var monitor: findMonitor()
     property bool providerDegraded: hasDegradedProvider()
     property bool urgent: monitorUrgentCount() > 0
-    property Process workspaceDispatch: Process { running: false }
-    property string compositorWorkspace: ""
-    property Process workspaceProbe: Process {
+    property string pendingWorkspace: ""
+    property Process workspaceDispatch: Process {
+        running: false
+        onExited: function(code) {
+            if (code !== 0) root.pendingWorkspace = "";
+            else workspacePendingTimer.restart();
+        }
+    }
+    Timer { id: workspacePendingTimer; interval: 1200; onTriggered: root.pendingWorkspace = "" }
+    property string updateLaunchState: "idle"
+    property string updateLaunchMessage: ""
+    property Process updateProcess: Process {
         running: false
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: function(data) {
-                try {
-                    var state = JSON.parse(String(data).trim());
-                    if (state && state.name !== undefined) {
-                        root.compositorWorkspace = String(state.name);
-                    }
-                } catch (error) {}
-            }
+            onRead: function(data) { root.updateLaunchMessage = String(data).trim(); }
+        }
+        stderr: SplitParser {
+            splitMarker: "\n"
+            onRead: function(data) { root.updateLaunchMessage = String(data).trim(); }
+        }
+        onExited: function(code) {
+            root.updateLaunchState = code === 0 ? "opened" : "failed";
+            if (code !== 0 && root.updateLaunchMessage === "") root.updateLaunchMessage = "Update terminal failed to open";
+            updateStateTimer.restart();
         }
     }
+    Timer {
+        id: updateStateTimer
+        interval: 3500
+        onTriggered: { root.updateLaunchState = "idle"; root.updateLaunchMessage = ""; }
+    }
+
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
     readonly property real pillHeight: Theme.Tokens.scaled(32)
 
@@ -62,39 +84,84 @@ Item {
         reg.registerTrigger("quick-settings", monitorName, batteryGeometry, Theme.Tokens.radiusPill, "battery");
         reg.registerTrigger("sync", monitorName, syncGeometry, Theme.Tokens.radiusPill);
     }
-    Timer { interval: 250; repeat: true; running: root.visible; onTriggered: root.registerMorphChips() }
-    Timer {
-        interval: 120
-        repeat: true
-        running: root.visible
-        onTriggered: {
-            if (!workspaceProbe.running) {
-                workspaceProbe.command = ["sh", "-c", "hyprctl activeworkspace -j | jq -c ."];
-                workspaceProbe.running = true;
+    Timer { interval: 250; repeat: true; running: root.visible; onTriggered: { root.registerMorphChips(); root.refreshWorkspaceEntries(); } }
+
+    Component.onCompleted: { registerMorphChips(); refreshWorkspaceEntries(); }
+
+    Connections {
+        target: root.hyprland
+        function onWorkspacesChanged() { root.refreshWorkspaceEntries(); }
+        function onWindowsChanged() { root.refreshWorkspaceEntries(); }
+        function onActiveWorkspaceChanged() {
+            if (root.pendingWorkspace !== "" && root.wsId(root.hyprland.activeWorkspace) === root.pendingWorkspace) {
+                root.pendingWorkspace = "";
+                workspacePendingTimer.stop();
             }
+            root.refreshWorkspaceEntries();
         }
+        function onFocusedMonitorChanged() { root.refreshWorkspaceEntries(); }
+        function onMonitorsChanged() { root.refreshWorkspaceEntries(); }
     }
-    Component.onCompleted: registerMorphChips()
 
     function objVal(o,a,b,f) { if (o&&o[a]!==undefined&&o[a]!==null) return o[a]; if (o&&b&&o[b]!==undefined&&o[b]!==null) return o[b]; return f; }
-    function wsId(v) { if (v&&typeof v==="object") return objVal(v,"id","name",""); return v===undefined||v===null?"":String(v); }
+    function wsId(v) { return WorkspacePresentation.workspaceId(v); }
+    function monitorId() { return monitor && monitor.id !== undefined ? Number(monitor.id) : -1; }
     function findMonitor() { for (var i=0;i<hyprland.monitors.length;i++) if (String(hyprland.monitors[i].name||"")===monitorName) return hyprland.monitors[i]; return null; }
-    function buildWorkspaceEntries() { var e=[]; for (var i=1;i<=10;i++) e.push(String(i)); for (var j=0;j<hyprland.workspaces.length;j++) { var n=String(hyprland.workspaces[j].name||""); if (n&&n.indexOf("special:")!==0&&e.indexOf(n)<0) e.push(n); } return e; }
+    function buildWorkspaceEntries() {
+        // Workspaces are sourced from both workspace records and clients.
+        // The client pass matters for minimized/hidden windows and for the
+        // brief interval where Hyprland has published clients first.
+        var e = [];
+        var mon = monitorName;
+        for (var j = 0; j < hyprland.workspaces.length; j++) {
+            var w = hyprland.workspaces[j];
+            if (!w) continue;
+            var n = String(w.name !== undefined && w.name !== null ? w.name : w.id);
+            if (!n || n.indexOf("special:") === 0) continue;
+            if (mon !== "" && String(w.monitor || "") !== mon) continue;
+            if (Number(w.windows || 0) <= 0 && n !== monitorActiveWS()) continue;
+            if (e.indexOf(n) < 0) e.push(n);
+        }
+        for (var k = 0; k < hyprland.windows.length; k++) {
+            var client = hyprland.windows[k];
+            if (!client || !client.workspace) continue;
+            var clientWorkspace = client.workspace;
+            var clientName = String(clientWorkspace.name !== undefined && clientWorkspace.name !== null ? clientWorkspace.name : clientWorkspace.id);
+            if (!clientName || clientName.indexOf("special:") === 0) continue;
+            var clientMonitor = client.monitorName !== undefined ? String(client.monitorName) : String(client.monitor !== undefined ? client.monitor : "");
+            if (mon !== "" && clientMonitor !== "" && clientMonitor !== mon && Number(client.monitor) !== root.monitorId()) continue;
+            if (e.indexOf(clientName) < 0) e.push(clientName);
+        }
+        // Keep the focused workspace visible even when it is empty.
+        var active = monitorActiveWS();
+        if (active !== "" && e.indexOf(active) < 0) e.push(active);
+        // Numeric workspaces first (1, 2, 3…), named ones after.
+        e.sort(function(a, b) {
+            var na = parseInt(a, 10), nb = parseInt(b, 10);
+            if (!isNaN(na) && !isNaN(nb)) return na - nb;
+            if (!isNaN(na)) return -1;
+            if (!isNaN(nb)) return 1;
+            return a < b ? -1 : a > b ? 1 : 0;
+        });
+        return e;
+    }
+    function refreshWorkspaceEntries() {
+        var next = buildWorkspaceEntries();
+        if (JSON.stringify(next) !== JSON.stringify(workspaceEntries)) workspaceEntries = next;
+    }
     function wsRecord(name) { for (var i=0;i<hyprland.workspaces.length;i++) { var it=hyprland.workspaces[i]; if (String(it.name||it.id)===name&&String(it.monitor||"")===monitorName) return it; } return null; }
     function monitorActiveWS() {
-        // Hyprland emits workspace/focusedmon events with the new active
-        // workspace, while the monitor list is refreshed less often. Prefer
-        // that event-backed value for the focused monitor so keyboard and
-        // compositor-driven changes repaint the indicator immediately.
-        if (Quickshell.activeScreen && Quickshell.activeScreen.name === monitorName && hyprland.activeWorkspace)
+        if (pendingWorkspace !== "") return pendingWorkspace;
+        if (hyprland.focusedMonitor === monitorName && hyprland.activeWorkspace)
             return wsId(hyprland.activeWorkspace);
         return wsId(monitor ? objVal(monitor, "activeWorkspace", "active_workspace", null) : null);
     }
-    function displayedActiveWS() {
-        if (Quickshell.activeScreen && Quickshell.activeScreen.name === monitorName && compositorWorkspace !== "")
-            return compositorWorkspace;
-        return monitorActiveWS();
+
+    function activeWindowMatches(name) {
+        return WorkspacePresentation.activeWindowMatches(name, monitorName, hyprland.focusedMonitor,
+            hyprland.activeWorkspace, hyprland.activeWindow);
     }
+
     function wsOccupied(name) { for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; var ws=w.workspace; if (ws&&wsId(ws)===name&&wsRecord(name)) return true; } return false; }
     function monitorUrgentCount() { var c=0; for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(wsId(w.workspace))) c++; } return c; }
     function wsUrgent(name) { for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (wsId(w.workspace)===name&&hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(name)) return true; } return false; }
@@ -102,25 +169,42 @@ Item {
     function focusWS(name) {
         var target = String(name || "").trim();
         if (!target || target.indexOf("special:") === 0 || !/^[0-9A-Za-z_-]+$/.test(target)) return;
-        // Workspace focus is a compositor dispatch, not a provider action. Use
-        // Hyprland's IPC directly so a slow/degraded noxd cannot swallow a click.
+        pendingWorkspace = target;
+        refreshWorkspaceEntries();
+        // Hyprland 0.56 exposes dispatchers through `eval`; `hyprctl dispatch`
+        // now parses its arguments as Lua and rejects the legacy form.
         workspaceDispatch.running = false;
-        workspaceDispatch.command = ["hyprctl", "dispatch", "hl.dsp.focus({ workspace = \"" + target + "\" })"];
+        workspaceDispatch.command = ["hyprctl", "eval", "hl.dispatch(hl.dsp.focus({ workspace = \"" + target + "\" }))"];
         workspaceDispatch.running = true;
     }
     function cycleWS(d) {
         var direction = d < 0 ? "e-1" : "e+1";
         workspaceDispatch.running = false;
-        workspaceDispatch.command = ["hyprctl", "dispatch", "hl.dsp.focus({ workspace = \"" + direction + "\" })"];
+        workspaceDispatch.command = ["hyprctl", "eval", "hl.dispatch(hl.dsp.focus({ workspace = \"" + direction + "\" }))"];
         workspaceDispatch.running = true;
     }
     function toggleMute() { noxd.runAction({audio_toggle_mute:{target:"output"}}); }
+    function runSystemUpdate() {
+        // Keep one update path for Wayle and NoxFlow. The wrapper selects
+        // paru/yay/pacman, chooses an available terminal, logs the invocation,
+        // and falls back to a direct update when no terminal is available.
+        if (updateProcess.running) return;
+        updateLaunchState = "opening";
+        updateLaunchMessage = "Opening update terminal…";
+        updateProcess.command = ["sh", "-lc", "exec \"$HOME/.config/hypr/scripts/system-update.sh\""];
+        updateProcess.running = true;
+    }
     function refreshNet() { noxd.runAction({network_refresh:{}}); }
     function toggleBT() { noxd.runAction({bluetooth_set_powered:{powered:!bluetooth.powered}}); }
     function toggleMedia() { noxd.runAction({media_play_pause:{}}); }
     function toggleCalendarFromBar() { shellRoot.coordinator.toggle("calendar", monitorName, clockGeometry); }
     function toggleNotificationsFromBar() { shellRoot.coordinator.toggle("notifications", monitorName, notificationChipGeometry); }
     function toggleQuickSettingsFromBar(sourceItem, section) { shellRoot.coordinator.toggle("quick-settings", monitorName, chipRect(sourceItem || statusCluster), section || ""); }
+    function openSystemFromPill(sourceItem) {
+        sourceItem.forceActiveFocus();
+        toggleQuickSettingsFromBar(sourceItem, "system");
+    }
+    function gibibytes(kibibytes) { return (Number(kibibytes || 0) / 1024 / 1024).toFixed(1) + " GiB"; }
     function activeWinLabel() { var w=hyprland.activeWindow; if (!w||typeof w!=="object") return ""; return String(w.title||w.application_id||w.class||w.appid||"").trim(); }
     function mediaLabel() { if (media.status!=="available"||!media.active||!media.title) return ""; var a=media.artists&&media.artists.length?" — "+media.artists.join(", "):""; return media.title+a; }
     function netLabel() { if (network.status!=="available") return ""; if (network.connectivity==="full"||network.connectivity==="limited") return network.connectedSsid||"Network"; if (network.ethernet&&network.ethernet.length) return "Ethernet"; return "Offline"; }
@@ -134,28 +218,44 @@ Item {
         anchors.rightMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
         spacing: Theme.Tokens.scaled(6)
 
-        // Left: workspaces
-        RowLayout {
-            id: wsCluster
-            spacing: Theme.Tokens.scaled(4)
-            // Repeater delegates do not contribute their implicit widths to
-            // RowLayout reliably. Reserve the real workspace footprint so
-            // the title/status controls can never paint over the chips.
-            Layout.minimumWidth: root.workspaceEntries.length * (root.pillHeight + Theme.Tokens.scaled(4))
-            Layout.preferredWidth: Layout.minimumWidth
-            Repeater {
-                model: root.workspaceEntries
-                delegate: FocusScope {
+        // Left: workspaces followed by passive system-stat pills. The
+        // workspace strip stays bounded and scrolls instead of painting over
+        // the fixed stat/media/status groups on narrow monitors.
+        Flickable {
+            id: workspaceScroller
+            Layout.minimumWidth: Theme.Tokens.scaled(56)
+            Layout.preferredWidth: Math.max(Theme.Tokens.scaled(56), Math.min(wsCluster.implicitWidth, Theme.Tokens.scaled(360)))
+            Layout.maximumWidth: Theme.Tokens.scaled(360)
+            Layout.preferredHeight: root.pillHeight
+            Layout.alignment: Qt.AlignVCenter
+            clip: true
+            interactive: contentWidth > width
+            contentWidth: wsCluster.implicitWidth
+            contentHeight: height
+            boundsBehavior: Flickable.StopAtBounds
+            flickableDirection: Flickable.HorizontalFlick
+            pressDelay: 80
+
+            RowLayout {
+                id: wsCluster
+                spacing: Theme.Tokens.scaled(4)
+                height: workspaceScroller.height
+                Repeater {
+                    model: root.workspaceEntries
+                    delegate: FocusScope {
                     id: wsb; required property string modelData; required property int index
-                    property bool ho: false; property bool pr: false
-                    property bool active: (root.compositorWorkspace !== "" ? root.compositorWorkspace : root.monitorActiveWS()) === modelData
+                    property bool ho: false; property bool pr: false; property bool hovered: ho
+                    property bool active: root.monitorActiveWS() === modelData
                     property bool occupied: root.wsOccupied(modelData)
                     property bool urg: root.wsUrgent(modelData)
-                    implicitWidth: Math.max(pillHeight, wlbl.implicitWidth + Theme.Tokens.scaled(14))
-                    implicitHeight: pillHeight
+                    property bool hasActiveWindow: active && root.activeWindowMatches(modelData)
+                    property string activeApp: hasActiveWindow ? WorkspacePresentation.applicationName(root.hyprland.activeWindow) : ""
+                    property string activeTitle: hasActiveWindow ? WorkspacePresentation.windowTitle(root.hyprland.activeWindow) : ""
+                    implicitWidth: Math.max(root.pillHeight, wsRow.implicitWidth + Theme.Tokens.scaled(14))
+                    implicitHeight: root.pillHeight
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
-                    Accessible.name: "Workspace " + modelData + (active ? ", active" : occupied ? ", occupied" : "")
+                    Accessible.name: WorkspacePresentation.tooltip(modelData, active, occupied, activeApp, activeTitle)
 
                     // Pill background (always visible — no outer bar needed)
                     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
@@ -163,9 +263,15 @@ Item {
                         border.color: wsb.active ? Theme.Tokens.tonalPrimary : wsb.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: wsb.active ? 1 : wsb.activeFocus ? 2 : 0
                         opacity: wsb.active ? 1.0 : wsb.occupied ? 0.85 : 0.55
                     }
-                    Text { id: wlbl; anchors.centerIn: parent; text: modelData
-                        color: wsb.active ? Theme.Tokens.tonalOnPrimary : wsb.occupied ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted
-                        font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium; font.bold: wsb.active }
+                    RowLayout { id: wsRow; anchors.centerIn: parent; spacing: Theme.Tokens.scaled(5)
+                        Text { id: wlbl; text: modelData
+                            color: wsb.active ? Theme.Tokens.tonalOnPrimary : wsb.occupied ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted
+                            font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium; font.bold: wsb.active }
+                        Text { visible: wsb.hasActiveWindow; text: "\uF2D2"; color: Theme.Tokens.tonalOnPrimary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyLabelSmall }
+                        Text { visible: wsb.hasActiveWindow && wsb.activeApp !== ""; text: wsb.activeApp; color: Theme.Tokens.tonalOnPrimary
+                            font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: true
+                            elide: Text.ElideRight; Layout.maximumWidth: Theme.Tokens.scaled(96) }
+                    }
                     Rectangle { visible: wsb.urg; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 1; width: 6; height: 6; radius: 3; color: Theme.Tokens.stateDanger }
                     HoverHandler { onHoveredChanged: wsb.ho = hovered }
                     TapHandler { onPressedChanged: wsb.pr = pressed; onTapped: { wsb.forceActiveFocus(); root.focusWS(modelData); } }
@@ -173,9 +279,102 @@ Item {
                     Keys.onReturnPressed: root.focusWS(modelData)
                     Keys.onLeftPressed: root.cycleWS(-1)
                     Keys.onRightPressed: root.cycleWS(1)
+                    Behavior on implicitWidth { enabled: !root.reducedMotion; NumberAnimation { duration: Theme.Tokens.durationShort; easing.type: Easing.OutCubic } }
+                    Tooltip { target: wsb; text: WorkspacePresentation.tooltip(modelData, active, occupied, activeApp, activeTitle) }
+                    }
                 }
             }
         }
+
+        // Passive system telemetry. Values come from the shared SystemModel
+        // so every monitor instance displays the same sampled host state.
+        RowLayout {
+            id: systemStatsCluster
+            Layout.alignment: Qt.AlignVCenter
+            spacing: Theme.Tokens.scaled(4)
+
+            FocusScope {
+                id: cpuPill
+                property bool ho: false
+                property bool hovered: ho
+                readonly property bool ready: !!root.systemModel && root.systemModel.ready
+                readonly property string value: ready ? Math.round(root.systemModel.cpuUsage) + "%" : "--"
+                implicitWidth: Math.max(root.pillHeight, cpuRow.implicitWidth + Theme.Tokens.scaled(14))
+                implicitHeight: root.pillHeight
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: "CPU usage: " + value
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
+                    color: cpuPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
+                }
+                RowLayout { id: cpuRow; anchors.centerIn: parent; spacing: 4
+                    Text { text: "\uF2DB"; color: cpuPill.ready && root.systemModel.cpuUsage > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    Text { text: cpuPill.value; color: cpuPill.ready && root.systemModel.cpuUsage > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                }
+                HoverHandler { onHoveredChanged: cpuPill.ho = hovered }
+                TapHandler { onTapped: root.openSystemFromPill(cpuPill) }
+                Keys.onReturnPressed: root.openSystemFromPill(cpuPill)
+                Keys.onSpacePressed: root.openSystemFromPill(cpuPill)
+                Tooltip { target: cpuPill; text: cpuPill.ready ? "CPU usage: " + cpuPill.value : "CPU usage unavailable" }
+            }
+
+            FocusScope {
+                id: ramPill
+                property bool ho: false
+                property bool hovered: ho
+                readonly property bool ready: !!root.systemModel && root.systemModel.ready && root.systemModel.memTotal > 0
+                readonly property string value: ready ? Math.round(root.systemModel.memPercent) + "%" : "--"
+                implicitWidth: Math.max(root.pillHeight, ramRow.implicitWidth + Theme.Tokens.scaled(14))
+                implicitHeight: root.pillHeight
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: "RAM usage: " + value
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
+                    color: ramPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
+                }
+                RowLayout { id: ramRow; anchors.centerIn: parent; spacing: 4
+                    Text { text: "\uF538"; color: ramPill.ready && root.systemModel.memPercent > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    Text { text: ramPill.value; color: ramPill.ready && root.systemModel.memPercent > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                }
+                HoverHandler { onHoveredChanged: ramPill.ho = hovered }
+                TapHandler { onTapped: root.openSystemFromPill(ramPill) }
+                Keys.onReturnPressed: root.openSystemFromPill(ramPill)
+                Keys.onSpacePressed: root.openSystemFromPill(ramPill)
+                Tooltip {
+                    target: ramPill
+                    text: ramPill.ready ? "RAM: " + root.gibibytes(root.systemModel.memUsed) + " used of " + root.gibibytes(root.systemModel.memTotal) + " (" + ramPill.value + ")" : "RAM usage unavailable"
+                }
+            }
+
+            FocusScope {
+                id: tempPill
+                property bool ho: false
+                property bool hovered: ho
+                readonly property bool ready: !!root.systemModel && root.systemModel.ready && root.systemModel.cpuTemp > 0
+                readonly property string value: ready ? Math.round(root.systemModel.cpuTemp) + "°C" : "--"
+                implicitWidth: Math.max(root.pillHeight, tempRow.implicitWidth + Theme.Tokens.scaled(14))
+                implicitHeight: root.pillHeight
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: "Temperature: " + value
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
+                    color: tempPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
+                }
+                RowLayout { id: tempRow; anchors.centerIn: parent; spacing: 4
+                    Text { text: "\uF2C9"; color: tempPill.ready && root.systemModel.cpuTemp > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    Text { text: tempPill.value; color: tempPill.ready && root.systemModel.cpuTemp > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                }
+                HoverHandler { onHoveredChanged: tempPill.ho = hovered }
+                TapHandler { onTapped: root.openSystemFromPill(tempPill) }
+                Keys.onReturnPressed: root.openSystemFromPill(tempPill)
+                Keys.onSpacePressed: root.openSystemFromPill(tempPill)
+                Tooltip { target: tempPill; text: tempPill.ready ? "Highest host temperature: " + tempPill.value : "Temperature unavailable" }
+            }
+        }
+
+        // Keep media and status controls grouped at the far right after the
+        // workspace/stat region has taken only the width it needs.
+        Item { Layout.fillWidth: true }
 
         // Active window label (fades into the bar, low opacity)
         // The active-window title belongs in the expanded island. Keeping it
@@ -283,6 +482,27 @@ Item {
                 }
                 HoverHandler { onHoveredChanged: syncPill.ho = hovered }
                 TapHandler { onPressedChanged: syncPill.pr = pressed; onTapped: { shellRoot.coordinator.toggle("sync", monitorName, root.syncGeometry); syncPill.forceActiveFocus(); } }
+            }
+
+            // Package updates (same source as the Wayle fallback shell).
+            // Left-click opens the updater; right-click re-checks.
+            FocusScope { id: updatePill; property bool ho: false; property bool hovered: ho
+                // Keep the affordance visible during the first asynchronous
+                // poll; disappearing status controls make the bar feel broken.
+                visible: true
+                implicitWidth: Math.max(Theme.Tokens.scaled(58), updateRow.implicitWidth + Theme.Tokens.scaled(18)); implicitHeight: pillHeight
+                Layout.minimumWidth: Theme.Tokens.scaled(58); Layout.preferredWidth: Math.max(Theme.Tokens.scaled(58), implicitWidth)
+                activeFocusOnTab: true; Accessible.role: Accessible.Button
+                Accessible.name: root.updateLaunchState === "failed" ? "Update terminal failed to open" : root.updateLaunchState === "opening" ? "Opening update terminal" : !updates.checked ? "Checking for system updates" : updates.count > 0 ? updates.count + " updates available" : "System up to date"
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: root.updateLaunchState === "failed" ? Theme.Tokens.glass(Theme.Tokens.stateDanger, 0.34) : updatePill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
+                RowLayout { id: updateRow; anchors.centerIn: parent; spacing: 4
+                    Text { text: root.updateLaunchState === "failed" ? "\uF071" : root.updateLaunchState === "opening" ? "\uF021" : !updates.checked ? "\uF021" : updates.count > 0 ? "\uF019" : "\uF00C"; color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : !updates.checked ? Theme.Tokens.textMuted : updates.count > 0 ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    Text { text: root.updateLaunchState === "failed" ? "UP !" : root.updateLaunchState === "opening" ? "UP …" : !updates.checked ? "UP …" : "UP " + String(updates.count); color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : updates.count > 0 ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: updates.count > 0 || root.updateLaunchState === "failed" }
+                }
+                HoverHandler { onHoveredChanged: updatePill.ho = hovered }
+                TapHandler { onTapped: root.runSystemUpdate() }
+                TapHandler { acceptedButtons: Qt.RightButton; onTapped: updates.refresh() }
+                Tooltip { target: updatePill; text: root.updateLaunchMessage !== "" ? root.updateLaunchMessage : !updates.checked ? "Checking for updates…" : updates.tooltip !== "" ? updates.tooltip + " · click to update, right-click to refresh" : "Click to update · right-click to refresh" }
             }
 
             // Notification pill
