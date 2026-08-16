@@ -25,6 +25,7 @@ has() {
 has 'onAccepted: root.activateSelected()' "$QML"
 has 'onNavigateUp: root.moveList(-1)' "$QML"
 has 'onNavigateDown: root.moveList(1)' "$QML"
+has 'searchField.focusInput()' "$QML"
 has 'root.activateSelected()' "$QML"
 has '["gtk-launch", item.actionParams.desktopId]' "$QML"
 has 'root.launchError =' "$QML"
@@ -50,6 +51,7 @@ has 'gtk-launch' "$ROFI"
 has '--list-json' "$ROFI"
 has 'NoDisplay' "$ROFI"
 has 'Hidden' "$ROFI"
+has '\( -type f -o -type l \)' "$ROFI"
 
 # Clipboard mode delegates to the installed Author Clipboard picker instead
 # of displaying the shell's historical empty JSON stub.

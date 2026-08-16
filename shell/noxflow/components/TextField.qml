@@ -37,6 +37,14 @@ FocusScope {
         // no-op for now; scroll-into-view for list usage
     }
 
+    function focusInput() {
+        input.forceActiveFocus()
+    }
+
+    onActiveFocusChanged: {
+        if (activeFocus && !input.activeFocus) input.forceActiveFocus()
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: Theme.Tokens.spacingXs

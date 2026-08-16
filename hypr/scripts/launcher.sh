@@ -92,7 +92,7 @@ desktop_signature() {
     # invalidate the cache even when the directory mtime is unchanged.
     while IFS= read -r -d '' file; do
       stat -c '%n\t%s\t%Y\t%y' "$file" 2>/dev/null || stat -f '%N\t%z\t%m' "$file" 2>/dev/null || true
-    done < <(find "$dir" -maxdepth 1 -type f -name '*.desktop' -print0 2>/dev/null | LC_ALL=C sort -z)
+    done < <(find "$dir" -maxdepth 1 \( -type f -o -type l \) -name '*.desktop' -print0 2>/dev/null | LC_ALL=C sort -z)
   done < <(desktop_dirs)
 }
 
@@ -122,7 +122,7 @@ build_cache() {
       IFS=$'\t' read -r name icon <<<"$parsed"
       printf '%s\t%s\t%s\n' "$name" "$desktop_id" "$icon" >>"$tmp_file"
       seen_ids["$desktop_id"]=1
-    done < <(find "$dir" -maxdepth 1 -type f -name '*.desktop' -print0 2>/dev/null | LC_ALL=C sort -z)
+    done < <(find "$dir" -maxdepth 1 \( -type f -o -type l \) -name '*.desktop' -print0 2>/dev/null | LC_ALL=C sort -z)
   done < <(desktop_dirs)
 
   sort -f -t $'\t' -k1,1 "$tmp_file" -o "$tmp_file"

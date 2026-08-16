@@ -76,7 +76,15 @@ Item {
 
     Connections {
         target: lifecycle
-        function onOpened() { resetAi(); launchError = ""; searchText = ""; searchField.text = ""; activeMode = 0; filteredResults = []; selectedIndex = 0; scanStarted = false; filterResults(); searchField.forceActiveFocus() }
+        function onOpened() {
+            resetAi(); launchError = ""; searchText = ""; searchField.text = "";
+            activeMode = 0; filteredResults = []; selectedIndex = 0; scanStarted = false;
+            filterResults();
+            // The layer-shell window becomes keyboard-interactive in the same
+            // frame as this lifecycle signal. Defer focus once so the actual
+            // TextInput receives the first typed character without a click.
+            Qt.callLater(function() { searchField.focusInput(); });
+        }
         function onClosed() { if (lifecycle.closeReason === "screenshot") root.requestCaptureAfterClose() }
     }
 

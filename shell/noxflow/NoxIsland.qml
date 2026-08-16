@@ -291,6 +291,7 @@ Item {
         root.launcherWasVisible = false;
         root.launcherClosing = false;
         root.launcherOpen = true;
+        Qt.callLater(function() { root.forceActiveFocus(); });
     }
     function finishLauncherClose() {
         root.launcherWasVisible = false;
