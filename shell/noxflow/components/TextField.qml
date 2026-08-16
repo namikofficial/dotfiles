@@ -77,6 +77,10 @@ FocusScope {
 
                     TextInput {
                         id: input
+                        // Default focus child for this FocusScope. Once the
+                        // launcher activates the field, keystrokes go directly
+                        // here instead of stopping at the wrapper item.
+                        focus: true
                         anchors.fill: parent
                         text: root.text
                         readOnly: root.readOnly

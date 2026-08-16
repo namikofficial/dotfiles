@@ -103,6 +103,7 @@ Item {
         ColumnLayout { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingLg; spacing: Theme.Tokens.spacingMd
             // Search
             Components.TextField { id: searchField; Layout.fillWidth: true; label: ""; showClearButton: true
+                focus: lifecycle.active
                 placeholderText: root.activeMode === 4 ? "Ask anything\u2026" : "Search\u2026"
                 onTextChanged: { root.searchText = text; if (root.activeMode === 4) { root.aiQuery = text; root.triggerAiQuery() } root.filterResults() }
                 onAccepted: root.activateSelected()
