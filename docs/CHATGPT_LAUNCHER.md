@@ -10,9 +10,10 @@ instance is found, the wrapper focuses it without replaying the callback so a
 second profile process cannot be created.
 
 Before launching, the wrapper also checks for a ChatGPT main process using the
-Codex profile. A headless profile owner is reported and never duplicated. If a
-visible window exists, it is focused; callbacks are acknowledged without
-starting another profile process.
+Codex profile. If a main process has no Hyprland window, it is treated as a
+failed startup and replaced under an activation lock. If a visible window
+exists, it is focused; callbacks are acknowledged without starting another
+profile process.
 
 Install and verify with:
 

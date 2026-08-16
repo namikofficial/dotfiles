@@ -25,13 +25,18 @@ EOF
 cat >"$tmp/fake-chatgpt" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$MOCK_EXEC"
+sleep "${MOCK_APP_SLEEP:-0}"
 EOF
 chmod +x "$tmp/bin/"* "$tmp/fake-chatgpt"
-export HOME="$tmp/home" PATH="$tmp/bin:$PATH" MOCK_DISPATCH="$tmp/dispatch.log" MOCK_EXEC="$tmp/exec.log" MOCK_NOTIFY="$tmp/notify.log" CHATGPT_BINARY="$tmp/fake-chatgpt"
+export HOME="$tmp/home" PATH="$tmp/bin:$PATH" MOCK_DISPATCH="$tmp/dispatch.log" MOCK_EXEC="$tmp/exec.log" MOCK_NOTIFY="$tmp/notify.log" CHATGPT_BINARY="$tmp/fake-chatgpt" CHATGPT_RECOVERY_ATTEMPTS=1 CHATGPT_STARTUP_ATTEMPTS=1 MOCK_APP_SLEEP=1
+grep -Fq 'select(((.class // "") | ascii_downcase) == "chatgpt")' "$script"
 MOCK_VISIBLE=1 "$script"; grep -Fx 'dispatch focuswindow address:0x1234' "$MOCK_DISPATCH" >/dev/null; [ ! -s "$MOCK_EXEC" ]
 rm -f "$MOCK_DISPATCH" "$MOCK_EXEC" "$MOCK_NOTIFY"
-if MOCK_HEADLESS=1 "$script"; then echo 'headless activation unexpectedly succeeded' >&2; exit 1; fi
-[ ! -s "$MOCK_EXEC" ]; grep -F 'headless ChatGPT process' "$MOCK_NOTIFY" >/dev/null
+MOCK_HEADLESS=1 "$script"; grep -Fx -- '--ozone-platform=wayland' "$MOCK_EXEC" >/dev/null
+if grep -F 'already running' "$MOCK_NOTIFY" >/dev/null 2>&1; then
+  echo 'headless recovery reported already running' >&2
+  exit 1
+fi
 rm -f "$MOCK_DISPATCH" "$MOCK_EXEC" "$MOCK_NOTIFY"
 callback='codex://connector/oauth_callback?state=keep-me'; MOCK_VISIBLE=1 "$script" "$callback"; [ ! -s "$MOCK_EXEC" ]; grep -F 'callback received' "$MOCK_NOTIFY" >/dev/null
 rm -f "$MOCK_DISPATCH" "$MOCK_EXEC" "$MOCK_NOTIFY"; "$script" "$callback"; grep -Fx -- "--ozone-platform=wayland $callback" "$MOCK_EXEC" >/dev/null
