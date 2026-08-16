@@ -51,6 +51,41 @@ ShellRoot {
     property alias coordinator: panelController
     property alias surfaceCoordinator: surfaceCoordinatorInstance
     property alias triggerRegistry: morphRegistry
+    // TopChrome is instantiated once per monitor. Keep a small registry so
+    // global IPC/keybind requests expand the island on the active monitor
+    // without creating a second launcher surface.
+    property var islandHosts: ({})
+
+    function registerIslandHost(screen, host) {
+        if (!screen || !host) return;
+        var next = {};
+        for (var key in islandHosts) next[key] = islandHosts[key];
+        next[screen.name] = host;
+        islandHosts = next;
+    }
+    function unregisterIslandHost(screen) {
+        if (!screen) return;
+        var next = {};
+        for (var key in islandHosts) if (key !== screen.name) next[key] = islandHosts[key];
+        islandHosts = next;
+    }
+    function activeIslandHost() {
+        var active = Quickshell.activeScreen;
+        if (active && islandHosts[active.name]) return islandHosts[active.name];
+        for (var key in islandHosts) return islandHosts[key];
+        return null;
+    }
+
+    // The launcher is hosted by NoxIsland rather than MorphSurface. Keeping
+    // this component at shell scope lets every monitor's island load the same
+    // implementation without creating a second PanelWindow.
+    Component {
+        id: launcherDefinition
+        LauncherSurface.Launcher {
+            noxd: daemonClient; hyprland: hyprlandModel; clipboardModel: clipboardModel
+            onRequestCaptureAfterClose: shellRoot.openCapture()
+        }
+    }
 
     // ── Surface Coordinator ──
     Components.SurfaceCoordinator {
@@ -95,7 +130,6 @@ ShellRoot {
                 "media": mediaComponent,
                 "clipboard": clipboardComponent,
                 "wallpaper": wallpaperComponent,
-                "launcher": launcherComponent,
                 "quick-share": quickShareComponent,
                 "sync": syncComponent
             })
@@ -129,13 +163,6 @@ ShellRoot {
                 WallpaperSurface.WallpaperPanel { screen: morphSurface.screen; noxd: daemonClient; wallModel: wallpaperModel }
             }
             Component {
-                id: launcherComponent
-                LauncherSurface.Launcher {
-                    noxd: daemonClient; hyprland: hyprlandModel; clipboardModel: clipboardModel
-                    onRequestCaptureAfterClose: shellRoot.openCapture()
-                }
-            }
-            Component {
                 id: quickShareComponent
                 ShareSurface.QuickSharePanel {
                     screen: morphSurface.screen; noxd: daemonClient; transfer: transferModel
@@ -154,7 +181,6 @@ ShellRoot {
                 panelController.registerPanel("media", this);
                 panelController.registerPanel("clipboard", this);
                 panelController.registerPanel("wallpaper", this);
-                panelController.registerPanel("launcher", this);
                 panelController.registerPanel("quick-share", this);
                 panelController.registerPanel("sync", this);
                 surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
@@ -281,9 +307,19 @@ ShellRoot {
 
     // Launcher is mounted in the same per-monitor morph host as every other
     // shell surface. The public functions remain unchanged for IPC/keybinds.
-    function toggleLauncher() { panelController.toggle("launcher"); }
-    function openLauncher()   { panelController.open("launcher"); }
-    function closeLauncher()  { panelController.close("launcher"); }
+    function toggleLauncher() {
+        var host = activeIslandHost();
+        if (!host) return;
+        if (host.launcherVisible) host.closeLauncher();
+        else { panelController.closeAll(); host.openLauncher(); }
+    }
+    function openLauncher() {
+        var host = activeIslandHost();
+        if (!host) return;
+        panelController.closeAll();
+        host.openLauncher();
+    }
+    function closeLauncher() { var host = activeIslandHost(); if (host) host.closeLauncher(); }
 
     // ── Global IPC handler for external keybind control ──
     IpcHandler {
@@ -347,7 +383,7 @@ ShellRoot {
             media: mediaModel; notificationModel: notificationModel
             systemModel: systemModelInstance; transfer: transferModel; syncthing: syncthingModel
             brightness: brightnessModel; updates: updateModel
- calModel: calendarModel
+            calModel: calendarModel; launcherComponent: launcherDefinition
         }
     }
 }

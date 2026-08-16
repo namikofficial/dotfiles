@@ -22,6 +22,7 @@ PanelWindow {
     required property var brightness
     required property var updates
     required property var calModel
+    required property var launcherComponent
 
     screen: root.screen
     anchors.top: true; anchors.left: true; anchors.right: true
@@ -29,7 +30,10 @@ PanelWindow {
     implicitHeight: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightToolbar), island.implicitHeight)
     color: "transparent"
     aboveWindows: true
-    focusable: false
+    // The top chrome only takes keyboard focus while the inline launcher is
+    // expanded. Keeping the window passive in its normal state prevents the
+    // transparent bar from stealing focus from applications.
+    focusable: island.launcherVisible
 
     Bar {
         id: bar
@@ -50,6 +54,10 @@ PanelWindow {
         noxd: root.noxd; audio: root.audio; brightness: root.brightness
         hyprland: root.hyprland
         calModel: root.calModel
+        launcherComponent: root.launcherComponent
         z: 10
     }
+
+    Component.onCompleted: shellRoot.registerIslandHost(root.screen, island)
+    Component.onDestruction: shellRoot.unregisterIslandHost(root.screen)
 }

@@ -27,7 +27,7 @@ flowchart LR
 | `Super + C` | Execute command | `~/.local/bin/noxctl panel toggle control` |
 | `Super + N` | Execute command | `~/.local/bin/noxctl panel toggle notifications` |
 | `Super + M` | Execute command | `~/.local/bin/noxctl panel toggle media` |
-| `Super + V` | Execute command | `~/.local/bin/noxctl panel toggle clipboard` |
+| `Super + V` | Execute command | `~/.config/hypr/scripts/cliphist-rofi.sh` |
 | `Super + S` | Execute command | `~/.local/bin/noxctl panel toggle share` |
 | `Super + W` | Execute command | `~/.local/bin/noxctl panel toggle wallpaper` |
 | `Super + Shift + S` | Execute command | `~/.local/bin/noxctl panel toggle capture` |
@@ -251,6 +251,12 @@ flowchart LR
 | Select text | Auto-copy to clipboard (`copy_on_select`) |
 
 ## Rofi Menus (Launcher + Quick Actions)
+
+NoxFlow is the canonical desktop launcher: `Super + Space` opens the NoxFlow
+launcher and `Enter` activates the selected result. Rofi remains an explicit
+recovery path when the shell is unavailable; it is not the normal launcher
+surface. Use `~/.config/hypr/scripts/launcher.sh --fast` from a TTY or a
+terminal to reach that fallback.
 
 | Key | Action |
 |---|---|

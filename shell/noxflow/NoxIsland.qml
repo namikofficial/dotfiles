@@ -13,6 +13,7 @@ Item {
     required property var noxd; required property var audio; required property var brightness
     required property var hyprland
     required property var calModel
+    required property var launcherComponent
 
     readonly property var states: ["idle","volume","brightness","media","mic","recording","timer","notification","output-mute","input-mute","file-transfer","ai-completion","build-result","battery-warning","network-warning"]
     property string islandState: "idle"; property bool rendered: true; property bool expanded: false
@@ -24,6 +25,13 @@ Item {
     // island itself expanding. OSD entries are suppressed during panels.
     property bool panelOpen: false
     property bool calendarExpanded: false
+    // Super+Space mounts the launcher in this same top-chrome window. The
+    // closing flag keeps the 620x520 layer alive while the launcher content
+    // reverses its own fade, so no second panel can flash underneath it.
+    property bool launcherOpen: false
+    property bool launcherClosing: false
+    property bool launcherWasVisible: false
+    readonly property bool launcherVisible: launcherOpen || launcherClosing
     // Active window title shown in the idle hover-expanded state.
     property string activeWin: hyprland && hyprland.activeWindow && typeof hyprland.activeWindow === "object"
         ? String(hyprland.activeWindow.title || hyprland.activeWindow.class || hyprland.activeWindow.application_id || "").trim() : ""
@@ -72,12 +80,18 @@ Item {
     visible: rendered
     // The Dynamic Island is persistent chrome. It must not disappear when a
     // surface opens; the surface grows from this same island instead.
-    implicitHeight: calendarExpanded ? Theme.Tokens.scaled(650) : visualExpanded ? Theme.Tokens.scaled(76) : Theme.Tokens.scaled(38)
+    implicitHeight: launcherVisible ? Theme.Tokens.scaled(520) : calendarExpanded ? Theme.Tokens.scaled(650) : visualExpanded ? Theme.Tokens.scaled(76) : Theme.Tokens.scaled(38)
 
     readonly property real pillW: Theme.Tokens.scaled(190)
     readonly property real expandW: screen ? Math.min(screen.width * 0.42, Theme.Tokens.scaled(450)) : Theme.Tokens.scaled(450)
 
     Behavior on implicitHeight { enabled: !root.reducedMotion; NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
+
+    focus: launcherVisible
+    activeFocusOnTab: launcherVisible
+    Keys.onEscapePressed: function(event) {
+        if (root.launcherVisible) { root.closeLauncher(); event.accepted = true; }
+    }
 
     Component.onCompleted: { rendered = true; islandState = "idle"; currentKind = "idle"; root.seedGuards(); }
 
@@ -123,6 +137,7 @@ Item {
         }
     }
     function openPanelFromIsland() {
+        if (root.launcherVisible) return;
         if (root.islandState === "idle") {
             // The clock/calendar is part of the island. Do not route this
             // interaction through MorphSurface, which creates a separate
@@ -196,19 +211,48 @@ Item {
         }
     }
 
+    // Launcher content is deliberately a Loader child of the island card.
+    // This gives Super+Space one continuous pill-to-card geometry and one
+    // focusable layer-surface instead of the old MorphSurface window.
+    Loader {
+        id: launcherLoader
+        anchors.fill: islandCard
+        anchors.margins: Theme.Tokens.spacingLg
+        z: 5
+        active: root.launcherVisible
+        visible: root.launcherVisible
+        sourceComponent: root.launcherComponent
+        onLoaded: {
+            if (item && typeof item.open === "function") item.open();
+        }
+    }
+    Connections {
+        target: launcherLoader.item
+        function onVisibleChanged() {
+            if (!launcherLoader.item) return;
+            // Ignore the Loader's initially hidden construction state, then
+            // release the island after either an explicit island close or an
+            // action/Escape closes the launcher's own lifecycle.
+            if (launcherLoader.item.visible) root.launcherWasVisible = true;
+            else if (root.launcherWasVisible)
+                root.finishLauncherClose();
+        }
+    }
+
     // Centered pill/card
     Rectangle {
         id: islandCard
         anchors.centerIn: parent
         visible: !root.calendarExpanded
-        width: root.visualExpanded ? root.expandW : root.pillW; height: parent.height
-        radius: root.visualExpanded ? Theme.Tokens.radiusXl : Theme.Tokens.radiusPill
+        width: root.launcherVisible ? Theme.Tokens.scaled(620) : root.visualExpanded ? root.expandW : root.pillW
+        height: parent.height
+        radius: root.launcherVisible || root.visualExpanded ? Theme.Tokens.radiusXl : Theme.Tokens.radiusPill
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, Theme.Tokens.glassPanelAlpha)
         border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
         Behavior on width { enabled: !root.reducedMotion; NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
         Behavior on radius { enabled: !root.reducedMotion; NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
 
-        RowLayout { anchors.fill: parent; anchors.margins: root.visualExpanded ? Theme.Tokens.spacingLg : Theme.Tokens.spacingSm; spacing: root.visualExpanded ? Theme.Tokens.spacingMd : Theme.Tokens.spacingSm
+        RowLayout { anchors.fill: parent; visible: !root.launcherVisible; anchors.margins: root.visualExpanded ? Theme.Tokens.spacingLg : Theme.Tokens.spacingSm; spacing: root.visualExpanded ? Theme.Tokens.spacingMd : Theme.Tokens.spacingSm
             Text { text: root.islandState === "idle" ? "\uF017" : root.activityIcon; color: Theme.Tokens.tonalPrimary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: root.visualExpanded ? Theme.Tokens.iconLg : Theme.Tokens.iconSm; Layout.alignment: Qt.AlignVCenter }
             ColumnLayout { Layout.fillWidth: true; spacing: root.visualExpanded ? Theme.Tokens.scaled(Theme.Tokens.spacingXs) : 0
                 Text { text: root.islandState === "idle" ? Qt.formatTime(root.now, "HH:mm") : root.activityLabel; color: Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: root.islandState === "idle" ? Theme.Tokens.typographyTitleMedium : root.visualExpanded ? Theme.Tokens.typographyLabelLarge : Theme.Tokens.typographyBodySmall; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter }
@@ -235,7 +279,36 @@ Item {
                 }
             }
         }
-        TapHandler { onTapped: root.openPanelFromIsland() }
+        TapHandler { enabled: !root.launcherVisible; onTapped: root.openPanelFromIsland() }
+    }
+
+    function openLauncher() {
+        if (root.launcherOpen) return;
+        if (root.calendarExpanded) {
+            inlineCalendar.close();
+            root.calendarExpanded = false;
+        }
+        root.launcherWasVisible = false;
+        root.launcherClosing = false;
+        root.launcherOpen = true;
+    }
+    function finishLauncherClose() {
+        root.launcherWasVisible = false;
+        root.launcherClosing = false;
+        root.launcherOpen = false;
+    }
+    function closeLauncher() {
+        if (!root.launcherVisible) return;
+        root.launcherClosing = true;
+        if (launcherLoader.item && typeof launcherLoader.item.close === "function") {
+            launcherLoader.item.close();
+        } else {
+            root.finishLauncherClose();
+        }
+    }
+    function toggleLauncher() {
+        if (root.launcherVisible) root.closeLauncher();
+        else root.openLauncher();
     }
 
     function islandGeometry() {

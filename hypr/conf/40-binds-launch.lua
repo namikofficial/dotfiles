@@ -11,11 +11,12 @@ exec(mainMod .. " + Space", home .. "/.local/bin/noxctl panel toggle launcher")
 -- NoxFlow feature keybinds (canonical)
 -- SUPER+TAB (overview) is owned by hypr/conf/95-plugins.lua (scroll-overview).
 -- SUPER+SPACE (launcher) above. SUPER+C → control centre, SUPER+M → media,
--- SUPER+V → clipboard, SUPER+S → quick share, SUPER+W → wallpaper/theme.
+-- SUPER+V → Author Clipboard picker, SUPER+S → quick share,
+-- SUPER+W → wallpaper/theme.
 exec(mainMod .. " + C", home .. "/.local/bin/noxctl panel toggle control")
 exec(mainMod .. " + N", home .. "/.local/bin/noxctl panel toggle notifications")
 exec(mainMod .. " + M", home .. "/.local/bin/noxctl panel toggle media")
-exec(mainMod .. " + V", home .. "/.local/bin/noxctl panel toggle clipboard")
+exec(mainMod .. " + V", home .. "/.config/hypr/scripts/cliphist-rofi.sh")
 exec(mainMod .. " + S", home .. "/.local/bin/noxctl panel toggle share")
 exec(mainMod .. " + W", home .. "/.local/bin/noxctl panel toggle wallpaper")
 exec(mainMod .. " + SHIFT + S", home .. "/.local/bin/noxctl panel toggle capture")

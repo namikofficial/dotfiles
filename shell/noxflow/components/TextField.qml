@@ -20,6 +20,10 @@ FocusScope {
     property bool showClearButton: false
     property int maxLength: 0
     signal accepted()
+    signal navigateUp()
+    signal navigateDown()
+    signal navigateHome()
+    signal navigateEnd()
     signal passwordVisibilityToggled(bool visible)
 
     implicitWidth: Theme.Tokens.scaled(280)
@@ -81,6 +85,14 @@ FocusScope {
                         maximumLength: root.maxLength > 0 ? root.maxLength : 99999
                         onTextChanged: { root.text = text }
                         onAccepted: root.accepted()
+                        Keys.onPressed: function(event) {
+                            if (event.key === Qt.Key_Up) root.navigateUp()
+                            else if (event.key === Qt.Key_Down) root.navigateDown()
+                            else if (event.key === Qt.Key_Home) root.navigateHome()
+                            else if (event.key === Qt.Key_End) root.navigateEnd()
+                            else return
+                            event.accepted = true
+                        }
                     }
 
                     Text {

@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import Quickshell.Widgets
 import "../../theme" as Theme
 import "../../components" as Components
 
@@ -24,7 +25,25 @@ Item {
     property string searchText: ""
     property var filteredResults: []
     property int selectedIndex: 0
-    property Process launchProcess: Process { command: []; running: false }
+    property bool launchBusy: false
+    property string launchError: ""
+    property string launchStderr: ""
+    property string launchTarget: ""
+    property Process launchProcess: Process {
+        command: []; running: false
+        stderr: SplitParser { splitMarker: ""; onRead: function(data) { root.launchStderr += data } }
+        onStarted: { root.launchBusy = true; root.launchError = "" }
+        onExited: function(exitCode, exitStatus) {
+            root.launchBusy = false
+            if (exitCode === 0) {
+                lifecycle.requestClose("action")
+                return
+            }
+            var detail = root.launchStderr.trim()
+            root.launchError = "Could not launch " + root.launchTarget + " (exit " + exitCode + ")" + (detail ? ": " + detail : "")
+            searchField.forceActiveFocus()
+        }
+    }
 
     // AI
     property string aiQuery: ""
@@ -49,7 +68,7 @@ Item {
         "virt-manager":"\uF108","gparted":"\uF0A0","gnome-disks":"\uF0A0",
         "gnome-control-center":"\uF013","obs-studio":"\uF030"
     })
-    readonly property string defaultIcon: "\uF15B"
+    readonly property string defaultIcon: "\u25A3"
     readonly property var emptyLabels: ["No applications found","No open windows","No matching commands","","Ask anything\u2026","No clipboard history"]
 
     anchors.fill: parent
@@ -57,21 +76,20 @@ Item {
 
     Connections {
         target: lifecycle
-        function onOpened() { resetAi(); searchText = ""; searchField.text = ""; activeMode = 0; filteredResults = []; selectedIndex = 0; filterResults(); searchField.forceActiveFocus() }
+        function onOpened() { resetAi(); launchError = ""; searchText = ""; searchField.text = ""; activeMode = 0; filteredResults = []; selectedIndex = 0; scanStarted = false; filterResults(); searchField.forceActiveFocus() }
         function onClosed() { if (lifecycle.closeReason === "screenshot") root.requestCaptureAfterClose() }
     }
 
-    // Scrim
-    Rectangle { anchors.fill: parent; color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, Theme.Tokens.glassScrimAlpha); opacity: lifecycle.active ? 1 : 0; TapHandler { onTapped: lifecycle.requestClose("clickOutside") } }
+    // The inline island host creates this component only when Super+Space is
+    // requested. Open its lifecycle from inside the component as well as from
+    // the Loader callback so construction order cannot leave a blank card.
+    Component.onCompleted: root.open()
 
-    // Card
-    Rectangle {
-        anchors.centerIn: parent
-        width: Math.min(root.width * 0.46, Theme.Tokens.scaled(560))
-        height: Math.min(root.height * 0.52, Theme.Tokens.scaled(440))
-        radius: Theme.Tokens.radiusXl; color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
-        border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
-        scale: root.reducedMotion ? 1.0 : 0.9 + 0.1 * lifecycle.openProgress
+    // NoxIsland supplies the launcher card and its pill-to-panel transition.
+    // Drawing another card here would stack translucent surfaces and reduce
+    // the usable width enough to truncate mode labels.
+    Item {
+        anchors.fill: parent
         opacity: lifecycle.openProgress
 
         ColumnLayout { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingLg; spacing: Theme.Tokens.spacingMd
@@ -79,20 +97,25 @@ Item {
             Components.TextField { id: searchField; Layout.fillWidth: true; label: ""; showClearButton: true
                 placeholderText: root.activeMode === 4 ? "Ask anything\u2026" : "Search\u2026"
                 onTextChanged: { root.searchText = text; if (root.activeMode === 4) { root.aiQuery = text; root.triggerAiQuery() } root.filterResults() }
+                onAccepted: root.activateSelected()
+                onNavigateUp: root.moveList(-1)
+                onNavigateDown: root.moveList(1)
+                onNavigateHome: root.selectBoundary(false)
+                onNavigateEnd: root.selectBoundary(true)
                 Keys.onEscapePressed: lifecycle.requestClose("escape")
                 Keys.onTabPressed: function(e) { root.activeMode = (root.activeMode + 1) % root.modes.length; root.resetAi(); root.filterResults(); e.accepted = true }
             }
             // Tabs
-            RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.spacingXs
+            RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.scaled(2)
                 Repeater { model: root.modes
                     delegate: Rectangle { required property int index; required property string modelData
-                        Layout.fillWidth: true; Layout.preferredWidth: Theme.Tokens.scaled(88); Layout.minimumWidth: Theme.Tokens.scaled(64); height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusPill
+                        Layout.fillWidth: true; Layout.minimumWidth: 0; height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusPill
                         activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: modelData + " launcher mode"
                         color: root.activeMode === index ? Theme.Tokens.tonalPrimaryContainer : "transparent"
                         border.color: root.activeMode === index ? Theme.Tokens.tonalPrimary : "transparent"; border.width: root.activeMode === index ? 1 : 0
-                        Text { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingXs; text: modelData; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                        Text { anchors.fill: parent; anchors.leftMargin: Theme.Tokens.scaled(3); anchors.rightMargin: Theme.Tokens.scaled(3); text: modelData; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                             color: root.activeMode === index ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
-                            font.pixelSize: Theme.Tokens.typographyLabelMedium }
+                            font.pixelSize: Theme.Tokens.typographyLabelSmall }
                         TapHandler { onTapped: { parent.forceActiveFocus(); root.activeMode = index; root.resetAi(); root.filterResults() } }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                         Keys.onReturnPressed: { root.activeMode = index; root.resetAi(); root.filterResults() }
@@ -101,6 +124,14 @@ Item {
                 }
             }
             Components.Divider { Layout.fillWidth: true }
+            Text {
+                Layout.fillWidth: true
+                visible: root.launchBusy || root.scanBusy || root.launchError !== "" || root.scanError !== ""
+                text: root.launchBusy ? "Opening " + root.launchTarget + "\u2026" : root.scanBusy ? "Loading applications\u2026" : (root.launchError || root.scanError)
+                color: root.launchBusy ? Theme.Tokens.textMuted : Theme.Tokens.stateDanger
+                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                wrapMode: Text.WordWrap
+            }
             // Results area
             Item { Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                 // AI panel
@@ -137,7 +168,10 @@ Item {
                         readonly property bool cur: index === root.selectedIndex
                         Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: cur ? Theme.Tokens.tonalPrimaryContainer : ho ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
                         RowLayout { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm; spacing: Theme.Tokens.spacingMd
-                            Text { text: modelData.icon || root.defaultIcon; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd; font.family: "Symbols Nerd Font Mono" }
+                            Item { Layout.preferredWidth: Theme.Tokens.scaled(28); Layout.preferredHeight: Theme.Tokens.scaled(28)
+                                IconImage { id: appIcon; anchors.fill: parent; source: root.openProgress > 0.5 ? root.iconSource(modelData) : ""; visible: source !== "" && status !== Image.Error }
+                                Text { anchors.fill: parent; text: modelData.icon || root.defaultIcon; visible: !appIcon.visible; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd; font.family: "Symbols Nerd Font Mono"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                            }
                             ColumnLayout { Layout.fillWidth: true; spacing: 0
                                 Text { text: modelData.title || modelData.name || "Unknown"; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text { text: modelData.subtitle || ""; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelSmall; elide: Text.ElideRight; visible: text !== "" }
@@ -162,14 +196,34 @@ Item {
     function resetAi() { aiQuery = ""; aiResponse = ""; aiLoading = false; aiStatus = 0; aiErrorDetail = ""; aiTimeout.stop(); if (aiXhr) { aiXhr.abort(); aiXhr = null } }
 
     // ── App scanning ──
-    property var appCache: []; property bool scanStarted: false; property string desktopBuffer: ""
+    property var appCache: []; property bool scanStarted: false; property bool scanBusy: false
+    property string scanError: ""; property string desktopBuffer: ""; property string scannerStderr: ""
     property Process desktopScanner: Process { id: desktopScanner; running: false
         stdout: SplitParser { splitMarker: ""; onRead: function(data) { root.desktopBuffer += data } }
-        onExited: function() { if (root.desktopBuffer) { root.parseDesktopFiles(root.desktopBuffer); root.desktopBuffer = ""; root.filterResults() } }
+        stderr: SplitParser { splitMarker: ""; onRead: function(data) { root.scannerStderr += data } }
+        onStarted: { root.scanBusy = true; root.scanError = "" }
+        onExited: function(exitCode, exitStatus) {
+            root.scanBusy = false
+            if (exitCode === 0 && root.desktopBuffer) root.parseDesktopFiles(root.desktopBuffer)
+            else if (exitCode !== 0) root.scanError = "Application discovery failed" + (root.scannerStderr.trim() ? ": " + root.scannerStderr.trim() : "")
+            else root.scanError = "No applications were discovered"
+            root.desktopBuffer = ""
+            root.scannerStderr = ""
+            root.filterResults()
+        }
     }
-    function scanDesktopFiles() { if (scanStarted) return; scanStarted = true; desktopScanner.command = ["sh","-c","find /usr/share/applications ~/.local/share/applications -name '*.desktop' 2>/dev/null | head -200 | while read f; do name=$(grep -m1 '^Name=' \"$f\" 2>/dev/null | cut -d= -f2-); exec=$(grep -m1 '^Exec=' \"$f\" 2>/dev/null | cut -d= -f2- | sed 's/ .*//' | sed 's/%[a-zA-Z]//g'); [ -n \"$name\" ] && [ -n \"$exec\" ] && echo \"$name|$exec\"; done | sort -u"]; desktopScanner.running = true }
-    function parseDesktopFiles(data) { if (!data) return; var lines = data.trim().split("\n"); var apps = []; for (var i = 0; i < lines.length; i++) { var p = lines[i].split("|"); if (p.length < 2) continue; var title = p[0].trim(); var cmd = p[1].trim(); var basename = cmd.split("/").pop().split(" ")[0].toLowerCase(); var icon = root.nerdMap[basename] || root.defaultIcon; if (title && cmd) apps.push({ title:title, icon:icon, subtitle:cmd, action:"launch", actionParams:{command:cmd} }) } appCache = apps.length > 0 ? apps : buildDefaultApps() }
-    function buildDefaultApps() { return [{ title:"Dolphin", icon:"\uF07C", subtitle:"File manager", action:"launch", actionParams:{command:"dolphin"} }, { title:"Firefox", icon:"\uF269", subtitle:"Browser", action:"launch", actionParams:{command:"firefox"} }, { title:"Kitty", icon:"\uF120", subtitle:"Terminal", action:"launch", actionParams:{command:"kitty"} }, { title:"Code", icon:"\uF121", subtitle:"VS Code", action:"launch", actionParams:{command:"code"} }, { title:"Settings", icon:"\uF013", subtitle:"Settings", action:"launch", actionParams:{command:"gnome-control-center"} }, { title:"Obsidian", icon:"\uF044", subtitle:"Notes", action:"launch", actionParams:{command:"obsidian"} }] }
+    function scanDesktopFiles() { if (scanStarted || desktopScanner.running) return; scanStarted = true; desktopBuffer = ""; scannerStderr = ""; desktopScanner.command = [Quickshell.env("HOME") + "/.config/hypr/scripts/launcher.sh", "--list-json"]; desktopScanner.running = true }
+    function iconSource(item) {
+        var iconName = item && item.iconName ? String(item.iconName).trim() : "";
+        if (iconName === "") return "";
+        if (iconName.charAt(0) === "/") return "file://" + iconName;
+        try {
+            if (!Quickshell.hasThemeIcon(iconName)) return "";
+            return Quickshell.iconPath(iconName) || "";
+        } catch (e) { return ""; }
+    }
+    function parseDesktopFiles(data) { if (!data) return; try { var records = data.trim().split("\n"); var apps = []; for (var i = 0; i < records.length; i++) { var r = JSON.parse(records[i]); var id = r.desktopId; var title = r.name; if (!id || !title) continue; var basename = id.replace(/\.desktop$/, "").toLowerCase(); apps.push({ title:title, iconName:r.icon || basename, icon:root.nerdMap[basename] || root.defaultIcon, subtitle:id, action:"launch", actionParams:{desktopId:id} }) } if (apps.length === 0) throw new Error("empty application list"); appCache = apps; scanError = "" } catch (e) { appCache = buildDefaultApps(); scanError = "Application discovery returned invalid data" } }
+    function buildDefaultApps() { return [{ title:"Dolphin", iconName:"org.kde.dolphin", icon:"\uF07C", subtitle:"File manager", action:"launch", actionParams:{command:"dolphin"} }, { title:"Firefox", iconName:"firefox", icon:"\uF269", subtitle:"Browser", action:"launch", actionParams:{command:"firefox"} }, { title:"Kitty", iconName:"kitty", icon:"\uF120", subtitle:"Terminal", action:"launch", actionParams:{command:"kitty"} }, { title:"Code", iconName:"code", icon:"\uF121", subtitle:"VS Code", action:"launch", actionParams:{command:"code"} }, { title:"Settings", iconName:"gnome-settings", icon:"\uF013", subtitle:"Settings", action:"launch", actionParams:{command:"gnome-control-center"} }, { title:"Obsidian", iconName:"obsidian", icon:"\uF044", subtitle:"Notes", action:"launch", actionParams:{command:"obsidian"} }] }
 
     // ── Filtering ──
     function matchScore(item, query) {
@@ -192,7 +246,13 @@ Item {
             var score = matchScore(items[i], query);
             if (query === "" || score >= 0) scored.push({ item: items[i], score: score });
         }
-        scored.sort(function(a, b) { return b.score - a.score; });
+        scored.sort(function(a, b) {
+            var scoreDelta = b.score - a.score;
+            if (scoreDelta !== 0) return scoreDelta;
+            var aTitle = String(a.item.title || a.item.name || "");
+            var bTitle = String(b.item.title || b.item.name || "");
+            return aTitle.localeCompare(bTitle);
+        });
         return scored.slice(0, limit || 30).map(function(entry) { return entry.item; });
     }
     function filterResults() {
@@ -201,8 +261,8 @@ Item {
         selectedIndex = 0;
         if (activeMode === 4) { filteredResults = []; return; }
         if (activeMode === 5) {
-            if (!root.clipboardModel) { filteredResults = []; return; }
-            filteredResults = ranked(root.clipboardModel.asLauncherItems(20), q, 20); return;
+            var clipboardItems = [{ title:"Open Author Clipboard", iconName:"com.namikofficial.author-clipboard", icon:"\uF0EA", subtitle:"Search, copy, paste, pin, and manage history", action:"open_clipboard", actionParams:{} }];
+            filteredResults = ranked(clipboardItems, q, 1); return;
         }
         if (activeMode === 3) {
             if (q === "") { filteredResults = []; return; }
@@ -217,8 +277,48 @@ Item {
 
     // Safe calculator
     function evaluateCalc(expr) { try { var tokens = []; var num = ""; for (var i = 0; i < expr.length; i++) { var ch = expr[i]; if (/[0-9.]/.test(ch)) { num += ch; continue } if (num) { tokens.push({t:"num",v:parseFloat(num)}); num = "" } if (ch === ' ') continue; if ('+-*/()%'.indexOf(ch) >= 0) { tokens.push({t:ch,v:ch}); continue } } if (num) tokens.push({t:"num",v:parseFloat(num)}); if (tokens.length === 0) return "?"; var pos = 0; function peek() { return pos < tokens.length ? tokens[pos] : null } function consume() { return pos < tokens.length ? tokens[pos++] : null } function parseExpr() { var left = parseTerm(); while (peek() && (peek().t === '+' || peek().t === '-')) { var op = consume().v; var right = parseTerm(); left = op === '+' ? left+right : left-right } return left } function parseTerm() { var left = parseFactor(); while (peek() && (peek().t === '*' || peek().t === '/' || peek().t === '%')) { var op = consume().v; var right = parseFactor(); if (op === '*') left *= right; else if (op === '/') { if (right === 0) throw "div0"; left /= right } else left %= right } return left } function parseFactor() { if (peek() && peek().t === '-') { consume(); return -parseFactor() } if (peek() && peek().t === '(') { consume(); var val = parseExpr(); if (peek() && peek().t === ')') consume(); return val } var tok = consume(); if (!tok || tok.t !== "num") throw "bad"; return tok.v } var result = parseExpr(); if (typeof result === "number" && isFinite(result)) return String(Math.round(result*100)/100); return "?" } catch(e) { return "?" } }
-    function moveList(d) { if (filteredResults.length === 0) return; selectedIndex = (selectedIndex + d + filteredResults.length) % filteredResults.length; resultsList.currentIndex = selectedIndex }
-    function activateSelected() { if (selectedIndex < 0 || selectedIndex >= filteredResults.length) return; var item = filteredResults[selectedIndex]; if (!item || !item.action) return; switch (item.action) { case "launch": if (item.actionParams && item.actionParams.command) { launchProcess.command = [item.actionParams.command]; launchProcess.running = true } lifecycle.requestClose("action"); break; case "focus_window": if (root.noxd && root.noxd.connected && item.actionParams && item.actionParams.address) root.noxd.runAction({window_focus:{address:item.actionParams.address}}); lifecycle.requestClose("action"); break; case "lock": if (root.noxd && root.noxd.connected) root.noxd.runAction({lock:{}}); lifecycle.requestClose("action"); break; case "suspend": if (root.noxd && root.noxd.connected) root.noxd.runAction({suspend:{}}); lifecycle.requestClose("action"); break; case "reboot": if (root.noxd && root.noxd.connected) root.noxd.runAction({reboot:{}}); lifecycle.requestClose("action"); break; case "power_off": if (root.noxd && root.noxd.connected) root.noxd.runAction({power_off:{}}); lifecycle.requestClose("action"); break; case "screenshot": lifecycle.requestClose("screenshot"); break; case "reload_shell": launchProcess.command = ["systemctl","--user","restart","noxflow-shell.service"]; launchProcess.running = true; lifecycle.requestClose("action"); break; default: if (root.noxd && root.noxd.connected) { var a = {}; a[item.action] = item.actionParams || {}; root.noxd.runAction(a) } lifecycle.requestClose("action"); break } }
+    function moveList(d) { if (filteredResults.length === 0) return; selectedIndex = (selectedIndex + d + filteredResults.length) % filteredResults.length; resultsList.currentIndex = selectedIndex; resultsList.positionViewAtIndex(selectedIndex, ListView.Contain) }
+    function selectBoundary(last) { if (filteredResults.length === 0) return; selectedIndex = last ? filteredResults.length - 1 : 0; resultsList.currentIndex = selectedIndex; resultsList.positionViewAtIndex(selectedIndex, ListView.Contain) }
+    function activateSelected() {
+        if (launchBusy || selectedIndex < 0 || selectedIndex >= filteredResults.length) return
+        var item = filteredResults[selectedIndex]
+        if (!item || !item.action) return
+        switch (item.action) {
+        case "launch":
+            if (!item.actionParams) return
+            launchTarget = item.title || "application"
+            launchStderr = ""
+            launchError = ""
+            if (item.actionParams.desktopId) launchProcess.command = ["gtk-launch", item.actionParams.desktopId]
+            else if (item.actionParams.command) launchProcess.command = [item.actionParams.command]
+            else return
+            launchProcess.running = true
+            break
+        case "focus_window":
+            if (root.noxd && root.noxd.connected && item.actionParams && item.actionParams.address) root.noxd.runAction({window_focus:{address:item.actionParams.address}})
+            lifecycle.requestClose("action")
+            break
+        case "open_clipboard":
+            Quickshell.execDetached([Quickshell.env("HOME") + "/.config/hypr/scripts/cliphist-rofi.sh"])
+            lifecycle.requestClose("action")
+            break
+        case "lock": if (root.noxd && root.noxd.connected) root.noxd.runAction({lock:{}}); lifecycle.requestClose("action"); break
+        case "suspend": if (root.noxd && root.noxd.connected) root.noxd.runAction({suspend:{}}); lifecycle.requestClose("action"); break
+        case "reboot": if (root.noxd && root.noxd.connected) root.noxd.runAction({reboot:{}}); lifecycle.requestClose("action"); break
+        case "power_off": if (root.noxd && root.noxd.connected) root.noxd.runAction({power_off:{}}); lifecycle.requestClose("action"); break
+        case "screenshot": lifecycle.requestClose("screenshot"); break
+        case "reload_shell":
+            launchTarget = "NoxFlow"
+            launchStderr = ""
+            launchProcess.command = ["systemctl", "--user", "restart", "noxflow-shell.service"]
+            launchProcess.running = true
+            break
+        default:
+            if (root.noxd && root.noxd.connected) { var a = {}; a[item.action] = item.actionParams || {}; root.noxd.runAction(a) }
+            lifecycle.requestClose("action")
+            break
+        }
+    }
 
     function toggle() { lifecycle.toggle() }
     function open() { lifecycle.open() }
