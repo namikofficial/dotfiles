@@ -204,17 +204,9 @@ fn run(
                 match reader.read_line(&mut line) {
                     Ok(0) => break,
                     Ok(_) => {
-                        let event = if line.contains("sink")
-                            || line.contains("source")
-                            || line.contains("server")
-                            || line.contains("sink-input")
-                            || line.contains("source-output")
-                        {
-                            "state_changed"
-                        } else {
-                            "devices_changed"
-                        };
-                        let _ = refresh_and_publish(&bus, max_volume, event);
+                        if let Some(event) = subscribed_event_type(&line) {
+                            let _ = refresh_and_publish(&bus, max_volume, event);
+                        }
                     }
                     Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
                         thread::sleep(Duration::from_millis(100))
@@ -225,6 +217,30 @@ fn run(
         }
         let _ = child.kill();
         let _ = child.wait();
+    }
+}
+
+/// Map only audio-state events to provider refreshes.
+///
+/// Every `pactl` command creates short-lived PulseAudio client events. Refreshing
+/// on those events launches more `pactl` commands, producing an unbounded
+/// feedback loop across noxd, PipeWire, PipeWire-Pulse, and WirePlumber.
+fn subscribed_event_type(line: &str) -> Option<&'static str> {
+    if [
+        " on sink #",
+        " on source #",
+        " on sink-input #",
+        " on source-output #",
+        " on server #",
+    ]
+    .iter()
+    .any(|facility| line.contains(facility))
+    {
+        Some("state_changed")
+    } else if line.contains(" on card #") || line.contains(" on module #") {
+        Some("devices_changed")
+    } else {
+        None
     }
 }
 
@@ -521,5 +537,23 @@ mod tests {
         assert_eq!(clamp_volume(-5, 100), 0);
         assert_eq!(clamp_volume(50, 100), 50);
         assert_eq!(clamp_volume(150, 100), 100);
+    }
+
+    #[test]
+    fn subscription_refreshes_only_for_audio_state_events() {
+        assert_eq!(
+            subscribed_event_type("Event 'change' on sink #42"),
+            Some("state_changed")
+        );
+        assert_eq!(
+            subscribed_event_type("Event 'new' on source-output #7"),
+            Some("state_changed")
+        );
+        assert_eq!(
+            subscribed_event_type("Event 'change' on card #1"),
+            Some("devices_changed")
+        );
+        assert_eq!(subscribed_event_type("Event 'new' on client #99"), None);
+        assert_eq!(subscribed_event_type("Event 'remove' on client #99"), None);
     }
 }
