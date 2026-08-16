@@ -61,7 +61,6 @@
     "glob": "allow",
     "grep": "allow",
     "list": "allow",
-    "lsp": "allow",
     "skill": {
       "*": "deny",
       "codebase-tour": "allow",
@@ -143,28 +142,6 @@
       },
       "enabled": false,
       "timeout": 120000
-    }
-  },
-  "lsp": {
-    "typescript": {
-      "command": ["typescript-language-server", "--stdio"],
-      "extensions": [".ts", ".tsx", ".mts", ".cts"]
-    },
-    "rust": {
-      "command": ["rust-analyzer"],
-      "extensions": [".rs"]
-    },
-    "python": {
-      "command": ["pyright-langserver", "--stdio"],
-      "extensions": [".py"]
-    },
-    "lua": {
-      "command": ["lua-language-server"],
-      "extensions": [".lua"]
-    },
-    "bash": {
-      "command": ["bash-language-server", "start"],
-      "extensions": [".sh", ".bash", ".zsh"]
     }
   },
   "skills": {
