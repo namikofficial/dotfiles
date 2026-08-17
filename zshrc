@@ -871,7 +871,7 @@ alias llama-status="curl -s http://127.0.0.1:8000/v1/models | jq '.data[0].id' 2
 
 
 # Added by Antigravity CLI installer
-export PATH="/home/namik/.local/bin:$PATH"
+
 
 # OpenClaw completion
 [ -f "$HOME/.openclaw/completions/openclaw.zsh" ] && source "$HOME/.openclaw/completions/openclaw.zsh"
@@ -884,7 +884,7 @@ if [[ "$ENABLE_ZSH_AUTOCOMPLETE" != "1" ]]; then
   unsetopt listambiguous
   LISTMAX=999999
 fi
-export PATH=$PATH:$HOME/.maestro/bin
+export PATH="$PATH:$HOME/.maestro/bin"
 
 # OpenCode tooling (mirrored in .zshenv for non-interactive shells)
 export PATH="$HOME/go/bin:$PATH"

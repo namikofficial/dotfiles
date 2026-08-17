@@ -115,7 +115,16 @@
     "bash": {
       "*": "allow",
       "ssh *": "deny",
-      "ssh": "deny"
+      "ssh": "deny",
+      "environment": {
+        "PATH": "/home/namik/.local/bin:/home/namik/.cargo/bin:/home/namik/.maestro/bin:/home/namik/go/bin:/usr/local/bin:/usr/bin:/opt/cuda/bin:/home/namik/.config/nvm/versions/node/v24.18.0/bin",
+        "SHELL": "/bin/zsh",
+        "DOTFILES_HOME": "/home/namik/Documents/code/dotfiles",
+        "SCRIPTS_BIN": "/home/namik/Documents/code/dotfiles/private/scripts/bin",
+        "EDITOR": "nvim",
+        "VISUAL": "nvim",
+        "GIT_EDITOR": "nvim"
+      }
     },
     "local-docs_*": "allow",
     "browser_*": "allow",
