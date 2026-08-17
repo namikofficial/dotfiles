@@ -45,9 +45,24 @@
           "modalities": { "input": ["text", "image"], "output": ["text"] }
         }
       }
+    },
+    "minimax-coding-plan": {
+      "npm": "@ai-sdk/anthropic",
+      "name": "MiniMax Token Plan",
+      "options": {
+        "baseURL": "https://api.minimax.io/anthropic/v1"
+      },
+      "models": {
+        "MiniMax-M3": { "name": "MiniMax M3", "tool_call": true },
+        "MiniMax-M2.7": { "name": "MiniMax M2.7", "tool_call": true },
+        "MiniMax-M2.7-highspeed": { "name": "MiniMax M2.7 Highspeed", "tool_call": true },
+        "MiniMax-M2.5": { "name": "MiniMax M2.5", "tool_call": true },
+        "MiniMax-M2.5-highspeed": { "name": "MiniMax M2.5 Highspeed", "tool_call": true },
+        "MiniMax-M2.1": { "name": "MiniMax M2.1", "tool_call": true }
+      }
     }
   },
-  "enabled_providers": ["opencode-go", "opencode-free", "openai"],
+  "enabled_providers": ["opencode-go", "opencode-free", "openai", "google", "groq", "minimax-coding-plan"],
   "model": "opencode-go/deepseek-v4-flash",
   "small_model": "opencode-go/deepseek-v4-flash",
   "default_agent": "build",
