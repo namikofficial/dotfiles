@@ -63,15 +63,32 @@
     }
   },
   "enabled_providers": ["opencode-go", "opencode-free", "openai", "google", "groq", "minimax-coding-plan"],
-  "model": "opencode-go/deepseek-v4-flash",
-  "small_model": "opencode-go/deepseek-v4-flash",
+  "model": "minimax-coding-plan/MiniMax-M2.7",
+  "small_model": "opencode-free/deepseek-v4-flash-free",
+  "lsp": true,
   "default_agent": "build",
   "subagent_depth": 1,
   "share": "manual",
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      ".git/**",
+      "dist/**",
+      "build/**",
+      "coverage/**",
+      ".turbo/**",
+      ".next/**",
+      ".expo/**",
+      "android/.gradle/**",
+      "android/**/build/**",
+      "ios/Pods/**"
+    ]
+  },
   "instructions": [
     "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md"
   ],
   "permission": {
+    "lsp": "allow",
     "read": "allow",
     "glob": "allow",
     "grep": "allow",
@@ -93,15 +110,16 @@
     "task": "allow",
     "webfetch": "allow",
     "websearch": "allow",
-    "doom_loop": "allow",
-    "external_directory": { "*": "allow" },
+    "doom_loop": "ask",
+    "external_directory": { "*": "ask", "/home/namik/Documents/code/**": "allow" },
     "bash": {
       "*": "allow",
       "ssh *": "deny",
       "ssh": "deny"
     },
     "local-docs_*": "allow",
-    "browser_*": "allow"
+    "browser_*": "allow",
+    "memory": "allow"
   },
   "mcp": {
     "codegraph": {
@@ -157,6 +175,16 @@
       },
       "enabled": false,
       "timeout": 120000
+    },
+    "memory": {
+      "type": "local",
+      "command": ["npx", "-y", "@beledarian/mcp-local-memory@2"],
+      "environment": {
+        "ARCHIVIST_STRATEGY": "nlp",
+        "MEMORY_DB_PATH": "/home/namik/.local/share/opencode/memory.db"
+      },
+      "enabled": true,
+      "timeout": 60000
     }
   },
   "skills": {
@@ -166,12 +194,15 @@
     ]
   },
   "plugin": [
+    "opencode-snip@latest",
+    "opencode-pty",
+    "context-mode",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js"
   ],
   "tool_output": {
-    "max_lines": 1200,
-    "max_bytes": 131072
+    "max_lines": 1000,
+    "max_bytes": 65536
   },
   "compaction": {
     "auto": true,
@@ -184,22 +215,22 @@
     "build": {
       "description": "Primary implementation agent for coding, UI, UX, React, React Native, Android, and desktop work.",
       "mode": "primary",
-      "model": "opencode-go/deepseek-v4-flash",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "temperature": 0.1,
       "top_p": 0.95,
       "steps": 80,
       "color": "primary",
-      "prompt": "Act as the primary implementation agent. Inspect the repository and applicable AGENTS.md first. Use CodeGraph and LSP before broad file reads. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free and incorporate their findings. Use @zen-deepseek-general, @zen-mimo-general, @zen-north-code, @zen-nemotron-general, or @zen-big-pickle-general for focused second opinions or cheap exploration. Make focused changes, preserve unrelated work, run relevant checks, and report only observed results with paths, commands, risks, and next action. You may edit and run local commands. Never use SSH."
+      "prompt": "Act as the primary implementation agent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, impact analysis, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns and codemods. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free and incorporate their findings. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running, interactive, watch-mode, development-server, emulator, Gradle, Docker, or test processes, prefer PTY sessions over shell backgrounding, arbitrary sleep calls, or timeout wrappers. Use pty_spawn to start the process, pty_read with filtering to inspect relevant output, and rely on exit notifications when possible. Do not poll repeatedly. Clean up PTY sessions when they are no longer needed. Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts that are likely to matter in future sessions. Do not store transient debugging observations, speculative conclusions, raw logs, temporary errors, task progress, secrets, credentials, or facts easily recoverable from source control. Completion requires evidence, not confidence. Before reporting completion: inspect the final diff, check all changed call sites and contracts where relevant, run authoritative targeted validation, distinguish commands actually run from checks merely recommended, report any verification that could not be performed, and never classify an existing failure as pre-existing without evidence. For substantial or cross-cutting changes, delegate final independent verification to @verifier before declaring the task complete. Fix confirmed findings yourself, then rerun the relevant checks. Make focused changes, preserve unrelated work, run relevant checks, and report only observed results with paths, commands, risks, and next action. You may edit and run local commands. Never use SSH."
     },
     "plan": {
       "description": "Read-only planning agent for code, UI, UX, React Native, and Android work.",
       "mode": "primary",
-      "model": "opencode-go/deepseek-v4-flash",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "temperature": 0.1,
       "top_p": 0.95,
       "steps": 48,
       "color": "info",
-      "prompt": "Produce an implementation-ready plan grounded in the repository. Inspect AGENTS.md, use CodeGraph and LSP, and load ui-ux-mobile-product-review for UI, UX, React, React Native, Android, or product requests. Resolve discoverable uncertainty, identify affected paths, contracts, risks, and tests. Do not edit files or run mutating commands. Never use SSH.",
+      "prompt": "Produce an implementation-ready plan grounded in the repository. Inspect AGENTS.md first. Use code-intelligence tools before broad file reads: prefer LSP for symbol-level navigation (definitions, references, implementations, types, symbols, call hierarchy), CodeGraph for architectural relationships and cross-module flows, ast-grep (sg) for structural patterns, and grep/glob only for literal text or filenames. Load ui-ux-mobile-product-review for UI, UX, React, React Native, Android, or product requests. Resolve discoverable uncertainty, identify affected paths, contracts, risks, and tests. Do not edit files or run mutating commands. Never use SSH.",
       "permission": {
         "edit": "deny",
         "task": "deny",
@@ -250,16 +281,6 @@
       "permission": { "edit": "deny", "task": "deny" },
       "prompt": "Give a concise read-only analysis of the assigned question, especially UI, UX, product flow, and implementation tradeoffs. Ground findings in visible source or attachments and identify uncertainty."
     },
-    "zen-north-code": {
-      "description": "Free North Mini Code agent for focused code exploration and review.",
-      "mode": "subagent",
-      "model": "opencode-free/north-mini-code-free",
-      "temperature": 0.1,
-      "steps": 24,
-      "color": "info",
-      "permission": { "edit": "deny", "task": "deny" },
-      "prompt": "Perform focused read-only code exploration, trace a small implementation path, identify likely bugs or missing tests, and return exact evidence. Do not edit."
-    },
     "zen-nemotron-general": {
       "description": "Free Nemotron general-purpose review and synthesis agent.",
       "mode": "subagent",
@@ -279,6 +300,34 @@
       "color": "info",
       "permission": { "edit": "deny", "task": "deny" },
       "prompt": "Give a fast, concise sanity check or alternative idea. Keep it read-only, label speculation, and avoid broad repository exploration."
+    },
+    "verifier": {
+      "description": "Read-only final verification agent for implementation correctness, regressions, tests, contracts, and observed behavior.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 24,
+      "color": "success",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
+      },
+      "prompt": "Verify completed work independently. Start from the user's requested outcome, then inspect the actual diff and relevant surrounding code. Use LSP for symbols and diagnostics, CodeGraph for cross-module impact, ast-grep for structural invariants, and targeted file reads only after narrowing scope. Run the authoritative lint, typecheck, focused tests, and build checks that are relevant and non-destructive. Look specifically for incomplete call-site updates, contract mismatches, missing validation, stale imports, regressions, unhandled edge cases, false assumptions, and tests that pass without exercising the changed behavior. Do not edit anything. Separate confirmed failures, risks, and verified-good results. Never claim a command passed unless you ran it and observed success."
+    },
+    "repo-explorer": {
+      "description": "Fast read-only repository mapper that locates the minimum relevant implementation surface before coding begins.",
+      "mode": "subagent",
+      "model": "opencode-free/north-mini-code-free",
+      "temperature": 0.1,
+      "steps": 20,
+      "color": "info",
+      "permission": { "edit": "deny", "task": "deny" },
+      "prompt": "Map the smallest repository surface necessary to answer the assigned implementation question. Do not solve the task and do not edit. Inspect AGENTS.md first. Prefer LSP for definitions, references, implementations, types, and symbols; CodeGraph for dependencies and architectural flows; ast-grep for structural code patterns; rg only for literal text. Avoid broad directory reads. Return: entry points, relevant symbols, call chain/data flow, affected contracts, likely tests, exact paths, and unresolved uncertainty. Explicitly identify files that looked related but do not need modification so the implementation agent avoids unnecessary scope."
     }
   }
 }
