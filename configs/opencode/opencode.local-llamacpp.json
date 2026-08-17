@@ -185,6 +185,12 @@
       },
       "enabled": true,
       "timeout": 60000
+    },
+    "maestro": {
+      "type": "local",
+      "command": ["maestro", "mcp"],
+      "enabled": true,
+      "timeout": 120000
     }
   },
   "skills": {
