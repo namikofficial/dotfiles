@@ -142,7 +142,7 @@
         "--viewport-size", "1920x1080",
         "--output-dir", "/home/namik/.cache/opencode/playwright-mcp"
       ],
-      "enabled": false,
+      "enabled": true,
       "timeout": 120000
     },
     "gtm": {
