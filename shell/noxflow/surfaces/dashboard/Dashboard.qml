@@ -20,6 +20,8 @@ PanelWindow {
     required property var calModel
     required property var weatherModel
     required property var systemModel
+    readonly property bool systemTelemetryReadable: !!systemModel
+        && (systemModel.status === "live" || systemModel.status === "stale")
 
     signal requestCaptureAfterClose()
 
@@ -318,6 +320,7 @@ PanelWindow {
                         text: "System"; color: Theme.Tokens.textPrimary
                         font.pixelSize: Theme.Tokens.typographyTitleMedium; font.bold: true
                     }
+                    Text { text: !systemModel ? "Telemetry unavailable" : systemModel.status === "live" ? "Live · " + systemModel.dataSource : systemModel.status === "stale" ? "Stale · " + Math.round(systemModel.ageMs / 1000) + "s old · " + systemModel.dataSource : systemModel.status === "pending" ? "Waiting for telemetry" : "Telemetry unavailable"; color: systemModel && systemModel.status === "live" ? Theme.Tokens.stateSuccess : systemModel && systemModel.status === "stale" ? Theme.Tokens.stateWarning : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
 
                     // CPU tile
                     Rectangle {
@@ -339,7 +342,7 @@ PanelWindow {
                                     font.pixelSize: Theme.Tokens.typographyLabelSmall; Layout.fillWidth: true
                                 }
                                 Text {
-                                    text: systemModel ? systemModel.cpuUsage + "%" : "--"
+                                    text: root.systemTelemetryReadable ? systemModel.cpuUsage + "%" : "--"
                                     color: (systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.textPrimary
                                     font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true
                                 }
@@ -348,13 +351,13 @@ PanelWindow {
                                 Layout.fillWidth: true; height: 4; radius: 2
                                 color: Theme.Tokens.outlineSubtle
                                 Rectangle {
-                                    width: parent.width * Math.min(1, (systemModel ? systemModel.cpuUsage : 0) / 100)
+                                    width: parent.width * Math.min(1, (root.systemTelemetryReadable ? systemModel.cpuUsage : 0) / 100)
                                     height: parent.height; radius: parent.radius
                                     color: (systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
                                 }
                             }
                             Text {
-                                text: systemModel ? systemModel.cpuTemp + "°C" : ""
+                                text: root.systemTelemetryReadable && systemModel.cpuTempAvailable ? systemModel.cpuTemp + "°C" : "Temperature unavailable"
                                 color: (systemModel && systemModel.cpuTemp > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.textMuted
                                 font.pixelSize: Theme.Tokens.typographyLabelSmall
                             }
@@ -376,12 +379,12 @@ PanelWindow {
                                     font.pixelSize: Theme.Tokens.iconSm
                                 }
                                 Text {
-                                    text: systemModel && systemModel.gpuAvailable ? systemModel.gpuName : "GPU"
+                                    text: root.systemTelemetryReadable && systemModel.gpuAvailable ? (systemModel.gpuSource === "nvidia" ? "NVIDIA compute" : "Integrated graphics") : "GPU"
                                     color: Theme.Tokens.textSecondary
                                     font.pixelSize: Theme.Tokens.typographyLabelSmall; Layout.fillWidth: true
                                 }
                                 Text {
-                                    text: systemModel && systemModel.gpuAvailable ? systemModel.gpuUsage + "%" : "—"
+                                    text: root.systemTelemetryReadable && systemModel.gpuAvailable ? systemModel.gpuUsage + "%" : "—"
                                     color: Theme.Tokens.textPrimary
                                     font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true
                                 }
@@ -390,13 +393,13 @@ PanelWindow {
                                 Layout.fillWidth: true; height: 4; radius: 2
                                 color: Theme.Tokens.outlineSubtle
                                 Rectangle {
-                                    width: parent.width * Math.min(1, (systemModel ? systemModel.gpuUsage : 0) / 100)
+                                    width: parent.width * Math.min(1, (root.systemTelemetryReadable && systemModel.gpuAvailable ? systemModel.gpuUsage : 0) / 100)
                                     height: parent.height; radius: parent.radius
                                     color: Theme.Tokens.tonalSecondary
                                 }
                             }
                             Text {
-                                text: systemModel && systemModel.gpuAvailable && systemModel.gpuMemTotal > 0
+                                text: root.systemTelemetryReadable && systemModel.gpuAvailable && systemModel.gpuMemTotal > 0
                                     ? Math.round(systemModel.gpuMemUsed / 1024) + "/" + Math.round(systemModel.gpuMemTotal / 1024) + " GB" : ""
                                 color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall
                             }
@@ -423,7 +426,7 @@ PanelWindow {
                                     font.pixelSize: Theme.Tokens.typographyLabelSmall; Layout.fillWidth: true
                                 }
                                 Text {
-                                    text: systemModel ? systemModel.memPercent + "%" : "--"
+                                    text: root.systemTelemetryReadable ? systemModel.memPercent + "%" : "--"
                                     color: (systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.textPrimary
                                     font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true
                                 }
@@ -432,13 +435,13 @@ PanelWindow {
                                 Layout.fillWidth: true; height: 4; radius: 2
                                 color: Theme.Tokens.outlineSubtle
                                 Rectangle {
-                                    width: parent.width * Math.min(1, (systemModel ? systemModel.memPercent : 0) / 100)
+                                    width: parent.width * Math.min(1, (root.systemTelemetryReadable ? systemModel.memPercent : 0) / 100)
                                     height: parent.height; radius: parent.radius
                                     color: (systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalTertiary
                                 }
                             }
                             Text {
-                                text: systemModel
+                                text: root.systemTelemetryReadable
                                     ? Math.round(systemModel.memUsed / 1024 / 1024) + "/" + Math.round(systemModel.memTotal / 1024 / 1024) + " GB" : ""
                                 color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall
                             }

@@ -1043,6 +1043,7 @@ Item {
                         spacing: Theme.Tokens.spacingMd
 
                         Text { text: "System Resources"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge }
+                        Text { text: !systemModel ? "Telemetry unavailable" : systemModel.status === "live" ? "Live · " + systemModel.dataSource : systemModel.status === "stale" ? "Stale · " + Math.round(systemModel.ageMs / 1000) + "s old · " + systemModel.dataSource : systemModel.status === "pending" ? "Waiting for telemetry" : "Telemetry unavailable"; color: systemModel && systemModel.status === "live" ? Theme.Tokens.stateSuccess : systemModel && systemModel.status === "stale" ? Theme.Tokens.stateWarning : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
 
                         // CPU
                         RowLayout {
@@ -1058,7 +1059,7 @@ Item {
                                 }
                             }
                             Text {
-                                text: systemModel && systemModel.ready ? Math.round(systemModel.cpuUsage) + "%" : "--"
+                                text: systemModel && (systemModel.status === "live" || systemModel.status === "stale") ? Math.round(systemModel.cpuUsage) + "%" : "--"
                                 color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
                                 Layout.preferredWidth: 50
                             }
@@ -1078,7 +1079,7 @@ Item {
                                 }
                             }
                             Text {
-                                text: systemModel && systemModel.ready ? (systemModel.memUsed / 1024 / 1024).toFixed(1) + "G/" + (systemModel.memTotal / 1024 / 1024).toFixed(1) + "G (" + Math.round(systemModel.memPercent) + "%)" : "--"
+                                text: systemModel && (systemModel.status === "live" || systemModel.status === "stale") ? (systemModel.memUsed / 1024 / 1024).toFixed(1) + "G/" + (systemModel.memTotal / 1024 / 1024).toFixed(1) + "G (" + Math.round(systemModel.memPercent) + "%)" : "--"
                                 color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
                             }
                         }
@@ -1089,7 +1090,7 @@ Item {
                             Text { text: "Temp"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium }
                             Item { Layout.fillWidth: true }
                             Text {
-                                text: systemModel && systemModel.ready && systemModel.cpuTemp > 0 ? Math.round(systemModel.cpuTemp) + "°C" : "Unavailable"
+                                text: systemModel && (systemModel.status === "live" || systemModel.status === "stale") && systemModel.cpuTempAvailable ? Math.round(systemModel.cpuTemp) + "°C" : "Unavailable"
                                 color: (systemModel && systemModel.cpuTemp > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary
                                 font.pixelSize: Theme.Tokens.typographyBodySmall
                             }
@@ -1097,7 +1098,7 @@ Item {
 
                         // GPU
                         RowLayout {
-                            visible: !!systemModel && systemModel.gpuAvailable
+                            visible: !!systemModel && (systemModel.status === "live" || systemModel.status === "stale") && systemModel.gpuAvailable
                             Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
                             Text { text: systemModel && systemModel.gpuName ? systemModel.gpuName : "GPU"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; elide: Text.ElideRight; Layout.maximumWidth: 150 }
                             Rectangle {
@@ -1126,7 +1127,7 @@ Item {
                                 }
                             }
                             Text {
-                                text: systemModel && systemModel.ready ? (systemModel.diskUsed / 1024 / 1024).toFixed(1) + "G/" + (systemModel.diskTotal / 1024 / 1024).toFixed(1) + "G (" + Math.round(systemModel.diskPercent) + "%)" : "--"
+                                text: systemModel && (systemModel.status === "live" || systemModel.status === "stale") ? (systemModel.diskUsed / 1024 / 1024).toFixed(1) + "G/" + (systemModel.diskTotal / 1024 / 1024).toFixed(1) + "G (" + Math.round(systemModel.diskPercent) + "%)" : "--"
                                 color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall
                             }
                         }
