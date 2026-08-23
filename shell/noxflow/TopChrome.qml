@@ -47,6 +47,7 @@ PanelWindow {
         media: root.media; notificationModel: root.notificationModel
         systemModel: root.systemModel; transfer: root.transfer; syncthing: root.syncthing
         updates: root.updates
+        islandHost: island
     }
 
     NoxIsland {
@@ -55,9 +56,23 @@ PanelWindow {
         screen: root.screen
         noxd: root.noxd; audio: root.audio; brightness: root.brightness
         hyprland: root.hyprland
+        battery: root.battery; network: root.network; bluetooth: root.bluetooth
+        media: root.media; notificationModel: root.notificationModel; systemModel: root.systemModel
+        transfer: root.transfer; syncthing: root.syncthing; updates: root.updates
         calModel: root.calModel
         launcherComponent: root.launcherComponent
         z: 10
+    }
+
+    // Observe taps anywhere in the current top-chrome input region without
+    // stealing the child control's action. A tap outside the visible island
+    // card dismisses a pin; taps inside the card remain interactive.
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        onTapped: function(eventPoint) {
+            var point = island.mapFromItem(root, eventPoint.position.x, eventPoint.position.y);
+            island.clickAwayCheck(point);
+        }
     }
 
     Component.onCompleted: shellRoot.registerIslandHost(root.screen, island)

@@ -1,3 +1,8 @@
+// Bar.qml — NoxFlow top bar with three-zone layout.
+// Left: workspace cluster + health capsule
+// Center: spacer (island lives in TopChrome)
+// Right: connectivity | audio/power | notifications | updates
+
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -10,21 +15,30 @@ import "WorkspacePresentation.js" as WorkspacePresentation
 Item {
     id: root
     property var screen
-    required property var noxd; required property var hyprland; required property var audio
-    required property var battery; required property var network; required property var bluetooth
-    required property var media; required property var notificationModel; required property var systemModel
-    required property var transfer; required property var syncthing
+    required property var noxd
+    required property var hyprland
+    required property var audio
+    required property var battery
+    required property var network
+    required property var bluetooth
+    required property var media
+    required property var notificationModel
+    required property var systemModel
+    required property var transfer
+    required property var syncthing
     required property var updates
+    property var islandHost: null
+
+    // ── Derived state ──
     property bool showNotificationBadge: !!(notificationModel && notificationModel.notifications && notificationModel.notifications.length > 0)
     property string monitorName: screen && screen.name ? screen.name : ""
-    // Explicitly refreshed when noxd publishes a Hyprland snapshot. A binding
-    // to a JavaScript function was unreliable here because nested array
-    // changes did not always invalidate the delegate model.
     property var workspaceEntries: []
     property var monitor: findMonitor()
     property bool providerDegraded: hasDegradedProvider()
     property bool urgent: monitorUrgentCount() > 0
     property string pendingWorkspace: ""
+
+    // Workspace dispatch (hyprctl eval form for Hyprland 0.56+)
     property Process workspaceDispatch: Process {
         running: false
         onExited: function(code) {
@@ -33,6 +47,8 @@ Item {
         }
     }
     Timer { id: workspacePendingTimer; interval: 1200; onTriggered: root.pendingWorkspace = "" }
+
+    // Update launch state
     property string updateLaunchState: "idle"
     property string updateLaunchMessage: ""
     property Process updateProcess: Process {
@@ -57,18 +73,24 @@ Item {
         onTriggered: { root.updateLaunchState = "idle"; root.updateLaunchMessage = ""; }
     }
 
+    // ── Layout constants ──
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
-    readonly property real pillHeight: Theme.Tokens.scaled(32)
+    readonly property int outerMargin: Theme.Tokens.scaled(8)
+    readonly property int groupGap: Theme.Tokens.scaled(10)
+    readonly property int innerGap: Theme.Tokens.scaled(5)
+    readonly property int capsulePadH: Theme.Tokens.scaled(12)
+    readonly property int capsulePadV: Theme.Tokens.scaled(9)
 
-    function chipRect(item) { if (!item || !item.visible) return Qt.rect(0,0,0,0); var p = item.mapToItem(null,0,0); return Qt.rect(p.x,p.y,item.width,item.height); }
-    readonly property rect clockGeometry: Qt.rect(0, 0, 0, 0)
-    readonly property rect mediaChipGeometry: chipRect(mediaPill)
+    // ── Morph registration ──
+    function chipRect(item) { if (!item || !item.visible) return Qt.rect(0, 0, 0, 0); var p = item.mapToItem(null, 0, 0); return Qt.rect(p.x, p.y, item.width, item.height); }
+    readonly property rect clockGeometry: islandHost && typeof islandHost.islandGeometry === "function" ? islandHost.islandGeometry() : Qt.rect(0, 0, 0, 0)
+    readonly property rect mediaChipGeometry: islandHost && typeof islandHost.islandGeometry === "function" ? islandHost.islandGeometry() : Qt.rect(0, 0, 0, 0)
     readonly property rect notificationChipGeometry: chipRect(notifPill)
-    readonly property rect statusClusterGeometry: chipRect(statusCluster)
-    readonly property rect networkGeometry: chipRect(netPill)
-    readonly property rect bluetoothGeometry: chipRect(btPill)
-    readonly property rect volumeGeometry: chipRect(volPill)
-    readonly property rect batteryGeometry: chipRect(batPill)
+    readonly property rect statusClusterGeometry: chipRect(rightZone)
+    readonly property rect healthGeometry: chipRect(healthCapsule)
+    readonly property rect networkGeometry: chipRect(connectivityCapsule)
+    readonly property rect volumeGeometry: chipRect(audioPowerCapsule)
+    readonly property rect batteryGeometry: chipRect(audioPowerCapsule)
     readonly property rect syncGeometry: chipRect(syncPill)
 
     function registerMorphChips() {
@@ -79,7 +101,6 @@ Item {
         reg.registerTrigger("notifications", monitorName, notificationChipGeometry, Theme.Tokens.radiusPill);
         reg.registerTrigger("quick-settings", monitorName, volumeGeometry, Theme.Tokens.radiusPill);
         reg.registerTrigger("quick-settings", monitorName, networkGeometry, Theme.Tokens.radiusPill, "network");
-        reg.registerTrigger("quick-settings", monitorName, bluetoothGeometry, Theme.Tokens.radiusPill, "bluetooth");
         reg.registerTrigger("quick-settings", monitorName, volumeGeometry, Theme.Tokens.radiusPill, "volume");
         reg.registerTrigger("quick-settings", monitorName, batteryGeometry, Theme.Tokens.radiusPill, "battery");
         reg.registerTrigger("sync", monitorName, syncGeometry, Theme.Tokens.radiusPill);
@@ -103,14 +124,12 @@ Item {
         function onMonitorsChanged() { root.refreshWorkspaceEntries(); }
     }
 
-    function objVal(o,a,b,f) { if (o&&o[a]!==undefined&&o[a]!==null) return o[a]; if (o&&b&&o[b]!==undefined&&o[b]!==null) return o[b]; return f; }
+    // ── Workspace helpers (delegated to WorkspaceCluster for display; kept for morph registration) ──
+    function objVal(o, a, b, f) { if (o && o[a] !== undefined && o[a] !== null) return o[a]; if (o && b && o[b] !== undefined && o[b] !== null) return o[b]; return f; }
     function wsId(v) { return WorkspacePresentation.workspaceId(v); }
     function monitorId() { return monitor && monitor.id !== undefined ? Number(monitor.id) : -1; }
-    function findMonitor() { for (var i=0;i<hyprland.monitors.length;i++) if (String(hyprland.monitors[i].name||"")===monitorName) return hyprland.monitors[i]; return null; }
+    function findMonitor() { for (var i = 0; i < hyprland.monitors.length; i++) if (String(hyprland.monitors[i].name || "") === monitorName) return hyprland.monitors[i]; return null; }
     function buildWorkspaceEntries() {
-        // Workspaces are sourced from both workspace records and clients.
-        // The client pass matters for minimized/hidden windows and for the
-        // brief interval where Hyprland has published clients first.
         var e = [];
         var mon = monitorName;
         for (var j = 0; j < hyprland.workspaces.length; j++) {
@@ -132,10 +151,8 @@ Item {
             if (mon !== "" && clientMonitor !== "" && clientMonitor !== mon && Number(client.monitor) !== root.monitorId()) continue;
             if (e.indexOf(clientName) < 0) e.push(clientName);
         }
-        // Keep the focused workspace visible even when it is empty.
         var active = monitorActiveWS();
         if (active !== "" && e.indexOf(active) < 0) e.push(active);
-        // Numeric workspaces first (1, 2, 3…), named ones after.
         e.sort(function(a, b) {
             var na = parseInt(a, 10), nb = parseInt(b, 10);
             if (!isNaN(na) && !isNaN(nb)) return na - nb;
@@ -149,331 +166,257 @@ Item {
         var next = buildWorkspaceEntries();
         if (JSON.stringify(next) !== JSON.stringify(workspaceEntries)) workspaceEntries = next;
     }
-    function wsRecord(name) { for (var i=0;i<hyprland.workspaces.length;i++) { var it=hyprland.workspaces[i]; if (String(it.name||it.id)===name&&String(it.monitor||"")===monitorName) return it; } return null; }
+    function wsRecord(name) { for (var i = 0; i < hyprland.workspaces.length; i++) { var it = hyprland.workspaces[i]; if (String(it.name || it.id) === name && String(it.monitor || "") === monitorName) return it; } return null; }
     function monitorActiveWS() {
         if (pendingWorkspace !== "") return pendingWorkspace;
-        if (hyprland.focusedMonitor === monitorName && hyprland.activeWorkspace)
-            return wsId(hyprland.activeWorkspace);
+        if (hyprland.focusedMonitor === monitorName && hyprland.activeWorkspace) return wsId(hyprland.activeWorkspace);
         return wsId(monitor ? objVal(monitor, "activeWorkspace", "active_workspace", null) : null);
     }
+    function wsOccupied(name) { for (var i = 0; i < hyprland.windows.length; i++) { var w = hyprland.windows[i]; var ws = w.workspace; if (ws && wsId(ws) === name && wsRecord(name)) return true; } return false; }
+    function monitorUrgentCount() { var c = 0; for (var i = 0; i < hyprland.windows.length; i++) { var w = hyprland.windows[i]; if (hyprland.urgentWindows.indexOf(String(w.address || "")) >= 0 && wsRecord(wsId(w.workspace))) c++; } return c; }
+    function wsUrgent(name) { for (var i = 0; i < hyprland.windows.length; i++) { var w = hyprland.windows[i]; if (wsId(w.workspace) === name && hyprland.urgentWindows.indexOf(String(w.address || "")) >= 0 && wsRecord(name)) return true; } return false; }
+    function hasDegradedProvider() { var ss = noxd.providerHealth || {}; for (var p in ss) if (ss[p] === "degraded") return true; return false; }
 
-    function activeWindowMatches(name) {
-        return WorkspacePresentation.activeWindowMatches(name, monitorName, hyprland.focusedMonitor,
-            hyprland.activeWorkspace, hyprland.activeWindow);
-    }
-
-    function wsOccupied(name) { for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; var ws=w.workspace; if (ws&&wsId(ws)===name&&wsRecord(name)) return true; } return false; }
-    function monitorUrgentCount() { var c=0; for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(wsId(w.workspace))) c++; } return c; }
-    function wsUrgent(name) { for (var i=0;i<hyprland.windows.length;i++) { var w=hyprland.windows[i]; if (wsId(w.workspace)===name&&hyprland.urgentWindows.indexOf(String(w.address||""))>=0&&wsRecord(name)) return true; } return false; }
-    function hasDegradedProvider() { var ss=noxd.providerHealth||{}; for (var p in ss) if (ss[p]==="degraded") return true; return false; }
     function focusWS(name) {
         var target = String(name || "").trim();
         if (!target || target.indexOf("special:") === 0 || !/^[0-9A-Za-z_-]+$/.test(target)) return;
         pendingWorkspace = target;
         refreshWorkspaceEntries();
-        // Hyprland 0.56 exposes dispatchers through `eval`; `hyprctl dispatch`
-        // now parses its arguments as Lua and rejects the legacy form.
         workspaceDispatch.running = false;
         workspaceDispatch.command = ["hyprctl", "eval", "hl.dispatch(hl.dsp.focus({ workspace = \"" + target + "\" }))"];
         workspaceDispatch.running = true;
     }
+
     function cycleWS(d) {
         var direction = d < 0 ? "e-1" : "e+1";
         workspaceDispatch.running = false;
         workspaceDispatch.command = ["hyprctl", "eval", "hl.dispatch(hl.dsp.focus({ workspace = \"" + direction + "\" }))"];
         workspaceDispatch.running = true;
     }
-    function toggleMute() { noxd.runAction({audio_toggle_mute:{target:"output"}}); }
+
+    // ── Actions ──
+    function toggleMute() { noxd.runAction({audio_toggle_mute: {target: "output"}}); }
+    function adjustVolume(delta) { noxd.runAction({audio_adjust_volume: {target: "output", delta: delta}}); }
     function runSystemUpdate() {
-        // Keep one update path for Wayle and NoxFlow. The wrapper selects
-        // paru/yay/pacman, chooses an available terminal, logs the invocation,
-        // and falls back to a direct update when no terminal is available.
         if (updateProcess.running) return;
         updateLaunchState = "opening";
         updateLaunchMessage = "Opening update terminal…";
         updateProcess.command = ["sh", "-lc", "exec \"$HOME/.config/hypr/scripts/system-update.sh\""];
         updateProcess.running = true;
     }
-    function refreshNet() { noxd.runAction({network_refresh:{}}); }
-    function toggleBT() { noxd.runAction({bluetooth_set_powered:{powered:!bluetooth.powered}}); }
-    function toggleMedia() { noxd.runAction({media_play_pause:{}}); }
     function toggleCalendarFromBar() { shellRoot.coordinator.toggle("calendar", monitorName, clockGeometry); }
     function toggleNotificationsFromBar() { shellRoot.coordinator.toggle("notifications", monitorName, notificationChipGeometry); }
-    function toggleQuickSettingsFromBar(sourceItem, section) { shellRoot.coordinator.toggle("quick-settings", monitorName, chipRect(sourceItem || statusCluster), section || ""); }
-    function openSystemFromPill(sourceItem) {
-        sourceItem.forceActiveFocus();
-        toggleQuickSettingsFromBar(sourceItem, "system");
-    }
-    function gibibytes(kibibytes) { return (Number(kibibytes || 0) / 1024 / 1024).toFixed(1) + " GiB"; }
-    function activeWinLabel() { var w=hyprland.activeWindow; if (!w||typeof w!=="object") return ""; return String(w.title||w.application_id||w.class||w.appid||"").trim(); }
-    function mediaLabel() { if (media.status!=="available"||!media.active||!media.title) return ""; var a=media.artists&&media.artists.length?" — "+media.artists.join(", "):""; return media.title+a; }
-    function netLabel() { if (network.status!=="available") return ""; if (network.connectivity==="full"||network.connectivity==="limited") return network.connectedSsid||"Network"; if (network.ethernet&&network.ethernet.length) return "Ethernet"; return "Offline"; }
-    function btLabel() { if (bluetooth.status!=="available"||!bluetooth.adapterPresent) return ""; for (var i=0;i<bluetooth.devices.length;i++) if (bluetooth.devices[i].connected===true) return bluetooth.devices[i].name||"Bluetooth"; return bluetooth.powered?"Bluetooth":""; }
+    function toggleQuickSettingsFromBar(sourceItem, section) { shellRoot.coordinator.toggle("quick-settings", monitorName, chipRect(sourceItem || rightZone), section || ""); }
+    function toggleMediaFromBar() { shellRoot.coordinator.toggle("media", monitorName, mediaChipGeometry); }
+
+    // Sync helper
     function syncActive() { return transfer.hasActiveTransfers || syncthing.syncing; }
     function syncWarning() { return syncthing.hasErrors || (!syncthing.serviceActive && !syncthing.apiReachable); }
 
+    // Media label
+    function mediaLabel() {
+        if (media.status !== "available" || !media.active || !media.title) return "";
+        var a = media.artists && media.artists.length ? " — " + media.artists.join(", ") : "";
+        return media.title + a;
+    }
+
+    // ── Three-zone RowLayout ──
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
-        anchors.rightMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
-        spacing: Theme.Tokens.scaled(6)
+        anchors.leftMargin: root.outerMargin
+        anchors.rightMargin: root.outerMargin
+        spacing: root.groupGap
 
-        // Left: workspaces followed by passive system-stat pills. The
-        // workspace strip stays bounded and scrolls instead of painting over
-        // the fixed stat/media/status groups on narrow monitors.
-        Flickable {
-            id: workspaceScroller
-            Layout.minimumWidth: Theme.Tokens.scaled(56)
-            Layout.preferredWidth: Math.max(Theme.Tokens.scaled(56), Math.min(wsCluster.implicitWidth, Theme.Tokens.scaled(360)))
-            Layout.maximumWidth: Theme.Tokens.scaled(360)
-            Layout.preferredHeight: root.pillHeight
-            Layout.alignment: Qt.AlignVCenter
-            clip: true
-            interactive: contentWidth > width
-            contentWidth: wsCluster.implicitWidth
-            contentHeight: height
-            boundsBehavior: Flickable.StopAtBounds
-            flickableDirection: Flickable.HorizontalFlick
-            pressDelay: 80
-
-            RowLayout {
-                id: wsCluster
-                spacing: Theme.Tokens.scaled(4)
-                height: workspaceScroller.height
-                Repeater {
-                    model: root.workspaceEntries
-                    delegate: FocusScope {
-                    id: wsb; required property string modelData; required property int index
-                    property bool ho: false; property bool pr: false; property bool hovered: ho
-                    property bool active: root.monitorActiveWS() === modelData
-                    property bool occupied: root.wsOccupied(modelData)
-                    property bool urg: root.wsUrgent(modelData)
-                    property bool hasActiveWindow: active && root.activeWindowMatches(modelData)
-                    property string activeApp: hasActiveWindow ? WorkspacePresentation.applicationName(root.hyprland.activeWindow) : ""
-                    property string activeTitle: hasActiveWindow ? WorkspacePresentation.windowTitle(root.hyprland.activeWindow) : ""
-                    implicitWidth: Math.max(root.pillHeight, wsRow.implicitWidth + Theme.Tokens.scaled(14))
-                    implicitHeight: root.pillHeight
-                    activeFocusOnTab: true
-                    Accessible.role: Accessible.Button
-                    Accessible.name: WorkspacePresentation.tooltip(modelData, active, occupied, activeApp, activeTitle)
-
-                    // Pill background (always visible — no outer bar needed)
-                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
-                        color: wsb.pr ? Theme.Tokens.tonalPrimaryContainer : wsb.active ? Theme.Tokens.tonalPrimary : wsb.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
-                        border.color: wsb.active ? Theme.Tokens.tonalPrimary : wsb.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: wsb.active ? 1 : wsb.activeFocus ? 2 : 0
-                        opacity: wsb.active ? 1.0 : wsb.occupied ? 0.85 : 0.55
-                    }
-                    RowLayout { id: wsRow; anchors.centerIn: parent; spacing: Theme.Tokens.scaled(5)
-                        Text { id: wlbl; text: modelData
-                            color: wsb.active ? Theme.Tokens.tonalOnPrimary : wsb.occupied ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted
-                            font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium; font.bold: wsb.active }
-                        Text { visible: wsb.hasActiveWindow; text: "\uF2D2"; color: Theme.Tokens.tonalOnPrimary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyLabelSmall }
-                        Text { visible: wsb.hasActiveWindow && wsb.activeApp !== ""; text: wsb.activeApp; color: Theme.Tokens.tonalOnPrimary
-                            font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: true
-                            elide: Text.ElideRight; Layout.maximumWidth: Theme.Tokens.scaled(96) }
-                    }
-                    Rectangle { visible: wsb.urg; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 1; width: 6; height: 6; radius: 3; color: Theme.Tokens.stateDanger }
-                    HoverHandler { onHoveredChanged: wsb.ho = hovered }
-                    TapHandler { onPressedChanged: wsb.pr = pressed; onTapped: { wsb.forceActiveFocus(); root.focusWS(modelData); } }
-                    WheelHandler { onWheel: function(e) { root.cycleWS(e.angleDelta.y > 0 ? -1 : 1); e.accepted = true; } }
-                    Keys.onReturnPressed: root.focusWS(modelData)
-                    Keys.onLeftPressed: root.cycleWS(-1)
-                    Keys.onRightPressed: root.cycleWS(1)
-                    Behavior on implicitWidth { enabled: !root.reducedMotion; NumberAnimation { duration: Theme.Tokens.durationShort; easing.type: Easing.OutCubic } }
-                    Tooltip { target: wsb; text: WorkspacePresentation.tooltip(modelData, active, occupied, activeApp, activeTitle) }
-                    }
-                }
-            }
-        }
-
-        // Passive system telemetry. Values come from the shared SystemModel
-        // so every monitor instance displays the same sampled host state.
+        // ── LEFT ZONE: Workspace cluster + Health capsule ──
         RowLayout {
-            id: systemStatsCluster
-            Layout.alignment: Qt.AlignVCenter
-            spacing: Theme.Tokens.scaled(4)
+            id: leftZone
+            Layout.alignment: Qt.AlignVCenter | Qt.AlignLeft
+            spacing: root.groupGap
 
-            FocusScope {
-                id: cpuPill
-                property bool ho: false
-                property bool hovered: ho
-                readonly property bool ready: !!root.systemModel && root.systemModel.ready
-                readonly property string value: ready ? Math.round(root.systemModel.cpuUsage) + "%" : "--"
-                implicitWidth: Math.max(root.pillHeight, cpuRow.implicitWidth + Theme.Tokens.scaled(14))
-                implicitHeight: root.pillHeight
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
-                Accessible.name: "CPU usage: " + value
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
-                    color: cpuPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
+            // Workspace cluster (scrollable)
+            Flickable {
+                id: workspaceScroller
+                Layout.minimumWidth: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                Layout.preferredWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), Math.min(wsCluster.implicitWidth, Theme.Tokens.scaled(360)))
+                Layout.maximumWidth: Theme.Tokens.scaled(360)
+                Layout.preferredHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                Layout.alignment: Qt.AlignVCenter
+                clip: true
+                interactive: contentWidth > width
+                contentWidth: wsCluster.implicitWidth
+                contentHeight: height
+                boundsBehavior: Flickable.StopAtBounds
+                flickableDirection: Flickable.HorizontalFlick
+                pressDelay: 80
+
+                RowLayout {
+                    id: wsCluster
+                    spacing: root.innerGap
+                    height: workspaceScroller.height
+
+                    Repeater {
+                        model: root.workspaceEntries
+                        delegate: wsPillDelegate
+                    }
                 }
-                RowLayout { id: cpuRow; anchors.centerIn: parent; spacing: 4
-                    Text { text: "\uF2DB"; color: cpuPill.ready && root.systemModel.cpuUsage > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { text: cpuPill.value; color: cpuPill.ready && root.systemModel.cpuUsage > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                }
-                HoverHandler { onHoveredChanged: cpuPill.ho = hovered }
-                TapHandler { onTapped: root.openSystemFromPill(cpuPill) }
-                Keys.onReturnPressed: root.openSystemFromPill(cpuPill)
-                Keys.onSpacePressed: root.openSystemFromPill(cpuPill)
-                Tooltip { target: cpuPill; text: cpuPill.ready ? "CPU usage: " + cpuPill.value : "CPU usage unavailable" }
             }
 
-            FocusScope {
-                id: ramPill
-                property bool ho: false
-                property bool hovered: ho
-                readonly property bool ready: !!root.systemModel && root.systemModel.ready && root.systemModel.memTotal > 0
-                readonly property string value: ready ? Math.round(root.systemModel.memPercent) + "%" : "--"
-                implicitWidth: Math.max(root.pillHeight, ramRow.implicitWidth + Theme.Tokens.scaled(14))
-                implicitHeight: root.pillHeight
-                activeFocusOnTab: true
-                Accessible.role: Accessible.Button
-                Accessible.name: "RAM usage: " + value
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
-                    color: ramPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
-                }
-                RowLayout { id: ramRow; anchors.centerIn: parent; spacing: 4
-                    Text { text: "\uF538"; color: ramPill.ready && root.systemModel.memPercent > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { text: ramPill.value; color: ramPill.ready && root.systemModel.memPercent > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                }
-                HoverHandler { onHoveredChanged: ramPill.ho = hovered }
-                TapHandler { onTapped: root.openSystemFromPill(ramPill) }
-                Keys.onReturnPressed: root.openSystemFromPill(ramPill)
-                Keys.onSpacePressed: root.openSystemFromPill(ramPill)
-                Tooltip {
-                    target: ramPill
-                    text: ramPill.ready ? "RAM: " + root.gibibytes(root.systemModel.memUsed) + " used of " + root.gibibytes(root.systemModel.memTotal) + " (" + ramPill.value + ")" : "RAM usage unavailable"
+            // Health capsule: CPU + RAM + Temp in one pill
+            HealthCapsule {
+                id: healthCapsule
+                systemModel: root.systemModel
+                Layout.alignment: Qt.AlignVCenter
+                onOpenSystem: root.toggleQuickSettingsFromBar(healthCapsule, "system")
+                onHoveredChanged: {
+                    if (!root.islandHost) return;
+                    root.islandHost.sourceHoverChanged("health", hovered);
                 }
             }
 
             FocusScope {
-                id: tempPill
+                id: leftUpdatePill
                 property bool ho: false
-                property bool hovered: ho
-                readonly property bool ready: !!root.systemModel && root.systemModel.ready && root.systemModel.cpuTemp > 0
-                readonly property string value: ready ? Math.round(root.systemModel.cpuTemp) + "°C" : "--"
-                implicitWidth: Math.max(root.pillHeight, tempRow.implicitWidth + Theme.Tokens.scaled(14))
-                implicitHeight: root.pillHeight
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), leftUpdateRow.implicitWidth + root.capsulePadH * 2)
+                implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
-                Accessible.name: "Temperature: " + value
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
-                    color: tempPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
+                Accessible.name: !root.updates.checked ? "Checking for updates" : root.updates.count > 0 ? root.updates.count + " updates available" : "System up to date"
+                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: root.updateLaunchState === "failed" ? Theme.Tokens.glass(Theme.Tokens.stateDanger, 0.34) : leftUpdatePill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
+                RowLayout {
+                    id: leftUpdateRow
+                    anchors.centerIn: parent
+                    spacing: root.innerGap
+                    Text { text: root.updateLaunchState === "failed" ? "\uF071" : !root.updates.checked ? "\uF021" : root.updates.count > 0 ? "\uF019" : "\uF00C"; color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : root.updates.count > 0 ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }
+                    Text { visible: !root.updates.checked || root.updates.count > 0 || root.updateLaunchState === "failed"; text: root.updateLaunchState === "failed" ? "!" : !root.updates.checked ? "…" : String(root.updates.count); color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: true }
                 }
-                RowLayout { id: tempRow; anchors.centerIn: parent; spacing: 4
-                    Text { text: "\uF2C9"; color: tempPill.ready && root.systemModel.cpuTemp > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { text: tempPill.value; color: tempPill.ready && root.systemModel.cpuTemp > 80 ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                }
-                HoverHandler { onHoveredChanged: tempPill.ho = hovered }
-                TapHandler { onTapped: root.openSystemFromPill(tempPill) }
-                Keys.onReturnPressed: root.openSystemFromPill(tempPill)
-                Keys.onSpacePressed: root.openSystemFromPill(tempPill)
-                Tooltip { target: tempPill; text: tempPill.ready ? "Highest host temperature: " + tempPill.value : "Temperature unavailable" }
+                HoverHandler { onHoveredChanged: leftUpdatePill.ho = hovered }
+                TapHandler { onTapped: root.runSystemUpdate() }
+                TapHandler { acceptedButtons: Qt.RightButton; onTapped: root.updates.refresh() }
             }
         }
 
-        // Keep media and status controls grouped at the far right after the
-        // workspace/stat region has taken only the width it needs.
-        Item { Layout.fillWidth: true }
+        // Center spacer — takes all available space so right zone is right-aligned
+        Item { Layout.fillWidth: true; Layout.minimumWidth: Theme.Tokens.scaled(20) }
 
-        // Active window label (fades into the bar, low opacity)
-        // The active-window title belongs in the expanded island. Keeping it
-        // out of the transparent rail prevents long titles from colliding
-        // with workspace chips or the centered island.
+        // ── RIGHT ZONE: Connectivity | AudioPower | Notifications | Updates ──
+        RowLayout {
+            id: rightZone
+            Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+            spacing: root.groupGap
 
-        // Media pill
-        FocusScope {
-            id: mediaPill; property bool ho: false; property bool pr: false
-            visible: mediaText.text !== ""
-            implicitWidth: Math.max(pillHeight, mediaRow.implicitWidth + Theme.Tokens.scaled(14))
-            implicitHeight: pillHeight
-            Layout.maximumWidth: Theme.Tokens.scaled(240)
-            activeFocusOnTab: true
-            Accessible.name: mediaText.text !== "" ? "Media: " + mediaText.text : ""
-            Accessible.role: Accessible.Button
-            Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill
-                color: mediaPill.pr ? Theme.Tokens.tonalSecondaryContainer : mediaPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
-            RowLayout { id: mediaRow; anchors.centerIn: parent; spacing: 4
-                Text { text: "\uF001"; color: Theme.Tokens.tonalSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                Text { id: mediaText; Layout.maximumWidth: Theme.Tokens.scaled(220); elide: Text.ElideRight; text: root.mediaLabel(); color: Theme.Tokens.tonalSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-            }
-            HoverHandler { onHoveredChanged: mediaPill.ho = hovered }
-            TapHandler { onPressedChanged: mediaPill.pr = pressed; onTapped: { shellRoot.coordinator.toggle("media", monitorName, root.mediaChipGeometry); mediaPill.forceActiveFocus(); } }
-        }
-
-        // Right status cluster
-        RowLayout { id: statusCluster; Layout.alignment: Qt.AlignRight; spacing: Theme.Tokens.scaled(4)
-
-            // Network pill
-            FocusScope { id: netPill; property bool ho: false; visible: root.netLabel() !== ""
-                implicitWidth: Math.max(pillHeight, netRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
-                activeFocusOnTab: true; Accessible.name: "Network: " + root.netLabel()
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: netPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
-                RowLayout { id: netRow; anchors.centerIn: parent; spacing: 4
-                    Text { text: "\uF1EB"; color: Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { text: root.netLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight }
+            // Connectivity capsule (WiFi + VPN + Bluetooth)
+            ConnectivityCapsule {
+                id: connectivityCapsule
+                network: root.network
+                bluetooth: root.bluetooth
+                Layout.alignment: Qt.AlignVCenter
+                onOpenNetwork: root.toggleQuickSettingsFromBar(connectivityCapsule, "network")
+                onHoveredChanged: {
+                    if (!root.islandHost) return;
+                    root.islandHost.sourceHoverChanged("connectivity", hovered);
                 }
-                HoverHandler { onHoveredChanged: netPill.ho = hovered }
-                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(netPill, "network"); netPill.forceActiveFocus(); } }
             }
 
-            // Bluetooth pill
-            FocusScope { id: btPill; property bool ho: false; visible: root.btLabel() !== ""
-                implicitWidth: Math.max(pillHeight, btRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
-                activeFocusOnTab: true; Accessible.name: "Bluetooth: " + root.btLabel()
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: btPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
-                RowLayout { id: btRow; anchors.centerIn: parent; spacing: 4
-                    Text { text: "\uF294"; color: Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { text: root.btLabel(); color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+            // Audio + Power capsule
+            AudioPowerCapsule {
+                id: audioPowerCapsule
+                audio: root.audio
+                battery: root.battery
+                Layout.alignment: Qt.AlignVCenter
+                onToggleMute: root.toggleMute()
+                onAdjustVolume: function(delta) { root.adjustVolume(delta); }
+                onOpenPower: root.toggleQuickSettingsFromBar(audioPowerCapsule, "battery")
+                onHoveredChanged: {
+                    if (!root.islandHost) return;
+                    root.islandHost.sourceHoverChanged("audio-power", hovered);
                 }
-                HoverHandler { onHoveredChanged: btPill.ho = hovered }
-                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(btPill, "bluetooth"); btPill.forceActiveFocus(); } }
             }
 
-            // Volume pill
-            FocusScope { id: volPill; property bool ho: false; visible: audio.status === "available"
-                implicitWidth: Math.max(pillHeight, volRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
-                activeFocusOnTab: true; Accessible.name: "Volume: " + (audio.outputMuted ? "muted" : audio.outputVolumePercent + " percent")
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: volPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
-                RowLayout { id: volRow; anchors.centerIn: parent; spacing: 4
-                    Text { text: audio.outputMuted ? "\uF026" : "\uF028"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { text: audio.outputVolumePercent + "%"; color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall; visible: !audio.outputMuted }
-                }
-                HoverHandler { onHoveredChanged: volPill.ho = hovered }
-                TapHandler { onTapped: { root.toggleQuickSettingsFromBar(volPill, "volume"); volPill.forceActiveFocus(); } }
-            }
-
-            // Battery pill
-            FocusScope { id: batPill; property bool ho: false; visible: battery.status === "available" && battery.present && battery.percentage !== null
-                implicitWidth: Math.max(pillHeight, batRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
-                activeFocusOnTab: true; Accessible.name: "Battery: " + Math.round(battery.percentage) + "%"
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: batPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
-                RowLayout { id: batRow; anchors.centerIn: parent; spacing: 4
-                    Text { text: battery.charging ? "\uF1E6" : battery.critical ? "\uF244" : "\uF240"; color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { text: Math.round(battery.percentage) + "%"; color: battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                }
-                HoverHandler { onHoveredChanged: batPill.ho = hovered }
-                TapHandler { onTapped: root.toggleQuickSettingsFromBar(batPill, "battery") }
-            }
-
-            // Sync belongs with the right-side status controls. Keeping it out
-            // of the flexible middle region prevents it from drifting or
-            // colliding with the active-window label and centered clock.
+            // Notification pill
             FocusScope {
-                id: syncPill; property bool ho: false; property bool pr: false
-                implicitWidth: Math.max(pillHeight, syncRow.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
-                activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: "Sync"
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: syncPill.pr ? Theme.Tokens.tonalPrimaryContainer : syncPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.80) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.66) }
-                RowLayout { id: syncRow; anchors.centerIn: parent; spacing: 4
-                    Text { text: "⇄"; color: root.syncWarning() ? Theme.Tokens.stateWarning : root.syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { text: "Sync"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                id: notifPill
+                property bool ho: false
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), notifRow.implicitWidth + root.capsulePadH * 2)
+                implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: root.showNotificationBadge ? root.notificationModel.notifications.length + " notifications" : "No notifications"
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.Tokens.radiusPill
+                    color: notifPill.ho
+                        ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78)
+                        : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
+                }
+                RowLayout {
+                    id: notifRow
+                    anchors.centerIn: parent
+                    spacing: root.innerGap
+                    Text {
+                        text: root.notificationModel && root.notificationModel.dnd ? "\uF1F6" : root.showNotificationBadge ? "\uF0F3" : "\uF0A2"
+                        color: root.notificationModel && root.notificationModel.dnd ? Theme.Tokens.stateWarning : root.showNotificationBadge ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted
+                        font.family: "Symbols Nerd Font Mono"
+                        font.pixelSize: Theme.Tokens.iconSm
+                    }
+                    Text {
+                        visible: root.showNotificationBadge
+                        text: root.notificationModel && root.notificationModel.notifications ? String(root.notificationModel.notifications.length) : ""
+                        color: Theme.Tokens.stateInfo
+                        font.pixelSize: Theme.Tokens.typographyLabelSmall
+                        font.family: Theme.Tokens.typographyFontFamily
+                        font.bold: true
+                    }
+                }
+                HoverHandler { onHoveredChanged: { notifPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("notification-preview", hovered); } }
+                TapHandler { onTapped: root.toggleNotificationsFromBar() }
+                Keys.onReturnPressed: root.toggleNotificationsFromBar()
+                Keys.onSpacePressed: root.toggleNotificationsFromBar()
+            }
+
+            // Sync: only visible when active or unhealthy
+            FocusScope {
+                id: syncPill
+                property bool ho: false
+                property bool pr: false
+                visible: syncActive() || syncWarning()
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), syncRow.implicitWidth + root.capsulePadH * 2)
+                implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: "Sync"
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.Tokens.radiusPill
+                    color: syncPill.pr
+                        ? Theme.Tokens.tonalPrimaryContainer
+                        : syncPill.ho
+                            ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.80)
+                            : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.66)
+                }
+                RowLayout {
+                    id: syncRow
+                    anchors.centerIn: parent
+                    spacing: root.innerGap
+                    Text {
+                        text: "\uF2EF"
+                        color: syncWarning() ? Theme.Tokens.stateWarning : syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.textSecondary
+                        font.family: "Symbols Nerd Font Mono"
+                        font.pixelSize: Theme.Tokens.iconSm
+                    }
+                    Text {
+                        text: "Sync"
+                        color: Theme.Tokens.textSecondary
+                        font.pixelSize: Theme.Tokens.typographyLabelMedium
+                        font.family: Theme.Tokens.typographyFontFamily
+                    }
                     Rectangle {
-                        width: 6
-                        height: 6
-                        radius: 3
-                        color: root.syncWarning() ? Theme.Tokens.stateWarning : root.syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.stateSuccess
+                        width: 6; height: 6; radius: 3
+                        color: syncWarning() ? Theme.Tokens.stateWarning : syncActive() ? Theme.Tokens.stateInfo : Theme.Tokens.stateSuccess
                         SequentialAnimation on opacity {
-                            running: root.syncActive() && !Theme.Tokens.reducedMotion
+                            running: syncActive() && !Theme.Tokens.reducedMotion
                             loops: Animation.Infinite
                             NumberAnimation { to: 0.25; duration: 600 }
                             NumberAnimation { to: 1; duration: 600 }
@@ -481,47 +424,212 @@ Item {
                     }
                 }
                 HoverHandler { onHoveredChanged: syncPill.ho = hovered }
-                TapHandler { onPressedChanged: syncPill.pr = pressed; onTapped: { shellRoot.coordinator.toggle("sync", monitorName, root.syncGeometry); syncPill.forceActiveFocus(); } }
+                TapHandler {
+                    onPressedChanged: syncPill.pr = pressed
+                    onTapped: {
+                        shellRoot.coordinator.toggle("sync", monitorName, root.syncGeometry);
+                        syncPill.forceActiveFocus();
+                    }
+                }
+                Keys.onReturnPressed: shellRoot.coordinator.toggle("sync", monitorName, root.syncGeometry)
+                Keys.onSpacePressed: shellRoot.coordinator.toggle("sync", monitorName, root.syncGeometry)
             }
 
-            // Package updates (same source as the Wayle fallback shell).
-            // Left-click opens the updater; right-click re-checks.
-            FocusScope { id: updatePill; property bool ho: false; property bool hovered: ho
-                // Keep the affordance visible during the first asynchronous
-                // poll; disappearing status controls make the bar feel broken.
-                visible: true
-                implicitWidth: Math.max(Theme.Tokens.scaled(58), updateRow.implicitWidth + Theme.Tokens.scaled(18)); implicitHeight: pillHeight
-                Layout.minimumWidth: Theme.Tokens.scaled(58); Layout.preferredWidth: Math.max(Theme.Tokens.scaled(58), implicitWidth)
-                activeFocusOnTab: true; Accessible.role: Accessible.Button
-                Accessible.name: root.updateLaunchState === "failed" ? "Update terminal failed to open" : root.updateLaunchState === "opening" ? "Opening update terminal" : !updates.checked ? "Checking for system updates" : updates.count > 0 ? updates.count + " updates available" : "System up to date"
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: root.updateLaunchState === "failed" ? Theme.Tokens.glass(Theme.Tokens.stateDanger, 0.34) : updatePill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
-                RowLayout { id: updateRow; anchors.centerIn: parent; spacing: 4
-                    Text { text: root.updateLaunchState === "failed" ? "\uF071" : root.updateLaunchState === "opening" ? "\uF021" : !updates.checked ? "\uF021" : updates.count > 0 ? "\uF019" : "\uF00C"; color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : !updates.checked ? Theme.Tokens.textMuted : updates.count > 0 ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { text: root.updateLaunchState === "failed" ? "UP !" : root.updateLaunchState === "opening" ? "UP …" : !updates.checked ? "UP …" : "UP " + String(updates.count); color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : updates.count > 0 ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: updates.count > 0 || root.updateLaunchState === "failed" }
+            // Package updates pill
+            FocusScope {
+                id: updatePill
+                property bool ho: false
+                visible: false
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: Math.max(Theme.Tokens.scaled(58), updateRow.implicitWidth + Theme.Tokens.scaled(18))
+                implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                Layout.minimumWidth: Theme.Tokens.scaled(58)
+                Layout.preferredWidth: Math.max(Theme.Tokens.scaled(58), implicitWidth)
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: {
+                    if (root.updateLaunchState === "failed") return "Update terminal failed to open";
+                    if (root.updateLaunchState === "opening") return "Opening update terminal";
+                    if (!updates.checked) return "Checking for system updates";
+                    if (updates.count > 0) return updates.count + " updates available";
+                    return "System up to date";
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.Tokens.radiusPill
+                    color: root.updateLaunchState === "failed"
+                        ? Theme.Tokens.glass(Theme.Tokens.stateDanger, 0.34)
+                        : updatePill.ho
+                            ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78)
+                            : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
+                }
+                RowLayout {
+                    id: updateRow
+                    anchors.centerIn: parent
+                    spacing: root.innerGap
+                    Text {
+                        text: {
+                            if (root.updateLaunchState === "failed") return "\uF071";
+                            if (root.updateLaunchState === "opening") return "\uF021";
+                            if (!updates.checked) return "\uF021";
+                            if (updates.count > 0) return "\uF019";
+                            return "\uF00C";
+                        }
+                        color: {
+                            if (root.updateLaunchState === "failed") return Theme.Tokens.stateDanger;
+                            if (!updates.checked) return Theme.Tokens.textMuted;
+                            if (updates.count > 0) return Theme.Tokens.stateInfo;
+                            return Theme.Tokens.textMuted;
+                        }
+                        font.family: "Symbols Nerd Font Mono"
+                        font.pixelSize: Theme.Tokens.iconSm
+                    }
+                    Text {
+                        text: {
+                            if (root.updateLaunchState === "failed") return "UP !";
+                            if (root.updateLaunchState === "opening") return "UP …";
+                            if (!updates.checked) return "UP …";
+                            return "UP " + String(updates.count);
+                        }
+                        color: {
+                            if (root.updateLaunchState === "failed") return Theme.Tokens.stateDanger;
+                            if (updates.count > 0) return Theme.Tokens.textPrimary;
+                            return Theme.Tokens.textMuted;
+                        }
+                        font.pixelSize: Theme.Tokens.typographyLabelSmall
+                        font.family: Theme.Tokens.typographyFontFamily
+                        font.bold: updates.count > 0 || root.updateLaunchState === "failed"
+                    }
                 }
                 HoverHandler { onHoveredChanged: updatePill.ho = hovered }
                 TapHandler { onTapped: root.runSystemUpdate() }
                 TapHandler { acceptedButtons: Qt.RightButton; onTapped: updates.refresh() }
-                Tooltip { target: updatePill; text: root.updateLaunchMessage !== "" ? root.updateLaunchMessage : !updates.checked ? "Checking for updates…" : updates.tooltip !== "" ? updates.tooltip + " · click to update, right-click to refresh" : "Click to update · right-click to refresh" }
-            }
-
-            // Notification pill
-            FocusScope { id: notifPill; property bool ho: false
-                implicitWidth: Math.max(pillHeight, notifR.implicitWidth + Theme.Tokens.scaled(14)); implicitHeight: pillHeight
-                activeFocusOnTab: true; Accessible.role: Accessible.Button
-                Accessible.name: root.showNotificationBadge ? root.notificationModel.notifications.length + " notifications" : "No notifications"
-                Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: notifPill.ho ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
-                RowLayout { id: notifR; anchors.centerIn: parent; spacing: 4
-                    Text { text: root.showNotificationBadge ? "\uF0F3" : "\uF0A2"; color: root.showNotificationBadge ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.typographyBodySmall }
-                    Text { visible: root.showNotificationBadge; text: root.notificationModel && root.notificationModel.notifications ? String(root.notificationModel.notifications.length) : ""; color: Theme.Tokens.stateInfo; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: true }
+                Keys.onReturnPressed: root.runSystemUpdate()
+                Keys.onSpacePressed: root.runSystemUpdate()
+                Tooltip {
+                    target: updatePill
+                    text: root.updateLaunchMessage !== ""
+                        ? root.updateLaunchMessage
+                        : !updates.checked
+                            ? "Checking for updates…"
+                            : updates.tooltip !== ""
+                                ? updates.tooltip + " · click to update, right-click to refresh"
+                                : "Click to update · right-click to refresh"
                 }
-                HoverHandler { onHoveredChanged: notifPill.ho = hovered }
-                TapHandler { onTapped: root.toggleNotificationsFromBar() }
             }
 
-            // Health dot
-            Rectangle { visible: root.providerDegraded; width: Theme.Tokens.scaled(8); height: Theme.Tokens.scaled(8); radius: Theme.Tokens.scaled(4); color: Theme.Tokens.stateWarning; HoverHandler {} }
+            // Provider health dot
+            Rectangle {
+                visible: root.providerDegraded
+                width: Theme.Tokens.scaled(8)
+                height: Theme.Tokens.scaled(8)
+                radius: Theme.Tokens.scaled(4)
+                color: Theme.Tokens.stateWarning
+                Layout.alignment: Qt.AlignVCenter
+                HoverHandler {}
+            }
         }
     }
 
+    // ── Workspace pill delegate ──
+    Component {
+        id: wsPillDelegate
+        FocusScope {
+            id: wsb
+            required property string modelData
+            property bool ho: false
+            property bool pr: false
+            property bool hovered: ho
+            property bool active: root.monitorActiveWS() === modelData
+            property bool occupied: root.wsOccupied(modelData)
+            property bool urg: root.wsUrgent(modelData)
+            property bool hasActiveWindow: active && root.activeWindowMatches(modelData)
+            property string activeApp: hasActiveWindow ? WorkspacePresentation.applicationName(root.hyprland.activeWindow) : ""
+            property string activeTitle: hasActiveWindow ? WorkspacePresentation.windowTitle(root.hyprland.activeWindow) : ""
+
+            implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), pillRow.implicitWidth + Theme.Tokens.scaled(14))
+            implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Button
+            Accessible.name: WorkspacePresentation.tooltip(modelData, active, occupied, activeApp, activeTitle)
+
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.Tokens.radiusPill
+                color: {
+                    if (pr) return Theme.Tokens.tonalPrimaryContainer;
+                    if (active) return Theme.Tokens.tonalPrimary;
+                    if (ho) return Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78);
+                    return Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62);
+                }
+                border.color: active ? Theme.Tokens.tonalPrimary : activeFocus ? Theme.Tokens.outlineFocus : "transparent"
+                border.width: active ? 1 : activeFocus ? 2 : 0
+                opacity: active ? 1.0 : occupied ? 0.85 : 0.55
+            }
+
+            RowLayout {
+                id: pillRow
+                anchors.centerIn: parent
+                spacing: Theme.Tokens.scaled(5)
+                Text {
+                    text: modelData
+                    color: active ? Theme.Tokens.tonalOnPrimary : occupied ? Theme.Tokens.textPrimary : Theme.Tokens.textMuted
+                    font.family: Theme.Tokens.typographyFontFamily
+                    font.pixelSize: Theme.Tokens.typographyLabelMedium
+                    font.bold: active
+                }
+                Text {
+                    visible: hasActiveWindow
+                    text: "\uF2D2"
+                    color: Theme.Tokens.tonalOnPrimary
+                    font.family: "Symbols Nerd Font Mono"
+                    font.pixelSize: Theme.Tokens.typographyLabelSmall
+                }
+                Text {
+                    visible: hasActiveWindow && activeApp !== ""
+                    text: activeApp
+                    color: Theme.Tokens.tonalOnPrimary
+                    font.family: Theme.Tokens.typographyFontFamily
+                    font.pixelSize: Theme.Tokens.typographyLabelSmall
+                    font.bold: true
+                    elide: Text.ElideRight
+                    Layout.maximumWidth: Theme.Tokens.scaled(96)
+                }
+            }
+
+            // Urgent dot
+            Rectangle {
+                visible: urg
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 1
+                width: 6; height: 6; radius: 3
+                color: Theme.Tokens.stateDanger
+            }
+
+            HoverHandler { onHoveredChanged: { wsb.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("workspace", hovered); } }
+            TapHandler {
+                onPressedChanged: wsb.pr = pressed
+                onTapped: {
+                    wsb.forceActiveFocus();
+                    root.focusWS(modelData);
+                }
+            }
+            WheelHandler { onWheel: function(e) { root.cycleWS(e.angleDelta.y > 0 ? -1 : 1); e.accepted = true; } }
+            Keys.onReturnPressed: root.focusWS(modelData)
+            Keys.onLeftPressed: root.cycleWS(-1)
+            Keys.onRightPressed: root.cycleWS(1)
+
+            Tooltip {
+                target: wsb
+                text: WorkspacePresentation.tooltip(modelData, active, occupied, activeApp, activeTitle)
+            }
+        }
+    }
+
+    // activeWindowMatches helper
+    function activeWindowMatches(name) {
+        return WorkspacePresentation.activeWindowMatches(name, monitorName, hyprland.focusedMonitor,
+            hyprland.activeWorkspace, hyprland.activeWindow);
+    }
 }
