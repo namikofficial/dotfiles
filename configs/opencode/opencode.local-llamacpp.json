@@ -208,8 +208,8 @@
   },
   "command": {
     "goal": {
-      "description": "Set a bounded session-scoped goal and continue until it is complete or blocked.",
-      "template": "$ARGUMENTS",
+      "description": "Run a bounded research, plan, build, verify, review, and handoff workflow until the goal is complete or blocked.",
+      "template": "Execute this goal autonomously: $ARGUMENTS\n\nTreat this command as the complete workflow coordinator; do not merely start coding.\n\nPHASE 0 — TASK\n- Create or update .ai/task.md with the objective, acceptance criteria, non-goals, constraints, and current status.\n\nPHASE 1 — RESEARCH\n- Inspect AGENTS.md and repository evidence.\n- For a mechanical isolated change, do a short targeted investigation and continue.\n- For behavioral, cross-module, UI, API, persistence, or uncertain work, perform bounded read-only research and delegate one cheap independent investigation when it reduces uncertainty. Use two or three independent investigations only for genuinely high uncertainty, with different questions.\n- Record evidence, exact paths, contracts, tests, and uncertainty in .ai/research.md.\n\nPHASE 2 — PLAN\n- For non-trivial work, create or update .ai/plan.md before editing. Include the smallest implementation sequence, affected callers/contracts, verification tiers, risks, and stop conditions.\n- Mechanical work may use a short inline plan, but still record the decision in .ai/task.md.\n\nPHASE 3 — BUILD\n- Implement the smallest complete change from the evidence and plan. Keep unrelated changes untouched. Use isolated worktrees for genuinely parallel non-overlapping edits. Use structured tmux tools for long-running processes.\n- Run cheap post-edit diagnostics immediately. Do not hide uncertainty or add speculative fallbacks.\n\nPHASE 4 — VERIFY\n- Inspect the complete diff and affected call sites. Run the project adapter: scripts/verify or ./scripts/verify with affected mode first.\n- Escalate through the cheapest applicable verification tier: unit/type/lint, focused integration or screenshots, headless browser/device/API checks, interactive inspection, then physical/cloud devices only when required.\n- Invoke web-verifier, android-verifier, api-verifier, and adversarial-reviewer only for relevant surfaces. All are read-only. Write commands and observed results to .ai/verification.md.\n\nPHASE 5 — REPAIR AND FINISH\n- Repair confirmed failures, rerun affected checks, and stop after three materially different unsuccessful attempts at the same blocker.\n- Write .ai/handoff.md with verified facts, changed paths, commands/results, unresolved risks, and the next safe action.\n- Continue until the requested outcome is verified or clearly blocked; do not stop after research or planning alone.\n\nReturn a concise final report distinguishing observed results, NOT_CONFIGURED capabilities, and remaining uncertainty. Do not commit, push, delete worktrees, access secrets, use SSH/sudo, or kill unrelated tmux sessions without explicit authorization.",
       "agent": "build"
     },
     "full-fix": {
@@ -224,12 +224,12 @@
     },
     "plan": {
       "description": "Create an implementation-ready plan from repository evidence.",
-      "template": "Create or update .ai/plan.md for: $ARGUMENTS\n\nConsume .ai/research.md when present. State acceptance criteria, affected files/contracts, verification tiers, risks, and non-goals. Do not edit source.",
+      "template": "Create or update .ai/plan.md for: $ARGUMENTS\n\nFirst create or update .ai/task.md with the objective and acceptance criteria. Consume .ai/research.md when present; if it is absent, perform bounded read-only research first. Inspect AGENTS.md and trace affected callers/contracts. State the smallest implementation sequence, exact likely paths, verification tiers, delegation context packets if useful, risks, non-goals, and stop conditions. Do not edit source. Return the plan and the evidence gaps that build must resolve.",
       "agent": "plan"
     },
     "build": {
       "description": "Implement the current .ai/plan.md with bounded delegation and evidence-driven verification.",
-      "template": "Implement: $ARGUMENTS\n\nRead .ai/task.md and .ai/plan.md when present. Record important decisions in .ai/task.md, use the smallest complete change, and leave verification evidence for /verify.",
+      "template": "Implement: $ARGUMENTS\n\nRead .ai/task.md, .ai/research.md, and .ai/plan.md when present. If a non-trivial task has no plan, perform bounded research and create the missing plan before editing. Resolve evidence gaps with explicit context packets and bounded delegation only when useful. Implement the smallest complete change, run cheap post-edit diagnostics, inspect the diff and affected contracts, and update .ai/task.md with decisions and status. Do not claim completion until /verify has evidence; do not silently repair verifier findings without confirming them.",
       "agent": "build"
     },
     "verify": {

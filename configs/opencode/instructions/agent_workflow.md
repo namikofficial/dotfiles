@@ -17,6 +17,8 @@ Subagent output is evidence, not authority. Independently validate consequential
 
 Use persistent project-local `.ai/` artifacts when available: `task.md`, `research.md`, `plan.md`, `verification.md`, and `handoff.md`. Keep them bounded and secret-free.
 
+`/goal` is the autonomous coordinator: task → research → plan (unless mechanical) → build → verify → relevant read-only verifier/adversarial review → handoff. It must continue through verification rather than stopping after planning or implementation. `/plan` must research missing evidence before writing a plan; `/build` must create a missing non-trivial plan before editing and must leave verification evidence for `/verify`.
+
 Verification escalates by cost: diagnostics/lint/typecheck/unit, focused integration or screenshots, headless browser/device automation, interactive visual inspection, then physical or cloud devices. Start at the cheapest tier that can disprove the change.
 
 Use deterministic CLIs for Git, Docker, Postgres, systemd, journalctl, Gradle, pnpm, gh, kubectl, Bruno, and Schemathesis. Reserve MCP for stateful, interactive, or semantic systems. Use structured tmux tools for persistent processes.
