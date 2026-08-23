@@ -10,7 +10,7 @@ if [[ -r "$pal_env" ]]; then
 fi
 
 export DEFAULT_MODEL="${DEFAULT_MODEL:-auto}"
-export DISABLED_TOOLS="${DISABLED_TOOLS:-analyze,refactor,testgen,secaudit,docgen,tracer}"
+export DISABLED_TOOLS="${DISABLED_TOOLS:-chat,precommit,secaudit,docgen,analyze,refactor,tracer,apilookup}"
 
 exec /home/namik/.local/bin/uvx \
   --with 'mcp<2' \
