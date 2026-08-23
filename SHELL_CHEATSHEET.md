@@ -36,15 +36,12 @@
 
 ## Neovim Battle Station
 - Launch Neovim: `v` (alias to `nvim`)
-- Plugin UI: `<leader>pl` (or `:Lazy`)
-- Mason UI: `<leader>pm` (or `:Mason`)
-- Health check: `<leader>pc` (or `:checkhealth`)
-- Quick open files: `<C-p>`
-- Explorer toggle: `<C-b>`
-- AI chat toggle: `<leader>aa`
-- Run nearest test: `<leader>tn`
-- Run task runner: `<leader>or`
-- Open lazygit from Neovim terminal: `<leader>gg`
+- Plugin UI: `:Lazy`
+- Health check: `:checkhealth`
+- Find files: `<leader>ff`
+- Explorer toggle: `<leader>e`
+- Choose OpenCode or Codex: `<leader>aa`
+- Open LazyGit: `<leader>gg`
 - Main config: `~/Documents/code/dotfiles/nvim/init.lua`
 
 ## Handy Aliases
@@ -131,6 +128,8 @@
 - Kill tmux server: `tka`
 - Start the four-pane project layout: `project-profile dev nox-billings`
 - Open Nox Billings on the Android emulator: `nox-billings-emulator`
+- Start all trackMe dev servers (backend + web + mobile): `trackme-up`
+- Open trackMe in editor: `trackme-edit`
 
 ## Client Backups
 

@@ -13,6 +13,7 @@ alias nox-billings='cd /home/namik/Documents/code/noxorigin/nox-billings'
 alias nox-tickets='cd /home/namik/Documents/code/noxorigin/nox-tickets'
 alias noxorigin='cd /home/namik/Documents/code/noxorigin'
 alias wellvantage='cd ~/Documents/code/WellVantage'
+alias trackme='cd /home/namik/Documents/code/trackMe'
 alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
 
@@ -69,6 +70,31 @@ nox-tickets-env-edit() {
   code "$env_file"
 }
 
+# ── trackMe ─────────────────────────────────────────────────────────────────
+trackme-edit() {
+  code /home/namik/Documents/code/trackMe "$@"
+}
+
+trackme-env-edit() {
+  local environment="${1:-}"
+  local env_file
+  case "$environment" in
+    staging) env_file="$HOME/Documents/code/trackMe/backend/.env" ;;
+    production) env_file="$HOME/Documents/code/trackMe/backend/.env.prod" ;;
+    *) print -u2 "Usage: trackme-env-edit staging|production"; return 2 ;;
+  esac
+  [[ -f "$env_file" ]] || { print -u2 "Environment file not found: $env_file"; return 1; }
+  code "$env_file"
+}
+
+trackme-log() {
+  cd /home/namik/Documents/code/trackMe/backend && npm run docker:logs "$@"
+}
+
+trackme-up() {
+  just --justfile /home/namik/Documents/code/trackMe/justfile up "$@"
+}
+
 nox-env-validate() {
   nox-ensure-root || return
   local environment="${1:-}"
@@ -97,12 +123,15 @@ nox-help() {
   print '  noxorigin              Open the umbrella workspace'
   print '  noxcrm                 Enter the NoxCRM workspace'
   print '  nox-billings           Enter the Nox-Billings workspace'
+  print '  trackme                Enter the trackMe workspace'
   print '  nox-env-edit staging   Edit encrypted staging environment in VS Code'
   print '  nox-env-edit production Edit encrypted production environment in VS Code'
   print '  nox-billings-env-edit NAME Edit Nox-Billings encrypted environment'
   print '  nox-tickets-env-edit NAME Edit Nox-Tickets encrypted environment'
+  print '  trackme-env-edit NAME  Edit trackMe backend environment'
   print '  nox-env-validate NAME  Validate encrypted deployment environment'
   print '  nox-infra-edit         Open workspace infrastructure'
+  print '  nox-billings-up        Start nox-billings dev stack in tmux (pass --open for Kitty windows)'
 }
 
 noxcrm-edit() {
@@ -131,6 +160,10 @@ nox-billings-log() {
 
 nox-billings-emulator() {
   "${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/hypr/scripts/android-dev.sh" start Noxflow_API_36 "$@"
+}
+
+nox-billings-up() {
+  just --justfile /home/namik/Documents/code/noxorigin/nox-billings/justfile up "$@"
 }
 
 # Use Kitty's SSH kitten to auto-bootstrap remote terminal capabilities.
