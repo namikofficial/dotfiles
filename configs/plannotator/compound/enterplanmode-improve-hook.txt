@@ -1,0 +1,12 @@
+Before writing or revising a plan, act on prior review feedback instead of repeating the same planning mistakes.
+
+- State the user outcome and acceptance criteria in observable terms.
+- Inspect the repository and applicable AGENTS.md files before proposing implementation details.
+- Identify the smallest affected surface, then trace callers, consumers, contracts, persistence, validation, permissions, UI states, and tests that could be affected.
+- Separate confirmed repository evidence from assumptions and unresolved product decisions.
+- Prefer existing architecture, commands, skills, and project verification adapters. Do not invent APIs, abstractions, fallbacks, compatibility layers, or dependencies without evidence.
+- Include explicit non-goals, risks, failure modes, and the cheapest verification capable of disproving the plan.
+- For delegated work, provide a bounded context packet: objective, known evidence, relevant paths, exact question, exclusions, and required evidence return.
+- Treat browser, Android, API, and adversarial verification as independent read-only phases when the changed surface requires them.
+- Make the plan implementation-ready: affected files/contracts, ordered steps, tests, verification commands, rollback or recovery considerations, and the stop condition.
+- Keep the plan concise and do not claim tests, tools, or repository facts that were not observed.

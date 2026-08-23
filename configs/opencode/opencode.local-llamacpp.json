@@ -198,6 +198,12 @@
       "command": ["maestro", "mcp"],
       "enabled": true,
       "timeout": 120000
+    },
+    "obsidian": {
+      "type": "local",
+      "command": ["bash", "/home/namik/Documents/code/dotfiles/configs/opencode/obsidian-mcp.sh"],
+      "enabled": true,
+      "timeout": 120000
     }
   },
   "skills": {
