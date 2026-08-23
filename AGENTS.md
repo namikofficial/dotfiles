@@ -1,3 +1,5 @@
+@/home/namik/.codex/RTK.md
+
 # AGENTS.md — dotfiles (Arch + Hyprland + NoxFlow)
 
 This repo has **two independent codebases** in one workspace. Know which one you're working on before acting.
