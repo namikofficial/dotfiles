@@ -1,0 +1,16 @@
+{
+  "nox-api": {
+    "session": "nox-api",
+    "window": "api",
+    "type": "server",
+    "cwd": ".",
+    "command": "pnpm dev"
+  },
+  "nox-tests": {
+    "session": "nox-api",
+    "window": "tests",
+    "type": "test",
+    "cwd": ".",
+    "command": "pnpm test --watch"
+  }
+}

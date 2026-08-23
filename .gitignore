@@ -23,6 +23,11 @@ settings/export/
 .opencode-share/
 .opencode-state/
 
+# Generated pointer skills are deployed by opencode-skills-collection at startup.
+# Keep the hand-authored skills in configs/opencode/skills tracked.
+configs/opencode/skills/*-category-pointer/
+.opencode/tmux-sessions.json
+
 # Rust build output (Cargo.lock is kept tracked for the desktop binaries).
 **/target/
 

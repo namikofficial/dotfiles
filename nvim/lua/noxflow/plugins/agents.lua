@@ -32,4 +32,29 @@ return {
       { "<leader>ac", function() toggle_agent("codex") end, desc = "Codex" },
     },
   },
+  {
+    "nickjvandyke/opencode.nvim",
+    version = "*",
+    keys = {
+      {
+        "<leader>ax",
+        function()
+          require("opencode").ask("@this: ")
+        end,
+        mode = { "n", "x" },
+        desc = "Ask OpenCode about context",
+      },
+      {
+        "<leader>as",
+        function()
+          require("opencode").select()
+        end,
+        mode = { "n", "x" },
+        desc = "Select OpenCode action",
+      },
+    },
+    init = function()
+      vim.g.opencode_opts = vim.g.opencode_opts or {}
+    end,
+  },
 }

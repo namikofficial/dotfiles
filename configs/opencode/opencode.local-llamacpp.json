@@ -85,7 +85,8 @@
     ]
   },
   "instructions": [
-    "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md"
+    "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/shell_strategy.md"
   ],
   "permission": {
     "lsp": "allow",
@@ -119,7 +120,10 @@
     },
     "local-docs_*": "allow",
     "browser_*": "allow",
-    "memory": "allow"
+    "memory": "allow",
+    "worktree_create": "allow",
+    "worktree_workspace_create": "allow",
+    "worktree_delete": "deny"
   },
   "mcp": {
     "codegraph": {
@@ -199,10 +203,32 @@
       "/home/namik/.codex/skills"
     ]
   },
+  "command": {
+    "goal": {
+      "description": "Set a bounded session-scoped goal and continue until it is complete or blocked.",
+      "template": "$ARGUMENTS",
+      "agent": "build"
+    },
+    "full-fix": {
+      "description": "Run the complete investigate, implement, test, review, and verify workflow.",
+      "template": "Execute the full-fix workflow for: $ARGUMENTS\n\n1. Define the objective, acceptance criteria, non-goals, and affected surface.\n2. Use Subtask2 to delegate at least one independent read-only investigation and one challenge/review pass.\n3. Compare the findings and write a concise implementation plan before editing.\n4. Implement the smallest complete fix in the current worktree or an isolated worktree when parallel edits are useful.\n5. Run focused tests first, then the authoritative broader checks required by AGENTS.md.\n6. Review the final diff, changed call sites, and security-sensitive behavior.\n7. Repair confirmed failures and rerun the relevant checks.\n8. Finish with evidence: files changed, commands run, observed results, remaining risks, and the next action.\n\nDo not commit, push, delete worktrees, or kill unrelated tmux sessions without explicit user approval.",
+      "agent": "build"
+    }
+  },
   "plugin": [
+    "@tarquinen/opencode-dcp@3.1.14",
+    "@nevermore93/opencode-worktree@0.5.3",
+    "opencode-goal-plugin",
+    "opencode-wakatime",
+    "opentmux@1.3.3",
+    "@andrewhampton/opencode-handoff@0.2.0",
+    "@zenobius/opencode-skillful@1.2.5",
+    "opencode-skills-collection@4.0.38",
+    "@plannotator/opencode@0.20.3",
+    "@openspoon/subtask2@0.3.9",
+    "@nick-vi/opencode-type-inject",
     "opencode-snip@latest",
-    "opencode-pty",
-    "context-mode",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js"
   ],
@@ -212,7 +238,7 @@
   },
   "compaction": {
     "auto": true,
-    "prune": true,
+    "prune": false,
     "tail_turns": 3,
     "preserve_recent_tokens": 12000,
     "reserved": 16000
@@ -226,7 +252,27 @@
       "top_p": 0.95,
       "steps": 80,
       "color": "primary",
-      "prompt": "Act as the primary implementation agent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, impact analysis, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns and codemods. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free and incorporate their findings. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running, interactive, watch-mode, development-server, emulator, Gradle, Docker, or test processes, prefer PTY sessions over shell backgrounding, arbitrary sleep calls, or timeout wrappers. Use pty_spawn to start the process, pty_read with filtering to inspect relevant output, and rely on exit notifications when possible. Do not poll repeatedly. Clean up PTY sessions when they are no longer needed. Shell commands run in /bin/sh by default. To use zsh, wrap commands as: zsh -c 'your command'. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts that are likely to matter in future sessions. Do not store transient debugging observations, speculative conclusions, raw logs, temporary errors, task progress, secrets, credentials, or facts easily recoverable from source control. Completion requires evidence, not confidence. Before reporting completion: inspect the final diff, check all changed call sites and contracts where relevant, run authoritative targeted validation, distinguish commands actually run from checks merely recommended, report any verification that could not be performed, and never classify an existing failure as pre-existing without evidence. For substantial or cross-cutting changes, delegate final independent verification to @verifier before declaring the task complete. Fix confirmed findings yourself, then rerun the relevant checks. Make focused changes, preserve unrelated work, run relevant checks, and report only observed results with paths, commands, risks, and next action. You may edit and run local commands. Never use SSH."
+      "permission": {
+        "edit": "allow",
+        "task": "allow",
+        "bash": {
+          "*": "allow",
+          "git commit *": "ask",
+          "git push*": "deny",
+          "git reset*": "deny",
+          "git clean*": "deny",
+          "git checkout*": "deny",
+          "git restore*": "deny",
+          "git rebase*": "deny",
+          "git stash*": "deny",
+          "ssh*": "deny",
+          "sudo*": "deny"
+        },
+        "worktree_create": "allow",
+        "worktree_workspace_create": "allow",
+        "worktree_delete": "ask"
+      },
+      "prompt": "Act as the primary implementation agent. Inspect the repository and applicable AGENTS.md first. Use LSP and CodeGraph to narrow the relevant surface before reading broadly. Use ast-grep for structural searches and load the applicable skills for UI, code intelligence, shell safety, and testing. Delegate bounded read-only investigation or review to the configured explore/review agents when useful, then independently validate their findings. For long-running servers, watchers, logs, emulators, Docker, and tests, use the structured tmux tools (tmux_create, tmux_run, tmux_capture, tmux_send, tmux_status) rather than PTY tools, shell backgrounding, arbitrary sleeps, or timeout wrappers. Use the process registry for named project processes. Never attach to a personal tmux session or kill an unregistered session. Run non-interactive shell commands, preserve unrelated changes, do not read secrets, and never use SSH. Completion requires an inspected diff, authoritative checks, observed results, and explicit remaining risks. Do not commit or push without user approval."
     },
     "plan": {
       "description": "Read-only planning agent for code, UI, UX, React Native, and Android work.",
@@ -320,7 +366,7 @@
         "task": "deny",
         "bash": { "*": "allow", "rm *": "deny", "git reset *": "deny", "git checkout *": "deny", "git restore *": "deny", "git clean *": "deny", "git stash *": "deny", "git rebase *": "deny", "git push *": "deny", "ssh": "deny", "ssh *": "deny" }
       },
-      "prompt": "Act as a general-purpose implementation subagent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running processes, prefer PTY sessions. Shell commands run in /bin/sh by default. To use zsh, wrap commands as: zsh -c 'your command'. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts. After implementing: inspect the final diff, check all changed call sites and contracts, run relevant targeted validation, distinguish commands actually run from checks merely recommended, report only observed results with paths, commands, risks, and next action."
+      "prompt": "Act as a general-purpose implementation subagent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running processes, use the structured tmux tools and the project process registry; never use PTY tools, shell backgrounding, arbitrary sleeps, or timeout wrappers. Shell commands run in /bin/sh by default. To use zsh, wrap commands as: zsh -c 'your command'. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts. After implementing: inspect the final diff, check all changed call sites and contracts, run relevant targeted validation, distinguish commands actually run from checks merely recommended, report only observed results with paths, commands, risks, and next action."
     },
     "zen-m2.5-general": {
       "description": "MiniMax M2.5 general-purpose subagent for implementation and exploration.",
@@ -335,7 +381,7 @@
         "task": "deny",
         "bash": { "*": "allow", "rm *": "deny", "git reset *": "deny", "git checkout *": "deny", "git restore *": "deny", "git clean *": "deny", "git stash *": "deny", "git rebase *": "deny", "git push *": "deny", "ssh": "deny", "ssh *": "deny" }
       },
-      "prompt": "Act as a general-purpose implementation subagent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running processes, prefer PTY sessions. Shell commands run in /bin/sh by default. To use zsh, wrap commands as: zsh -c 'your command'. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts. After implementing: inspect the final diff, check all changed call sites and contracts, run relevant targeted validation, distinguish commands actually run from checks merely recommended, report only observed results with paths, commands, risks, and next action."
+      "prompt": "Act as a general-purpose implementation subagent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running processes, use the structured tmux tools and the project process registry; never use PTY tools, shell backgrounding, arbitrary sleeps, or timeout wrappers. Shell commands run in /bin/sh by default. To use zsh, wrap commands as: zsh -c 'your command'. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts. After implementing: inspect the final diff, check all changed call sites and contracts, run relevant targeted validation, distinguish commands actually run from checks merely recommended, report only observed results with paths, commands, risks, and next action."
     },
     "zen-m3-general": {
       "description": "MiniMax M3 general-purpose subagent for implementation and exploration.",
@@ -350,7 +396,7 @@
         "task": "deny",
         "bash": { "*": "allow", "rm *": "deny", "git reset *": "deny", "git checkout *": "deny", "git restore *": "deny", "git clean *": "deny", "git stash *": "deny", "git rebase *": "deny", "git push *": "deny", "ssh": "deny", "ssh *": "deny" }
       },
-      "prompt": "Act as a general-purpose implementation subagent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running processes, prefer PTY sessions. Shell commands run in /bin/sh by default. To use zsh, wrap commands as: zsh -c 'your command'. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts. After implementing: inspect the final diff, check all changed call sites and contracts, run relevant targeted validation, distinguish commands actually run from checks merely recommended, report only observed results with paths, commands, risks, and next action."
+      "prompt": "Act as a general-purpose implementation subagent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running processes, use the structured tmux tools and the project process registry; never use PTY tools, shell backgrounding, arbitrary sleeps, or timeout wrappers. Shell commands run in /bin/sh by default. To use zsh, wrap commands as: zsh -c 'your command'. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts. After implementing: inspect the final diff, check all changed call sites and contracts, run relevant targeted validation, distinguish commands actually run from checks merely recommended, report only observed results with paths, commands, risks, and next action."
     },
     "cheap-explore": {
       "description": "Cheap read-only exploration agent using DeepSeek V4 Flash Free.",
@@ -379,6 +425,92 @@
         }
       },
       "prompt": "Verify completed work independently. Start from the user's requested outcome, then inspect the actual diff and relevant surrounding code. Use LSP for symbols and diagnostics, CodeGraph for cross-module impact, ast-grep for structural invariants, and targeted file reads only after narrowing scope. Run the authoritative lint, typecheck, focused tests, and build checks that are relevant and non-destructive. Look specifically for incomplete call-site updates, contract mismatches, missing validation, stale imports, regressions, unhandled edge cases, false assumptions, and tests that pass without exercising the changed behavior. Do not edit anything. Separate confirmed failures, risks, and verified-good results. Never claim a command passed unless you ran it and observed success."
+    },
+    "explore": {
+      "description": "Read-only repository exploration and evidence gathering agent.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 24,
+      "color": "info",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "git status": "allow",
+          "git status *": "allow",
+          "git --no-pager diff": "allow",
+          "git --no-pager diff *": "allow",
+          "git --no-pager log": "allow",
+          "git --no-pager log *": "allow"
+        }
+      },
+      "prompt": "Explore only the smallest repository surface needed to answer the assigned question. Use read, search, LSP, and diagnostics. Do not edit, run long-lived processes, change Git state, or claim unobserved results. Return exact paths, evidence, risks, and unresolved questions."
+    },
+    "review": {
+      "description": "Read-only implementation and security review agent.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 24,
+      "color": "warning",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "git status": "allow",
+          "git status *": "allow",
+          "git --no-pager diff": "allow",
+          "git --no-pager diff *": "allow",
+          "git --no-pager show": "allow",
+          "git --no-pager show *": "allow"
+        }
+      },
+      "prompt": "Review the requested change and actual diff without editing. Check correctness, security, regressions, contracts, tests, and missing edge cases. Separate confirmed findings from suggestions and cite exact paths and commands."
+    },
+    "deploy": {
+      "description": "Controlled build and deployment verification agent.",
+      "mode": "subagent",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
+      "temperature": 0.1,
+      "steps": 48,
+      "color": "error",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "ask",
+          "git status": "allow",
+          "git status *": "allow",
+          "git --no-pager diff": "allow",
+          "git --no-pager diff *": "allow",
+          "git push*": "deny",
+          "git reset*": "deny",
+          "git clean*": "deny",
+          "git checkout*": "deny",
+          "git restore*": "deny",
+          "ssh*": "ask",
+          "docker*": "ask"
+        }
+      },
+      "prompt": "Perform only explicitly requested build, release, deployment, or health verification work. Inspect deployment state first. Ask before external mutation, Docker changes, SSH, publishing, or credentials. Never push, delete data, or claim deployment success without direct evidence."
     },
     "repo-explorer": {
       "description": "Fast read-only repository mapper that locates the minimum relevant implementation surface before coding begins.",
