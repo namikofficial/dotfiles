@@ -22,6 +22,7 @@ settings/export/
 .opencode-cache/
 .opencode-share/
 .opencode-state/
+.ai/
 
 # Generated pointer skills are deployed by opencode-skills-collection at startup.
 # Keep the hand-authored skills in configs/opencode/skills tracked.

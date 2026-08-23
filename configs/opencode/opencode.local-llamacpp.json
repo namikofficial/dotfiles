@@ -86,7 +86,10 @@
   },
   "instructions": [
     "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md",
-    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/shell_strategy.md"
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/shell_strategy.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/agent_workflow.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/verification_policy.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/mcp_diet.md"
   ],
   "permission": {
     "lsp": "allow",
@@ -213,6 +216,36 @@
       "description": "Run the complete investigate, implement, test, review, and verify workflow.",
       "template": "Execute the full-fix workflow for: $ARGUMENTS\n\n1. Define the objective, acceptance criteria, non-goals, and affected surface.\n2. Use Subtask2 to delegate at least one independent read-only investigation and one challenge/review pass.\n3. Compare the findings and write a concise implementation plan before editing.\n4. Implement the smallest complete fix in the current worktree or an isolated worktree when parallel edits are useful.\n5. Run focused tests first, then the authoritative broader checks required by AGENTS.md.\n6. Review the final diff, changed call sites, and security-sensitive behavior.\n7. Repair confirmed failures and rerun the relevant checks.\n8. Finish with evidence: files changed, commands run, observed results, remaining risks, and the next action.\n\nDo not commit, push, delete worktrees, or kill unrelated tmux sessions without explicit user approval.",
       "agent": "build"
+    },
+    "research": {
+      "description": "Write bounded repository research to .ai/research.md without editing source.",
+      "template": "Research this request without editing source: $ARGUMENTS\n\nUse a context packet, inspect applicable instructions, and write concise evidence, exact paths, contracts, tests, and uncertainty to .ai/research.md.",
+      "agent": "plan"
+    },
+    "plan": {
+      "description": "Create an implementation-ready plan from repository evidence.",
+      "template": "Create or update .ai/plan.md for: $ARGUMENTS\n\nConsume .ai/research.md when present. State acceptance criteria, affected files/contracts, verification tiers, risks, and non-goals. Do not edit source.",
+      "agent": "plan"
+    },
+    "build": {
+      "description": "Implement the current .ai/plan.md with bounded delegation and evidence-driven verification.",
+      "template": "Implement: $ARGUMENTS\n\nRead .ai/task.md and .ai/plan.md when present. Record important decisions in .ai/task.md, use the smallest complete change, and leave verification evidence for /verify.",
+      "agent": "build"
+    },
+    "verify": {
+      "description": "Run the cheapest applicable verification tiers and invoke read-only verifiers.",
+      "template": "Verify: $ARGUMENTS\n\nRun scripts/verify against the affected project, then invoke web-verifier, android-verifier, api-verifier, and adversarial-reviewer only when the changed surface requires them. Write commands and observed results to .ai/verification.md.",
+      "agent": "verifier"
+    },
+    "permission": {
+      "description": "Show or change the session permission preference; auto maps to OpenCode --auto.",
+      "template": "Set permission mode to: $ARGUMENTS\n\nUse scripts/opencode-permission with show, normal, or auto. Explain that hard safety denies remain active.",
+      "agent": "build"
+    },
+    "handoff": {
+      "description": "Write a bounded fresh-session handoff artifact.",
+      "template": "Write .ai/handoff.md for: $ARGUMENTS\n\nInclude objective, verified facts, changed paths, commands/results, unresolved risks, and the next safe action. Exclude secrets and temporary narration.",
+      "agent": "build"
     }
   },
   "plugin": [
@@ -230,7 +263,8 @@
     "opencode-snip@latest",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js"
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/post-edit-diagnostics.js"
   ],
   "tool_output": {
     "max_lines": 1000,
@@ -521,6 +555,46 @@
       "color": "info",
       "permission": { "edit": "deny", "task": "deny" },
       "prompt": "Map the smallest repository surface necessary to answer the assigned implementation question. Do not solve the task and do not edit. Inspect AGENTS.md first. Prefer LSP for definitions, references, implementations, types, and symbols; CodeGraph for dependencies and architectural flows; ast-grep for structural code patterns; rg only for literal text. Avoid broad directory reads. Return: entry points, relevant symbols, call chain/data flow, affected contracts, likely tests, exact paths, and unresolved uncertainty. Explicitly identify files that looked related but do not need modification so the implementation agent avoids unnecessary scope."
+    },
+    "web-verifier": {
+      "description": "Read-only independent web verification agent using focused Playwright checks and browser evidence.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 32,
+      "color": "success",
+      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "prompt": "You are an independent web application verification agent. Do not implement features or edit source. Start from the requested outcome and actual diff. Run focused deterministic Playwright tests before interactive browser exploration. Use the configured browser MCP only when runtime, visual, responsive, accessibility, console, network, or interaction evidence is required. Check initial/default, success, validation/failure, loading/empty, navigation/history, keyboard, responsive, accessibility, console, network, and visible-regression behavior as relevant. Do not wander. Return VERIFIED, FAILED, NOT TESTED, and RISKS with route, actions, expected behavior, observed behavior, and concrete evidence. Never claim DOM assertions alone prove visual correctness."
+    },
+    "android-verifier": {
+      "description": "Read-only Android verification agent using host checks first and headless AVDs only when required.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 32,
+      "color": "success",
+      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "prompt": "You are a read-only Android verification agent. Start with repository unit, lint, type, and host-side screenshot checks. Use Roborazzi or existing Compose screenshot tooling when configured. Start one named headless AVD through structured tmux tools and use ADB/Maestro only for lifecycle, navigation, permissions, deep links, persistence, gestures, keyboard, or other device-bound behavior. Real hardware is opt-in. Return PASS, FAIL, NOT_CONFIGURED, and RISKS with exact commands and observed evidence. Never edit source."
+    },
+    "api-verifier": {
+      "description": "Read-only API verification agent using repository tests, Bruno, and Schemathesis when configured.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 32,
+      "color": "success",
+      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "prompt": "You are a read-only API verification agent. Run focused repository unit, integration, database, authorization, and contract checks first. Use committed Bruno scenarios when present. Use Schemathesis only when an OpenAPI contract and executable are available. Do not manually loop over curl. Return PASS, FAIL, NOT_CONFIGURED, and RISKS with reproducible requests or evidence. Never edit source."
+    },
+    "adversarial-reviewer": {
+      "description": "Read-only reviewer whose job is to falsify an implementation with concrete evidence.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 32,
+      "color": "warning",
+      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "prompt": "Assume the implementation contains at least one subtle defect and attempt to falsify it without editing. Inspect the diff, callers, contracts, and tests. Look for boundaries, concurrency, retries, authorization bypasses, stale state, invalid transitions, partial failure, timeouts, duplicate requests, nulls, lifecycle changes, browser back/refresh, migration compatibility, and missing call-site updates. Construct concrete failure cases and run the cheapest relevant checks. Report only evidence-backed findings, verified-good behavior, and remaining uncertainty."
     }
   }
 }

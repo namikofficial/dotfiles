@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -u
+
+project_dir="${1:-.}"
+mode="${2:-affected}"
+project_dir="$(cd "$project_dir" 2>/dev/null && pwd)" || {
+  printf '%s\n' 'FAIL: project directory does not exist' >&2
+  exit 2
+}
+
+status=0
+output_file="$(mktemp -t opencode-verify.XXXXXX)"
+trap 'rm -f "$output_file"' EXIT
+result() {
+  printf '{"project":"%s","tier":"%s","check":"%s","status":"%s","command":"%s"}\n' \
+    "$(basename "$project_dir")" "$1" "$2" "$3" "$4"
+  [ "$3" = FAIL ] && status=1
+}
+
+run_check() {
+  local tier="$1" name="$2" command_line="$3"
+  if (cd "$project_dir" && bash -lc "$command_line") >"$output_file" 2>&1; then
+    result "$tier" "$name" PASS "$command_line"
+  else
+    cat "$output_file" >&2
+    result "$tier" "$name" FAIL "$command_line"
+  fi
+}
+has_script() {
+  (cd "$project_dir" && node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts[process.argv[1]] ? 0 : 1)" "$1") >/dev/null 2>&1
+}
+
+if [ -f "$project_dir/justfile" ] && command -v just >/dev/null 2>&1; then
+  selected_recipe="verify"
+  case "$mode" in
+    fast) selected_recipe="verify-fast" ;;
+    full) selected_recipe="verify-full" ;;
+    affected) selected_recipe="verify-affected" ;;
+  esac
+  if just --list --unsorted 2>/dev/null | awk '{print $1}' | rg -qx "$selected_recipe"; then
+    run_check 0 "$selected_recipe" "just $selected_recipe"
+  elif just --list --unsorted 2>/dev/null | awk '{print $1}' | rg -qx 'verify|check'; then
+    fallback_recipe="verify"
+    just --list --unsorted 2>/dev/null | awk '{print $1}' | rg -qx 'verify' || fallback_recipe="check"
+    run_check 0 "$fallback_recipe" "just $fallback_recipe"
+  else
+    result 0 "$selected_recipe" NOT_CONFIGURED "just $selected_recipe"
+  fi
+elif [ -f "$project_dir/package.json" ] && command -v pnpm >/dev/null 2>&1; then
+  script=""
+  case "$mode" in
+    fast) script="verify:fast" ;;
+    full) script="verify:full" ;;
+    affected) script="verify:affected" ;;
+    *) script="verify" ;;
+  esac
+  if has_script "$script"; then
+    run_check 0 "$script" "pnpm $script"
+  elif has_script check; then
+    run_check 0 check 'pnpm check'
+  elif [ "$mode" = fast ] && has_script typecheck; then
+    run_check 0 typecheck 'pnpm typecheck'
+  elif [ "$mode" = affected ] && (has_script typecheck || has_script lint); then
+    checks=""
+    has_script typecheck && printf 'pnpm typecheck' >"$output_file" || :
+    checks="$(cat "$output_file")"
+    has_script lint && printf '%s' "${checks:+ && }pnpm lint" >>"$output_file" || :
+    checks="$(cat "$output_file")"
+    run_check 0 affected "$checks"
+  elif [ "$mode" = full ] && (has_script build || has_script test); then
+    checks=""
+    has_script typecheck && printf 'pnpm typecheck' >"$output_file" || :
+    checks="$(cat "$output_file")"
+    has_script build && printf '%s' "${checks:+ && }pnpm build" >>"$output_file" || :
+    checks="$(cat "$output_file")"
+    has_script test && printf '%s' "${checks:+ && }pnpm test" >>"$output_file" || :
+    checks="$(cat "$output_file")"
+    run_check 0 full "$checks"
+  else
+    result 0 "$script" NOT_CONFIGURED "pnpm $script"
+  fi
+else
+  result 0 verify NOT_CONFIGURED 'just or pnpm project interface'
+fi
+
+if [ "$mode" = full ] && [ -f "$project_dir/openapi.json" ] && command -v schemathesis >/dev/null 2>&1; then
+  run_check 1 schemathesis 'schemathesis run openapi.json'
+elif [ "$mode" = full ] && [ -f "$project_dir/openapi.json" ]; then
+  result 1 schemathesis NOT_CONFIGURED 'schemathesis run openapi.json'
+fi
+
+exit "$status"
