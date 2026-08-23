@@ -97,11 +97,12 @@ systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desk
 
 ## Session workflow
 
-1. Branch is `inspired-rewrite` — active dev branch.
+1. Verify the current branch before editing; do not assume an older branch name from handoff notes.
 2. After QML edits: restart shell service, check journal for warnings.
 3. After Rust edits: `cargo check --workspace` then `cargo test --workspace`.
 4. After shell script edits: `./setup/check-shell.sh --all`.
 5. Docs generation: `./setup/generate-keybind-docs.py` + `./setup/check-keybind-docs.sh`.
+6. Keep the worktree reviewable: preserve unrelated changes, stage exact paths only, run `git diff --cached --check`, and create one atomic commit for each validated slice. Never leave completed requested work uncommitted unless the user explicitly asks for no commits.
 
 ## Repo quirks
 

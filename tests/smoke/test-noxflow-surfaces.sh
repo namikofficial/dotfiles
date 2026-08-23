@@ -39,7 +39,10 @@ TEST_START="$(date +%s)"
 IPC_PATH="$HOME/.config/noxflow/shell/shell.qml"
 
 toggle_surface() {
-  "$NOXCTL" "$1"
+  case "$1" in
+    sync) "$NOXCTL" panel toggle sync ;;
+    *) "$NOXCTL" "$1" ;;
+  esac
 }
 
 echo "=== NoxFlow Surface Smoke Test ==="

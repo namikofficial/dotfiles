@@ -174,7 +174,7 @@ Item {
             // the island goes idle, but don't disturb routine OSD.
             engagement = HoverEngagement.clearSourceHover(engagement);
             root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
-            root.pointerGraceTimer.stop();
+            pointerGraceTimer.stop();
             root.maybeRetireAfterPinRelease();
             event.accepted = true;
             return;
@@ -416,7 +416,7 @@ Item {
         engagement = next;
         // Cancel any pending transit close: the engagement is live.
         root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
-        root.pointerGraceTimer.stop();
+        pointerGraceTimer.stop();
         if (hovered) {
             root.adoptHoveredSource(sourceKind);
         } else {
@@ -444,8 +444,8 @@ Item {
     function armTransitTimer() {
         var token = HoverEngagement.armTransit(engagement, Date.now(), root.transitGraceMs);
         root.activeTransitToken = token;
-        root.pointerGraceTimer.interval = root.transitGraceMs;
-        root.pointerGraceTimer.restart();
+        pointerGraceTimer.interval = root.transitGraceMs;
+        pointerGraceTimer.restart();
     }
 
     Timer {
@@ -492,7 +492,7 @@ Item {
         }
         engagement = HoverEngagement.togglePin(engagement, target);
         root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
-        root.pointerGraceTimer.stop();
+        pointerGraceTimer.stop();
         if (engagement.pin.active) {
             islandState = engagement.pin.kind;
             hoverExpanded = true;
@@ -505,7 +505,7 @@ Item {
         if (!engagement.pin.active) return;
         engagement = HoverEngagement.releasePin(engagement);
         root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
-        root.pointerGraceTimer.stop();
+        pointerGraceTimer.stop();
         root.maybeRetireAfterPinRelease();
     }
 
@@ -935,7 +935,7 @@ Item {
                     // The user is now over the island body — cancel any
                     // pending close and adopt the active context.
                     root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
-                    root.pointerGraceTimer.stop();
+                    pointerGraceTimer.stop();
                     if (root.islandState === "idle" && !engagement.pin.active && !engagement.critical.active && !manualMode) {
                         hoverExpanded = true;
                     }
