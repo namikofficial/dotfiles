@@ -844,6 +844,10 @@ if [ -f "$DOTFILES_HOME/kitty/kitty-dashboard.zsh" ]; then
 fi
 
 # Custom helpers
+if [ -r "$DOTFILES_HOME/shell/claude-minimax.sh" ]; then
+  source "$DOTFILES_HOME/shell/claude-minimax.sh"
+fi
+
 fix-time() {
   sudo timedatectl set-ntp true || return 1
   if command -v chronyc >/dev/null 2>&1; then
