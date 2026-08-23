@@ -232,13 +232,13 @@ if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   if [ "$_engine" = "wayle" ]; then
     log "starting Wayle (persisted engine)"
     "$HOME/.config/hypr/scripts/panel-switch.sh" wayle >/dev/null 2>&1 || true
-else
-  log "noxflow engine: noxflow-shell.service starts via graphical-session.target"
-  # Clean up a stale fallback process from an earlier session. Wayle must not
-  # remain as a second layer-shell bar above the NoxFlow rail.
-  systemctl --user stop wayle.service >/dev/null 2>&1 || true
-  pkill -x wayle >/dev/null 2>&1 || true
-fi
+  else
+    log "noxflow engine: noxflow-shell.service starts via graphical-session.target"
+    # Clean up a stale fallback process from an earlier session. Wayle must not
+    # remain as a second layer-shell bar above the NoxFlow rail.
+    systemctl --user stop wayle.service >/dev/null 2>&1 || true
+    pkill -x wayle >/dev/null 2>&1 || true
+  fi
   unset _engine_file _engine
 fi
 
@@ -253,8 +253,18 @@ if [ -f "$KANSHI_CONFIG_HOME/kanshi/config" ]; then
 fi
 log "starting hypridle"
 run_once hypridle hypridle
-log "starting power profile watcher"
-run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
+_settingsctl="$HOME/.config/hypr/scripts/settingsctl"
+_auto_profile="false"
+if [ -x "$_settingsctl" ]; then
+  _auto_profile="$("$_settingsctl" get power.auto_profile 2>/dev/null || printf 'false')"
+fi
+if [ "$_auto_profile" = "true" ]; then
+  log "starting power profile watcher (power.auto_profile=true)"
+  run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
+else
+  log "power profile watcher disabled by settings"
+fi
+unset _settingsctl _auto_profile
 
 # hyprpm currently fails its header refresh path on Hyprland 0.54.1
 # ("You need to run make all first"), which surfaces a false outdated-plugin
