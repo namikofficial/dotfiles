@@ -199,6 +199,9 @@ link_runtime_path() {
 }
 
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
+link_path "$REPO_DIR/bashrc" "$HOME/.bashrc"
+link_path "$REPO_DIR/configs/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+link_path "$REPO_DIR/configs/claude/agents" "$HOME/.claude/agents"
 link_path "$REPO_DIR/sddm/dmrc" "$HOME/.dmrc"
 link_path "$REPO_DIR/git/gitconfig" "$HOME/.gitconfig"
 link_path "$REPO_DIR/git/hooks/commit-msg" "$HOME/.config/git/hooks/commit-msg"
