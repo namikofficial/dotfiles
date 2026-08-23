@@ -122,14 +122,6 @@
     "memory": "allow"
   },
   "mcp": {
-    "pal": {
-      "type": "local",
-      "command": [
-        "/home/namik/Documents/code/dotfiles/system/pal-mcp.sh"
-      ],
-      "enabled": true,
-      "timeout": 1200000
-    },
     "codegraph": {
       "type": "local",
       "command": ["codegraph", "serve", "--mcp"],
