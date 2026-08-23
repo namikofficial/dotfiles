@@ -49,7 +49,10 @@ var SOURCE_KINDS = [
     "health",
     "connectivity",
     "audio-power",
-    "notification-preview"
+    "notification-preview",
+    "updates",
+    "sync",
+    "provider-health"
 ];
 
 // "Critical" engagements are exclusive interrupts (battery warnings, network

@@ -290,7 +290,7 @@ Item {
                     Text { text: root.updateLaunchState === "failed" ? "\uF071" : !root.updates.checked ? "\uF021" : root.updates.count > 0 ? "\uF019" : "\uF00C"; color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : root.updates.count > 0 ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }
                     Text { visible: !root.updates.checked || root.updates.count > 0 || root.updateLaunchState === "failed"; text: root.updateLaunchState === "failed" ? "!" : !root.updates.checked ? "…" : String(root.updates.count); color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: true }
                 }
-                HoverHandler { onHoveredChanged: leftUpdatePill.ho = hovered }
+                HoverHandler { onHoveredChanged: { leftUpdatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered); } }
                 TapHandler { onTapped: root.runSystemUpdate() }
                 TapHandler { acceptedButtons: Qt.RightButton; onTapped: root.updates.refresh() }
             }
@@ -423,7 +423,7 @@ Item {
                         }
                     }
                 }
-                HoverHandler { onHoveredChanged: syncPill.ho = hovered }
+                HoverHandler { onHoveredChanged: { syncPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("sync", hovered); } }
                 TapHandler {
                     onPressedChanged: syncPill.pr = pressed
                     onTapped: {
@@ -501,7 +501,7 @@ Item {
                         font.bold: updates.count > 0 || root.updateLaunchState === "failed"
                     }
                 }
-                HoverHandler { onHoveredChanged: updatePill.ho = hovered }
+                HoverHandler { onHoveredChanged: { updatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered); } }
                 TapHandler { onTapped: root.runSystemUpdate() }
                 TapHandler { acceptedButtons: Qt.RightButton; onTapped: updates.refresh() }
                 Keys.onReturnPressed: root.runSystemUpdate()
@@ -526,7 +526,7 @@ Item {
                 radius: Theme.Tokens.scaled(4)
                 color: Theme.Tokens.stateWarning
                 Layout.alignment: Qt.AlignVCenter
-                HoverHandler {}
+                HoverHandler { onHoveredChanged: { if (root.islandHost) root.islandHost.sourceHoverChanged("provider-health", hovered); } }
             }
         }
     }

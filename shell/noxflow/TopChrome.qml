@@ -30,6 +30,13 @@ PanelWindow {
     implicitHeight: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightToolbar), island.implicitHeight)
     color: "transparent"
     aboveWindows: true
+    // Keep transparent pixels click-through. The bar remains interactive
+    // across its reserved strip; below it, only the visible island card owns
+    // input as it morphs between compact, dashboard, calendar, and launcher.
+    mask: Region {
+        Region { item: bar }
+        Region { item: island.inputRegionItem }
+    }
     // The launcher must own keyboard input immediately, before any pointer
     // interaction. OnDemand/focusable only permits focus and does not reliably
     // transfer it on Hyprland, so request it explicitly while expanded.

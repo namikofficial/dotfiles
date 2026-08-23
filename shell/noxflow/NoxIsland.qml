@@ -40,6 +40,7 @@ Item {
 
     property string islandState: "idle"
     property bool rendered: true
+    property alias inputRegionItem: islandCard
     property bool expanded: false
     property bool hoverExpanded: false
 
@@ -84,7 +85,7 @@ Item {
     ) : ""
 
     readonly property bool visualExpanded: expanded || hoverExpanded
-    readonly property bool dashboardVisible: ["workspace", "health", "connectivity", "audio-power", "notification-preview"].indexOf(islandState) >= 0
+    readonly property bool dashboardVisible: ["workspace", "health", "connectivity", "audio-power", "notification-preview", "updates", "sync", "provider-health"].indexOf(islandState) >= 0
     property date now: new Date()
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
 
@@ -366,6 +367,8 @@ Item {
             case "audio-power":     return { panel: "quick-settings", section: "volume" };
             case "workspace":       return null;
             case "notification-preview": return { panel: "notifications", section: "" };
+            case "sync":             return { panel: "sync", section: "" };
+            case "provider-health":  return { panel: "quick-settings", section: "system" };
             case "network":        return { panel: "quick-settings", section: "network" };
             case "battery":        return { panel: "quick-settings", section: "battery" };
             default:               return null;
@@ -795,7 +798,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Text { text: root.iconForState(root.islandState); color: Theme.Tokens.tonalPrimary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconSm }
-                Text { text: root.islandState === "workspace" ? "WORKSPACE" : root.islandState === "health" ? "SYSTEM" : root.islandState === "connectivity" ? "CONNECTIVITY" : root.islandState === "notification-preview" ? "NOTIFICATIONS" : "AUDIO & POWER"; color: Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelLarge; font.bold: true }
+                Text { text: root.islandState === "workspace" ? "WORKSPACE" : root.islandState === "health" ? "SYSTEM" : root.islandState === "connectivity" ? "CONNECTIVITY" : root.islandState === "notification-preview" ? "NOTIFICATIONS" : root.islandState === "updates" ? "UPDATES" : root.islandState === "sync" ? "SYNC" : root.islandState === "provider-health" ? "PROVIDER HEALTH" : "AUDIO & POWER"; color: Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelLarge; font.bold: true }
                 Item { Layout.fillWidth: true }
                 Text {
                     visible: root.islandPinned
@@ -895,6 +898,30 @@ Item {
                 }
                 Text { visible: !root.notificationModel || !root.notificationModel.notifications || root.notificationModel.notifications.length === 0; text: "No unread notifications"; color: Theme.Tokens.textMuted; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall }
             }
+
+            ColumnLayout {
+                visible: root.islandState === "updates"
+                Layout.fillWidth: true
+                spacing: Theme.Tokens.scaled(7)
+                Text { text: !root.updates.checked ? "Checking package databases…" : root.updates.count > 0 ? root.updates.count + " updates are available" : "System packages are up to date"; color: root.updates.count > 0 ? Theme.Tokens.stateInfo : Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyBodySmall; font.bold: true }
+                Text { text: root.updates.tooltip || "Click the update capsule to open the updater; right-click to refresh."; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            }
+
+            ColumnLayout {
+                visible: root.islandState === "sync"
+                Layout.fillWidth: true
+                spacing: Theme.Tokens.scaled(7)
+                Text { text: root.transfer.hasActiveTransfers ? "Transfers are active" : root.syncthing.syncing ? "Syncthing is synchronizing" : root.syncthing.hasErrors ? "Sync needs attention" : "Sync is idle"; color: root.syncthing.hasErrors ? Theme.Tokens.stateWarning : Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyBodySmall; font.bold: true }
+                Text { text: root.syncthing.serviceActive ? (root.syncthing.apiReachable ? "Syncthing service and API are reachable" : "Syncthing service is running; API is unavailable") : "Syncthing service is not active"; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            }
+
+            ColumnLayout {
+                visible: root.islandState === "provider-health"
+                Layout.fillWidth: true
+                spacing: Theme.Tokens.scaled(7)
+                Text { text: "One or more desktop data providers are degraded"; color: Theme.Tokens.stateWarning; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyBodySmall; font.bold: true }
+                Text { text: "Open System controls for the current source status. Unavailable values remain marked rather than being guessed."; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            }
         }
 
         // ── Input handlers ──
@@ -978,6 +1005,8 @@ Item {
             case "notification-preview": return "\uF0F3";
             case "focused-app":   return "\uF2D2";
             case "updates":       return "\uF019";
+            case "sync":          return "\uF2EF";
+            case "provider-health": return "\uF071";
             case "network":       return "\uF1EB";
             case "battery":       return "\uF240";
             case "clock":         return "\uF017";
@@ -992,6 +1021,8 @@ Item {
         }
         if (state === "focused-app") return root.activeApp !== "" ? root.activeApp : "No focused app";
         if (state === "updates") return root.updates && root.updates.checked ? (root.updates.count > 0 ? root.updates.count + " updates" : "System up to date") : "Checking updates";
+        if (state === "sync") return root.syncthing && root.syncthing.hasErrors ? "Sync needs attention" : root.syncthing && root.syncthing.syncing ? "Syncing" : "Sync idle";
+        if (state === "provider-health") return "Provider health warning";
         if (state === "network") return root.network && root.network.connectivity === "full" ? (root.network.connectedSsid || "Online") : "Network " + (root.network ? root.network.connectivity : "unavailable");
         if (state === "battery") return root.battery && root.battery.present ? "Battery " + Math.round(root.battery.percentage || 0) + "%" : "Battery unavailable";
         return root.activityLabel || state;

@@ -202,6 +202,17 @@ const Hover = context;
     console.log("OK testHoverSourceSwitch");
 })();
 
+(function testEveryBarSourceIsRecognized() {
+    var sources = ["workspace", "health", "connectivity", "audio-power",
+        "notification-preview", "updates", "sync", "provider-health"];
+    for (var i = 0; i < sources.length; i++) {
+        var s = Hover.recordSourceHover(Hover.newState(), sources[i], true);
+        assert.strictEqual(Hover.effectiveKind(s), sources[i],
+            "bar source must be hover-addressable: " + sources[i]);
+    }
+    console.log("OK testEveryBarSourceIsRecognized");
+})();
+
 // ── Diagnostics view ─────────────────────────────────────────────────────
 // view() must produce a serializable, immutable snapshot suitable for logs.
 (function testDiagnosticsView() {
