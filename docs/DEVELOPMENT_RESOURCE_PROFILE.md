@@ -16,14 +16,14 @@ workstationctl resources plan
 Apply the root-owned profile and reboot once so zram is recreated at 16 GiB:
 
 ```sh
-sudo workstationctl resources apply
+sudo /home/namik/Documents/code/dotfiles/setup/workstationctl resources apply
 systemctl reboot
 ```
 
 After reboot:
 
 ```sh
-workstationctl resources verify
+/home/namik/Documents/code/dotfiles/setup/workstationctl resources verify
 swapon --show
 ```
 

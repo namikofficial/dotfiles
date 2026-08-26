@@ -47,14 +47,21 @@ case "${1:-}" in
       exit 127
     }
     output="$(NOXFLOW_MCP_PROFILE=dev timeout 45s opencode mcp list --pure 2>&1 || true)"
-    printf '%s\n' "$output"
-    awk '
-      /codegraph/ && /connected/ { ok=1; exit }
-      END { exit(ok ? 0 : 1) }
-    ' <<<"$output" || {
-      printf 'CodeGraph did not report connected in a fresh OpenCode MCP session\n' >&2
+    clean_output="$(printf '%s\n' "$output" | sed $'s/\033\\[[0-9;]*m//g')"
+    failed=0
+    for server in codegraph local-docs browser obsidian; do
+      if printf '%s\n' "$clean_output" | awk -v server="$server" '$0 ~ server && $0 ~ /connected/ { found=1 } END { exit(found ? 0 : 1) }'; then
+        printf '%s: connected\n' "$server"
+      else
+        printf '%s: failed\n' "$server" >&2
+        failed=1
+      fi
+    done
+    if [ "$failed" -ne 0 ]; then
+      printf '%s\n' "$output" >&2
+      printf 'Relevant MCP server verification failed\n' >&2
       exit 1
-    }
+    fi
     ;;
   stop)
     shift

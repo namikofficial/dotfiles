@@ -132,12 +132,18 @@
     "codegraph": {
       "type": "local",
       "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "codegraph"],
+      "environment": {
+        "NOXFLOW_MCP_PROFILE": "dev"
+      },
       "enabled": true,
       "timeout": 30000
     },
     "local-docs": {
       "type": "local",
       "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "local-docs"],
+      "environment": {
+        "NOXFLOW_MCP_PROFILE": "dev"
+      },
       "enabled": true,
       "timeout": 15000
     },
@@ -191,12 +197,15 @@
     "maestro": {
       "type": "local",
       "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "maestro"],
-      "enabled": true,
+      "enabled": false,
       "timeout": 120000
     },
     "obsidian": {
       "type": "local",
       "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "obsidian"],
+      "environment": {
+        "NOXFLOW_MCP_PROFILE": "notes"
+      },
       "enabled": true,
       "timeout": 120000
     }

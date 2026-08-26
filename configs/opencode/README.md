@@ -43,9 +43,9 @@ apply it with:
 
 ```sh
 workstationctl resources plan
-sudo workstationctl resources apply
+sudo /home/namik/Documents/code/dotfiles/setup/workstationctl resources apply
 systemctl reboot
-workstationctl resources verify
+/home/namik/Documents/code/dotfiles/setup/workstationctl resources verify
 ```
 
 The `sudo` command and reboot are intentionally manual. `resource-profile.sh

@@ -31,6 +31,9 @@ command = "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh"
 args = ["local-docs"]
 enabled = true
 
+[mcp_servers.local-docs.env]
+NOXFLOW_MCP_PROFILE = "dev"
+
 [mcp_servers.browser]
 command = "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh"
 args = ["browser"]
