@@ -24,4 +24,10 @@ if "$profile" env invalid >/dev/null 2>&1; then
   exit 1
 fi
 
+status_output="$($profile status)"
+printf '%s\n' "$status_output" | grep -Fq 'profile=' || {
+  printf 'status did not report the active profile\n' >&2
+  exit 1
+}
+
 printf 'mcp profile: ok\n'
