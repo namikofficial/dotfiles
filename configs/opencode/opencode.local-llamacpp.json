@@ -131,24 +131,19 @@
   "mcp": {
     "codegraph": {
       "type": "local",
-      "command": ["codegraph", "serve", "--mcp"],
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "codegraph"],
       "enabled": true,
       "timeout": 30000
     },
     "local-docs": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"],
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "local-docs"],
       "enabled": true,
       "timeout": 15000
     },
     "browser": {
       "type": "local",
-      "command": [
-        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/playwright-mcp",
-        "--browser", "chromium",
-        "--viewport-size", "1920x1080",
-        "--output-dir", "/home/namik/.cache/opencode/playwright-mcp"
-      ],
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "browser"],
       "enabled": true,
       "timeout": 120000
     },
@@ -195,13 +190,13 @@
     },
     "maestro": {
       "type": "local",
-      "command": ["maestro", "mcp"],
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "maestro"],
       "enabled": true,
       "timeout": 120000
     },
     "obsidian": {
       "type": "local",
-      "command": ["bash", "/home/namik/Documents/code/dotfiles/configs/opencode/obsidian-mcp.sh"],
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "obsidian"],
       "enabled": true,
       "timeout": 120000
     }

@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "browser": {
+      "command": "/home/namik/Documents/code/dotfiles/configs/opencode/chrome-devtools-mcp.sh"
+    }
+  }
+}

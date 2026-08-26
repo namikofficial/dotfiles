@@ -131,10 +131,13 @@ size_gib() {
 
 verify_profile() {
   local rc=0 zram_size disk_size zram_prio disk_prio
-  zram_size="$(swapon --show --bytes --noheadings --raw --output NAME,SIZE | awk '$1=="/dev/zram0" {print $2}')"
-  disk_size="$(swapon --show --bytes --noheadings --raw --output NAME,SIZE | awk -v file="$SWAP_FILE" '$1==file {print $2}')"
-  zram_prio="$(swapon --show --noheadings --raw --output NAME,PRIO | awk '$1=="/dev/zram0" {print $2}')"
-  disk_prio="$(swapon --show --noheadings --raw --output NAME,PRIO | awk -v file="$SWAP_FILE" '$1==file {print $2}')"
+  # Some util-linux versions ignore --output when combined with --raw. Read
+  # the stable NAME TYPE SIZE USED PRIO columns instead of assuming a
+  # two-column response.
+  zram_size="$(swapon --show --bytes --noheadings --raw | awk '$1=="/dev/zram0" {print $3; exit}')"
+  disk_size="$(swapon --show --bytes --noheadings --raw | awk -v file="$SWAP_FILE" '$1==file {print $3; exit}')"
+  zram_prio="$(swapon --show --noheadings --raw | awk '$1=="/dev/zram0" {print $5; exit}')"
+  disk_prio="$(swapon --show --noheadings --raw | awk -v file="$SWAP_FILE" '$1==file {print $5; exit}')"
 
   if [[ -n "$zram_size" ]]; then
     printf 'OK   zram: %s GiB, priority %s\n' "$(size_gib "$zram_size")" "$zram_prio"

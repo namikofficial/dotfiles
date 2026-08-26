@@ -19,6 +19,23 @@ The phase commands are available inside OpenCode as `/research`, `/plan`, `/buil
 
 Optional Bruno, Schemathesis, axe, Roborazzi, browser CLI, cloud-device, and physical-device checks are capability-gated. They are never silently installed or reported as passing when unavailable.
 
+## MCP resource profiles
+
+MCP servers are scoped by profile so every client does not start every expensive
+server. The default profile is `minimal` (browser only). Opt into a profile in
+the shell before starting Codex, OpenCode, or Claude:
+
+```sh
+eval "$(mcp-profile env dev)"    # browser + CodeGraph + local docs
+eval "$(mcp-profile env notes)"  # dev + Obsidian
+eval "$(mcp-profile env mobile)" # dev + Maestro
+```
+
+The browser server attaches to the existing Chrome session through Chrome's
+local remote-debugging flow; it does not launch an additional Chromium profile.
+Enable it once at `chrome://inspect/#remote-debugging` and accept Chrome's
+local connection prompt.
+
 ## Plannotator and Obsidian
 
 Install the corrective planning hook with:
