@@ -68,16 +68,35 @@
     "*.env.sops": "dotenv"
   },
   "files.exclude": {
-    "**/.decrypted~*": true
-  },
-  "files.watcherExclude": {
-    "**/.git/objectsnode_modulestarget.gradlebuild.cxxandroid/app/buildnode_modules": true,
+    "**/.decrypted~*": true,
+    "**/.git": true,
+    "**/node_modules": true,
     "**/target": true,
     "**/.gradle": true,
     "**/build": true,
     "**/.cxx": true
   },
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/target": true,
+    "**/.gradle": true,
+    "**/build": true,
+    "**/.cxx": true,
+    "**/android/app/build/**": true
+  },
+  "search.exclude": {
+    "**/.git": true,
+    "**/node_modules": true,
+    "**/target": true,
+    "**/.gradle": true,
+    "**/build": true,
+    "**/.cxx": true
+  },
+  "explorer.excludeGitIgnore": true,
   "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.tsserver.maxTsServerMemory": 1536,
   "qt-core.additionalQtPaths": [
     {
       "name": "Qt-5.15.19-linux-g++-x86_64_from_PATH",
@@ -97,5 +116,6 @@
     "**/.gitea/workflows/*.yaml",
     "**/.forgejo/workflows/*.yml",
     "**/.forgejo/workflows/*.yaml"
-  ]
+  ],
+  "chat.viewSessions.orientation": "stacked"
 }
