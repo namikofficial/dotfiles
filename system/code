@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+code_bin="${NOXFLOW_CODE_BIN:-/usr/bin/code}"
+if [[ ! -x "$code_bin" ]]; then
+  printf 'code bridge: executable is unavailable: %s\n' "$code_bin" >&2
+  exit 127
+fi
+
+for argument in "$@"; do
+  case "$argument" in
+    -h | --help | -v | --version | --status | --list-extensions | --show-versions | --install-extension | --uninstall-extension | --update-extensions | --locate-shell-integration-path)
+      exec "$code_bin" "$@"
+      ;;
+    --wait | -w)
+      exec "$script_dir/desktop-launch" --foreground "$code_bin" "$@"
+      ;;
+  esac
+done
+
+exec "$script_dir/desktop-launch" "$code_bin" "$@"
