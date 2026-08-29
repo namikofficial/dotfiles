@@ -77,22 +77,13 @@
     "**/.cxx": true
   },
   "files.watcherExclude": {
-    "**/.git/objects/**": true,
-    "**/.git/subtree-cache/**": true,
-    "**/node_modules/**": true,
-    "**/target": true,
+    "**/.git/objects.git/subtree-cachenode_modulestarget": true,
     "**/.gradle": true,
     "**/build": true,
     "**/.cxx": true,
-    "**/android/app/build/**": true
-  },
-  "search.exclude": {
-    "**/.git": true,
+    "**/android/app/build.git": true,
     "**/node_modules": true,
-    "**/target": true,
-    "**/.gradle": true,
-    "**/build": true,
-    "**/.cxx": true
+    "**/target": true
   },
   "explorer.excludeGitIgnore": true,
   "typescript.disableAutomaticTypeAcquisition": true,
@@ -110,6 +101,7 @@
   "gitlens.ai.vscode.model": "copilotcli:",
   "github.copilot.nextEditSuggestions.eagerness": "high",
   "yaml.disableSchemaDetection": [
+    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml",
     "**/.github/workflows/*.yml",
     "**/.github/workflows/*.yaml",
     "**/.gitea/workflows/*.yml",
