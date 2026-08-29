@@ -12,8 +12,8 @@ fi
 vault_path="${OBSIDIAN_VAULT_PATH:-$HOME/Documents/notes/DocsVault}"
 rest_config="${OBSIDIAN_REST_CONFIG:-$vault_path/.obsidian/plugins/obsidian-local-rest-api/data.json}"
 cert_path="${OBSIDIAN_CERT_PATH:-$HOME/Documents/certs/obsidian-local-rest-api.crt}"
-server_bin="${OBSIDIAN_MCP_BIN:-$HOME/.config/nvm/versions/node/v24.18.0/bin/obsidian-mcp-server}"
-npx_bin="${OBSIDIAN_NPX_BIN:-$HOME/.config/nvm/versions/node/v24.18.0/bin/npx}"
+mcp_home="${OPENCODE_MCP_HOME:-$HOME/.local/share/opencode/mcp}"
+server_bin="${OBSIDIAN_MCP_BIN:-$mcp_home/node_modules/.bin/obsidian-mcp-server}"
 
 if [ -f "$rest_config" ] && command -v jq >/dev/null 2>&1; then
   api_key="$(jq -r '.apiKey // empty' "$rest_config" 2>/dev/null || true)"
@@ -44,8 +44,5 @@ if [ -x "$server_bin" ]; then
   exec "$server_bin"
 fi
 
-if [ -x "$npx_bin" ]; then
-  exec "$npx_bin" -y obsidian-mcp-server
-fi
-
-exec npx -y obsidian-mcp-server
+printf 'obsidian MCP is not installed at %s; run setup/install-opencode-mcp.sh\n' "$server_bin" >&2
+exit 127

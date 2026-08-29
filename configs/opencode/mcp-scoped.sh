@@ -4,6 +4,9 @@ set -euo pipefail
 server="${1:-}"
 shift || true
 profile="${NOXFLOW_MCP_PROFILE:-minimal}"
+source_path="$(readlink -f "${BASH_SOURCE[0]}")"
+script_dir="$(cd "$(dirname "$source_path")" && pwd)"
+mcp_home="${OPENCODE_MCP_HOME:-$HOME/.local/share/opencode/mcp}"
 
 enabled_for_profile() {
   local name="$1"
@@ -29,16 +32,22 @@ fi
 
 case "$server" in
   browser)
-    exec "$(dirname "$0")/chrome-devtools-mcp.sh" "$@"
+    exec "$script_dir/chrome-devtools-mcp.sh" "$@"
     ;;
   codegraph)
-    exec codegraph serve --mcp "$@"
+    codegraph_bin="${CODEGRAPH_MCP_BIN:-$mcp_home/node_modules/.bin/codegraph}"
+    if [ ! -x "$codegraph_bin" ]; then
+      printf 'codegraph MCP is not installed at %s; run %s/setup/install-opencode-mcp.sh\n' \
+        "$codegraph_bin" "$(cd "$script_dir/../.." && pwd)" >&2
+      exit 127
+    fi
+    exec "$codegraph_bin" serve --mcp "$@"
     ;;
   local-docs)
-    exec "$(dirname "$0")/../../system/local-docs-mcp.sh" "$@"
+    exec "$script_dir/../../system/local-docs-mcp.sh" "$@"
     ;;
   obsidian)
-    exec "$(dirname "$0")/obsidian-mcp.sh" "$@"
+    exec "$script_dir/obsidian-mcp.sh" "$@"
     ;;
   maestro)
     exec maestro mcp "$@"
