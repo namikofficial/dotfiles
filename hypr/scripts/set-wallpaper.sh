@@ -32,13 +32,21 @@ ensure_fallback_wall() {
   fi
 }
 
+is_rejected_wallpaper() {
+  name="$(basename "$1")"
+  printf '%s\n' "$name" | grep -Eiq '(^|[^[:alnum:]])(anime|waifu|manga|hentai|kawaii|girl|girls|woman|women|character|avatar|hollow[ -]?knight|game[-_ ]?art|fanart|illustration)([^[:alnum:]]|$)'
+}
+
 pick_wall() {
   old_ifs="$IFS"
   IFS=':'
   for dir in $wall_dirs; do
     [ -d "$dir" ] || continue
-    find "$dir" -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \)
-  done | sort -u
+    find "$dir" -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \)
+  done | sort -u | while IFS= read -r candidate; do
+    [ -n "$candidate" ] || continue
+    is_rejected_wallpaper "$candidate" || printf '%s\n' "$candidate"
+  done
   IFS="$old_ifs"
 }
 

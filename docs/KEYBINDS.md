@@ -23,26 +23,25 @@ flowchart LR
 | Keybind | Action | Script/Target |
 |---|---|---|
 | `Super + Return` | Execute command | `kitty` |
-| `Super + E` | Execute command | `kitty --class yazi -e yazi` |
-| `Super + Space` | Execute command | `~/.config/hypr/scripts/desktop-palette.sh` |
-| `Super + Shift + Space` | Execute command | `~/.config/hypr/scripts/launcher.sh --fast` |
-| `Super + Ctrl + Space` | Execute command | `~/.config/hypr/scripts/workspace-overview.sh` |
-| `Super + F1` | Execute command | `~/.config/hypr/scripts/hypr-binds.sh` |
-| `Super + /` | Execute command | `~/.config/hypr/scripts/desktop-palette.sh` |
-| `Super + Ctrl + /` | Execute command | `~/.config/hypr/scripts/hypr-binds.sh` |
-| `Super + A` | Execute command | `~/.config/hypr/scripts/desktop-palette.sh` |
-| `Super + Y` | Execute command | `~/.config/hypr/scripts/workspace-overview.sh` |
-| `Super + Shift + Y` | Execute command | `~/.config/hypr/scripts/panel-switch.sh toggle-view` |
-| `Super + Alt + Y` | Execute command | `~/.config/hypr/scripts/panel-switch.sh toggle-view` |
-| `Super + Ctrl + Y` | Execute command | `~/.config/hypr/scripts/panel-switch.sh wayle` |
-| `Super + Ctrl + Alt + Y` | Execute command | `~/.config/hypr/scripts/panel-switch.sh toggle` |
+| `Super + Space` | Execute command | `~/.local/bin/noxctl panel toggle launcher` |
+| `Super + C` | Execute command | `~/.local/bin/noxctl panel toggle control` |
+| `Super + N` | Execute command | `~/.local/bin/noxctl panel toggle notifications` |
+| `Super + M` | Execute command | `~/.local/bin/noxctl panel toggle media` |
+| `Super + V` | Execute command | `~/.config/hypr/scripts/cliphist-rofi.sh` |
+| `Super + S` | Execute command | `~/.local/bin/noxctl panel toggle share` |
+| `Super + W` | Execute command | `~/.local/bin/noxctl panel toggle wallpaper` |
+| `Super + Shift + S` | Execute command | `~/.local/bin/noxctl panel toggle capture` |
+| `Super + ,` | Execute command | `~/.local/bin/noxctl panel toggle settings` |
+| `Super + D` | Execute command | `~/.local/bin/noxctl panel toggle dashboard` |
+| `Super + Shift + C` | Execute command | `~/.local/bin/noxctl panel toggle calendar` |
+| `Super + Shift + B` | Execute command | `~/.local/bin/noxctl panel toggle control` |
 | `Super + Ctrl + Shift + Y` | Execute command | `~/.config/hypr/scripts/theme-pass.sh` |
-| `Super + D` | Execute command | `~/.config/hypr/scripts/desktop-palette.sh` |
-| `Super + ,` | Execute command | `~/.config/hypr/scripts/settings-hub.sh` |
-| `Super + Shift + ,` | Execute command | `~/.config/hypr/scripts/minimize-window.sh restore` |
+| `Super + Shift + ,` | Execute command | `~/.config/hypr/scripts/settings-hub.sh` |
+| `Super + Alt + M` | Execute command | `~/.config/hypr/scripts/minimize-window.sh restore` |
 | `Super + Ctrl + ,` | Execute command | `~/.config/hypr/scripts/settings-hub.sh quick` |
 | `Super + Alt + ,` | Execute command | `~/.config/hypr/scripts/settings/editor.sh` |
 | `Super + Ctrl + Alt + ,` | Execute command | `~/.config/hypr/scripts/app-routing-apply-focused.sh` |
+| `Super + E` | Execute command | `kitty --class yazi -e yazi` |
 | `Super + B` | Execute command | `google-chrome-stable --ozone-platform-hint=auto` |
 | `Super + I` | Execute command | `code` |
 | `Super + Ctrl + Shift + I` | Execute command | `android-studio` |
@@ -55,6 +54,7 @@ flowchart LR
 | `Super + H` | Execute command | `~/.local/bin/hypr-phone menu` |
 | `Super + Shift + H` | Execute command | `~/.local/bin/hypr-phone mirror --profile default` |
 | `Super + Ctrl + H` | Execute command | `~/.config/hypr/scripts/syncthing-control.sh open-ui` |
+| `Super + Ctrl + S` | Execute command | `~/.local/bin/noxctl panel toggle sync` |
 | `Super + Alt + H` | Hyprland action | `workspace.toggle_special phone` |
 | `Super + Escape` | Execute command | `~/.config/hypr/scripts/power-menu.sh` |
 | `Super + Ctrl + L` | Execute command | `~/.config/hypr/scripts/lock.sh` |
@@ -68,15 +68,9 @@ flowchart LR
 | `Super + Shift + `` | Execute command | `~/.config/hypr/scripts/sidepanel.sh send` |
 | `Super + Ctrl + `` | Execute command | `~/.config/hypr/scripts/sidepanel.sh stash` |
 | `Super + Alt + `` | Execute command | `~/.config/hypr/scripts/sidepanel.sh toggle` |
-| `Super + W` | Execute command | `~/.config/hypr/scripts/workspace-overview.sh` |
-| `Super + tab` | Execute command | `~/.config/hypr/scripts/super-tab-overview.sh` |
-| `Super + Shift + tab` | Execute command | `~/.config/hypr/scripts/workspace-overview.sh` |
 | `Super + O` | Execute command | `~/.config/hypr/scripts/set-wallpaper.sh --pick` |
 | `Super + Shift + O` | Execute command | `~/.config/hypr/scripts/set-wallpaper.sh --next` |
-| `Super + N` | Execute command | `~/.config/hypr/scripts/notif-center-toggle.sh` |
 | `Super + Alt + N` | Execute command | `~/.config/hypr/scripts/notif-dnd-toggle.sh` |
-| `Super + Ctrl + N` | Execute command | `~/.config/hypr/scripts/notification-summary.sh copy` |
-| `Super + Ctrl + Alt + N` | Execute command | `~/.config/hypr/scripts/notif-clear.sh` |
 | `Super + Shift + N` | Execute command | `~/.config/hypr/scripts/open-notes.sh` |
 | `Super + Alt + E` | Execute command | `~/.config/hypr/scripts/open-notes.sh` |
 | `Super + Shift + Q` | Close active window | `—` |
@@ -84,10 +78,8 @@ flowchart LR
 | `Super + F` | Execute command | `~/.config/hypr/scripts/float-toggle-smart.sh` |
 | `Super + Shift + F` | Toggle fullscreen/maximized | `mode=maximized` |
 | `Super + Ctrl + F` | Toggle fullscreen/maximized | `mode=fullscreen` |
-| `Super + M` | Toggle fullscreen/maximized | `mode=maximized` |
-| `Super + V` | Execute command | `~/.config/hypr/scripts/float-toggle-smart.sh` |
 | `Super + Shift + P` | Toggle pseudo-tile | `—` |
-| `Super + C` | Center active window | `—` |
+| `Super + Ctrl + C` | Center active window | `—` |
 
 ## Window / Layout
 
@@ -176,10 +168,9 @@ flowchart LR
 |---|---|---|
 | `Super + Ctrl + V` | Execute command | `~/.config/hypr/scripts/cliphist-rofi.sh` |
 | `Super + Shift + V` | Execute command | `~/.config/hypr/scripts/cliphist-toggle.sh` |
-| `Super + Shift + S` | Execute command | `~/.config/hypr/scripts/screenshot.sh area` |
 | `Super + Ctrl + Shift + S` | Execute command | `~/.config/hypr/scripts/screenshot.sh full` |
 | `Super + Shift + T` | Execute command | `~/.config/hypr/scripts/ocr-capture.sh` |
-| `Super + Shift + C` | Execute command | `kage ai commit-msg` |
+| `Super + Ctrl + Shift + C` | Execute command | `kage ai commit-msg` |
 | `Super + Shift + R` | Execute command | `kage ai review` |
 | `Super + Shift + E` | Execute command | `kage ai explain` |
 | `Super + Ctrl + R` | Execute command | `~/.config/hypr/scripts/screen-record-toggle.sh` |
@@ -260,6 +251,12 @@ flowchart LR
 | Select text | Auto-copy to clipboard (`copy_on_select`) |
 
 ## Rofi Menus (Launcher + Quick Actions)
+
+NoxFlow is the canonical desktop launcher: `Super + Space` opens the NoxFlow
+launcher and `Enter` activates the selected result. Rofi remains an explicit
+recovery path when the shell is unavailable; it is not the normal launcher
+surface. Use `~/.config/hypr/scripts/launcher.sh --fast` from a TTY or a
+terminal to reach that fallback.
 
 | Key | Action |
 |---|---|

@@ -1,0 +1,9 @@
+[package]
+name = "noxflow-diagnostics"
+version = "0.1.0"
+edition = "2021"
+description = "Structured diagnostics shared by NoxFlow binaries"
+license = "MIT"
+
+[dependencies]
+serde_json = "1"

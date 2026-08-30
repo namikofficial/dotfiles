@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/opencode"
+state_file="$state_dir/permission-mode"
+mode="${1:-show}"
+mkdir -p "$state_dir"
+
+case "$mode" in
+  normal)
+    printf '%s\n' normal > "$state_file"
+    printf '%s\n' 'Permission mode: normal (session launchers should omit --auto)'
+    ;;
+  auto|yolo)
+    printf '%s\n' auto > "$state_file"
+    printf '%s\n' 'Permission mode: auto (session launchers may use OpenCode --auto)'
+    printf '%s\n' 'Hard safety denies remain active; this is not unrestricted shell access.'
+    ;;
+  show)
+    printf 'Permission mode: %s\n' "$(cat "$state_file" 2>/dev/null || printf normal)"
+    ;;
+  *)
+    printf 'Usage: %s [show|normal|auto]\n' "$0" >&2
+    exit 2
+    ;;
+esac

@@ -1,6 +1,19 @@
 #!/usr/bin/env sh
 set -eu
 
+# Minimize / restore windows to a hidden special workspace.
+#
+# Fixes (2026-07-31, shell-redesign M2):
+#   A. Fullscreen restore no longer swallows errors (`|| true` removed) and uses
+#      a verified dispatch form.
+#   B. Restore prefers workspace_id (stable) over workspace_name (can be a stale
+#      custom name). Custom names are only used when they are real names, not
+#      plain numeric ids.
+#   C. Group-aware minimize: the active window is removed from its group first
+#      so the hidden special workspace never carries a half-group.
+#   D. `hypr_eval` propagates dispatch failures so "Minimize failed" /
+#      "Restore failed" notifications are truthful.
+
 mode="${1:-minimize}"
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow"
 state_file="${state_dir}/minimized-windows.json"
@@ -16,7 +29,17 @@ lua_string() {
 }
 
 hypr_eval() {
-  hyprctl eval "$1" >/dev/null
+  hyprctl eval "$1" 2>/dev/null
+}
+
+# Remove the window from its group before moving it to the hidden workspace.
+# Hyprland's group API: hl.dsp.window.move({ out_of_group = true }) detaches the
+# focused window; the address-qualified form used here works with Hyprland's
+# Lua IPC as exercised elsewhere in this repo (sidepanel.sh).
+leave_group() {
+  address="$1"
+  address_lua="$(lua_string "address:$address")"
+  hypr_eval "hl.dispatch(hl.dsp.window.move({ out_of_group = true, window = ${address_lua} }))" || true
 }
 
 move_window_to_workspace() {
@@ -52,7 +75,10 @@ set_window_fullscreen() {
 
   address_lua="$(lua_string "address:$address")"
   mode_lua="$(lua_string "$mode")"
-  hypr_eval "hl.dispatch(hl.dsp.window.fullscreen({ mode = ${mode_lua}, action = \"set\", window = ${address_lua} }))" || true
+  if ! hypr_eval "hl.dispatch(hl.dsp.window.fullscreen({ mode = ${mode_lua}, action = \"set\", window = ${address_lua} }))"; then
+    notify "Fullscreen restore failed"
+    return 1
+  fi
 }
 
 unset_window_fullscreen() {
@@ -119,6 +145,9 @@ minimize_active() {
   )"
   write_state "$updated_state"
 
+  # Group-aware: detach the window from its group before hiding it.
+  leave_group "$address"
+
   unset_window_fullscreen "$address"
   if ! move_window_to_workspace "$minimized_ws" "$address"; then
     notify "Minimize failed"
@@ -172,7 +201,18 @@ restore_last() {
     exit 0
   fi
 
-  target_workspace="${workspace_name:-$workspace_id}"
+  # Restore by numeric workspace id when the name is just the id as a string;
+  # only use a real custom name (non-numeric) as the target.
+  case "$workspace_name" in
+    '' | *[!0-9]*)
+      target_workspace="$workspace_name"
+      ;;
+    *)
+      target_workspace="$workspace_id"
+      ;;
+  esac
+  [ -n "$target_workspace" ] || target_workspace="$workspace_id"
+
   if ! move_window_to_workspace "$target_workspace" "$address"; then
     notify "Restore failed"
     exit 1

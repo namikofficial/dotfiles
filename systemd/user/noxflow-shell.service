@@ -1,0 +1,25 @@
+[Unit]
+Description=NoxFlow Quickshell desktop shell
+PartOf=graphical-session.target
+After=graphical-session.target noxd.service
+Wants=noxd.service
+OnFailure=noxflow-fallback.service
+StartLimitIntervalSec=30
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/noxflow-shell
+KillSignal=SIGTERM
+# The shell launches user-facing terminal actions (including yay/pacman)
+# that must be able to ask sudo for authentication.
+NoNewPrivileges=no
+PrivateTmp=yes
+SyslogIdentifier=noxflow-shell
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical-session.target

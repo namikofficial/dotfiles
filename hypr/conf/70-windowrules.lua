@@ -118,24 +118,6 @@ rule({
 })
 
 rule({
-  name = "vscode-glass",
-  match = { class = "^(code|Code|code%-url%-handler)$" },
-  opacity = "0.96 0.9",
-})
-
-rule({
-  name = "prism-glass",
-  match = { class = "^(org%.prismlauncher%.PrismLauncher|prismlauncher|PrismLauncher)$" },
-  opacity = "0.98 0.93",
-})
-
-rule({
-  name = "obsidian-glass",
-  match = { class = "^(obsidian|Obsidian)$" },
-  opacity = "0.96 0.9",
-})
-
-rule({
   name = "tmux-scratch-quake",
   match = { class = "^(noxflow%-tmux%-scratch)$" },
   workspace = "special:scratch_tmux silent",
@@ -153,7 +135,6 @@ rule({
   center = true,
   rounding = 18,
   animation = "popin 88%",
-  opacity = "0.98 0.96",
 })
 
 rule({

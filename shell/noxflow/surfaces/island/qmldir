@@ -1,0 +1,6 @@
+module qs.surfaces.island
+VolumeActivity 1.0 activities/VolumeActivity.qml
+MediaActivity 1.0 activities/MediaActivity.qml
+BrightnessActivity 1.0 activities/BrightnessActivity.qml
+TimerActivity 1.0 activities/TimerActivity.qml
+NotificationActivity 1.0 activities/NotificationActivity.qml

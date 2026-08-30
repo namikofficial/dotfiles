@@ -117,6 +117,16 @@ Nox Billings helpers:
 nox-billings
 nox-billings-edit
 nox-billings-emulator
+nox-billings-up        # tmux-based dev stack (API/web/mobile); pass --open for Kitty windows
+```
+
+trackMe helpers:
+
+```sh
+trackme
+trackme-edit
+trackme-up
+trackme-env-edit staging|production
 ```
 
 ## Client Backups

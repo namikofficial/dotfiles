@@ -1,15 +1,11 @@
 local ctx = assert(NOX_HYPR, "NOX_HYPR context missing")
 
-hl.monitor({
-  output = "eDP-1",
-  mode = "preferred",
-  position = "0x0",
-  scale = 1,
-})
-
+-- Do not bind the shell to a connector name. monitor-control.sh applies the
+-- user's persisted laptop/external layout after startup and can choose the
+-- correct per-monitor scale.
 hl.monitor({
   output = "",
   mode = "preferred",
-  position = "auto-up",
+  position = "auto",
   scale = 1,
 })

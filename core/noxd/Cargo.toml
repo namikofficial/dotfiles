@@ -1,0 +1,38 @@
+[package]
+name = "noxd"
+version = "0.1.0"
+edition = "2021"
+description = "NoxFlow desktop state and IPC daemon"
+license = "MIT"
+
+[dependencies]
+libc = "0.2"
+noxflow-config = { path = "../noxflow-config" }
+noxflow-state = { path = "../noxflow-state" }
+noxflow-ipc = { path = "../noxflow-ipc" }
+noxflow-diagnostics = { path = "../noxflow-diagnostics" }
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+signal-hook = "0.3"
+zbus = { version = "4", features = ["blocking"] }
+ureq = "2"
+md5 = "0.7"
+
+# LocalSend protocol (Quick Share) — transfer provider
+# HTTPS receive server + multicast discovery + HTTPS upload client.
+hyper = { version = "1", features = ["http1", "server", "client"] }
+hyper-util = { version = "0.1", features = ["tokio", "server", "server-auto", "http1", "client", "client-legacy"] }
+hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "ring", "tls12", "webpki-roots"] }
+http-body-util = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros", "sync", "time", "signal"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+pem = "3"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+bytes = "1"
+http = "1"
+base64 = "0.22"
+socket2 = "0.6"
+serde_urlencoded = "0.7"
+
+[dev-dependencies]
+tempfile = "3"

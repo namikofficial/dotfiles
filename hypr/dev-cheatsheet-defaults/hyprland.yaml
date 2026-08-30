@@ -138,6 +138,10 @@ entries:
     description: Toggle notification center
     copy: ~/.config/hypr/scripts/notif-center-toggle.sh
     source: ~/.config/hypr/hyprland.lua
+  - key: Super+Shift+N
+    description: Open notes folder
+    copy: ~/.config/hypr/scripts/open-notes.sh
+    source: ~/.config/hypr/hyprland.lua
   - key: Super+Alt+N
     description: Toggle Do Not Disturb
     copy: ~/.config/hypr/scripts/notif-dnd-toggle.sh

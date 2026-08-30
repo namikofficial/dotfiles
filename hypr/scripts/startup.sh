@@ -147,7 +147,7 @@ fi
   if [ -x "$HOME/.config/hypr/scripts/scratchpad-manager.sh" ]; then
     "$HOME/.config/hypr/scripts/scratchpad-manager.sh" menu >/dev/null 2>&1 || true
   fi
-  if command -v curl >/dev/null 2>&1 && command -v llama-swap-manager >/dev/null 2>&1; then
+  if [ "${HYPR_AUTOSTART_LOCAL_LLM:-0}" = "1" ] && command -v curl >/dev/null 2>&1 && command -v llama-swap-manager >/dev/null 2>&1; then
     if ! curl -fsS --max-time 1 "${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}" >/dev/null 2>&1; then
       llama-swap-manager start >/dev/null 2>&1 || true
     fi
@@ -197,11 +197,7 @@ if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
   ) &
 fi
 
-# Start tray applets by default so Wi-Fi/Bluetooth have menu-style controls.
-if [ "$(setting_bool startup.nm_applet_autostart true)" = "true" ]; then
-  log "starting nm-applet"
-  run_once nm-applet nm-applet
-fi
+# Start the Bluetooth tray applet; Wi-Fi is controlled through iwd/NoxFlow.
 if [ "$(setting_bool startup.blueman_applet_autostart true)" = "true" ]; then
   log "starting blueman-applet"
   run_once blueman-applet blueman-applet
@@ -218,12 +214,32 @@ if command -v gnome-keyring-daemon >/dev/null 2>&1; then
   fi
 fi
 
-log "starting avizo-service"
-run_once avizo-service avizo-service
-# Wayle is the only managed panel shell.
+# NoxFlow island provides visual OSD for volume/brightness.
+# avizo-service is intentionally not started to avoid double OSDs.
+# Panel shell — respects the persisted engine.
+# noxflow-shell.service is WantedBy=graphical-session.target and starts on its
+# own; do NOT call `panel-switch.sh show` here. That path probes the shell with
+# a 0.5s sleep and would fall back to Wayle on a slow NoxFlow start, producing
+# a dual-shell. Shell failure is handled by systemd's OnFailure →
+# noxflow-fallback.service. Only start Wayle when the persisted engine is
+# explicitly wayle.
 if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
-  log "showing panel shell"
-  "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
+  _engine_file="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow/panel.engine"
+  _engine=""
+  if [ -f "$_engine_file" ]; then
+    _engine="$(cat "$_engine_file" 2>/dev/null || true)"
+  fi
+  if [ "$_engine" = "wayle" ]; then
+    log "starting Wayle (persisted engine)"
+    "$HOME/.config/hypr/scripts/panel-switch.sh" wayle >/dev/null 2>&1 || true
+  else
+    log "noxflow engine: noxflow-shell.service starts via graphical-session.target"
+    # Clean up a stale fallback process from an earlier session. Wayle must not
+    # remain as a second layer-shell bar above the NoxFlow rail.
+    systemctl --user stop wayle.service >/dev/null 2>&1 || true
+    pkill -x wayle >/dev/null 2>&1 || true
+  fi
+  unset _engine_file _engine
 fi
 
 log "starting monitor hotplug watcher"
@@ -237,8 +253,18 @@ if [ -f "$KANSHI_CONFIG_HOME/kanshi/config" ]; then
 fi
 log "starting hypridle"
 run_once hypridle hypridle
-log "starting power profile watcher"
-run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
+_settingsctl="$HOME/.config/hypr/scripts/settingsctl"
+_auto_profile="false"
+if [ -x "$_settingsctl" ]; then
+  _auto_profile="$("$_settingsctl" get power.auto_profile 2>/dev/null || printf 'false')"
+fi
+if [ "$_auto_profile" = "true" ]; then
+  log "starting power profile watcher (power.auto_profile=true)"
+  run_cmd_if_not "$HOME/.config/hypr/scripts/power-profile-auto.sh" "$HOME/.config/hypr/scripts/power-profile-auto.sh"
+else
+  log "power profile watcher disabled by settings"
+fi
+unset _settingsctl _auto_profile
 
 # hyprpm currently fails its header refresh path on Hyprland 0.54.1
 # ("You need to run make all first"), which surfaces a false outdated-plugin
@@ -266,6 +292,28 @@ if [ "${HYPR_LOAD_HYPREXPO_AT_STARTUP:-0}" = "1" ] && [ -f "$hyprexpo_plugin" ];
     fi
     if ! hyprctl plugin list 2>/dev/null | grep -q 'Plugin hyprexpo'; then
       hyprctl plugin load "$hyprexpo_plugin" >/dev/null 2>&1 || true
+    fi
+  ) &
+fi
+
+# scroll-overview plugin (primary overview, replaces the QML overview).
+# Built against the installed Hyprland headers (see setup/scrolloverview-rebuild.sh).
+# Loaded here (not in 95-plugins.lua) because plugin load must happen before the
+# Lua config can reference hl.plugin.scrolloverview. After a Hyprland upgrade the
+# ABI changes: rebuild with setup/scrolloverview-rebuild.sh, then restart.
+scrolloverview_plugin="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/plugins/libscrolloverview.so"
+if [ -f "$scrolloverview_plugin" ]; then
+  log "scheduling scroll-overview plugin load"
+  (
+    sleep 2
+    if ! hyprctl plugin list 2>/dev/null | grep -qi 'scrolloverview'; then
+      hyprctl plugin load "$scrolloverview_plugin" >/dev/null 2>&1 || log "scroll-overview plugin load failed (may need rebuild after Hyprland upgrade)"
+    fi
+    # The Lua config evaluates hl.plugin.scrolloverview at load time. Reload
+    # the config so 95-plugins.lua binds SUPER+TAB to the plugin instead of the
+    # legacy fallback.
+    if hyprctl plugin list 2>/dev/null | grep -qi 'scrolloverview'; then
+      hyprctl reload >/dev/null 2>&1 || true
     fi
   ) &
 fi

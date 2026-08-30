@@ -1,0 +1,71 @@
+schema_version = 1
+profile = "laptop"
+
+[appearance]
+profile = "material-expressive"
+density = "comfortable"
+radius = 14
+mode = "dark"
+motion = "fluid"
+transparency = "balanced"
+
+[shell]
+name = "noxflow"
+fallback = "wayle"
+reduced_motion = false
+
+[providers]
+audio = true
+network = true
+bluetooth = true
+battery = true
+media = true
+hyprland = true
+clipboard = true
+
+[notifications]
+timeout = 8
+max_history = 100
+sounds_enabled = false
+dnd_enabled = false
+
+[power]
+profile = "balanced"
+dim_display = 300
+screen_off = 600
+suspend = 1800
+hybrid_sleep = true
+
+[network]
+wifi_backend = "iwd"
+vpn_autoconnect = false
+metered_connection = "detect"
+dns = "system"
+
+[media]
+mpris_integration = true
+osd_enabled = true
+osd_timeout = 2
+default_player = "spotify"
+
+[developer]
+editor = "neovim"
+terminal = "kitty"
+git_editor_integration = true
+project_path = "~/Documents/code"
+
+[ai]
+enabled = true
+provider = "local"
+endpoint = "http://127.0.0.1:8080/v1"
+model = "qwen3-4b-local"
+fallback_provider = "cerebras"
+temperature = 0.7
+max_tokens = 4096
+
+[fallback]
+shell = "wayle"
+compositor = "hyprland"
+launcher = "rofi"
+panel = "wayle"
+term = "kitty"

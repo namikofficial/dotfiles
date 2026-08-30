@@ -1,0 +1,308 @@
+// NoxFlow theme profiles — Material3 tonal palettes.
+// Keyed by appearance profile name from config: default.toml [appearance] profile.
+// Each profile exports { tonals, surfaces, text, outline, state } to be applied
+// at runtime via Tokens.applyProfile().
+
+.pragma library
+
+var profiles = {
+    // ── current default: dark pastel glass ──
+    "material-expressive": {
+        tonals: {
+            background:               "#151218",
+            primary:                  "#D6A083",
+            onPrimary:                "#2A1813",
+            primaryContainer:         "#5A3931",
+            onPrimaryContainer:       "#F8DCCB",
+            secondary:                "#9DB9A6",
+            onSecondary:              "#152019",
+            secondaryContainer:       "#30483A",
+            onSecondaryContainer:     "#D1E8D4",
+            tertiary:                 "#B7A3C7",
+            onTertiary:               "#21172A",
+            tertiaryContainer:        "#493A50",
+            onTertiaryContainer:      "#EBDCF0",
+        },
+        surfaces: {
+            surface:                  "#1C1820",
+            surfaceContainerLow:      "#17141A",
+            surfaceContainer:         "#241F29",
+            surfaceContainerHigh:     "#302A36",
+            surfaceContainerHighest:  "#3D3442",
+            surfaceVariant:           "#463B49",
+            inverseSurface:           "#F0E8E0",
+            inverseOnSurface:         "#2B2529",
+        },
+        text: {
+            primary:                  "#F5EEE9",
+            secondary:                "#DED4D0",
+            muted:                    "#AFA2A1",
+            disabled:                 "#71666C",
+            onPrimary:                "#2A1813",
+            onSecondary:              "#152019",
+            onSurfaceVariant:         "#CBBEC0",
+        },
+        outline: {
+            default:                  "#6E5D69",
+            subtle:                   "#4A3D49",
+            strong:                   "#B9A4A2",
+            focus:                    "#E0B39A",
+        },
+        state: {
+            success:                  "#A9D3A7",
+            onSuccess:                "#152016",
+            warning:                  "#E5C184",
+            onWarning:                "#2B2111",
+            danger:                   "#E79A9A",
+            onDanger:                  "#32191D",
+            info:                     "#A8C4D0",
+            onInfo:                   "#17242A",
+            hoverOverlay:             "#FFFFFF",
+            pressedOverlay:           "#000000",
+            focusOverlay:             "#E0B39A",
+            disabledOverlay:          "#FFFFFF",
+        },
+    },
+
+    // ── high contrast, reduced palette, maximum readability ──
+    "material-focus": {
+        tonals: {
+            background:               "#0A0C12",
+            primary:                  "#B8C7FF",
+            onPrimary:                "#0A1433",
+            primaryContainer:         "#1E2F6A",
+            onPrimaryContainer:       "#E8EDFF",
+            secondary:                "#A8F0E6",
+            onSecondary:              "#031A17",
+            secondaryContainer:       "#184A44",
+            onSecondaryContainer:     "#D4F7F2",
+            tertiary:                "#E4CAFF",
+            onTertiary:               "#1C0A2E",
+            tertiaryContainer:        "#45305E",
+            onTertiaryContainer:      "#F5EAFF",
+        },
+        surfaces: {
+            surface:                  "#0E1119",
+            surfaceContainerLow:      "#0A0D14",
+            surfaceContainer:         "#141823",
+            surfaceContainerHigh:     "#1C2232",
+            surfaceContainerHighest:  "#252C3F",
+            surfaceVariant:           "#2A3347",
+            inverseSurface:           "#E4E8F2",
+            inverseOnSurface:         "#1C1F28",
+        },
+        text: {
+            primary:                  "#FFFFFF",  // pure white for max contrast
+            secondary:                "#E0E6F2",
+            muted:                    "#A8B2C8",
+            disabled:                 "#6A758A",
+            onPrimary:                "#0A1433",
+            onSecondary:              "#031A17",
+            onSurfaceVariant:         "#CAD2E2",
+        },
+        outline: {
+            default:                  "#5E6A80",
+            subtle:                   "#2A3347",
+            strong:                   "#BCC6D8",
+            focus:                    "#C8D4FF",
+        },
+        state: {
+            success:                  "#6BE89C",
+            onSuccess:                "#042010",
+            warning:                  "#F5D080",
+            onWarning:                "#241C04",
+            danger:                   "#FF7A94",
+            onDanger:                  "#330610",
+            info:                     "#7EC8FF",
+            onInfo:                   "#041E33",
+            hoverOverlay:             "#FFFFFF",
+            pressedOverlay:           "#000000",
+            focusOverlay:             "#C8D4FF",
+            disabledOverlay:          "#FFFFFF",
+        },
+    },
+
+    // ── soft, muted, easy on the eyes ──
+    "material-ambient": {
+        tonals: {
+            background:               "#11131A",
+            primary:                  "#7A9EFF",
+            onPrimary:                "#0E1733",
+            primaryContainer:         "#243568",
+            onPrimaryContainer:       "#D8E0FF",
+            secondary:                "#6ED4C8",
+            onSecondary:              "#061C19",
+            secondaryContainer:       "#1C4A44",
+            onSecondaryContainer:     "#B0EDE4",
+            tertiary:                 "#C8AEE8",
+            onTertiary:               "#1E102E",
+            tertiaryContainer:        "#46345E",
+            onTertiaryContainer:      "#EBDCFF",
+        },
+        surfaces: {
+            surface:                  "#181B26",
+            surfaceContainerLow:      "#141721",
+            surfaceContainer:         "#1E2230",
+            surfaceContainerHigh:     "#282D3E",
+            surfaceContainerHighest:  "#32384A",
+            surfaceVariant:           "#383F52",
+            inverseSurface:           "#DEE2EC",
+            inverseOnSurface:         "#232630",
+        },
+        text: {
+            primary:                  "#ECF0F8",
+            secondary:                "#D0D6E4",
+            muted:                    "#96A0B4",
+            disabled:                 "#606876",
+            onPrimary:                "#0E1733",
+            onSecondary:              "#061C19",
+            onSurfaceVariant:         "#B8C0D2",
+        },
+        outline: {
+            default:                  "#525C70",
+            subtle:                   "#2E3546",
+            strong:                   "#A2ACC0",
+            focus:                    "#B0C0F8",
+        },
+        state: {
+            success:                  "#6ED898",
+            onSuccess:                "#072010",
+            warning:                  "#EEBE66",
+            onWarning:                "#261E06",
+            danger:                   "#F0728C",
+            onDanger:                  "#330610",
+            info:                     "#80C0F8",
+            onInfo:                   "#061E33",
+            hoverOverlay:             "#FFFFFF",
+            pressedOverlay:           "#000000",
+            focusOverlay:             "#B0C0F8",
+            disabledOverlay:          "#FFFFFF",
+        },
+    },
+
+    // ── low effects, flat, for GPU-constrained or battery saving ──
+    "material-performance": {
+        tonals: {
+            background:               "#0C0E14",
+            primary:                  "#8098E8",
+            onPrimary:                "#0E1530",
+            primaryContainer:         "#222E5E",
+            onPrimaryContainer:       "#D4DCF5",
+            secondary:                "#64C8BC",
+            onSecondary:              "#061A17",
+            secondaryContainer:       "#1A423E",
+            onSecondaryContainer:     "#A8E4DC",
+            tertiary:                 "#BEA4DC",
+            onTertiary:               "#1A0E28",
+            tertiaryContainer:        "#3E2E54",
+            onTertiaryContainer:      "#E4D6F8",
+        },
+        surfaces: {
+            surface:                  "#10131C",
+            surfaceContainerLow:      "#0C0F17",
+            surfaceContainer:         "#161A26",
+            surfaceContainerHigh:     "#1E2232",
+            surfaceContainerHighest:  "#262C3E",
+            surfaceVariant:           "#2E3446",
+            inverseSurface:           "#D6DAE6",
+            inverseOnSurface:         "#1E212A",
+        },
+        text: {
+            primary:                  "#E6EAF2",
+            secondary:                "#C8CEDA",
+            muted:                    "#8E96A8",
+            disabled:                 "#5A6270",
+            onPrimary:                "#0E1530",
+            onSecondary:              "#061A17",
+            onSurfaceVariant:         "#B0B8C8",
+        },
+        outline: {
+            default:                  "#4C5466",
+            subtle:                   "#282E3E",
+            strong:                   "#9AA4B6",
+            focus:                    "#A6B4E8",
+        },
+        state: {
+            success:                  "#60CE8C",
+            onSuccess:                "#061E0E",
+            warning:                  "#E0B25C",
+            onWarning:                "#221C04",
+            danger:                   "#E86A82",
+            onDanger:                  "#30060E",
+            info:                     "#74B4EE",
+            onInfo:                   "#041C30",
+            hoverOverlay:             "#FFFFFF",
+            pressedOverlay:           "#000000",
+            focusOverlay:             "#A6B4E8",
+            disabledOverlay:          "#FFFFFF",
+        },
+    },
+
+    // ── true black background for OLED panels, power saving ──
+    "material-oled": {
+        tonals: {
+            background:               "#000000",
+            primary:                  "#6E8CE8",
+            onPrimary:                "#0A1028",
+            primaryContainer:         "#182650",
+            onPrimaryContainer:       "#C8D4F2",
+            secondary:                "#52BEB2",
+            onSecondary:              "#041412",
+            secondaryContainer:       "#0E3834",
+            onSecondaryContainer:     "#9CDCD4",
+            tertiary:                 "#B094CC",
+            onTertiary:               "#140A20",
+            tertiaryContainer:        "#342644",
+            onTertiaryContainer:      "#DCCCF0",
+        },
+        surfaces: {
+            surface:                  "#000000",  // true black
+            surfaceContainerLow:      "#0A0A0A",
+            surfaceContainer:         "#141414",
+            surfaceContainerHigh:     "#1C1C1C",
+            surfaceContainerHighest:  "#262626",
+            surfaceVariant:           "#303030",
+            inverseSurface:           "#D4D4D4",
+            inverseOnSurface:         "#1A1A1A",
+        },
+        text: {
+            primary:                  "#E0E0E0",
+            secondary:                "#B8B8B8",
+            muted:                    "#808080",
+            disabled:                 "#505050",
+            onPrimary:                "#0A1028",
+            onSecondary:              "#041412",
+            onSurfaceVariant:         "#A0A0A0",
+        },
+        outline: {
+            default:                  "#404040",
+            subtle:                   "#202020",
+            strong:                   "#888888",
+            focus:                    "#8898E0",
+        },
+        state: {
+            success:                  "#4AC07C",
+            onSuccess:                "#041A0C",
+            warning:                  "#D0A44C",
+            onWarning:                "#1E1802",
+            danger:                   "#D45A74",
+            onDanger:                  "#2A040C",
+            info:                     "#5CA0E0",
+            onInfo:                   "#021828",
+            hoverOverlay:             "#FFFFFF",
+            pressedOverlay:           "#000000",
+            focusOverlay:             "#8898E0",
+            disabledOverlay:          "#FFFFFF",
+        },
+    },
+};
+
+// Return a profile by name, or the default if not found.
+function getProfile(name) {
+    return profiles[name] || profiles["material-expressive"];
+}
+
+// Return all known profile names.
+function profileNames() {
+    return Object.keys(profiles);
+}

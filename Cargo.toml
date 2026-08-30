@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = [
+    "core/noxd",
+    "core/noxflow-ipc",
+    "core/noxflow-config",
+    "core/noxflow-state",
+    "core/noxflow-diagnostics",
+    "cli/noxctl",
+]

@@ -1,0 +1,7 @@
+extends = "base"
+
+[appearance]
+profile = "material-focus"
+
+[shell]
+reduced_motion = true

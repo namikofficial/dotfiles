@@ -5,7 +5,10 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 WORKBENCH_DIR="${AI_WORKBENCH_DIR:-$HOME/Documents/code/ai}"
 MCP_CMD="$REPO_DIR/system/workbench-mcp.sh"
 
-[ -x "$MCP_CMD" ] || { echo "missing executable: $MCP_CMD" >&2; exit 1; }
+[ -x "$MCP_CMD" ] || {
+  echo "missing executable: $MCP_CMD" >&2
+  exit 1
+}
 [ -f "$WORKBENCH_DIR/mcp/server/src/main.ts" ] || {
   echo "missing Workbench MCP source: $WORKBENCH_DIR" >&2
   exit 1

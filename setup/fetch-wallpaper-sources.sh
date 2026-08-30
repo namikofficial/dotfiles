@@ -29,16 +29,16 @@ clone_or_update() {
 }
 
 # Naruto, Death Note, and other anime wallpapers.
-clone_or_update "anime-wallpapers"       "https://github.com/erickmartin890/Anime-Wallpapers.git"
+clone_or_update "anime-wallpapers" "https://github.com/erickmartin890/Anime-Wallpapers.git"
 
 # Synthwave, dracula, gruvbox, catppuccin themes.
-clone_or_update "wallz"                  "https://github.com/fr0st-xyz/wallz.git"
+clone_or_update "wallz" "https://github.com/fr0st-xyz/wallz.git"
 
 # Has dedicated coding/ and abstract/ subdirs for programming/tech wallpapers.
-clone_or_update "usman-wallpapers"       "https://github.com/usman-369/wallpapers.git"
+clone_or_update "usman-wallpapers" "https://github.com/usman-369/wallpapers.git"
 
 # Synthwave, cyberpunk, neon — great for that retro-wave feel.
-clone_or_update "cybrpapers"             "https://github.com/cybrcore/cybrpapers.git"
+clone_or_update "cybrpapers" "https://github.com/cybrcore/cybrpapers.git"
 
 cat >"$root/WEB_SOURCES.txt" <<'SOURCES'
 Non-git wallpaper sources to browse manually:

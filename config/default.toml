@@ -1,0 +1,103 @@
+# NoxFlow user configuration.
+#
+# Path: $XDG_CONFIG_HOME/noxflow/config.toml (default ~/.config/noxflow/config.toml)
+#
+# Machine-local overrides (gitignored): config.local.toml in the same directory.
+# Named profiles: profiles/<name>.toml (selected via `profile` key or $NOXFLOW_PROFILE).
+#
+# Loading order (later overrides earlier):
+#   1. Code defaults
+#   2. config.toml
+#   3. profiles/<name>.toml chain (profile -> extends -> ...)
+#   4. config.local.toml
+#   5. Runtime environment variables (paths only)
+
+schema_version = 1
+
+# Active configuration profile. Profile files live in profiles/<name>.toml.
+# Override at runtime with $NOXFLOW_PROFILE or the --profile flag.
+profile = "laptop"
+
+[appearance]
+profile = "material-expressive"     # Visual profile: material-expressive, material-focus, material-ambient, material-performance, material-oled
+density = "comfortable"             # compact, comfortable, spacious
+radius = 14                         # Corner radius 0-36
+mode = "dark"                       # dark, light
+motion = "fluid"                    # Animation style
+transparency = "balanced"           # Transparency level
+
+[shell]
+name = "noxflow"                    # Active shell name
+fallback = "wayle"                  # Fallback shell on failure
+reduced_motion = false              # Respect reduced-motion preference
+
+[providers]
+audio = true                        # PipeWire/WirePlumber audio provider
+network = true                      # NetworkManager provider
+bluetooth = true                    # BlueZ provider
+battery = true                      # UPower battery provider
+media = true                        # MPRIS media player provider
+hyprland = true                     # Hyprland socket event provider
+clipboard = true                    # Clipboard history provider
+
+[notifications]
+timeout = 8                         # Notification auto-dismiss seconds (1-3600)
+max_history = 100                   # Notification history size
+sounds_enabled = false              # Play notification sounds
+dnd_enabled = false                 # Do-not-disturb default state
+dnd_schedule_start = "22:00"        # DND schedule start (HH:MM)
+dnd_schedule_end = "08:00"          # DND schedule end (HH:MM)
+
+[power]
+profile = "balanced"                # performance, balanced, power-saver
+dim_display = 300                   # Display dim timeout (seconds)
+screen_off = 600                    # Screen off timeout (seconds)
+suspend = 1800                      # Suspend timeout (seconds)
+hybrid_sleep = true                 # Use hybrid sleep
+
+[network]
+wifi_backend = "NetworkManager"     # Wi-Fi backend
+vpn_autoconnect = false             # Auto-connect VPN on network change
+metered_connection = "detect"       # metered, unmetered, detect
+dns = "system"                      # DNS resolver: system, cloudflare, google, custom
+
+[media]
+mpris_integration = true            # MPRIS media player integration
+osd_enabled = true                  # On-screen display for media changes
+osd_timeout = 2                     # OSD display seconds
+default_player = "spotify"          # Default MPRIS player
+artwork_cache_enabled = false        # Explicitly opt in to remote artwork downloads
+artwork_cache_dir = ""               # Defaults to $XDG_CACHE_HOME/noxflow/artwork
+artwork_cache_max_bytes = 52428800    # Bounded remote artwork cache size
+artwork_cache_ttl = 604800            # Cached artwork lifetime in seconds
+
+[audio]
+max_volume = 100                      # Volume clamp percentage
+
+[brightness]
+minimum = 10                           # Safe minimum percentage
+step = 5                               # Relative adjustment percentage
+external_backend = "none"             # Explicitly opt in with: ddcutil
+
+[developer]
+editor = "neovim"                   # Default editor
+terminal = "kitty"                  # Default terminal emulator
+git_editor_integration = true       # Use editor as Git editor
+project_path = "~/Documents/code"   # Default project directory
+
+[ai]
+enabled = true                      # Enable AI integration
+provider = "local"                  # AI provider: local, openai, anthropic, cerebras, minmax
+endpoint = "http://127.0.0.1:8080/v1"  # Provider API endpoint
+model = "qwen3-4b-local"           # Default model name
+fallback_provider = "cerebras"      # Fallback provider
+temperature = 0.7                   # Model temperature (0.0-2.0)
+max_tokens = 4096                   # Maximum response tokens (1-128000)
+# api_key = "sk-..."                # API key (redacted in config output)
+
+[fallback]
+shell = "wayle"                     # Fallback shell binary
+compositor = "hyprland"             # Fallback compositor
+launcher = "rofi"                   # Fallback application launcher
+panel = "wayle"                     # Fallback panel
+term = "kitty"                      # Fallback terminal

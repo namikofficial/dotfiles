@@ -1,24 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-nvm_dir="${NVM_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/nvm}"
-nvm_exec="$nvm_dir/nvm-exec"
-
-if [[ ! -x "$nvm_exec" ]]; then
-  printf 'pnpm bridge: NVM launcher is unavailable at %s\n' "$nvm_exec" >&2
-  exit 127
-fi
-
-if [[ -n "${AI_WORKBENCH_NODE_VERSION:-}" ]]; then
-  export NODE_VERSION="$AI_WORKBENCH_NODE_VERSION"
-elif [[ -z "${NODE_VERSION:-}" ]]; then
-  search_dir="$PWD"
-  while [[ "$search_dir" != "/" && ! -f "$search_dir/.nvmrc" ]]; do
-    search_dir="$(dirname "$search_dir")"
-  done
-  if [[ ! -f "$search_dir/.nvmrc" ]]; then
-    export NODE_VERSION='lts/*'
-  fi
-fi
-
-exec "$nvm_exec" corepack pnpm "$@"
+script_path="$(readlink -f "${BASH_SOURCE[0]}")"
+script_dir="$(cd "$(dirname "$script_path")" && pwd)"
+exec "$script_dir/node-runtime" --command corepack pnpm "$@"

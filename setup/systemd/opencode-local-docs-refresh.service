@@ -1,0 +1,6 @@
+[Unit]
+Description=Refresh cached local documentation for OpenCode
+
+[Service]
+Type=oneshot
+ExecStart=%h/Documents/code/dotfiles/system/local-docs-refresh.sh
