@@ -8,7 +8,25 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const cwd = process.cwd(), args = process.argv.slice(2);
 const value = n => { const i=args.indexOf(n); return i >= 0 ? args[i+1] : undefined; };
-if (args.includes("--help")) { console.log(`Code Doctor\n\nUsage: code-doctor [--full] [--changed] [--project path] [--json] [--quiet] [--fail-on never|error|warning|deprecated]`); process.exit(0); }
+if (args.includes("--help")) { console.log(`Code Doctor — local JavaScript/TypeScript diagnostics
+
+Usage:
+  code-doctor [options]
+
+Options:
+  --full                         Run optional local ESLint and Knip checks.
+  --changed                      Scan Git-changed JavaScript/TypeScript files.
+  --project PATH                 Scan an explicit tsconfig.json.
+  --output PATH                  Write report.json and AGENT_FIXES.md to PATH.
+  --out PATH                     Alias for --output.
+  --json                         Emit the report as machine-readable JSON.
+  --quiet                        Suppress normal terminal output.
+  --fail-on LEVEL                Exit 1 for error, warning, or deprecated findings.
+                                 LEVEL: never (default), error, warning, deprecated.
+  --version                      Print the Code Doctor version.
+  --help                         Show this help.
+
+Default output directory: .code-doctor/`); process.exit(0); }
 if (args.includes("--version")) { console.log("code-doctor 1.0.0"); process.exit(0); }
 let ts; let tsSource="fallback";
 for (const base of [cwd, path.dirname(cwd), path.dirname(process.execPath), "/usr/lib/node_modules", "/usr/local/lib/node_modules"]) try { ts=require(require.resolve("typescript", { paths:[base] })); tsSource=base; break; } catch {}
@@ -34,7 +52,7 @@ function optional(tool){const r=spawnSync(tool,["--version"],{cwd,encoding:"utf8
 const projects=[], findings=[], diagnostics=[]; for(const c of configs().length?configs():[null]) try{const p=c?programFor(c):jsProgram();projects.push(c?rel(c):"<auto-js>"); findings.push(...scan(p,c?rel(c):"<auto-js>")); diagnostics.push(...compiler(p,c?rel(c):"<auto-js>"));}catch(e){diagnostics.push({ruleId:"doctor-config",severity:"error",message:String(e),file:c?rel(c):null,line:null,column:null});}
 let all=[...findings,...diagnostics,...textScan()]; const ch=args.includes("--changed")?changed():null; if(ch) all=all.filter(x=>!x.file||ch.has(x.file)); all=[...new Map(all.map(x=>[`${x.ruleId}|${x.file}|${x.line}|${x.column}|${x.symbol||x.code||x.message}`,x])).values()];
 const report={schemaVersion:1,generatedAt:new Date().toISOString(),repository:path.basename(cwd),cwd,typescriptVersion:ts.version,typescriptSource:tsSource,projects,summary:{errors:all.filter(x=>x.severity==="error").length,warnings:all.filter(x=>x.severity==="warning").length,deprecated:all.filter(x=>x.ruleId==="deprecated-api").length},findings:all};
-const out=path.resolve(cwd,value("--out")||".code-doctor"); fs.mkdirSync(out,{recursive:true}); fs.writeFileSync(path.join(out,"report.json"),JSON.stringify(report,null,2)+"\n");
+const outputPath=value("--output")||value("--out")||".code-doctor"; const out=path.resolve(cwd,outputPath); fs.mkdirSync(out,{recursive:true}); fs.writeFileSync(path.join(out,"report.json"),JSON.stringify(report,null,2)+"\n");
 const priority={error:0,warning:1}; const md=["# Code Doctor Remediation","","Fix the findings below.","","- Read surrounding code before modifying it.","- Prefer supported APIs over suppressions or `any`.","- Preserve behavior and run existing tests.","- Rerun `code-doctor --full` after fixes.","",`Summary: ${report.summary.errors} errors, ${report.summary.warnings} warnings, ${report.summary.deprecated} deprecated APIs.` ,""]; for(const f of [...all].sort((a,b)=>(priority[a.severity]??2)-(priority[b.severity]??2)||String(a.file).localeCompare(String(b.file)))) { const at=f.file?f.file+(f.line?`:${f.line}:${f.column}`:""):"<project>"; md.push(`- **${f.severity.toUpperCase()} ${f.ruleId}** ${at} — ${f.symbol?`${f.symbol}: `:""}${f.message||""}`); } fs.writeFileSync(path.join(out,"AGENT_FIXES.md"),md.join("\n")+"\n");
 const full=args.includes("--full"), tools=full?["eslint","knip"].map(x=>`${x}: ${optional(x)?"available":"not installed"}`):[]; const json=args.includes("--json"); if(json) console.log(JSON.stringify(report)); else if(!args.includes("--quiet")){console.log(`Code Doctor\n────────────\nProject            ${report.repository}\nTypeScript         ${ts.version}\nProjects           ${projects.length}\nErrors             ${report.summary.errors}\nWarnings           ${report.summary.warnings}\nDeprecated APIs    ${report.summary.deprecated}`); if(tools.length) console.log(`Checks             ${tools.join(", ")}`); console.log(`\nReports\n${rel(path.join(out,"report.json"))}\n${rel(path.join(out,"AGENT_FIXES.md"))}`); for(const f of all.slice(0,20)) console.log(`\n${f.severity.toUpperCase()} ${f.ruleId}\n${f.file||"<project>"}:${f.line||""}:${f.column||""}\n${f.message||""}`);}
 const fail=value("--fail-on")||"never"; let exitCode=0; if(fail==="deprecated"&&report.summary.deprecated>0) exitCode=1; else if(fail==="error"&&report.summary.errors>0) exitCode=1; else if(fail==="warning"&&(report.summary.errors+report.summary.warnings)>0) exitCode=1; process.exitCode=exitCode;

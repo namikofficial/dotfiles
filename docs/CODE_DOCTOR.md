@@ -14,7 +14,9 @@ Run `./setup/bootstrap.sh` once, or link `tools/code-doctor/code-doctor` to
 `code-doctor --full` additionally checks for locally installed `eslint` and
 `knip` (it never installs them). `--changed` limits findings to Git changed
 files, including staged changes. `--project path/to/tsconfig.json` selects a
-project explicitly. `--json` emits the stable report as one JSON document;
+project explicitly. `--output path` directs `report.json` and
+`AGENT_FIXES.md` to a chosen directory (`--out` remains an alias).
+`--json` emits the stable report as one JSON document;
 `--quiet` suppresses terminal details. `--fail-on error|warning|deprecated`
 sets CI-friendly exit status; the default always exits zero after writing the
 report. `--help` and `--version` are supported.
