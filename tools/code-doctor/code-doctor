@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+script_path="$(readlink -f "${BASH_SOURCE[0]}")"
+exec node "$(dirname "$script_path")/code-doctor.mjs" "$@"
