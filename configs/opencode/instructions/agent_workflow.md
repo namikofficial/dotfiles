@@ -2,6 +2,8 @@
 
 Use the repository and applicable `AGENTS.md` files as the source of truth.
 
+Apply `quality_contract.md` to every phase. Every phase must leave an observable artifact or result, and every final claim must be tied to a command or inspection that actually ran.
+
 ## Role policy
 
 - `build`, `zen-m2.7-general`, and `zen-m3-general`: evidence-driven autonomous implementation.

@@ -52,11 +52,7 @@ cat >"$test_dir/obsidian-mcp-server" <<'MOCK'
 #!/usr/bin/env bash
 printf 'obsidian-launcher-ok\n'
 MOCK
-cat >"$test_dir/mcp-orchestrate" <<'MOCK'
-#!/usr/bin/env bash
-printf '%s\n' "$*"
-MOCK
-chmod +x "$test_dir/obsidian-mcp-server" "$test_dir/mcp-orchestrate"
+chmod +x "$test_dir/obsidian-mcp-server"
 
 obsidian_result="$(OBSIDIAN_ENV_FILE="$test_dir/missing.env" \
   OBSIDIAN_REST_CONFIG="$test_dir/missing.json" OBSIDIAN_CERT_PATH="$test_dir/missing.crt" \
@@ -64,13 +60,6 @@ obsidian_result="$(OBSIDIAN_ENV_FILE="$test_dir/missing.env" \
   "$root/configs/opencode/obsidian-mcp.sh")"
 [ "$obsidian_result" = 'obsidian-launcher-ok' ] || {
   printf 'unexpected obsidian launcher result: %s\n' "$obsidian_result" >&2
-  exit 1
-}
-
-orchestrate_args="$(MCP_ORCHESTRATE_BIN="$test_dir/mcp-orchestrate" \
-  "$root/configs/opencode/orchestrate-mcp.sh" --check router.json)"
-[ "$orchestrate_args" = '--check router.json' ] || {
-  printf 'unexpected orchestrate launcher args: %s\n' "$orchestrate_args" >&2
   exit 1
 }
 

@@ -17,6 +17,8 @@ setup/install-verify-adapters.sh --apply
 
 The phase commands are available inside OpenCode as `/research`, `/plan`, `/build`, `/verify`, `/permission`, and `/handoff`, alongside the existing `/goal` and `/full-fix` commands. Runtime phase artifacts live in a project-local, gitignored `.ai/` directory.
 
+`Super+Tab` is owned by Hyprland workspace overview and is unrelated to OpenCode goal execution. Use `/goal` inside OpenCode for the evidence-driven coding workflow; use `Super+Space` for the NoxFlow AI launcher.
+
 Optional Bruno, Schemathesis, axe, Roborazzi, browser CLI, cloud-device, and physical-device checks are capability-gated. They are never silently installed or reported as passing when unavailable.
 
 ## MCP resource profiles

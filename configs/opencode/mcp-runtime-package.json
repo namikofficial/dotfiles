@@ -6,7 +6,6 @@
     "@modelcontextprotocol/server-filesystem": "2026.7.10",
     "@playwright/mcp": "0.0.78",
     "chrome-devtools-mcp": "1.6.0",
-    "mcp-orchestrate": "0.2.4",
     "obsidian-mcp-server": "3.5.0"
   }
 }

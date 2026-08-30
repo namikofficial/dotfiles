@@ -2,20 +2,6 @@
   "$schema": "https://opencode.ai/config.json",
   "shell": "/usr/bin/zsh",
   "provider": {
-    "opencode-go": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "OpenCode Go",
-      "options": {
-        "baseURL": "https://opencode.ai/zen/go/v1",
-        "timeout": 600000
-      },
-      "models": {
-        "deepseek-v4-flash": { "name": "DeepSeek V4 Flash", "tool_call": true },
-        "deepseek-v4-pro": { "name": "DeepSeek V4 Pro", "tool_call": true },
-        "mimo-v2.5": { "name": "MiMo V2.5", "tool_call": true },
-        "kimi-k2.7-code": { "name": "Kimi K2.7 Code", "tool_call": true }
-      }
-    },
     "opencode-free": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "OpenCode Zen Free",
@@ -63,7 +49,7 @@
       }
     }
   },
-  "enabled_providers": ["opencode-go", "opencode-free", "openai", "google", "groq", "minimax-coding-plan"],
+  "enabled_providers": ["opencode-free", "openai", "google", "groq", "minimax-coding-plan"],
   "model": "minimax-coding-plan/MiniMax-M2.7",
   "small_model": "opencode-free/deepseek-v4-flash-free",
   "lsp": true,
@@ -90,7 +76,8 @@
     "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/shell_strategy.md",
     "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/agent_workflow.md",
     "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/verification_policy.md",
-    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/mcp_diet.md"
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/mcp_diet.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/quality_contract.md"
   ],
   "permission": {
     "lsp": "allow",
@@ -262,7 +249,6 @@
   "plugin": [
     "@tarquinen/opencode-dcp@3.1.14",
     "@nevermore93/opencode-worktree@0.5.3",
-    "opencode-goal-plugin",
     "opencode-wakatime",
     "opentmux@1.3.3",
     "@andrewhampton/opencode-handoff@0.2.0",
@@ -271,7 +257,6 @@
     "@plannotator/opencode@0.20.3",
     "@openspoon/subtask2@0.3.9",
     "@nick-vi/opencode-type-inject",
-    "opencode-snip@latest",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
