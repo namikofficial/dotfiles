@@ -3,8 +3,8 @@
 typeset -g ZSH_HIGHLIGHT_WARNINGS=0
 
 # Android belongs to the workstation environment, not one project's config.
-if [ -r "$HOME/.config/environment.d/60-android.conf" ]; then
-  source "$HOME/.config/environment.d/60-android.conf"
+if [ -r "$HOME/.config/dotfiles/android-env.sh" ]; then
+  source "$HOME/.config/dotfiles/android-env.sh"
 fi
 
 # Color support for prompt/completion
@@ -42,6 +42,12 @@ SCRIPTS_HOME="${SCRIPTS_HOME:-$DOTFILES_HOME/private/scripts}"
 SCRIPTS_BIN="${SCRIPTS_BIN:-$SCRIPTS_HOME/bin}"
 export DOTFILES_HOME SCRIPTS_HOME SCRIPTS_BIN
 unset zshrc_source zshrc_dir scripts_candidate
+
+# Local Google GTM/Analytics OAuth files stay outside the dotfiles repository.
+# These variables contain paths only; credentials and tokens are never tracked.
+export GTM_CREDENTIALS_FILE="${GTM_CREDENTIALS_FILE:-$HOME/.config/gtm-mcp/credentials.json}"
+export GTM_TOKEN_FILE="${GTM_TOKEN_FILE:-$HOME/.config/gtm-mcp/token.json}"
+export GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-$HOME/.config/gcloud/application_default_credentials.json}"
 
 # Optional startup profiler.
 if [[ "${ZSH_PROFILE_STARTUP:-0}" == "1" ]]; then
@@ -838,6 +844,10 @@ if [ -f "$DOTFILES_HOME/kitty/kitty-dashboard.zsh" ]; then
 fi
 
 # Custom helpers
+if [ -r "$DOTFILES_HOME/shell/claude-minimax.sh" ]; then
+  source "$DOTFILES_HOME/shell/claude-minimax.sh"
+fi
+
 fix-time() {
   sudo timedatectl set-ntp true || return 1
   if command -v chronyc >/dev/null 2>&1; then
@@ -865,7 +875,7 @@ alias llama-status="curl -s http://127.0.0.1:8000/v1/models | jq '.data[0].id' 2
 
 
 # Added by Antigravity CLI installer
-export PATH="/home/namik/.local/bin:$PATH"
+
 
 # OpenClaw completion
 [ -f "$HOME/.openclaw/completions/openclaw.zsh" ] && source "$HOME/.openclaw/completions/openclaw.zsh"
@@ -878,4 +888,8 @@ if [[ "$ENABLE_ZSH_AUTOCOMPLETE" != "1" ]]; then
   unsetopt listambiguous
   LISTMAX=999999
 fi
-export PATH=$PATH:$HOME/.maestro/bin
+export PATH="$PATH:$HOME/.maestro/bin"
+
+# OpenCode tooling (mirrored in .zshenv for non-interactive shells)
+export PATH="$HOME/go/bin:$PATH"
+export OPENCODE_EXPERIMENTAL_LSP_TOOL=true

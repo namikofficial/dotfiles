@@ -7,10 +7,9 @@ local mainMod = ctx.mainMod
 -- Clipboard / screenshots
 exec(mainMod .. " + CTRL + V", home .. "/.config/hypr/scripts/cliphist-rofi.sh")
 exec(mainMod .. " + SHIFT + V", home .. "/.config/hypr/scripts/cliphist-toggle.sh")
-exec(mainMod .. " + SHIFT + S", home .. "/.config/hypr/scripts/screenshot.sh area")
 exec(mainMod .. " + CTRL + SHIFT + S", home .. "/.config/hypr/scripts/screenshot.sh full")
 exec(mainMod .. " + SHIFT + T", home .. "/.config/hypr/scripts/ocr-capture.sh")
-exec(mainMod .. " + SHIFT + C", "kage ai commit-msg")
+exec(mainMod .. " + CTRL + SHIFT + C", "kage ai commit-msg")
 exec(mainMod .. " + SHIFT + R", "kage ai review")
 exec(mainMod .. " + SHIFT + E", "kage ai explain")
 exec(mainMod .. " + CTRL + R", home .. "/.config/hypr/scripts/screen-record-toggle.sh")

@@ -1,0 +1,4 @@
+extends = "circular-b"
+
+[appearance]
+density = "compact"

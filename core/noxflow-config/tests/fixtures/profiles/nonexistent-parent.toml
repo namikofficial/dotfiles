@@ -1,0 +1,4 @@
+extends = "does-not-exist"
+
+[notifications]
+timeout = 5

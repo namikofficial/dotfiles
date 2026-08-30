@@ -1,0 +1,4 @@
+extends = "circular-a"
+
+[appearance]
+density = "spacious"

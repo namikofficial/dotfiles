@@ -4,11 +4,11 @@ set -euo pipefail
 SOURCE_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-RAG_HOME="${RAG_HOME:-$HOME/ai-rag}"
-VENV="${RAG_HOME}/.venv"
+DOCS_HOME="${OPENCODE_LOCAL_DOCS_HOME:-$HOME/.local/share/opencode/local-docs}"
+VENV="${DOCS_HOME}/.venv"
 
 if [ ! -x "${VENV}/bin/python" ]; then
-  printf 'RAG venv not ready. Run: %s/setup/install-local-rag-stack.sh\n' "$REPO_DIR" >&2
+  printf 'Local docs venv not ready. Run: %s/setup/install-opencode-mcp.sh\n' "$REPO_DIR" >&2
   exit 1
 fi
 

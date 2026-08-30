@@ -22,3 +22,28 @@ settings/export/
 .opencode-cache/
 .opencode-share/
 .opencode-state/
+.ai/
+
+# Generated pointer skills are deployed by opencode-skills-collection at startup.
+# Keep the hand-authored skills in configs/opencode/skills tracked.
+configs/opencode/skills/*-category-pointer/
+.opencode/tmux-sessions.json
+
+# Rust build output (Cargo.lock is kept tracked for the desktop binaries).
+**/target/
+
+# Local NoxFlow runtime/configuration artifacts. Source configuration belongs in
+# config/, theme/, and systemd/ and must remain tracked.
+.noxflow/
+noxflow.local.toml
+noxflow-*.log
+
+# Calendar sync (Waylandar-style): OAuth tokens, credentials, config, cache
+external/waylandar-backend/config.json
+external/waylandar-backend/token_*.json
+external/waylandar-backend/credentials.json
+external/waylandar-backend/*.ics
+external/waylandar-backend/__pycache__/
+external/waylandar-backend/cache_*.json
+.codegraph/
+nvim/tools/node_modules/

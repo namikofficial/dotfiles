@@ -1,146 +1,68 @@
+local utils = require("noxflow.utils")
+
+local function project_config_root(ctx, markers)
+  local root = utils.find_root(ctx.filename, markers)
+  return root or utils.buf_root(ctx.bufnr)
+end
+
+local node_tools = vim.fn.stdpath("config") .. "/tools/node_modules/.bin/"
+
 return {
   {
-    "williamboman/mason.nvim",
-    build = ":MasonUpdate",
-    opts = {
-      ui = {
-        border = "rounded",
-      },
-    },
-  },
-  {
-    "WhoIsSethDaniel/mason-tool-installer.nvim",
-    dependencies = {
-      "williamboman/mason.nvim",
-    },
-    opts = {
-      ensure_installed = {
-        "bash-language-server",
-        "black",
-        "css-lsp",
-        "eslint_d",
-        "eslint-lsp",
-        "goimports",
-        "gopls",
-        "html-lsp",
-        "isort",
-        "json-lsp",
-        "lua-language-server",
-        "marksman",
-        "prettierd",
-        "pyright",
-        "ruff",
-        "shfmt",
-        "stylua",
-        "taplo",
-        "typescript-language-server",
-        "yaml-language-server",
-      },
-      auto_update = false,
-      run_on_start = true,
-      start_delay = 3000,
-    },
-  },
-  {
-    "williamboman/mason-lspconfig.nvim",
-    dependencies = {
-      "williamboman/mason.nvim",
-      "neovim/nvim-lspconfig",
-    },
-    opts = {
-      ensure_installed = {
-        "bashls",
-        "cssls",
-        "eslint",
-        "gopls",
-        "html",
-        "jsonls",
-        "lua_ls",
-        "marksman",
-        "pyright",
-        "taplo",
-        "ts_ls",
-        "yamlls",
-      },
-    },
-  },
-  {
     "neovim/nvim-lspconfig",
+    event = { "BufReadPre", "BufNewFile" },
     dependencies = {
-      "williamboman/mason-lspconfig.nvim",
-      "hrsh7th/cmp-nvim-lsp",
+      "saghen/blink.cmp",
+      "mrcjkb/rustaceanvim",
     },
     config = function()
-      local capabilities = require("cmp_nvim_lsp").default_capabilities()
-      local use_native_lsp = vim.fn.has("nvim-0.11") == 1 and vim.lsp.config and vim.lsp.enable
-      local on_attach = function(_, bufnr)
-        local map = function(keys, func, desc)
-          vim.keymap.set("n", keys, func, { buffer = bufnr, desc = desc })
-        end
+      local capabilities = require("blink.cmp").get_lsp_capabilities()
 
-        map("gd", vim.lsp.buf.definition, "Go to definition")
-        map("gr", vim.lsp.buf.references, "References")
-        map("K", vim.lsp.buf.hover, "Hover")
-        map("gI", vim.lsp.buf.implementation, "Go to implementation")
-        map("<leader>cd", vim.diagnostic.open_float, "Line diagnostics")
-        map("<leader>rn", vim.lsp.buf.rename, "Rename symbol")
-        map("<leader>ca", vim.lsp.buf.code_action, "Code action")
-        map("<leader>ds", require("telescope.builtin").lsp_document_symbols, "Document symbols")
-        map("<leader>ws", require("telescope.builtin").lsp_dynamic_workspace_symbols, "Workspace symbols")
-      end
+      vim.lsp.config("*", {
+        capabilities = capabilities,
+        flags = {
+          debounce_text_changes = 150,
+        },
+      })
 
       local servers = {
         bashls = {},
-        cssls = {},
+        cssls = {
+          cmd = { node_tools .. "vscode-css-language-server", "--stdio" },
+          init_options = { provideFormatter = false },
+        },
+        dockerls = {},
         eslint = {
+          cmd = { node_tools .. "vscode-eslint-language-server", "--stdio" },
           settings = {
+            format = false,
             workingDirectory = { mode = "auto" },
           },
         },
-        gopls = {
-          settings = {
-            gopls = {
-              gofumpt = true,
-              staticcheck = true,
-              analyses = {
-                unusedparams = true,
-                shadow = true,
-              },
-            },
+        html = {
+          cmd = { node_tools .. "vscode-html-language-server", "--stdio" },
+          init_options = {
+            provideFormatter = false,
+            configurationSection = { "html", "css", "javascript" },
+            embeddedLanguages = { css = true, javascript = true },
           },
         },
-        html = {},
-        jsonls = {},
-        marksman = {},
+        jsonls = {
+          cmd = { node_tools .. "vscode-json-language-server", "--stdio" },
+          init_options = { provideFormatter = false },
+        },
         lua_ls = {
           settings = {
             Lua = {
-              diagnostics = {
-                globals = { "vim" },
-              },
-              workspace = {
-                checkThirdParty = false,
-              },
-              telemetry = {
-                enable = false,
-              },
+              diagnostics = { globals = { "vim" } },
+              workspace = { checkThirdParty = false },
+              telemetry = { enable = false },
             },
           },
         },
-        pyright = {
-          settings = {
-            python = {
-              analysis = {
-                autoImportCompletions = true,
-                typeCheckingMode = "basic",
-                diagnosticMode = "workspace",
-                useLibraryCodeForTypes = true,
-              },
-            },
-          },
-        },
-        taplo = {},
+        marksman = {},
         ts_ls = {
+          cmd = { node_tools .. "typescript-language-server", "--stdio" },
           settings = {
             typescript = {
               inlayHints = {
@@ -170,179 +92,186 @@ return {
           settings = {
             yaml = {
               keyOrdering = false,
+              format = { enable = false },
             },
           },
         },
       }
 
-      for server, config in pairs(servers) do
-        config.capabilities = capabilities
-        config.on_attach = on_attach
-        if use_native_lsp then
-          vim.lsp.config(server, config)
-          vim.lsp.enable(server)
-        else
-          require("lspconfig")[server].setup(config)
+      servers.eslint.root_dir = function(bufnr, on_dir)
+        local filename = vim.api.nvim_buf_get_name(bufnr)
+        local root = project_config_root({ filename = filename, bufnr = bufnr }, {
+          "eslint.config.js",
+          "eslint.config.mjs",
+          "eslint.config.cjs",
+          ".eslintrc",
+          ".eslintrc.js",
+          ".eslintrc.json",
+          "package.json",
+        })
+        if root then
+          on_dir(root)
+        end
+      end
+
+      local binaries = {
+        bashls = "bash-language-server",
+        cssls = node_tools .. "vscode-css-language-server",
+        dockerls = "docker-langserver",
+        eslint = node_tools .. "vscode-eslint-language-server",
+        html = node_tools .. "vscode-html-language-server",
+        jsonls = node_tools .. "vscode-json-language-server",
+        lua_ls = "lua-language-server",
+        marksman = "marksman",
+        ts_ls = node_tools .. "typescript-language-server",
+        yamlls = "yaml-language-server",
+      }
+
+      for name, config in pairs(servers) do
+        if vim.fn.executable(binaries[name]) == 1 then
+          vim.lsp.config(name, config)
+          vim.lsp.enable(name)
         end
       end
     end,
   },
   {
-    "hrsh7th/nvim-cmp",
-    event = "InsertEnter",
-    dependencies = {
-      "hrsh7th/cmp-buffer",
-      "hrsh7th/cmp-cmdline",
-      "hrsh7th/cmp-nvim-lsp",
-      "hrsh7th/cmp-path",
-      "saadparwaiz1/cmp_luasnip",
-      "L3MON4D3/LuaSnip",
-      "rafamadriz/friendly-snippets",
-      "zbirenbaum/copilot-cmp",
-    },
-    config = function()
-      local cmp = require("cmp")
-      local luasnip = require("luasnip")
-      require("luasnip.loaders.from_vscode").lazy_load()
-      cmp.setup({
-        snippet = {
-          expand = function(args)
-            luasnip.lsp_expand(args.body)
-          end,
+    "mrcjkb/rustaceanvim",
+    version = "^6",
+    lazy = false,
+    init = function()
+      vim.g.rustaceanvim = {
+        server = {
+          default_settings = {
+            ["rust-analyzer"] = {
+              cargo = { allFeatures = true },
+              check = { command = "clippy" },
+            },
+          },
         },
-        mapping = cmp.mapping.preset.insert({
-          ["<C-Space>"] = cmp.mapping.complete(),
-          ["<CR>"] = cmp.mapping.confirm({ select = true }),
-          ["<Tab>"] = cmp.mapping(function(fallback)
-            if cmp.visible() then
-              cmp.select_next_item()
-            elseif luasnip.expand_or_jumpable() then
-              luasnip.expand_or_jump()
-            else
-              fallback()
-            end
-          end, { "i", "s" }),
-          ["<S-Tab>"] = cmp.mapping(function(fallback)
-            if cmp.visible() then
-              cmp.select_prev_item()
-            elseif luasnip.jumpable(-1) then
-              luasnip.jump(-1)
-            else
-              fallback()
-            end
-          end, { "i", "s" }),
-        }),
-        sources = cmp.config.sources({
-          { name = "copilot", group_index = 1, priority = 1000 },
-          { name = "nvim_lsp" },
-          { name = "luasnip" },
-          { name = "path" },
-        }, {
-          { name = "buffer" },
-        }),
-      })
-
-      cmp.setup.cmdline("/", {
-        mapping = cmp.mapping.preset.cmdline(),
-        sources = {
-          { name = "buffer" },
-        },
-      })
-
-      cmp.setup.cmdline(":", {
-        mapping = cmp.mapping.preset.cmdline(),
-        sources = cmp.config.sources({
-          { name = "path" },
-        }, {
-          { name = "cmdline" },
-        }),
-      })
+      }
     end,
+  },
+  {
+    "saecki/crates.nvim",
+    ft = "toml",
+    event = "BufRead Cargo.toml",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    opts = {},
   },
   {
     "stevearc/conform.nvim",
-    event = { "BufWritePre" },
+    event = { "BufWritePre", "BufReadPre" },
     opts = function()
-      local utils = require("noxflow.utils")
-      local prettier_root = function(_, ctx)
-        return utils.find_root(ctx.filename, {
-          ".prettierrc",
-          ".prettierrc.json",
-          ".prettierrc.js",
-          "prettier.config.js",
-          "package.json",
-          "pnpm-workspace.yaml",
-        })
+      local web_markers = {
+        ".prettierrc",
+        ".prettierrc.json",
+        ".prettierrc.js",
+        ".prettierrc.cjs",
+        ".prettierrc.yaml",
+        "prettier.config.js",
+        "prettier.config.cjs",
+      }
+      local function root_with_markers(filename, markers)
+        return utils.find_root(filename, markers)
       end
 
+      local function project_has_prettier(filename)
+        local root = root_with_markers(filename, web_markers)
+        if root then
+          return true
+        end
+        local package = utils.find_root(filename, { "package.json" })
+        if not package then
+          return false
+        end
+
+        if vim.fn.executable(package .. "/node_modules/.bin/prettier") == 1
+          or vim.fn.executable(package .. "/node_modules/.bin/prettierd") == 1 then
+          return true
+        end
+
+        local package_file = package .. "/package.json"
+        if vim.fn.filereadable(package_file) ~= 1 then
+          return false
+        end
+        local ok, package_json = pcall(vim.json.decode, table.concat(vim.fn.readfile(package_file), "\n"))
+        if not ok or type(package_json) ~= "table" then
+          return false
+        end
+        for _, field in ipairs({ "dependencies", "devDependencies", "peerDependencies", "optionalDependencies" }) do
+          if type(package_json[field]) == "table" and (package_json[field].prettier or package_json[field].prettierd) then
+            return true
+          end
+        end
+        return false
+      end
+
+      local formatters_by_ft = {
+        javascript = { "prettier", stop_after_first = true },
+        javascriptreact = { "prettier", stop_after_first = true },
+        json = { "prettier", stop_after_first = true },
+        jsonc = { "prettier", stop_after_first = true },
+        markdown = { "prettier", stop_after_first = true },
+        rust = { "rustfmt" },
+        sh = { "shfmt" },
+        bash = { "shfmt" },
+        toml = { "taplo" },
+        tsx = { "prettier", stop_after_first = true },
+        typescript = { "prettier", stop_after_first = true },
+        typescriptreact = { "prettier", stop_after_first = true },
+        yaml = { "prettier", stop_after_first = true },
+      }
+
       return {
-        notify_on_error = false,
+        notify_on_error = true,
+        formatters_by_ft = formatters_by_ft,
         formatters = {
-          prettierd = {
-            cwd = prettier_root,
-          },
           prettier = {
-            cwd = prettier_root,
+            cwd = function(_, ctx)
+              local markers = vim.deepcopy(web_markers)
+              table.insert(markers, "package.json")
+              return root_with_markers(ctx.filename, markers)
+            end,
           },
         },
         format_on_save = function(bufnr)
-          local disable_filetypes = { c = true, cpp = true }
-          return {
-            timeout_ms = 800,
-            lsp_format = disable_filetypes[vim.bo[bufnr].filetype] and "never" or "fallback",
-          }
+          local filename = vim.api.nvim_buf_get_name(bufnr)
+          local ft = vim.bo[bufnr].filetype
+          local safe = vim.tbl_contains({ "rust", "sh", "bash", "toml" }, ft)
+            or (vim.tbl_contains({ "javascript", "javascriptreact", "json", "jsonc", "markdown", "tsx", "typescript", "typescriptreact", "yaml" }, ft)
+              and project_has_prettier(filename))
+          if not safe then
+            return
+          end
+          return { timeout_ms = 1000, lsp_format = "never" }
         end,
-        formatters_by_ft = {
-          go = { "gofmt", "goimports" },
-          javascript = { "prettierd", "prettier" },
-          javascriptreact = { "prettierd", "prettier" },
-          json = { "prettierd", "prettier" },
-          lua = { "stylua" },
-          markdown = { "prettierd", "prettier" },
-          python = { "isort", "black" },
-          rust = { "rustfmt" },
-          sh = { "shfmt" },
-          toml = { "taplo" },
-          typescript = { "prettierd", "prettier" },
-          typescriptreact = { "prettierd", "prettier" },
-          yaml = { "prettierd", "prettier" },
-        },
       }
     end,
+    keys = {
+      { "<leader>cf", function() require("conform").format({ async = true, lsp_format = "never" }) end, mode = { "n", "v" }, desc = "Format buffer" },
+    },
   },
   {
     "mfussenegger/nvim-lint",
-    event = { "BufReadPost", "BufWritePost", "InsertLeave" },
+    event = { "BufWritePost", "InsertLeave" },
     config = function()
-      local utils = require("noxflow.utils")
       local lint = require("lint")
       lint.linters_by_ft = {
-        javascript = { "eslint_d" },
-        javascriptreact = { "eslint_d" },
-        python = { "ruff" },
         sh = { "shellcheck" },
-        typescript = { "eslint_d" },
-        typescriptreact = { "eslint_d" },
+        bash = { "shellcheck" },
       }
 
-      if lint.linters.eslint_d then
-        lint.linters.eslint_d.cwd = function(ctx)
-          return utils.find_root(ctx.filename, {
-            "eslint.config.js",
-            "eslint.config.mjs",
-            ".eslintrc",
-            ".eslintrc.js",
-            "package.json",
-            "pnpm-workspace.yaml",
-          })
-        end
+      if vim.fn.executable("markdownlint-cli2") == 1 then
+        lint.linters_by_ft.markdown = { "markdownlint-cli2" }
       end
 
-      local group = vim.api.nvim_create_augroup("noxflow_lint", { clear = true })
-      vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
-        group = group,
-        callback = function()
-          lint.try_lint()
+      vim.api.nvim_create_autocmd({ "BufWritePost", "InsertLeave" }, {
+        group = vim.api.nvim_create_augroup("noxflow_lint", { clear = true }),
+        callback = function(args)
+          if lint.linters_by_ft[vim.bo[args.buf].filetype] then
+            lint.try_lint(nil, { bufnr = args.buf })
+          end
         end,
       })
     end,

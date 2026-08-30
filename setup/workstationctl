@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 STATE_ROOT=/var/lib/noxflow-workstation
 VIRT_PACKAGES=(qemu-desktop libvirt virt-manager dnsmasq edk2-ovmf swtpm dmidecode)
 
 ok() { printf 'OK   %s\n' "$*"; }
 warn() { printf 'WARN %s\n' "$*" >&2; }
-fail() { printf 'FAIL %s\n' "$*" >&2; return 1; }
-need_root() { ((EUID == 0)) || { printf 'Run with sudo: sudo %q %s\n' "$0" "$*" >&2; exit 2; }; }
+fail() {
+  printf 'FAIL %s\n' "$*" >&2
+  return 1
+}
+need_root() { ((EUID == 0)) || {
+  printf 'Run with sudo: sudo %q %s\n' "$0" "$*" >&2
+  exit 2
+}; }
 
 intel_card() {
   local vendor card
@@ -26,19 +33,37 @@ intel_card() {
 verify_login() {
   local rc=0 id
   id="$(tr -d '[:space:]' <"$REPO_DIR/uwsm/default-id")"
-  if [[ "$id" == hyprland.desktop ]]; then ok 'UWSM compositor ID is hyprland.desktop'; else fail "invalid UWSM ID: $id"; rc=1; fi
-  if [[ "$(awk -F= '/^Session=/{print $2}' "$REPO_DIR/sddm/dmrc")" == hyprland-uwsm.desktop ]]; then ok 'SDDM launches the UWSM wrapper once'; else fail 'SDDM session is not hyprland-uwsm.desktop'; rc=1; fi
-  if [[ ! -e "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" && ! -L "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" ]]; then ok 'obsolete AQ_DRM_DEVICES drop-in absent'; else fail 'obsolete AQ_DRM_DEVICES drop-in still exists'; rc=1; fi
+  if [[ "$id" == hyprland.desktop ]]; then ok 'UWSM compositor ID is hyprland.desktop'; else
+    fail "invalid UWSM ID: $id"
+    rc=1
+  fi
+  if [[ "$(awk -F= '/^Session=/{print $2}' "$REPO_DIR/sddm/dmrc")" == hyprland-uwsm.desktop ]]; then ok 'SDDM launches the UWSM wrapper once'; else
+    fail 'SDDM session is not hyprland-uwsm.desktop'
+    rc=1
+  fi
+  if [[ ! -e "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" && ! -L "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" ]]; then ok 'obsolete AQ_DRM_DEVICES drop-in absent'; else
+    fail 'obsolete AQ_DRM_DEVICES drop-in still exists'
+    rc=1
+  fi
   local igpu
   igpu="$(intel_card || true)"
-  if [[ -n "$igpu" ]]; then ok "Intel recovery renderer: $igpu"; else fail 'Intel DRM card not found'; rc=1; fi
-  if command -v uwsm >/dev/null; then ok 'uwsm installed'; else fail 'uwsm missing'; rc=1; fi
-  if command -v Hyprland >/dev/null; then ok 'Hyprland installed'; else fail 'Hyprland missing'; rc=1; fi
-  if systemctl is-active --quiet NetworkManager && systemctl is-active --quiet systemd-networkd; then
-    warn 'NetworkManager and systemd-networkd are both active'
+  if [[ -n "$igpu" ]]; then ok "Intel recovery renderer: $igpu"; else
+    fail 'Intel DRM card not found'
+    rc=1
+  fi
+  if command -v uwsm >/dev/null; then ok 'uwsm installed'; else
+    fail 'uwsm missing'
+    rc=1
+  fi
+  if command -v Hyprland >/dev/null; then ok 'Hyprland installed'; else
+    fail 'Hyprland missing'
+    rc=1
+  fi
+  if systemctl is-active --quiet NetworkManager || systemctl is-active --quiet wpa_supplicant; then
+    warn 'legacy NetworkManager/wpa_supplicant network stack is active'
     rc=1
   else
-    ok 'single active network owner'
+    ok 'iwd is the active Wi-Fi owner'
   fi
   return "$rc"
 }
@@ -48,23 +73,46 @@ verify_kvm() {
   local emulator_bin
   emulator_bin="$(command -v emulator 2>/dev/null || true)"
   [[ -n "$emulator_bin" ]] || emulator_bin="$HOME/Android/Sdk/emulator/emulator"
-  if grep -qw vmx /proc/cpuinfo; then ok 'Intel VT-x exposed'; else fail 'Intel VT-x unavailable'; rc=1; fi
-  if [[ -c /dev/kvm ]]; then ok '/dev/kvm exists'; else fail '/dev/kvm missing'; rc=1; fi
-  if [[ -r /dev/kvm && -w /dev/kvm ]]; then ok 'current user can access /dev/kvm'; else fail 'current user cannot access /dev/kvm'; rc=1; fi
-  if grep -q '^kvm_intel ' /proc/modules; then ok 'kvm_intel loaded'; else fail 'kvm_intel not loaded'; rc=1; fi
-  if [[ -x "$emulator_bin" ]]; then ok "Android emulator available: $emulator_bin"; else warn 'Android emulator missing (run android-dev.sh install-emulator)'; rc=1; fi
+  if grep -qw vmx /proc/cpuinfo; then ok 'Intel VT-x exposed'; else
+    fail 'Intel VT-x unavailable'
+    rc=1
+  fi
+  if [[ -c /dev/kvm ]]; then ok '/dev/kvm exists'; else
+    fail '/dev/kvm missing'
+    rc=1
+  fi
+  if [[ -r /dev/kvm && -w /dev/kvm ]]; then ok 'current user can access /dev/kvm'; else
+    fail 'current user cannot access /dev/kvm'
+    rc=1
+  fi
+  if grep -q '^kvm_intel ' /proc/modules; then ok 'kvm_intel loaded'; else
+    fail 'kvm_intel not loaded'
+    rc=1
+  fi
+  if [[ -x "$emulator_bin" ]]; then ok "Android emulator available: $emulator_bin"; else
+    warn 'Android emulator missing (run android-dev.sh install-emulator)'
+    rc=1
+  fi
   if [[ -x "$emulator_bin" ]] && "$emulator_bin" -accel-check 2>&1 | grep -q 'installed and usable'; then
     ok 'Android Emulator confirms KVM acceleration'
   else
-    fail 'Android Emulator acceleration check failed'; rc=1
+    fail 'Android Emulator acceleration check failed'
+    rc=1
   fi
   if [[ -x "$emulator_bin" ]] && "$emulator_bin" -list-avds 2>/dev/null | grep -q .; then
     ok 'at least one Android AVD is configured'
   else
-    warn 'no Android AVD is configured'; rc=1
+    warn 'no Android AVD is configured'
+    rc=1
   fi
-  if command -v adb >/dev/null; then ok 'adb available'; else fail 'adb missing'; rc=1; fi
-  if command -v virsh >/dev/null; then ok 'libvirt client installed'; else warn 'libvirt client not installed yet'; rc=1; fi
+  if command -v adb >/dev/null; then ok 'adb available'; else
+    fail 'adb missing'
+    rc=1
+  fi
+  if command -v virsh >/dev/null; then ok 'libvirt client installed'; else
+    warn 'libvirt client not installed yet'
+    rc=1
+  fi
   return "$rc"
 }
 
@@ -75,12 +123,18 @@ diagnose_login() {
   {
     printf 'Noxflow login diagnosis %s\n\n' "$(date -Is)"
     uname -a
-    printf '\n== failed units ==\n'; systemctl --failed --no-pager || true
-    printf '\n== display manager ==\n'; systemctl status display-manager --no-pager -l || true
-    printf '\n== user session ==\n'; systemctl --user status 'wayland-wm@hyprland.desktop.service' --no-pager -l || true
-    printf '\n== DRM ==\n'; for f in /sys/class/drm/card*/device/vendor; do [[ -r "$f" ]] && printf '%s %s\n' "$f" "$(<"$f")"; done
-    printf '\n== SDDM journal ==\n'; journalctl -b -u sddm --no-pager -n 250 || true
-    printf '\n== user warnings ==\n'; journalctl -b _UID="$(id -u)" -p warning..alert --no-pager -n 350 || true
+    printf '\n== failed units ==\n'
+    systemctl --failed --no-pager || true
+    printf '\n== display manager ==\n'
+    systemctl status display-manager --no-pager -l || true
+    printf '\n== user session ==\n'
+    systemctl --user status 'wayland-wm@hyprland.desktop.service' --no-pager -l || true
+    printf '\n== DRM ==\n'
+    for f in /sys/class/drm/card*/device/vendor; do [[ -r "$f" ]] && printf '%s %s\n' "$f" "$(<"$f")"; done
+    printf '\n== SDDM journal ==\n'
+    journalctl -b -u sddm --no-pager -n 250 || true
+    printf '\n== user warnings ==\n'
+    journalctl -b _UID="$(id -u)" -p warning..alert --no-pager -n 350 || true
   } >"$out" 2>&1
   printf '%s\n' "$out"
 }
@@ -103,7 +157,8 @@ backup_system() {
 apply_user() {
   "$SCRIPT_DIR/bootstrap.sh" --no-local-ai --no-zsh-plugins --no-tmux-plugins
   ln -sfn "$SCRIPT_DIR/workstationctl" "$HOME/.local/bin/workstationctl"
-  ln -sfn "$REPO_DIR/android/android-env.sh" "$HOME/.config/environment.d/60-android.conf"
+  ln -sfn "$REPO_DIR/android/android-env.conf" "$HOME/.config/environment.d/60-android.conf"
+  ln -sfn "$REPO_DIR/android/android-env.sh" "$HOME/.config/dotfiles/android-env.sh"
   ok 'user configuration linked'
 }
 
@@ -113,7 +168,7 @@ Would apply the following root-owned profile:
   - back up managed NVIDIA and boot-entry files under $STATE_ROOT/backups
   - install the Intel-display/NVIDIA-compute stability policy
   - install the independent Hyprland recovery session
-  - disable systemd-networkd and its sockets; keep NetworkManager
+  - enable iwd, systemd-networkd, and systemd-resolved; disable legacy Wi-Fi services
   - mask unused systemd PCR-login measurement units
   - install: ${VIRT_PACKAGES[*]}
   - enable libvirt and add ${SUDO_USER:-namik} to kvm,libvirt
@@ -144,18 +199,13 @@ apply_system() {
   install -Dm644 "$REPO_DIR/sddm/sddm.conf.d/10-noxflow-theme.conf" /etc/sddm.conf.d/10-noxflow-theme.conf
   install -d /usr/share/sddm/themes/noxflow
   cp -a "$REPO_DIR/sddm/noxflow/." /usr/share/sddm/themes/noxflow/
-  if ! nmcli -t -f STATE general 2>/dev/null | grep -qx connected; then
-    fail 'NetworkManager is not connected; refusing to stop systemd-networkd'
+  if ! systemctl is-active --quiet iwd.service; then
+    fail 'iwd is not active; refusing to alter the network stack'
     exit 1
   fi
-  systemctl disable --now \
-    systemd-networkd.service \
-    systemd-networkd-wait-online.service \
-    systemd-networkd.socket \
-    systemd-networkd-resolve-hook.socket \
-    systemd-networkd-varlink.socket \
-    systemd-networkd-varlink-metrics.socket 2>/dev/null || true
-  systemctl enable NetworkManager.service sddm.service
+  systemctl enable --now iwd.service systemd-networkd.service systemd-resolved.service
+  systemctl disable --now NetworkManager.service wpa_supplicant.service 2>/dev/null || true
+  systemctl enable sddm.service
   systemctl mask systemd-pcrlogin@.service 2>/dev/null || true
   systemctl disable nvidia-persistenced.service 2>/dev/null || true
   for entry in /boot/loader/entries/*.conf; do
@@ -187,7 +237,10 @@ rollback() {
   need_root rollback
   local stamp backup file rel
   stamp="$(cat "$STATE_ROOT/last-backup" 2>/dev/null || true)"
-  [[ -n "$stamp" ]] || { fail 'no managed backup found'; exit 1; }
+  [[ -n "$stamp" ]] || {
+    fail 'no managed backup found'
+    exit 1
+  }
   backup="$STATE_ROOT/backups/$stamp"
   while IFS= read -r -d '' file; do
     rel="${file#"$backup"}"
@@ -207,6 +260,7 @@ Usage: workstationctl COMMAND
   apply-user       Link the canonical user configuration
   apply-system     Install system profile, KVM/libvirt, and recovery session (sudo)
   verify [all|login|kvm]
+  resources [plan|apply|verify|rollback]
   diagnose login  Capture a login failure report
   rollback         Restore the last managed system backup (sudo)
 EOF
@@ -220,10 +274,32 @@ case "$command" in
     case "${2:-all}" in
       login) verify_login ;;
       kvm) verify_kvm ;;
-      all) rc=0; verify_login || rc=1; verify_kvm || rc=1; exit "$rc" ;;
-      *) usage; exit 2 ;;
-    esac ;;
-  diagnose) if [[ "${2:-}" == login ]]; then diagnose_login; else usage; exit 2; fi ;;
+      all)
+        rc=0
+        verify_login || rc=1
+        verify_kvm || rc=1
+        exit "$rc"
+        ;;
+      *)
+        usage
+        exit 2
+        ;;
+    esac
+    ;;
+  diagnose) if [[ "${2:-}" == login ]]; then diagnose_login; else
+    usage
+    exit 2
+  fi ;;
   rollback) rollback ;;
-  *) usage; exit 2 ;;
+  resources)
+    resource_action="${2:-plan}"
+    if [[ "$resource_action" == apply || "$resource_action" == rollback ]]; then
+      need_root "resources $resource_action"
+    fi
+    exec "$SCRIPT_DIR/resource-profile.sh" "$resource_action"
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
 esac

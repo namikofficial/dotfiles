@@ -5,23 +5,22 @@ ui_url="${SYNCTHING_UI_URL:-http://127.0.0.1:8384/}"
 config_file="${SYNCTHING_CONFIG_FILE:-$HOME/.local/state/syncthing/config.xml}"
 
 open_ui() {
-  if command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$ui_url" >/dev/null 2>&1 &
+  local opener="${BROWSER:-}"
+  if [ -z "$opener" ] && command -v xdg-open >/dev/null 2>&1; then opener="xdg-open"; fi
+  if [ -z "$opener" ] && command -v gio >/dev/null 2>&1; then opener="gio open"; fi
+  if [ -z "$opener" ] && command -v firefox >/dev/null 2>&1; then opener="firefox"; fi
+  if [ -z "$opener" ] && command -v google-chrome-stable >/dev/null 2>&1; then opener="google-chrome-stable"; fi
+  if [ -n "$opener" ]; then
+    # Hyprland exec can have a reduced desktop environment; do not fail the
+    # keybind when the opener exits asynchronously.
+    sh -c "$opener \"\$1\" >/dev/null 2>&1 &" sh "$ui_url" || true
     return 0
   fi
-  if command -v gio >/dev/null 2>&1; then
-    gio open "$ui_url" >/dev/null 2>&1 &
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -m webbrowser "$ui_url" >/dev/null 2>&1 &
     return 0
   fi
-  if command -v google-chrome-stable >/dev/null 2>&1; then
-    google-chrome-stable "$ui_url" >/dev/null 2>&1 &
-    return 0
-  fi
-  if command -v firefox >/dev/null 2>&1; then
-    firefox "$ui_url" >/dev/null 2>&1 &
-    return 0
-  fi
-  notify-send -a Syncthing "Syncthing" "No browser opener found for dashboard" >/dev/null 2>&1 || true
+  notify-send -a Syncthing "Syncthing" "Open $ui_url manually" >/dev/null 2>&1 || true
   return 1
 }
 

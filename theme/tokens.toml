@@ -1,0 +1,155 @@
+# NoxFlow Material design tokens.
+# Run `python3 setup/generate-material-tokens.py` after changing this file.
+
+[meta]
+schema = 1
+name = "noxflow-material"
+
+[appearance]
+mode = "dark"
+density = "comfortable"
+radius = 14
+motion = "fluid"
+transparency = "balanced"
+
+[tonal]
+background = "#151218"
+primary = "#D6A083"
+on_primary = "#2A1813"
+primary_container = "#5A3931"
+on_primary_container = "#F8DCCB"
+secondary = "#9DB9A6"
+on_secondary = "#152019"
+secondary_container = "#30483A"
+on_secondary_container = "#D1E8D4"
+tertiary = "#B7A3C7"
+on_tertiary = "#21172A"
+tertiary_container = "#493A50"
+on_tertiary_container = "#EBDCF0"
+
+[surface]
+surface = "#1C1820"
+surface_container_low = "#17141A"
+surface_container = "#241F29"
+surface_container_high = "#302A36"
+surface_container_highest = "#3D3442"
+surface_variant = "#463B49"
+inverse_surface = "#F0E8E0"
+inverse_on_surface = "#2B2529"
+
+[text]
+primary = "#F5EEE9"
+secondary = "#DED4D0"
+muted = "#AFA2A1"
+disabled = "#71666C"
+on_primary = "#2A1813"
+on_secondary = "#152019"
+on_surface_variant = "#CBBEC0"
+
+[outline]
+default = "#6E5D69"
+subtle = "#4A3D49"
+strong = "#B9A4A2"
+focus = "#E0B39A"
+
+[state]
+success = "#A9D3A7"
+on_success = "#152016"
+warning = "#E5C184"
+on_warning = "#2B2111"
+danger = "#E79A9A"
+on_danger = "#32191D"
+info = "#A8C4D0"
+on_info = "#17242A"
+hover_overlay = "#FFFFFF"
+pressed_overlay = "#000000"
+focus_overlay = "#E0B39A"
+disabled_overlay = "#FFFFFF"
+
+[spacing]
+none = 0
+xs = 4
+sm = 8
+md = 12
+lg = 16
+xl = 24
+xxl = 32
+section = 40
+
+[radius]
+none = 0
+xs = 4
+sm = 8
+md = 12
+lg = 16
+xl = 24
+pill = 999
+
+[elevation]
+none = 0
+low = 1
+medium = 3
+high = 6
+overlay = 12
+
+[typography]
+font_family = "Inter"
+display_large = 36
+display_medium = 28
+headline_large = 24
+headline_medium = 20
+title_large = 18
+title_medium = 16
+body_large = 16
+body_medium = 14
+body_small = 12
+label_large = 14
+label_medium = 12
+label_small = 11
+
+[icon]
+xs = 16
+sm = 20
+md = 24
+lg = 32
+xl = 48
+
+[duration]
+instant = 0
+short = 100
+medium = 200
+long = 350
+emphasized = 500
+
+[easing]
+standard = "cubic-bezier(0.2, 0.0, 0.0, 1.0)"
+emphasized = "cubic-bezier(0.2, 0.0, 0.0, 1.0)"
+decelerated = "cubic-bezier(0.0, 0.0, 0.2, 1.0)"
+accelerated = "cubic-bezier(0.3, 0.0, 1.0, 1.0)"
+
+[opacity]
+disabled = 0.38
+scrim = 0.60
+medium = 0.72
+subtle = 0.80
+full = 1.0
+
+[blur]
+none = 0
+subtle = 8
+medium = 16
+strong = 28
+
+[height]
+icon_button = 40
+button = 40
+control = 44
+field = 48
+chip = 32
+toolbar = 40
+
+[reduced_motion]
+enabled = false
+duration_scale = 0.0
+disable_blur = true
+disable_scale = true

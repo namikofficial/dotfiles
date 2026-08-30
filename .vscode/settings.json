@@ -6,7 +6,7 @@
     }
   },
   "terminal.integrated.defaultProfile.linux": "zsh (dotfiles)",
-  "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font, JetBrains Mono, monospace",
+  "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font Mono, JetBrainsMono Nerd Font, JetBrains Mono, monospace",
   "css.validate": false,
   "scss.validate": false,
   "less.validate": false,
@@ -16,5 +16,6 @@
   ],
   "python.autoComplete.extraPaths": [
     "${workspaceFolder}/system"
-  ]
+  ],
+  "makefile.configureOnOpen": false
 }

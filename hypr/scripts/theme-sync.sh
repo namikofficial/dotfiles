@@ -151,8 +151,12 @@ bg_seed = max(dark_candidates, key=bg_score)["rgb"]
 bg = blend(bg_seed, (10, 14, 24), 0.45)
 if lum(bg) > 0.20:
     bg = blend(bg, (8, 11, 18), 0.28)
-surface = blend(bg, (255, 255, 255), 0.13)
-bg_soft = blend(bg, surface, 0.34)
+# Keep application chrome neutral and coordinated with NoxFlow. Wallpaper
+# remains visible through the compositor and shell glass, but it must not turn
+# every terminal/editor surface blue, red, or neon after a palette refresh.
+bg = (21, 18, 24)
+surface = (28, 24, 32)
+bg_soft = (36, 31, 41)
 
 accent_candidates = []
 for entry in entries:
@@ -201,7 +205,15 @@ else:
         for channel in colorsys.hsv_to_rgb(h, 0.34, max(0.62, accent_seed["v"]))
     )
 
-accent = blend(accent, surface, 0.10)
+# Keep wallpaper-derived accents pastel enough to sit behind glass. The
+# wallpaper still supplies the hue, but never takes over the interface.
+# Keep the desktop identity stable across wallpapers. The image still drives
+# the dark background and surface tones, but interaction colors use a tested
+# warm-pastel pair so text, selection, borders, and status indicators do not
+# become a random cyan/magenta palette after every wallpaper change.
+accent = (214, 160, 131)
+accent2 = (157, 185, 166)
+accent = blend(accent, surface, 0.08)
 accent2 = blend(accent2, surface, 0.08)
 
 accent = lift_contrast(accent, bg, 2.35, mix=0.12, max_steps=24)
@@ -215,8 +227,8 @@ if hue_distance(
     h = (h + 0.16) % 1.0
     accent2 = tuple(int(round(channel * 255)) for channel in colorsys.hsv_to_rgb(h, max(s, 0.30), max(v, 0.70)))
 
-light_text = (232, 238, 252)
-dark_text = (18, 24, 37)
+light_text = (245, 238, 233)
+dark_text = (42, 36, 40)
 
 def text_score(candidate):
     return min(
@@ -225,10 +237,8 @@ def text_score(candidate):
         contrast_ratio(candidate, surface),
     )
 
-text = light_text if text_score(light_text) >= text_score(dark_text) else dark_text
-if text_score(text) < 4.5:
-    text = (245, 248, 255) if text_score((245, 248, 255)) >= text_score((10, 14, 22)) else (10, 14, 22)
-muted = blend(text, bg, 0.38)
+text = light_text
+muted = (175, 162, 161)
 warn = (255, 166, 110)
 danger = (255, 117, 127)
 surface_alt = bg_soft

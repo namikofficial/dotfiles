@@ -4,12 +4,10 @@ set -euo pipefail
 noxflow_quick_action_labels() {
   cat <<'EOF'
 Toggle Wi-Fi
-Toggle Network Applet
 Toggle Bluetooth
 Workspace Overview
 Audio Mixer
 Bluetooth Manager
-Network Manager
 Toggle Mic Mute
 AI Helper Menu
 Open AI Workbench
@@ -68,14 +66,14 @@ noxflow_quick_action_run() {
 
   case "$choice" in
     "Toggle Wi-Fi")
-      state="$(nmcli radio wifi)"
-      if [ "$state" = "enabled" ]; then
-        nmcli radio wifi off
+      wifi_if="$(iwctl station list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '$1 ~ /^(wlan|wlp)/ { print $1; exit }')"
+      state="$(iwctl device "$wifi_if" show 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '/Powered[[:space:]]/ { print tolower($NF); exit }')"
+      if [ "$state" = "on" ]; then
+        iwctl device "$wifi_if" set-property Powered off
       else
-        nmcli radio wifi on
+        iwctl device "$wifi_if" set-property Powered on
       fi
       ;;
-    "Toggle Network Applet") ~/.config/hypr/scripts/nm-applet-toggle.sh ;;
     "Toggle Bluetooth")
       state="$(bluetoothctl show | awk '/Powered:/ {print $2}')"
       if [ "$state" = "yes" ]; then
@@ -87,7 +85,6 @@ noxflow_quick_action_run() {
     "Workspace Overview") ~/.config/hypr/scripts/workspace-overview-toggle.sh ;;
     "Audio Mixer") pavucontrol ;;
     "Bluetooth Manager") blueman-manager ;;
-    "Network Manager") nm-connection-editor ;;
     "Toggle Mic Mute") ~/.config/hypr/scripts/volume-control.sh mic-mute ;;
     "AI Helper Menu") ~/.config/hypr/scripts/ai-helper.sh menu ;;
     "Open AI Workbench") ~/.config/hypr/scripts/open-ai-workbench.sh ;;

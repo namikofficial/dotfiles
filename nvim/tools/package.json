@@ -1,0 +1,10 @@
+{
+  "name": "noxflow-neovim-tools",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "dependencies": {
+    "typescript": "5.9.3",
+    "typescript-language-server": "5.0.0",
+    "vscode-langservers-extracted": "4.10.0"
+  }
+}

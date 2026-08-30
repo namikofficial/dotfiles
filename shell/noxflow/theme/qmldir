@@ -1,0 +1,3 @@
+module NoxFlow.Theme
+singleton Tokens 1.0 Tokens.qml
+singleton ThemeProfiles 1.0 ThemeProfiles.qml

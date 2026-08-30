@@ -75,7 +75,7 @@ _G.NOX_HYPR = {
   move_workspace = nx.move_workspace,
   rule = nx.rule,
   terminal = "kitty",
-  fileManager = "kitty --class yazi -e yazi",
+  fileManager = "dolphin",
   browser = "google-chrome-stable",
   editor = "code",
   ide = "android-studio",
@@ -93,6 +93,7 @@ for _, rel_path in ipairs({
   "conf/60-binds-media.lua",
   "conf/70-windowrules.lua",
   "conf/90-generated.lua",
+  "conf/95-plugins.lua",
 }) do
   nx.include(config_dir .. "/" .. rel_path)
 end

@@ -176,6 +176,21 @@ for tool in git rg jq zsh fzf tmux nvim code kitty; do
   fi
 done
 
+for bridge in node npm npx pnpm desktop-launch code; do
+  bridge_path="$HOME/.local/bin/$bridge"
+  case "$bridge" in
+    node | npm | npx) expected="$REPO_DIR/system/node-runtime" ;;
+    *) expected="$REPO_DIR/system/$bridge" ;;
+  esac
+  if [ -L "$bridge_path" ] && [ "$(readlink -f "$bridge_path" 2>/dev/null || true)" = "$expected" ]; then
+    ok "$bridge runtime link is repo-managed"
+    record_json core_tools "$bridge-bridge:ok"
+  else
+    warn "$bridge runtime link is missing or overridden"
+    record_json core_tools "$bridge-bridge:overridden"
+  fi
+done
+
 section "Dotfiles Guardrails"
 run_optional "settings doctor" "$REPO_DIR/hypr/scripts/settings/doctor.sh"
 run_optional "stale-reference check" "$REPO_DIR/setup/check-stale-references.sh"

@@ -168,10 +168,25 @@ apply_panel() {
 }
 
 apply_power() {
-  local json profile
+  local json profile auto_profile watcher live_watcher
   json="$1"
   profile="$(jq -r '.power.default_profile' <<<"$json")"
-  if command -v powerprofilesctl >/dev/null 2>&1; then
+  auto_profile="$(jq -r '.power.auto_profile' <<<"$json")"
+  watcher="$ROOT_DIR/hypr/scripts/power-profile-auto.sh"
+  live_watcher="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/power-profile-auto.sh"
+
+  if [[ "$auto_profile" == "true" ]]; then
+    if [[ -x "$watcher" ]] && ! pgrep -f "$watcher" >/dev/null 2>&1 && ! pgrep -f "$live_watcher" >/dev/null 2>&1; then
+      "$watcher" >/dev/null 2>&1 &
+    fi
+  else
+    pkill -f "$watcher" >/dev/null 2>&1 || true
+    [[ "$live_watcher" == "$watcher" ]] || pkill -f "$live_watcher" >/dev/null 2>&1 || true
+  fi
+
+  # With automation disabled, the configured profile is authoritative.
+  # With automation enabled, the watcher owns AC/battery transitions.
+  if [[ "$auto_profile" != "true" ]] && command -v powerprofilesctl >/dev/null 2>&1; then
     powerprofilesctl set "$profile" >/dev/null 2>&1 || true
   fi
   jq '{power: .power}' <<<"$json" >"$GENERATED_DIR/power-settings.generated.json"

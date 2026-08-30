@@ -1,2 +1,3 @@
 # Flatpak applications (Flathub)
 org.localsend.localsend_app
+app.zen_browser.zen

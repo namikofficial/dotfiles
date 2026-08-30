@@ -7,6 +7,7 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/noxflow"
 PID_FILE="$STATE_DIR/rofi-launcher.pid"
 OTHER_PID_FILE="$STATE_DIR/rofi-actions.pid"
 CACHE_FILE="$STATE_DIR/launcher-apps.tsv"
+CACHE_SIGNATURE_FILE="$STATE_DIR/launcher-apps.signature"
 USAGE_FILE="$STATE_DIR/launcher-usage.tsv"
 CACHE_REFRESH_PID_FILE="$STATE_DIR/launcher-cache-refresh.pid"
 CACHE_TTL_SECONDS="${LAUNCHER_CACHE_TTL_SECONDS:-21600}"
@@ -25,6 +26,7 @@ parse_desktop_entry() {
       icon = ""
       nodisplay = ""
       hidden = ""
+      type = "Application"
     }
     /^\[Desktop Entry\]$/ {
       in_entry = 1
@@ -58,8 +60,13 @@ parse_desktop_entry() {
       hidden = tolower($0)
       next
     }
+    /^Type=/ {
+      sub(/^Type=/, "", $0)
+      type = $0
+      next
+    }
     END {
-      if (name == "" || nodisplay == "true" || hidden == "true") {
+      if (type != "Application" || name == "" || nodisplay == "true" || hidden == "true") {
         exit
       }
       gsub(/\t/, " ", name)
@@ -71,30 +78,57 @@ parse_desktop_entry() {
   ' "$file"
 }
 
+desktop_dirs() {
+  # Search order is part of the contract: user entries override local/system
+  # entries with the same desktop ID. Keep this list bounded and deterministic.
+  printf '%s\n' "$HOME/.local/share/applications" /usr/local/share/applications /usr/share/applications
+}
+
+desktop_signature() {
+  local dir file
+  while IFS= read -r dir; do
+    [ -d "$dir" ] || continue
+    # Include path, size and nanosecond mtime so edits to an existing entry
+    # invalidate the cache even when the directory mtime is unchanged.
+    while IFS= read -r -d '' file; do
+      stat -c '%n\t%s\t%Y\t%y' "$file" 2>/dev/null || stat -f '%N\t%z\t%m' "$file" 2>/dev/null || true
+    done < <(find "$dir" -maxdepth 1 \( -type f -o -type l \) -name '*.desktop' -print0 2>/dev/null | LC_ALL=C sort -z)
+  done < <(desktop_dirs)
+}
+
+current_desktop_signature() {
+  local digest
+  if command -v sha256sum >/dev/null 2>&1; then
+    digest="$(desktop_signature | sha256sum)"
+  else
+    digest="$(desktop_signature | cksum)"
+  fi
+  printf '%s\n' "${digest%% *}"
+}
+
 build_cache() {
   local tmp_file="${CACHE_FILE}.tmp.$$"
   : >"$tmp_file"
   declare -A seen_ids=()
   local desktop_file desktop_id parsed name icon
 
-  for desktop_file in \
-    "$HOME/.local/share/applications"/*.desktop \
-    /usr/local/share/applications/*.desktop \
-    /usr/share/applications/*.desktop; do
-    [ -f "$desktop_file" ] || continue
-    desktop_id="$(basename "$desktop_file")"
-    if [ -n "${seen_ids[$desktop_id]:-}" ]; then
-      continue
-    fi
-    parsed="$(parse_desktop_entry "$desktop_file" || true)"
-    [ -n "$parsed" ] || continue
-    IFS=$'\t' read -r name icon <<<"$parsed"
-    printf '%s\t%s\t%s\n' "$name" "$desktop_id" "$icon" >>"$tmp_file"
-    seen_ids["$desktop_id"]=1
-  done
+  while IFS= read -r dir; do
+    [ -d "$dir" ] || continue
+    while IFS= read -r -d '' desktop_file; do
+      desktop_id="$(basename "$desktop_file")"
+      [ -n "${seen_ids[$desktop_id]:-}" ] && continue
+      parsed="$(parse_desktop_entry "$desktop_file" || true)"
+      [ -n "$parsed" ] || continue
+      IFS=$'\t' read -r name icon <<<"$parsed"
+      printf '%s\t%s\t%s\n' "$name" "$desktop_id" "$icon" >>"$tmp_file"
+      seen_ids["$desktop_id"]=1
+    done < <(find "$dir" -maxdepth 1 \( -type f -o -type l \) -name '*.desktop' -print0 2>/dev/null | LC_ALL=C sort -z)
+  done < <(desktop_dirs)
 
   sort -f -t $'\t' -k1,1 "$tmp_file" -o "$tmp_file"
   mv "$tmp_file" "$CACHE_FILE"
+  current_desktop_signature >"${CACHE_SIGNATURE_FILE}.tmp.$$"
+  mv "${CACHE_SIGNATURE_FILE}.tmp.$$" "$CACHE_SIGNATURE_FILE"
 }
 
 file_mtime_epoch() {
@@ -104,20 +138,15 @@ file_mtime_epoch() {
 
 cache_is_fresh() {
   [ -s "$CACHE_FILE" ] || return 1
-  local now mtime age app_dir
+  local now mtime age signature
   now="$(date +%s)"
   mtime="$(file_mtime_epoch "$CACHE_FILE")"
   age=$((now - mtime))
   [ "$age" -lt "$CACHE_TTL_SECONDS" ] || return 1
 
-  # If desktop app directories changed after cache creation, rebuild now.
-  for app_dir in \
-    "$HOME/.local/share/applications" \
-    /usr/local/share/applications \
-    /usr/share/applications; do
-    [ -d "$app_dir" ] || continue
-    [ "$(file_mtime_epoch "$app_dir")" -le "$mtime" ] || return 1
-  done
+  [ -s "$CACHE_SIGNATURE_FILE" ] || return 1
+  signature="$(current_desktop_signature)"
+  [ "$signature" = "$(<"$CACHE_SIGNATURE_FILE")" ] || return 1
 
   return 0
 }
@@ -275,6 +304,24 @@ emit_rows_frequent() {
   done
 }
 
+# Machine-readable discovery contract for the QML launcher. One JSON object per
+# line keeps records delimiter-safe while remaining streamable for large menus.
+emit_json_apps() {
+  ensure_data_cache || return 1
+  awk -F '\t' '
+    function esc(value) {
+      gsub(/\\/, "\\\\", value)
+      gsub(/"/, "\\\"", value)
+      gsub(/\r/, "\\r", value)
+      gsub(/\n/, "\\n", value)
+      return value
+    }
+    NF >= 2 {
+      printf "{\"name\":\"%s\",\"desktopId\":\"%s\",\"icon\":\"%s\"}\n", esc($1), esc($2), esc($3)
+    }
+  ' "$CACHE_FILE"
+}
+
 desktop_file_for_id() {
   local desktop_id="$1"
   local desktop_file
@@ -401,7 +448,7 @@ update_usage() {
 launch_desktop_id() {
   local desktop_id="$1"
   local desktop_file info terminal exec_line normalized_exec
-  [ -n "$desktop_id" ] || return 0
+  [[ "$desktop_id" =~ ^[A-Za-z0-9._-]+\.desktop$ ]] || return 2
 
   desktop_file="$(desktop_file_for_id "$desktop_id" || true)"
   if [ -n "$desktop_file" ]; then
@@ -422,14 +469,20 @@ launch_desktop_id() {
     if gtk-launch "$desktop_id" >/dev/null 2>&1; then
       update_usage "$desktop_id"
       "$0" --rebuild-rows >/dev/null 2>&1 &
-    elif command -v notify-send >/dev/null 2>&1; then
-      notify-send -a Launcher "Launch failed" "Could not launch: $desktop_id"
+    else
+      launch_error "Could not launch: $desktop_id"
+      return 1
     fi
   else
-    if command -v notify-send >/dev/null 2>&1; then
-      notify-send -a Launcher "gtk-launch missing" "Install gtk3 to launch desktop entries."
-    fi
+    launch_error "gtk-launch is unavailable; install GTK desktop launch support."
+    return 1
   fi
+}
+
+launch_error() {
+  local message="$1"
+  printf 'launcher: %s\n' "$message" >&2
+  command -v notify-send >/dev/null 2>&1 && notify-send -a Launcher "Launch failed" "$message" || true
 }
 
 resolve_selection_to_id() {
@@ -550,6 +603,11 @@ fi
 if [ "${1:-}" = "--warm-cache" ]; then
   ensure_data_cache
   exit 0
+fi
+
+if [ "${1:-}" = "--list-json" ]; then
+  emit_json_apps
+  exit $?
 fi
 
 launch_mode="tabs"

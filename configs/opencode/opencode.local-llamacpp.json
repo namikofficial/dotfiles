@@ -1,153 +1,201 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "shell": "/usr/bin/zsh",
   "provider": {
-    "llamacpp": {
+    "opencode-free": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "llama.cpp (local CUDA)",
+      "name": "OpenCode Zen Free",
       "options": {
-        "baseURL": "http://127.0.0.1:8080/v1",
-        "apiKey": "local",
+        "baseURL": "https://opencode.ai/zen/v1",
         "timeout": 600000
       },
       "models": {
-        "granite-agent": {
-          "name": "granite-agent",
-          "tools": true,
-          "limit": {
-            "context": 32768,
-            "output": 8192
-          }
+        "deepseek-v4-flash": { "name": "DeepSeek V4 Flash", "tool_call": true },
+        "deepseek-v4-flash-free": { "name": "DeepSeek V4 Flash Free", "tool_call": true },
+        "mimo-v2.5-free": {
+          "name": "MiMo V2.5 Free (Vision)",
+          "tool_call": true,
+          "modalities": { "input": ["text", "image"], "output": ["text"] }
+        },
+        "north-mini-code-free": { "name": "North Mini Code Free", "tool_call": true },
+        "nemotron-3-ultra-free": { "name": "Nemotron 3 Ultra Free", "tool_call": true },
+        "big-pickle": { "name": "Big Pickle", "tool_call": true }
+      }
+    },
+    "openai": {
+      "npm": "@ai-sdk/openai",
+      "name": "OpenAI",
+      "models": {
+        "gpt-5.6-luna": {
+          "name": "GPT-5.6 Luna (Vision)",
+          "tool_call": true,
+          "modalities": { "input": ["text", "image"], "output": ["text"] }
         }
       }
     },
-    "opencode": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "OpenCode Zen",
+    "minimax-coding-plan": {
+      "npm": "@ai-sdk/anthropic",
+      "name": "MiniMax Token Plan",
       "options": {
-        "baseURL": "https://opencode.ai/zen/v1",
-        "apiKey": "{env:OPENCODE_API_KEY}"
+        "baseURL": "https://api.minimax.io/anthropic/v1"
       },
       "models": {
-        "big-pickle": {
-          "name": "big-pickle",
-          "tools": true
-        },
-        "deepseek-v4-flash-free": {
-          "name": "deepseek-v4-flash-free",
-          "tools": true
-        },
-        "mimo-v2.5-free": {
-          "name": "mimo-v2.5-free",
-          "tools": true
-        },
-        "nemotron-3-ultra-free": {
-          "name": "nemotron-3-ultra-free",
-          "tools": true
-        },
-        "north-mini-code-free": {
-          "name": "north-mini-code-free",
-          "tools": true
-        }
+        "MiniMax-M3": { "name": "MiniMax M3", "tool_call": true },
+        "MiniMax-M2.7": { "name": "MiniMax M2.7", "tool_call": true },
+        "MiniMax-M2.7-highspeed": { "name": "MiniMax M2.7 Highspeed", "tool_call": true },
+        "MiniMax-M2.5": { "name": "MiniMax M2.5", "tool_call": true },
+        "MiniMax-M2.5-highspeed": { "name": "MiniMax M2.5 Highspeed", "tool_call": true },
+        "MiniMax-M2.1": { "name": "MiniMax M2.1", "tool_call": true }
       }
     }
   },
+  "enabled_providers": ["opencode-free", "openai", "google", "groq", "minimax-coding-plan"],
+  "model": "minimax-coding-plan/MiniMax-M2.7",
+  "small_model": "opencode-free/deepseek-v4-flash-free",
+  "lsp": true,
+  "default_agent": "build",
+  "subagent_depth": 1,
+  "share": "manual",
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      ".git/**",
+      "dist/**",
+      "build/**",
+      "coverage/**",
+      ".turbo/**",
+      ".next/**",
+      ".expo/**",
+      "android/.gradle/**",
+      "android/**/build/**",
+      "ios/Pods/**"
+    ]
+  },
+  "instructions": [
+    "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/shell_strategy.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/agent_workflow.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/verification_policy.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/mcp_diet.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/quality_contract.md"
+  ],
   "permission": {
-    "workbench_*": "allow",
-    "workbench_ai_*": "allow",
-    "workbench_ai_select_project": "ask",
-    "workbench_ai_create_*": "ask",
-    "workbench_ai_run_*": "ask",
-    "workbench_ai_apply_*": "ask",
-    "obsidian_*": "ask",
-    "browser_*": "ask",
-    "chrome-devtools_*": "ask"
+    "lsp": "allow",
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "skill": {
+      "*": "deny",
+      "codebase-tour": "allow",
+      "frontend-trace": "allow",
+      "bug-repro": "allow",
+      "test-failure-debug": "allow",
+      "conventional-commit": "allow",
+      "docs-update": "allow",
+      "ui-ux-mobile-product-review": "allow",
+      "code-intelligence": "allow"
+    },
+    "todowrite": "allow",
+    "question": "allow",
+    "edit": "allow",
+    "task": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "doom_loop": "ask",
+    "external_directory": { "*": "ask", "/home/namik/Documents/code/**": "allow" },
+    "bash": {
+      "*": "allow",
+      "ssh *": "deny",
+      "ssh": "deny"
+    },
+    "local-docs_*": "allow",
+    "browser_*": "allow",
+    "memory": "allow",
+    "worktree_create": "allow",
+    "worktree_workspace_create": "allow",
+    "worktree_delete": "deny"
   },
   "mcp": {
-    "chrome-devtools": {
+    "codegraph": {
       "type": "local",
-      "command": ["/home/namik/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp"],
-      "enabled": true,
-      "timeout": 30000
-    },
-    "browser": {
-      "type": "local",
-      "command": [
-        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/playwright-mcp",
-        "--browser",
-        "chromium",
-        "--viewport-size",
-        "1920x1080",
-        "--output-dir",
-        "/home/namik/.cache/opencode/playwright-mcp"
-      ],
-      "enabled": true,
-      "timeout": 120000
-    },
-    "obsidian": {
-      "type": "local",
-      "command": ["bash", "/home/namik/Documents/code/dotfiles/configs/opencode/obsidian-mcp.sh"],
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "codegraph"],
       "environment": {
-        "OBSIDIAN_VAULT_PATH": "/home/namik/Documents/notes/DocsVault",
-        "OBSIDIAN_API_KEY": "{env:OBSIDIAN_API_KEY}",
-        "OBSIDIAN_BASE_URL": "{env:OBSIDIAN_BASE_URL}",
-        "OBSIDIAN_ENABLE_CACHE": "{env:OBSIDIAN_ENABLE_CACHE}",
-        "OBSIDIAN_VERIFY_SSL": "{env:OBSIDIAN_VERIFY_SSL}",
-        "NODE_EXTRA_CA_CERTS": "{env:NODE_EXTRA_CA_CERTS}"
+        "NOXFLOW_MCP_PROFILE": "dev"
       },
-      "enabled": true,
-      "timeout": 60000
-    },
-    "workbench": {
-      "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/system/workbench-mcp.sh"],
       "enabled": true,
       "timeout": 30000
     },
     "local-docs": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/system/local-docs-mcp.sh"],
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "local-docs"],
+      "environment": {
+        "NOXFLOW_MCP_PROFILE": "dev"
+      },
       "enabled": true,
       "timeout": 15000
     },
-    "filesystem": {
+    "browser": {
+      "type": "local",
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "browser"],
+      "enabled": true,
+      "timeout": 120000
+    },
+    "gtm": {
+      "type": "local",
+      "command": ["/home/namik/.config/nvm/versions/node/v24.18.0/bin/gtm-mcp"],
+      "environment": {
+        "GTM_CREDENTIALS_FILE": "/home/namik/.config/gtm-mcp/credentials.json",
+        "GTM_TOKEN_FILE": "/home/namik/.config/gtm-mcp/token.json"
+      },
+      "enabled": false,
+      "timeout": 120000
+    },
+    "google-analytics": {
+      "type": "local",
+      "command": ["/home/namik/.local/bin/google-analytics-mcp"],
+      "environment": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/home/namik/.config/gcloud/application_default_credentials.json"
+      },
+      "enabled": false,
+      "timeout": 120000
+    },
+    "firebase": {
       "type": "local",
       "command": [
-        "/home/namik/.local/share/opencode/mcp/node_modules/.bin/mcp-server-filesystem",
-        "/home/namik/Documents/code/dotfiles"
+        "/home/namik/.config/nvm/versions/node/v24.18.0/bin/firebase",
+        "mcp", "--mode", "stdio"
       ],
-      "enabled": true,
-      "timeout": 30000
+      "environment": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/home/namik/.config/gcloud/application_default_credentials.json"
+      },
+      "enabled": false,
+      "timeout": 120000
     },
-    "git": {
+    "memory": {
       "type": "local",
-      "command": [
-        "/home/namik/.local/bin/mcp-server-git",
-        "--repository", "/home/namik/Documents/code/dotfiles"
-      ],
+      "command": ["npx", "-y", "@beledarian/mcp-local-memory@2"],
+      "environment": {
+        "ARCHIVIST_STRATEGY": "nlp",
+        "MEMORY_DB_PATH": "/home/namik/.local/share/opencode/memory.db"
+      },
       "enabled": true,
-      "timeout": 30000
-    }
-  },
-  "lsp": {
-    "typescript": {
-      "command": ["typescript-language-server", "--stdio"],
-      "extensions": [".ts", ".tsx", ".mts", ".cts"]
+      "timeout": 60000
     },
-    "rust": {
-      "command": ["rust-analyzer"],
-      "extensions": [".rs"]
+    "maestro": {
+      "type": "local",
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "maestro"],
+      "enabled": false,
+      "timeout": 120000
     },
-    "python": {
-      "command": ["pyright-langserver", "--stdio"],
-      "extensions": [".py"]
-    },
-    "lua": {
-      "command": ["lua-language-server"],
-      "extensions": [".lua"]
-    },
-    "bash": {
-      "command": ["bash-language-server", "start"],
-      "extensions": [".sh", ".bash", ".zsh"]
+    "obsidian": {
+      "type": "local",
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "obsidian"],
+      "environment": {
+        "NOXFLOW_MCP_PROFILE": "notes"
+      },
+      "enabled": true,
+      "timeout": 120000
     }
   },
   "skills": {
@@ -156,210 +204,393 @@
       "/home/namik/.codex/skills"
     ]
   },
+  "command": {
+    "goal": {
+      "description": "Run a bounded research, plan, build, verify, review, and handoff workflow until the goal is complete or blocked.",
+      "template": "Execute this goal autonomously: $ARGUMENTS\n\nTreat this command as the complete workflow coordinator; do not merely start coding.\n\nPHASE 0 — TASK\n- Create or update .ai/task.md with the objective, acceptance criteria, non-goals, constraints, and current status.\n\nPHASE 1 — RESEARCH\n- Inspect AGENTS.md and repository evidence.\n- For a mechanical isolated change, do a short targeted investigation and continue.\n- For behavioral, cross-module, UI, API, persistence, or uncertain work, perform bounded read-only research and delegate one cheap independent investigation when it reduces uncertainty. Use two or three independent investigations only for genuinely high uncertainty, with different questions.\n- Record evidence, exact paths, contracts, tests, and uncertainty in .ai/research.md.\n\nPHASE 2 — PLAN\n- For non-trivial work, create or update .ai/plan.md before editing. Include the smallest implementation sequence, affected callers/contracts, verification tiers, risks, and stop conditions.\n- Mechanical work may use a short inline plan, but still record the decision in .ai/task.md.\n\nPHASE 3 — BUILD\n- Implement the smallest complete change from the evidence and plan. Keep unrelated changes untouched. Use isolated worktrees for genuinely parallel non-overlapping edits. Use structured tmux tools for long-running processes.\n- Run cheap post-edit diagnostics immediately. Do not hide uncertainty or add speculative fallbacks.\n\nPHASE 4 — VERIFY\n- Inspect the complete diff and affected call sites. Run the project adapter: scripts/verify or ./scripts/verify with affected mode first.\n- Escalate through the cheapest applicable verification tier: unit/type/lint, focused integration or screenshots, headless browser/device/API checks, interactive inspection, then physical/cloud devices only when required.\n- Invoke web-verifier, android-verifier, api-verifier, and adversarial-reviewer only for relevant surfaces. All are read-only. Write commands and observed results to .ai/verification.md.\n\nPHASE 5 — REPAIR AND FINISH\n- Repair confirmed failures, rerun affected checks, and stop after three materially different unsuccessful attempts at the same blocker.\n- Write .ai/handoff.md with verified facts, changed paths, commands/results, unresolved risks, and the next safe action.\n- Continue until the requested outcome is verified or clearly blocked; do not stop after research or planning alone.\n\nReturn a concise final report distinguishing observed results, NOT_CONFIGURED capabilities, and remaining uncertainty. Do not commit, push, delete worktrees, access secrets, use SSH/sudo, or kill unrelated tmux sessions without explicit authorization.",
+      "agent": "build"
+    },
+    "full-fix": {
+      "description": "Run the complete investigate, implement, test, review, and verify workflow.",
+      "template": "Execute the full-fix workflow for: $ARGUMENTS\n\n1. Define the objective, acceptance criteria, non-goals, and affected surface.\n2. Use Subtask2 to delegate at least one independent read-only investigation and one challenge/review pass.\n3. Compare the findings and write a concise implementation plan before editing.\n4. Implement the smallest complete fix in the current worktree or an isolated worktree when parallel edits are useful.\n5. Run focused tests first, then the authoritative broader checks required by AGENTS.md.\n6. Review the final diff, changed call sites, and security-sensitive behavior.\n7. Repair confirmed failures and rerun the relevant checks.\n8. Finish with evidence: files changed, commands run, observed results, remaining risks, and the next action.\n\nDo not commit, push, delete worktrees, or kill unrelated tmux sessions without explicit user approval.",
+      "agent": "build"
+    },
+    "research": {
+      "description": "Write bounded repository research to .ai/research.md without editing source.",
+      "template": "Research this request without editing source: $ARGUMENTS\n\nUse a context packet, inspect applicable instructions, and write concise evidence, exact paths, contracts, tests, and uncertainty to .ai/research.md.",
+      "agent": "plan"
+    },
+    "plan": {
+      "description": "Create an implementation-ready plan from repository evidence.",
+      "template": "Create or update .ai/plan.md for: $ARGUMENTS\n\nFirst create or update .ai/task.md with the objective and acceptance criteria. Consume .ai/research.md when present; if it is absent, perform bounded read-only research first. Inspect AGENTS.md and trace affected callers/contracts. State the smallest implementation sequence, exact likely paths, verification tiers, delegation context packets if useful, risks, non-goals, and stop conditions. Do not edit source. Return the plan and the evidence gaps that build must resolve.",
+      "agent": "plan"
+    },
+    "build": {
+      "description": "Implement the current .ai/plan.md with bounded delegation and evidence-driven verification.",
+      "template": "Implement: $ARGUMENTS\n\nRead .ai/task.md, .ai/research.md, and .ai/plan.md when present. If a non-trivial task has no plan, perform bounded research and create the missing plan before editing. Resolve evidence gaps with explicit context packets and bounded delegation only when useful. Implement the smallest complete change, run cheap post-edit diagnostics, inspect the diff and affected contracts, and update .ai/task.md with decisions and status. Do not claim completion until /verify has evidence; do not silently repair verifier findings without confirming them.",
+      "agent": "build"
+    },
+    "verify": {
+      "description": "Run the cheapest applicable verification tiers and invoke read-only verifiers.",
+      "template": "Verify: $ARGUMENTS\n\nRun scripts/verify against the affected project, then invoke web-verifier, android-verifier, api-verifier, and adversarial-reviewer only when the changed surface requires them. Write commands and observed results to .ai/verification.md.",
+      "agent": "verifier"
+    },
+    "permission": {
+      "description": "Show or change the session permission preference; auto maps to OpenCode --auto.",
+      "template": "Set permission mode to: $ARGUMENTS\n\nUse scripts/opencode-permission with show, normal, or auto. Explain that hard safety denies remain active.",
+      "agent": "build"
+    },
+    "handoff": {
+      "description": "Write a bounded fresh-session handoff artifact.",
+      "template": "Write .ai/handoff.md for: $ARGUMENTS\n\nInclude objective, verified facts, changed paths, commands/results, unresolved risks, and the next safe action. Exclude secrets and temporary narration.",
+      "agent": "build"
+    }
+  },
   "plugin": [
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/inject-local-ai-env.js",
+    "@tarquinen/opencode-dcp@3.1.14",
+    "@nevermore93/opencode-worktree@0.5.3",
+    "opencode-wakatime",
+    "opentmux@1.3.3",
+    "@andrewhampton/opencode-handoff@0.2.0",
+    "@zenobius/opencode-skillful@1.2.5",
+    "opencode-skills-collection@4.0.38",
+    "@plannotator/opencode@0.20.3",
+    "@openspoon/subtask2@0.3.9",
+    "@nick-vi/opencode-type-inject",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/provider-rate-limit.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/session-log.js"
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/post-edit-diagnostics.js"
   ],
   "tool_output": {
     "max_lines": 1000,
-    "max_bytes": 131072
+    "max_bytes": 65536
   },
   "compaction": {
     "auto": true,
-    "prune": true,
-    "reserved": 8000
+    "prune": false,
+    "tail_turns": 3,
+    "preserve_recent_tokens": 12000,
+    "reserved": 16000
   },
   "agent": {
     "build": {
-      "model": "llamacpp/granite-agent",
-      "limit": { "context": 32768, "output": 8192 },
+      "description": "Primary implementation agent for coding, UI, UX, React, React Native, Android, and desktop work.",
+      "mode": "primary",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "temperature": 0.1,
       "top_p": 0.95,
-      "prompt": "{file:~/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md}\n\n{file:~/Documents/code/dotfiles/configs/opencode/prompts/build.md}"
+      "steps": 80,
+      "color": "primary",
+      "permission": {
+        "edit": "allow",
+        "task": "allow",
+        "bash": {
+          "*": "allow",
+          "git commit *": "ask",
+          "git push*": "deny",
+          "git reset*": "deny",
+          "git clean*": "deny",
+          "git checkout*": "deny",
+          "git restore*": "deny",
+          "git rebase*": "deny",
+          "git stash*": "deny",
+          "ssh*": "deny",
+          "sudo*": "deny"
+        },
+        "worktree_create": "allow",
+        "worktree_workspace_create": "allow",
+        "worktree_delete": "ask"
+      },
+      "prompt": "Act as the primary implementation agent. Inspect the repository and applicable AGENTS.md first. Use LSP and CodeGraph to narrow the relevant surface before reading broadly. Use ast-grep for structural searches and load the applicable skills for UI, code intelligence, shell safety, and testing. Delegate bounded read-only investigation or review to the configured explore/review agents when useful, then independently validate their findings. For long-running servers, watchers, logs, emulators, Docker, and tests, use the structured tmux tools (tmux_create, tmux_run, tmux_capture, tmux_send, tmux_status) rather than PTY tools, shell backgrounding, arbitrary sleeps, or timeout wrappers. Use the process registry for named project processes. Never attach to a personal tmux session or kill an unregistered session. Run non-interactive shell commands, preserve unrelated changes, do not read secrets, and never use SSH. Completion requires an inspected diff, authoritative checks, observed results, and explicit remaining risks. Do not commit or push without user approval."
     },
     "plan": {
-      "model": "llamacpp/granite-agent",
-      "limit": { "context": 32768, "output": 8192 },
-      "temperature": 0.3,
-      "top_p": 0.95
-    },
-    "title": {
-      "model": "opencode/big-pickle",
-      "temperature": 0.1,
-      "top_p": 0.9,
-      "prompt": "{file:~/Documents/code/dotfiles/configs/opencode/prompts/title.md}"
-    },
-    "local-build": {
-      "description": "Local default build agent for normal coding, planning, and low-risk edits.",
-      "mode": "subagent",
-      "model": "llamacpp/granite-agent",
-      "limit": { "context": 32768, "output": 8192 },
+      "description": "Read-only planning agent for code, UI, UX, React Native, and Android work.",
+      "mode": "primary",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "temperature": 0.1,
       "top_p": 0.95,
-      "prompt": "You are a local build subagent running on the workstation model. Inspect the repo first, make small scoped edits only when asked, prefer existing patterns, and run the most relevant local checks. Avoid paid/network providers and avoid broad refactors."
+      "steps": 48,
+      "color": "info",
+      "prompt": "Produce an implementation-ready plan grounded in the repository. Inspect AGENTS.md first. Use code-intelligence tools before broad file reads: prefer LSP for symbol-level navigation (definitions, references, implementations, types, symbols, call hierarchy), CodeGraph for architectural relationships and cross-module flows, ast-grep (sg) for structural patterns, and grep/glob only for literal text or filenames. Load ui-ux-mobile-product-review for UI, UX, React, React Native, Android, or product requests. Resolve discoverable uncertainty, identify affected paths, contracts, risks, and tests. Do not edit files or run mutating commands. Never use SSH.",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "ssh *": "deny",
+          "ssh": "deny"
+        }
+      }
     },
-    "cheap-review": {
-      "description": "Cheap read-only review agent for quick diff checks and risk spotting.",
+    "vision-paid": {
+      "description": "Paid screenshot and visual UX analyst using OpenAI GPT-5.6 Luna.",
       "mode": "subagent",
-      "model": "opencode/north-mini-code-free",
-      "temperature": 0.0,
-      "top_p": 1.0,
-      "prompt": "You are a read-only reviewer using a cheap/free model. Review only the assigned files or diff. Return concise findings first with exact paths, risks, and missing tests. Do not edit files and do not call paid providers."
-    },
-    "long-context-summarizer": {
-      "description": "Free long-context synthesis agent for large logs, handoffs, and repo slices.",
-      "mode": "subagent",
-      "model": "opencode/nemotron-3-ultra-free",
+      "model": "openai/gpt-5.6-luna",
       "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You synthesize large context into a compact engineering brief. Preserve exact file paths, commands, errors, decisions, and unresolved risks. Remove noise and end with concrete next actions. Stay read-only unless explicitly asked otherwise."
+      "steps": 24,
+      "color": "warning",
+      "permission": { "edit": "deny", "bash": "deny", "task": "deny" },
+      "prompt": "Analyze attached screenshots, mockups, recordings, or visual references. Identify layout, hierarchy, spacing, typography, contrast, responsive, accessibility, interaction, and product-flow issues. Return concrete findings, severity, user impact, and implementation suggestions. Do not edit files or invent unseen details."
     },
-    "paid-heavy": {
-      "description": "Explicit paid/network fallback for hard implementation or analysis tasks.",
+    "vision-free": {
+      "description": "Free screenshot and visual UX analyst using MiMo V2.5 Free.",
       "mode": "subagent",
-      "model": "minmax/MiniMax-M3",
+      "model": "opencode-free/mimo-v2.5-free",
       "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You are an explicit paid/network heavy-lift subagent. Use this budget carefully: inspect first, stay narrow, avoid speculative rewrites, and return only evidence-backed implementation or analysis. Run focused checks when feasible and report exact results."
+      "steps": 20,
+      "color": "warning",
+      "permission": { "edit": "deny", "bash": "deny", "task": "deny" },
+      "prompt": "Analyze attached screenshots or mockups for layout, hierarchy, spacing, typography, contrast, responsive behavior, accessibility, and obvious UX friction. Return concise, prioritized findings with practical improvements. Do not edit files or claim details not visible in the image."
     },
-    "zen-general-mimo": {
-      "description": "Free Zen general-purpose helper for broad context, attachments, and second opinions.",
+    "zen-deepseek-general": {
+      "description": "Free DeepSeek general-purpose second opinion and exploration agent.",
       "mode": "subagent",
-      "model": "opencode/mimo-v2.5-free",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 24,
+      "color": "info",
+      "permission": { "edit": "deny", "task": "deny" },
+      "prompt": "Provide a focused, read-only second opinion. Inspect only the relevant files, use CodeGraph or LSP when available, separate evidence from guesses, and return exact paths and practical recommendations."
+    },
+    "zen-mimo-general": {
+      "description": "Free MiMo general-purpose context, UI, and product exploration agent.",
+      "mode": "subagent",
+      "model": "opencode-free/mimo-v2.5-free",
       "temperature": 0.2,
-      "top_p": 0.95,
-      "prompt": "You are a free general-purpose OpenCode Zen subagent. Help with broad context, attached files, screenshots, and second opinions. Stay scoped to the assigned task. Inspect before concluding. Prefer concise findings, exact file paths, and concrete next actions. Do not make unrelated edits."
+      "steps": 24,
+      "color": "info",
+      "permission": { "edit": "deny", "task": "deny" },
+      "prompt": "Give a concise read-only analysis of the assigned question, especially UI, UX, product flow, and implementation tradeoffs. Ground findings in visible source or attachments and identify uncertainty."
     },
-    "zen-general-big-pickle": {
-      "description": "Free Zen general fallback for cheap brainstorming, sanity checks, and simple implementation advice.",
+    "zen-nemotron-general": {
+      "description": "Free Nemotron general-purpose review and synthesis agent.",
       "mode": "subagent",
-      "model": "opencode/big-pickle",
+      "model": "opencode-free/nemotron-3-ultra-free",
+      "temperature": 0.1,
+      "steps": 24,
+      "color": "info",
+      "permission": { "edit": "deny", "task": "deny" },
+      "prompt": "Synthesize the provided evidence into a short, actionable review. Focus on correctness, edge cases, user impact, and verification. Do not edit or invent results."
+    },
+    "zen-big-pickle-general": {
+      "description": "Free Big Pickle quick brainstorming and sanity-check agent.",
+      "mode": "subagent",
+      "model": "opencode-free/big-pickle",
       "temperature": 0.2,
-      "top_p": 0.95,
-      "prompt": "You are a free general-purpose OpenCode Zen fallback subagent. Use cheap reasoning for task breakdowns, sanity checks, and simple implementation advice. Keep output short, practical, and evidence-backed. Ask for missing critical context only if the assignment cannot be answered from the provided files."
+      "steps": 16,
+      "color": "info",
+      "permission": { "edit": "deny", "task": "deny" },
+      "prompt": "Give a fast, concise sanity check or alternative idea. Keep it read-only, label speculation, and avoid broad repository exploration."
     },
-    "zen-code-reviewer": {
-      "description": "Free Zen read-only review for small diffs and implementation risks.",
+    "zen-m2.7-general": {
+      "description": "MiniMax M2.7 general-purpose subagent for implementation and exploration.",
       "mode": "subagent",
-      "model": "opencode/north-mini-code-free",
-      "temperature": 0.0,
-      "top_p": 1.0,
-      "prompt": "You are a read-only code reviewer. Review only the assigned diff or files. Return findings first, ordered by severity, with file paths and exact risks. Include missing tests and scope creep. Do not edit files."
-    },
-    "zen-deep-reviewer": {
-      "description": "Free Zen deeper review/debug helper for complex failures.",
-      "mode": "subagent",
-      "model": "opencode/deepseek-v4-flash-free",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "temperature": 0.1,
       "top_p": 0.95,
-      "prompt": "You are a deeper reasoning review and debug subagent. Trace the likely failure path, separate evidence from hypotheses, and return the smallest useful next experiment. Stay read-only unless explicitly assigned implementation."
+      "steps": 80,
+      "color": "primary",
+      "permission": {
+        "edit": "allow",
+        "task": "deny",
+        "bash": { "*": "allow", "rm *": "deny", "git reset *": "deny", "git checkout *": "deny", "git restore *": "deny", "git clean *": "deny", "git stash *": "deny", "git rebase *": "deny", "git push *": "deny", "ssh": "deny", "ssh *": "deny" }
+      },
+      "prompt": "Act as a general-purpose implementation subagent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running processes, use the structured tmux tools and the project process registry; never use PTY tools, shell backgrounding, arbitrary sleeps, or timeout wrappers. Shell commands run with /usr/bin/zsh. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts. After implementing: inspect the final diff, check all changed call sites and contracts, run relevant targeted validation, distinguish commands actually run from checks merely recommended, report only observed results with paths, commands, risks, and next action."
     },
-    "zen-long-context": {
-      "description": "Free Zen long-context synthesis for large repos, logs, and handoffs.",
+    "zen-m2.5-general": {
+      "description": "MiniMax M2.5 general-purpose subagent for implementation and exploration.",
       "mode": "subagent",
-      "model": "opencode/nemotron-3-ultra-free",
+      "model": "minimax-coding-plan/MiniMax-M2.5",
       "temperature": 0.1,
       "top_p": 0.95,
-      "prompt": "You synthesize large context into an actionable engineering brief. Preserve exact file paths, commands, errors, and decisions. Remove noise. End with the next 3-7 concrete actions."
+      "steps": 64,
+      "color": "primary",
+      "permission": {
+        "edit": "allow",
+        "task": "deny",
+        "bash": { "*": "allow", "rm *": "deny", "git reset *": "deny", "git checkout *": "deny", "git restore *": "deny", "git clean *": "deny", "git stash *": "deny", "git rebase *": "deny", "git push *": "deny", "ssh": "deny", "ssh *": "deny" }
+      },
+      "prompt": "Act as a general-purpose implementation subagent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running processes, use the structured tmux tools and the project process registry; never use PTY tools, shell backgrounding, arbitrary sleeps, or timeout wrappers. Shell commands run with /usr/bin/zsh. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts. After implementing: inspect the final diff, check all changed call sites and contracts, run relevant targeted validation, distinguish commands actually run from checks merely recommended, report only observed results with paths, commands, risks, and next action."
     },
-    "zen-vision-context": {
-      "description": "Free Zen multimodal/context helper for screenshots, attachments, and UI evidence.",
+    "zen-m3-general": {
+      "description": "MiniMax M3 general-purpose subagent for implementation and exploration.",
       "mode": "subagent",
-      "model": "opencode/mimo-v2.5-free",
+      "model": "minimax-coding-plan/MiniMax-M3",
       "temperature": 0.1,
       "top_p": 0.95,
-      "prompt": "You analyze screenshots, attachments, and UI/context evidence. Describe observable problems, likely source files, and verification steps. Do not speculate beyond the evidence without labeling it as a hypothesis."
+      "steps": 80,
+      "color": "primary",
+      "permission": {
+        "edit": "allow",
+        "task": "deny",
+        "bash": { "*": "allow", "rm *": "deny", "git reset *": "deny", "git checkout *": "deny", "git restore *": "deny", "git clean *": "deny", "git stash *": "deny", "git rebase *": "deny", "git push *": "deny", "ssh": "deny", "ssh *": "deny" }
+      },
+      "prompt": "Act as a general-purpose implementation subagent. Inspect the repository and applicable AGENTS.md first. Use code-intelligence tools before broad file reads. Prefer LSP first for symbol-level navigation: definitions, references, implementations, hover/type information, document/workspace symbols, and call hierarchy. Use CodeGraph for architectural relationships, dependency tracing, cross-module flows, and repository-wide structure. Use ast-grep (sg) for syntax-aware structural patterns. Use grep/glob only for textual or structural searches that LSP cannot answer. Read implementation files only after narrowing the relevant symbols/files. Do not perform broad file reads merely to discover where code lives. For UI, UX, React, React Native, Android, and product work, load ui-ux-mobile-product-review. For structural searches or cleanup, load code-intelligence. When screenshots, mockups, layout defects, or visual comparisons are involved, delegate image analysis to @vision-paid or @vision-free. Use @zen-deepseek-general, @zen-mimo-general, @zen-nemotron-general, @zen-big-pickle-general, or @repo-explorer for focused second opinions or cheap exploration. For long-running processes, use the structured tmux tools and the project process registry; never use PTY tools, shell backgrounding, arbitrary sleeps, or timeout wrappers. Shell commands run with /usr/bin/zsh. Dotfiles scripts live at: /home/namik/Documents/code/dotfiles/private/scripts/bin (add to PATH with: PATH=/home/namik/Documents/code/dotfiles/private/scripts/bin:$PATH). Use persistent memory only for durable project decisions, architectural constraints, recurring pitfalls, accepted conventions, and verified facts. After implementing: inspect the final diff, check all changed call sites and contracts, run relevant targeted validation, distinguish commands actually run from checks merely recommended, report only observed results with paths, commands, risks, and next action."
     },
-    "reviewer-subagent": {
-      "description": "Read-only code review. Returns structured findings (correctness, scope, tests, risks). Never edits files.",
+    "cheap-explore": {
+      "description": "Cheap read-only exploration agent using DeepSeek V4 Flash Free.",
       "mode": "subagent",
-      "model": "minmax/MiniMax-M3",
-      "temperature": 0.0,
-      "top_p": 1.0,
-      "prompt": "You are a read-only code reviewer. Inspect the diff. Output JSON: { summary, risks[], missing_tests[], scope_creep, suggested_fixes[] }. Do not edit files. Do not run commands that change state."
-    },
-    "test-writer-subagent": {
-      "description": "Adds tests for changed code. Matches existing test style. No scope creep into production code.",
-      "mode": "subagent",
-      "model": "llamacpp/granite-agent",
+      "model": "opencode-free/deepseek-v4-flash-free",
       "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "Add or update tests for the changed code. Match existing test style. Do not modify production code. Run the test suite and report pass/fail."
+      "steps": 16,
+      "color": "info",
+      "permission": { "edit": "deny", "task": "deny" },
+      "prompt": "Perform a fast, lightweight repository exploration. Map the smallest surface necessary to answer the assigned question. Do not solve the task and do not edit. Prefer LSP for definitions, CodeGraph for dependencies and flows, ast-grep for structural patterns, and rg only for literal text. Return: entry points, relevant symbols, call chain/data flow, affected contracts, exact paths, and unresolved uncertainty. Be concise and avoid broad directory reads."
     },
-    "docs-subagent": {
-      "description": "Updates README, JSDoc, and code comments for the change. Verifies each line against current source.",
+    "verifier": {
+      "description": "Read-only final verification agent for implementation correctness, regressions, tests, contracts, and observed behavior.",
       "mode": "subagent",
-      "model": "llamacpp/granite-agent",
+      "model": "opencode-free/deepseek-v4-flash-free",
       "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "Update README, JSDoc, and code comments for the change. Verify each line against the current source — never invent APIs."
+      "steps": 24,
+      "color": "success",
+      "permission": {
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
+      },
+      "prompt": "Verify completed work independently. Start from the user's requested outcome, then inspect the actual diff and relevant surrounding code. Use LSP for symbols and diagnostics, CodeGraph for cross-module impact, ast-grep for structural invariants, and targeted file reads only after narrowing scope. Run the authoritative lint, typecheck, focused tests, and build checks that are relevant and non-destructive. Look specifically for incomplete call-site updates, contract mismatches, missing validation, stale imports, regressions, unhandled edge cases, false assumptions, and tests that pass without exercising the changed behavior. Do not edit anything. Separate confirmed failures, risks, and verified-good results. Never claim a command passed unless you ran it and observed success."
     },
-    "debug-subagent": {
-      "description": "Reproduces a bug, isolates the cause, returns a hypothesis + minimal repro.",
+    "explore": {
+      "description": "Read-only repository exploration and evidence gathering agent.",
       "mode": "subagent",
-      "model": "llamacpp/granite-agent",
-      "temperature": 0.2,
-      "top_p": 0.95,
-      "prompt": "Reproduce the bug, isolate the cause, return { hypothesis, repro, affected_files[], minimal_fix }. No fixes — just diagnosis."
-    },
-    "minmax-subagent": {
-      "description": "MinMax-backed coding subagent for implementation-heavy tasks.",
-      "mode": "subagent",
-      "model": "minmax/MiniMax-M2.7",
+      "model": "opencode-free/deepseek-v4-flash-free",
       "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You are a focused coding subagent. Inspect first, make the smallest correct change, run the most relevant checks you can, and report concrete results only."
+      "steps": 24,
+      "color": "info",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "git status": "allow",
+          "git status *": "allow",
+          "git --no-pager diff": "allow",
+          "git --no-pager diff *": "allow",
+          "git --no-pager log": "allow",
+          "git --no-pager log *": "allow"
+        }
+      },
+      "prompt": "Explore only the smallest repository surface needed to answer the assigned question. Use read, search, LSP, and diagnostics. Do not edit, run long-lived processes, change Git state, or claim unobserved results. Return exact paths, evidence, risks, and unresolved questions."
     },
-    "cerebras-backup-subagent": {
-      "description": "Cerebras-backed fallback subagent for narrow coding or search tasks.",
+    "review": {
+      "description": "Read-only implementation and security review agent.",
       "mode": "subagent",
-      "model": "cerebras/gpt-oss-120b",
+      "model": "opencode-free/deepseek-v4-flash-free",
       "temperature": 0.1,
-      "top_p": 0.95,
-      "prompt": "You are a fallback coding subagent. Stay narrow, avoid speculative rewrites, and return concise evidence-backed results."
+      "steps": 24,
+      "color": "warning",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "git status": "allow",
+          "git status *": "allow",
+          "git --no-pager diff": "allow",
+          "git --no-pager diff *": "allow",
+          "git --no-pager show": "allow",
+          "git --no-pager show *": "allow"
+        }
+      },
+      "prompt": "Review the requested change and actual diff without editing. Check correctness, security, regressions, contracts, tests, and missing edge cases. Separate confirmed findings from suggestions and cite exact paths and commands."
+    },
+    "deploy": {
+      "description": "Controlled build and deployment verification agent.",
+      "mode": "subagent",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
+      "temperature": 0.1,
+      "steps": 48,
+      "color": "error",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "ask",
+          "git status": "allow",
+          "git status *": "allow",
+          "git --no-pager diff": "allow",
+          "git --no-pager diff *": "allow",
+          "git push*": "deny",
+          "git reset*": "deny",
+          "git clean*": "deny",
+          "git checkout*": "deny",
+          "git restore*": "deny",
+          "ssh*": "ask",
+          "docker*": "ask"
+        }
+      },
+      "prompt": "Perform only explicitly requested build, release, deployment, or health verification work. Inspect deployment state first. Ask before external mutation, Docker changes, SSH, publishing, or credentials. Never push, delete data, or claim deployment success without direct evidence."
+    },
+    "repo-explorer": {
+      "description": "Fast read-only repository mapper that locates the minimum relevant implementation surface before coding begins.",
+      "mode": "subagent",
+      "model": "opencode-free/north-mini-code-free",
+      "temperature": 0.1,
+      "steps": 20,
+      "color": "info",
+      "permission": { "edit": "deny", "task": "deny" },
+      "prompt": "Map the smallest repository surface necessary to answer the assigned implementation question. Do not solve the task and do not edit. Inspect AGENTS.md first. Prefer LSP for definitions, references, implementations, types, and symbols; CodeGraph for dependencies and architectural flows; ast-grep for structural code patterns; rg only for literal text. Avoid broad directory reads. Return: entry points, relevant symbols, call chain/data flow, affected contracts, likely tests, exact paths, and unresolved uncertainty. Explicitly identify files that looked related but do not need modification so the implementation agent avoids unnecessary scope."
+    },
+    "web-verifier": {
+      "description": "Read-only independent web verification agent using focused Playwright checks and browser evidence.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 32,
+      "color": "success",
+      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "prompt": "You are an independent web application verification agent. Do not implement features or edit source. Start from the requested outcome and actual diff. Run focused deterministic Playwright tests before interactive browser exploration. Use the configured browser MCP only when runtime, visual, responsive, accessibility, console, network, or interaction evidence is required. Check initial/default, success, validation/failure, loading/empty, navigation/history, keyboard, responsive, accessibility, console, network, and visible-regression behavior as relevant. Do not wander. Return VERIFIED, FAILED, NOT TESTED, and RISKS with route, actions, expected behavior, observed behavior, and concrete evidence. Never claim DOM assertions alone prove visual correctness."
+    },
+    "android-verifier": {
+      "description": "Read-only Android verification agent using host checks first and headless AVDs only when required.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 32,
+      "color": "success",
+      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "prompt": "You are a read-only Android verification agent. Start with repository unit, lint, type, and host-side screenshot checks. Use Roborazzi or existing Compose screenshot tooling when configured. Start one named headless AVD through structured tmux tools and use ADB/Maestro only for lifecycle, navigation, permissions, deep links, persistence, gestures, keyboard, or other device-bound behavior. Real hardware is opt-in. Return PASS, FAIL, NOT_CONFIGURED, and RISKS with exact commands and observed evidence. Never edit source."
+    },
+    "api-verifier": {
+      "description": "Read-only API verification agent using repository tests, Bruno, and Schemathesis when configured.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 32,
+      "color": "success",
+      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "prompt": "You are a read-only API verification agent. Run focused repository unit, integration, database, authorization, and contract checks first. Use committed Bruno scenarios when present. Use Schemathesis only when an OpenAPI contract and executable are available. Do not manually loop over curl. Return PASS, FAIL, NOT_CONFIGURED, and RISKS with reproducible requests or evidence. Never edit source."
+    },
+    "adversarial-reviewer": {
+      "description": "Read-only reviewer whose job is to falsify an implementation with concrete evidence.",
+      "mode": "subagent",
+      "model": "opencode-free/deepseek-v4-flash-free",
+      "temperature": 0.1,
+      "steps": 32,
+      "color": "warning",
+      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "prompt": "Assume the implementation contains at least one subtle defect and attempt to falsify it without editing. Inspect the diff, callers, contracts, and tests. Look for boundaries, concurrency, retries, authorization bypasses, stale state, invalid transitions, partial failure, timeouts, duplicate requests, nulls, lifecycle changes, browser back/refresh, migration compatibility, and missing call-site updates. Construct concrete failure cases and run the cheapest relevant checks. Report only evidence-backed findings, verified-good behavior, and remaining uncertainty."
     }
-  },
-  "permission": {
-    "edit": "allow",
-    "read": "allow",
-    "bash": {
-      "ls": "allow",
-      "cat": "allow",
-      "head": "allow",
-      "tail": "allow",
-      "rg": "allow",
-      "fd": "allow",
-      "git status": "allow",
-      "git diff": "allow",
-      "git log": "allow",
-      "git show": "allow",
-      "git add": "ask",
-      "git commit": "ask",
-      "git push": "ask",
-      "pnpm typecheck": "allow",
-      "pnpm test": "allow",
-      "pnpm lint": "allow",
-      "pnpm format": "allow",
-      "pnpm check": "allow",
-      "biome check": "allow",
-      "biome format": "allow",
-      "biome lint": "allow",
-      "cargo build": "allow",
-      "cargo test": "allow",
-      "cargo check": "allow",
-      "cargo clippy": "allow",
-      "rustc": "allow",
-      "go build": "allow",
-      "go test": "allow",
-      "go vet": "allow",
-      "opencode-health": "allow",
-      "system/local-docs-cache.sh": "allow",
-      "default": "ask"
-    }
-  },
-  "model": "llamacpp/granite-agent",
-  "small_model": "llamacpp/granite-agent"
+  }
 }

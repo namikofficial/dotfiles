@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  printf 'Usage: desktop-launch [--foreground] COMMAND [ARG ...]\n' >&2
+}
+
+foreground=0
+if [[ "${1:-}" == "--foreground" ]]; then
+  foreground=1
+  shift
+fi
+if [[ "${1:-}" == "--" ]]; then
+  shift
+fi
+if (($# == 0)); then
+  usage
+  exit 64
+fi
+
+runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+if [[ ! -d "$runtime_dir" ]]; then
+  printf 'desktop-launch: user runtime directory is unavailable: %s\n' "$runtime_dir" >&2
+  exit 1
+fi
+
+export XDG_RUNTIME_DIR="$runtime_dir"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$runtime_dir/bus}"
+
+if ! command -v systemctl >/dev/null 2>&1 || ! command -v uwsm >/dev/null 2>&1; then
+  printf 'desktop-launch: systemctl and uwsm are required\n' >&2
+  exit 127
+fi
+
+# Read only the graphical-session variables needed by desktop clients. Values
+# are assigned directly; no shell evaluation is used.
+while IFS='=' read -r name value; do
+  case "$name" in
+    DISPLAY | WAYLAND_DISPLAY | XDG_CURRENT_DESKTOP | XDG_SESSION_DESKTOP | XDG_SESSION_TYPE | DESKTOP_SESSION)
+      export "$name=$value"
+      ;;
+  esac
+done < <(systemctl --user show-environment)
+
+if ! uwsm check is-active >/dev/null 2>&1; then
+  printf 'desktop-launch: no active UWSM graphical session was found\n' >&2
+  exit 1
+fi
+
+if ((foreground)); then
+  exec "$@"
+fi
+
+exec uwsm app -t service -S both -- "$@"

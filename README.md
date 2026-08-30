@@ -13,14 +13,45 @@ This repository bootstraps an Arch + Hyprland workstation with reproducible shel
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
 - `docs/NETWORK_STACK_POLICY.md` locked Wi-Fi stack policy (NetworkManager + wpa_supplicant)
 - `docs/LOCAL_DEVELOPER_WORKFLOW.md` day-to-day developer readiness, project, AI, and recovery workflow
-- `hypr/` for Hyprland, Wayle-first shell scripts, Rofi, wlogout, lockscreen, and helper scripts
-- `wayle/` for the preferred future shell config
+- `docs/NOXFLOW_LOGGING.md` structured diagnostics, journald integration, and `noxctl logs`
+- `docs/NOXCTL.md` stable NoxFlow CLI commands, JSON output, exit codes, and completions
+- `hypr/` for Hyprland, the NoxFlow shell launcher/IPC scripts, Rofi, wlogout, lockscreen, and helpers
+- `shell/noxflow/` for the canonical Quickshell bar, coordinated panels, services, and theme tokens
+- `wayle/` remains an explicit safe-mode fallback and is never started alongside NoxFlow
 - `kitty/kitty.conf` so new terminals always load login `zsh`, show a dashboard banner, and expose app-like tabs
 - `chrome/chrome-flags.conf` for smooth Chrome defaults on Wayland
+- `cursor/cursor-flags.conf` and `code/code-flags.conf` for native Wayland app rendering
 - `theme/` for GTK visual consistency
 - `setup/` automation scripts for links and package installation
 - `settings/` schema-driven settings state (`settingsctl` + Settings Hub)
 - `mime/` managed MIME handlers
+
+## Unified shell redesign (2026-07-31, branch `codex/unified-shell-redesign-20260728`)
+
+One Quickshell process owns bar + central island + panels. Full docs:
+`docs/shell-redesign/` (`00-baseline` → `09-rollback`).
+
+- **Morphing central island** — panels morph from the bar chip that opened
+  them (phased geometry + crossfade, retained window height on collapse)
+- **ScrollOverview plugin** — `SUPER+TAB` (was the deleted QML overview).
+  ABI-breaking: rebuild after Hyprland upgrades via `setup/scrolloverview-rebuild.sh`
+- **Quick Share panel** — `SUPER+S` left-side panel backed by LocalSend
+  (`localsend.service`); transfers are app-owned, panel shows honest daemon state
+- **Clipboard panel** — `SUPER+V` history drawer (wl-copy)
+- **Wallpaper & theme panel** — `SUPER+W` indexed grid + theme pass
+- **Keybind contract** — `SUPER+C` control, `SUPER+M` media, `SUPER+W` wallpaper
+- **Bug fixes** — no volume OSD flash on login; minimize/restore/group workflow
+  repaired; dual-shell startup race removed
+
+### Shell service commands
+
+```sh
+systemctl --user restart noxflow-shell.service   # restart the shell
+systemctl --user restart noxd.service            # restart the daemon
+journalctl --user -u noxflow-shell --no-pager    # shell logs
+journalctl --user -u noxd --no-pager             # daemon logs
+setup/scrolloverview-rebuild.sh --source         # rebuild overview plugin
+```
 
 ## Quick start
 
@@ -45,6 +76,7 @@ That command:
 - links GTK theme configs into `~/.config`
 - links portal routing so screen sharing uses XDPH and file picking uses GTK
 - links Chrome flags to `~/.config/chrome-flags.conf`
+- links Cursor and VS Code flags to their per-user configuration files
 - copies MIME defaults (`~/.config/mimeapps.list`) so local handler changes stay machine-specific
 - links your private scripts commands into `~/.local/bin` when `private/scripts` (or another `--scripts-dir`) is available
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
@@ -80,6 +112,9 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 ## Package manifests
 
 - `setup/pacman-packages.txt`: official repository packages for the base workstation stack
+- NoxFlow's official shell runtime is managed by the base manifest: `quickshell`,
+  `qt6-imageformats`, `qt6-multimedia`, and `qt6-5compat`. Quickshell pulls
+  `qt6-svg` as an Arch repository dependency.
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
@@ -382,6 +417,19 @@ Notes path defaults:
 - Folder: `~/Documents/notes`
 - Scratch file: `~/Documents/notes/inbox.md`
 - `open-notes.sh` prefers Obsidian when it is installed, then falls back to official VS Code.
+
+## Dolphin + archive workflow
+
+Install the KDE-native archive handler and configure Dolphin’s file associations:
+
+```sh
+./setup/install-packages.sh
+./setup/configure-file-associations.sh
+```
+
+This installs Ark with ZIP, RAR, 7z, TAR, and compressed TAR support, makes
+Dolphin the default folder handler, and leaves Prism Launcher assigned only to
+its Minecraft modpack ZIP type.
 
 ## Timeshift daily auto snapshots (keep latest 5)
 

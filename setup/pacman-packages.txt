@@ -29,6 +29,11 @@ tmux
 neovim
 lua-language-server
 stylua
+tree-sitter-cli
+bash-language-server
+dockerfile-language-server
+marksman
+markdownlint-cli2
 typescript
 typescript-language-server
 eslint
@@ -56,6 +61,9 @@ bottom
 yazi
 ffmpegthumbnailer
 unarchiver
+ark
+7zip
+unrar
 broot
 onefetch
 chafa
@@ -79,6 +87,11 @@ zip
 
 # Hyprland / Wayland stack
 hyprland
+quickshell
+# NoxFlow's immediately available Qt/QML runtime modules
+qt6-imageformats
+qt6-multimedia
+qt6-5compat
 hyprlock
 hypridle
 hyprpaper
@@ -102,9 +115,7 @@ udiskie
 brightnessctl
 playerctl
 pavucontrol
-networkmanager
-wpa_supplicant
-network-manager-applet
+iwd
 blueman
 polkit-gnome
 xdg-desktop-portal
@@ -147,6 +158,7 @@ power-profiles-daemon
 pipewire
 pipewire-pulse
 wireplumber
+rtkit
 pkgfile
 pacman-contrib
 bleachbit
