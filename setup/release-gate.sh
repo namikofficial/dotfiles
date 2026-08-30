@@ -6,7 +6,8 @@ cd "$repo_dir"
 
 failed=0
 check() {
-  local name="$1"; shift
+  local name="$1"
+  shift
   printf '[gate] %-38s' "$name"
   if "$@" >/tmp/noxflow-release-gate.out 2>/tmp/noxflow-release-gate.err; then
     echo PASS
@@ -135,7 +136,7 @@ check "Quickshell-to-noxd IPC" check_shell_ipc
 check "live shell integration" check_live
 
 rm -f /tmp/noxflow-release-gate.out /tmp/noxflow-release-gate.err
-if (( failed )); then
+if ((failed)); then
   echo "NoxFlow release gate: FAILED" >&2
   exit 1
 fi

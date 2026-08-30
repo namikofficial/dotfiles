@@ -31,7 +31,7 @@ for project in "${projects[@]}"; do
   chmod +x "$project/scripts/verify"
   chmod +x "$project/scripts/verify-fast" "$project/scripts/verify-affected" "$project/scripts/verify-full"
   if ! rg -q '^\.ai/$' "$project/.gitignore" 2>/dev/null; then
-    printf '\n.ai/\n' >> "$project/.gitignore"
+    printf '\n.ai/\n' >>"$project/.gitignore"
   fi
   printf 'CONFIGURED %s/scripts/verify\n' "$project"
 done

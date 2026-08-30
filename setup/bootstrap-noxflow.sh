@@ -64,7 +64,7 @@ fi
 # ── 6. Set panel engine to noxflow ──
 echo "--- Setting panel engine ---"
 mkdir -p "$STATE_DIR"
-echo "noxflow" > "$STATE_DIR/panel.engine"
+echo "noxflow" >"$STATE_DIR/panel.engine"
 echo "  engine:   $STATE_DIR/panel.engine → noxflow"
 
 # ── 7. Enable and restart services ──

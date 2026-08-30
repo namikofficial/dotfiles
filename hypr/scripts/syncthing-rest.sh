@@ -38,7 +38,8 @@ snapshot() {
   folders="$(request GET /rest/config/folders)"
   devices="$(request GET /rest/config/devices)"
   events="$(request GET '/rest/events?since=0&limit=30')"
-  folder_statuses="$(python3 - "$folders" "$base_url" "$(api_key)" <<'PY'
+  folder_statuses="$(
+    python3 - "$folders" "$base_url" "$(api_key)" <<'PY'
 import json
 import sys
 import urllib.parse
@@ -60,7 +61,7 @@ for folder in folders:
         result[folder_id] = {}
 print(json.dumps(result, separators=(",", ":")))
 PY
-)"
+  )"
   python3 - "$status" "$connections" "$folders" "$devices" "$events" "$folder_statuses" <<'PY'
 import json
 import sys
@@ -117,12 +118,15 @@ action() {
     rescan) request POST "/rest/folder/rescan?folder=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$id")" >/dev/null ;;
     restart) systemctl --user restart syncthing.service ;;
     toggle) if systemctl --user is-active --quiet syncthing.service; then systemctl --user stop syncthing.service; else systemctl --user start syncthing.service; fi ;;
-    *) printf 'Usage: %s snapshot|pause|resume|rescan|restart|toggle [folder-id]\n' "$0" >&2; return 2 ;;
+    *)
+      printf 'Usage: %s snapshot|pause|resume|rescan|restart|toggle [folder-id]\n' "$0" >&2
+      return 2
+      ;;
   esac
 }
 
 case "${1:-snapshot}" in
   snapshot) snapshot ;;
-  pause|resume|rescan|restart|toggle) action "$@" ;;
+  pause | resume | rescan | restart | toggle) action "$@" ;;
   *) action "$@" ;;
 esac

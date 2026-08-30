@@ -27,13 +27,13 @@ proc_ticks() {
 system_ticks() {
   awk '/^cpu / { print $2 + $3 + $4 + $5 + $6 + $7 + $8 + $9 + $10 }' /proc/stat
 }
-proc_before="$(( $(proc_ticks "$shell_unit") + $(proc_ticks "$daemon_unit") ))"
+proc_before="$(($(proc_ticks "$shell_unit") + $(proc_ticks "$daemon_unit")))"
 system_before="$(system_ticks)"
 sleep 1
-proc_after="$(( $(proc_ticks "$shell_unit") + $(proc_ticks "$daemon_unit") ))"
+proc_after="$(($(proc_ticks "$shell_unit") + $(proc_ticks "$daemon_unit")))"
 system_after="$(system_ticks)"
 idle_cpu="$(awk -v p="$((proc_after - proc_before))" -v s="$((system_after - system_before))" 'BEGIN { if (s > 0) printf "%.2f", p / s * 100; else print "0.00" }')"
-processes="$(( $(pgrep -x noxd | wc -l) + $(pgrep -x quickshell | wc -l) ))"
+processes="$(($(pgrep -x noxd | wc -l) + $(pgrep -x quickshell | wc -l)))"
 journal_start="$(systemctl --user show noxflow-shell.service -p ActiveEnterTimestamp --value 2>/dev/null || true)"
 journal_errors=0
 if [[ -n "$journal_start" ]]; then
@@ -56,4 +56,4 @@ fi
 printf 'shell_pid=%s\ndaemon_pid=%s\nshell_rss_kib=%s\ndaemon_rss_kib=%s\ncombined_noxflow_rss_kib=%s\nidle_cpu_percent=%s\nlogin_to_visible_bar_seconds=%s\nnoxflow_related_processes=%s\njournal_errors_since_shell_start=%s\n' \
   "$shell_unit" "$daemon_unit" "$shell_rss" "$daemon_rss" "$combined_rss" "$idle_cpu" "$login_to_bar" "$processes" "$journal_errors"
 
-if (( check_only )); then exit 0; fi
+if ((check_only)); then exit 0; fi

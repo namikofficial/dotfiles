@@ -48,10 +48,10 @@ install_extension() {
 install_extension "signageos.signageos-vscode-sops"
 install_extension "mikestead.dotenv"
 
-code --list-extensions | grep -Fxq "signageos.signageos-vscode-sops" \
-  || fail "SOPS VS Code extension is not installed"
-code --list-extensions | grep -Fxq "mikestead.dotenv" \
-  || fail "dotenv VS Code extension is not installed"
+code --list-extensions | grep -Fxq "signageos.signageos-vscode-sops" ||
+  fail "SOPS VS Code extension is not installed"
+code --list-extensions | grep -Fxq "mikestead.dotenv" ||
+  fail "dotenv VS Code extension is not installed"
 
 printf 'VS Code SOPS settings installed.\n'
 printf 'Settings: %s\n' "$live_settings"

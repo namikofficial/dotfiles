@@ -9,16 +9,16 @@ mkdir -p "$state_dir"
 find_chatgpt_address() {
   command -v hyprctl >/dev/null 2>&1 || return 1
   command -v jq >/dev/null 2>&1 || return 1
-  hyprctl clients -j 2>/dev/null \
-    | jq -r '.[] | select(((.class // "") | ascii_downcase) == "chatgpt") | .address' \
-    | sed -n '/^0x[0-9a-fA-F]\+$/p' \
-    | head -n 1
+  hyprctl clients -j 2>/dev/null |
+    jq -r '.[] | select(((.class // "") | ascii_downcase) == "chatgpt") | .address' |
+    sed -n '/^0x[0-9a-fA-F]\+$/p' |
+    head -n 1
 }
 
 find_chatgpt_main_pids() {
   command -v ps >/dev/null 2>&1 || return 1
-  ps -eo pid=,args= 2>/dev/null \
-    | awk -v bin="$chatgpt_binary" \
+  ps -eo pid=,args= 2>/dev/null |
+    awk -v bin="$chatgpt_binary" \
       '$2 == bin && $0 !~ / --type=/ {print $1}'
 }
 

@@ -9,7 +9,10 @@ usage() {
   echo "usage: $0 [up|down|menu]" >&2
 }
 
-[ -n "$action" ] || { usage; exit 1; }
+[ -n "$action" ] || {
+  usage
+  exit 1
+}
 
 if [ "$action" = "menu" ]; then
   choice="$(
