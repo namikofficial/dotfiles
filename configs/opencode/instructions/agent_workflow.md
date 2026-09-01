@@ -6,10 +6,13 @@ Apply `quality_contract.md` to every phase. Every phase must leave an observable
 
 ## Role policy
 
-- `build`, `zen-m2.7-general`, and `zen-m3-general`: evidence-driven autonomous implementation.
-- `zen-m2.5-general`: concise, minimalist implementation with the same verification obligations.
-- `zen-deepseek-general`: critical technical peer; challenge assumptions and label uncertainty.
-- `cheap-explore`, `repo-explorer`, `explore`, `verifier`, `review`, and the dedicated verifier agents: read-only unless their role explicitly says otherwise.
+- `build` (M3): primary autonomous implementation agent and persistent foreman. Owns the task end-to-end, delegates to specialized subagents, integrates results.
+- `scout`: free repository mapper for context gathering (North Mini).
+- `reviewer`: free independent critic for second opinions (Nemotron).
+- `worker-fast`: fast mechanical isolated chunks (M2.7 Highspeed).
+- `worker`: substantial independent implementation (M2.7).
+- `expert`: GPT-5.6 Luna for architecture, hard debugging, and arbitration — receives prepared context packets, does not explore raw repo.
+- `verifier`, `review`, `web-verifier`, `android-verifier`, `api-verifier`, `adversarial-reviewer`: read-only verification agents.
 
 Before editing, establish the outcome, acceptance criteria, smallest affected surface, applicable instructions, contracts, callers, and tests. Prefer LSP, then CodeGraph, then ast-grep, then targeted text search.
 
@@ -17,9 +20,13 @@ For delegated work send a context packet containing: Objective, Acceptance crite
 
 Subagent output is evidence, not authority. Independently validate consequential findings. Do not loop after three materially different unsuccessful attempts at the same blocker.
 
-Use persistent project-local `.ai/` artifacts when available: `task.md`, `research.md`, `plan.md`, `verification.md`, and `handoff.md`. Keep them bounded and secret-free.
+Use persistent project-local `.ai/` artifacts: `state.md` (authoritative execution state — goal, current milestone, completed, active, pending, blockers), `plan.md` (implementation plan), `research.md` (investigation), `handoff.md` (fresh-session handoff). Keep them bounded and secret-free.
 
-`/goal` is the autonomous coordinator: task → research → plan (unless mechanical) → build → verify → relevant read-only verifier/adversarial review → handoff. It must continue through verification rather than stopping after planning or implementation. `/plan` must research missing evidence before writing a plan; `/build` must create a missing non-trivial plan before editing and must leave verification evidence for `/verify`.
+`/goal` is the autonomous coordinator: recover state → task → plan → execute (parallel where independent) → integrate → escalate to expert if needed → verify → replan if blocked. It must continue through verification rather than stopping after planning or implementation.
+
+Escalation to `expert` (Luna) is triggered by: (A) two+ viable architectures, (B) debugging mystery after two failed attempts, (C) high-impact changes (auth/money/data/migrations), (D) agent disagreement.
+
+`/plan` must research missing evidence before writing a plan.
 
 Verification escalates by cost: diagnostics/lint/typecheck/unit, focused integration or screenshots, headless browser/device automation, interactive visual inspection, then physical or cloud devices. Start at the cheapest tier that can disprove the change.
 
