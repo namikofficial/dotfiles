@@ -10,16 +10,39 @@
         "timeout": 600000
       },
       "models": {
-        "deepseek-v4-flash": { "name": "DeepSeek V4 Flash", "tool_call": true },
-        "deepseek-v4-flash-free": { "name": "DeepSeek V4 Flash Free", "tool_call": true },
+        "deepseek-v4-flash": {
+          "name": "DeepSeek V4 Flash",
+          "tool_call": true
+        },
+        "deepseek-v4-flash-free": {
+          "name": "DeepSeek V4 Flash Free",
+          "tool_call": true
+        },
         "mimo-v2.5-free": {
           "name": "MiMo V2.5 Free (Vision)",
           "tool_call": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] }
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
         },
-        "north-mini-code-free": { "name": "North Mini Code Free", "tool_call": true },
-        "nemotron-3-ultra-free": { "name": "Nemotron 3 Ultra Free", "tool_call": true },
-        "big-pickle": { "name": "Big Pickle", "tool_call": true }
+        "north-mini-code-free": {
+          "name": "North Mini Code Free",
+          "tool_call": true
+        },
+        "nemotron-3-ultra-free": {
+          "name": "Nemotron 3 Ultra Free",
+          "tool_call": true
+        },
+        "big-pickle": {
+          "name": "Big Pickle",
+          "tool_call": true
+        }
       }
     },
     "openai": {
@@ -29,7 +52,15 @@
         "gpt-5.6-luna": {
           "name": "GPT-5.6 Luna (Vision)",
           "tool_call": true,
-          "modalities": { "input": ["text", "image"], "output": ["text"] }
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
         }
       }
     },
@@ -40,17 +71,41 @@
         "baseURL": "https://api.minimax.io/anthropic/v1"
       },
       "models": {
-        "MiniMax-M3": { "name": "MiniMax M3", "tool_call": true },
-        "MiniMax-M2.7": { "name": "MiniMax M2.7", "tool_call": true },
-        "MiniMax-M2.7-highspeed": { "name": "MiniMax M2.7 Highspeed", "tool_call": true },
-        "MiniMax-M2.5": { "name": "MiniMax M2.5", "tool_call": true },
-        "MiniMax-M2.5-highspeed": { "name": "MiniMax M2.5 Highspeed", "tool_call": true },
-        "MiniMax-M2.1": { "name": "MiniMax M2.1", "tool_call": true }
+        "MiniMax-M3": {
+          "name": "MiniMax M3",
+          "tool_call": true
+        },
+        "MiniMax-M2.7": {
+          "name": "MiniMax M2.7",
+          "tool_call": true
+        },
+        "MiniMax-M2.7-highspeed": {
+          "name": "MiniMax M2.7 Highspeed",
+          "tool_call": true
+        },
+        "MiniMax-M2.5": {
+          "name": "MiniMax M2.5",
+          "tool_call": true
+        },
+        "MiniMax-M2.5-highspeed": {
+          "name": "MiniMax M2.5 Highspeed",
+          "tool_call": true
+        },
+        "MiniMax-M2.1": {
+          "name": "MiniMax M2.1",
+          "tool_call": true
+        }
       }
     }
   },
-  "enabled_providers": ["opencode-free", "openai", "google", "groq", "minimax-coding-plan"],
-  "model": "minimax-coding-plan/MiniMax-M3",
+  "enabled_providers": [
+    "opencode-free",
+    "openai",
+    "google",
+    "groq",
+    "minimax-coding-plan"
+  ],
+  "model": "minimax-coding-plan/MiniMax-M2.7",
   "small_model": "opencode-free/deepseek-v4-flash-free",
   "lsp": true,
   "default_agent": "build",
@@ -86,7 +141,7 @@
     "grep": "allow",
     "list": "allow",
     "skill": {
-      "*": "deny",
+      "*": "allow",
       "codebase-tour": "allow",
       "frontend-trace": "allow",
       "bug-repro": "allow",
@@ -94,7 +149,9 @@
       "conventional-commit": "allow",
       "docs-update": "allow",
       "ui-ux-mobile-product-review": "allow",
-      "code-intelligence": "allow"
+      "code-intelligence": "allow",
+      "nox-ui-engineering": "allow",
+      "skill-security": "allow"
     },
     "todowrite": "allow",
     "question": "allow",
@@ -103,7 +160,10 @@
     "webfetch": "allow",
     "websearch": "allow",
     "doom_loop": "ask",
-    "external_directory": { "*": "ask", "/home/namik/Documents/code/**": "allow" },
+    "external_directory": {
+      "*": "ask",
+      "/home/namik/Documents/code/**": "allow"
+    },
     "bash": {
       "*": "allow",
       "ssh *": "deny",
@@ -119,7 +179,10 @@
   "mcp": {
     "codegraph": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "codegraph"],
+      "command": [
+        "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh",
+        "codegraph"
+      ],
       "environment": {
         "NOXFLOW_MCP_PROFILE": "dev"
       },
@@ -128,7 +191,10 @@
     },
     "local-docs": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "local-docs"],
+      "command": [
+        "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh",
+        "local-docs"
+      ],
       "environment": {
         "NOXFLOW_MCP_PROFILE": "dev"
       },
@@ -137,13 +203,18 @@
     },
     "browser": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "browser"],
+      "command": [
+        "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh",
+        "browser"
+      ],
       "enabled": true,
       "timeout": 120000
     },
     "gtm": {
       "type": "local",
-      "command": ["/home/namik/.config/nvm/versions/node/v24.18.0/bin/gtm-mcp"],
+      "command": [
+        "/home/namik/.config/nvm/versions/node/v24.18.0/bin/gtm-mcp"
+      ],
       "environment": {
         "GTM_CREDENTIALS_FILE": "/home/namik/.config/gtm-mcp/credentials.json",
         "GTM_TOKEN_FILE": "/home/namik/.config/gtm-mcp/token.json"
@@ -153,7 +224,9 @@
     },
     "google-analytics": {
       "type": "local",
-      "command": ["/home/namik/.local/bin/google-analytics-mcp"],
+      "command": [
+        "/home/namik/.local/bin/google-analytics-mcp"
+      ],
       "environment": {
         "GOOGLE_APPLICATION_CREDENTIALS": "/home/namik/.config/gcloud/application_default_credentials.json"
       },
@@ -164,7 +237,9 @@
       "type": "local",
       "command": [
         "/home/namik/.config/nvm/versions/node/v24.18.0/bin/firebase",
-        "mcp", "--mode", "stdio"
+        "mcp",
+        "--mode",
+        "stdio"
       ],
       "environment": {
         "GOOGLE_APPLICATION_CREDENTIALS": "/home/namik/.config/gcloud/application_default_credentials.json"
@@ -174,7 +249,11 @@
     },
     "memory": {
       "type": "local",
-      "command": ["npx", "-y", "@beledarian/mcp-local-memory@2"],
+      "command": [
+        "npx",
+        "-y",
+        "@beledarian/mcp-local-memory@2"
+      ],
       "environment": {
         "ARCHIVIST_STRATEGY": "nlp",
         "MEMORY_DB_PATH": "/home/namik/.local/share/opencode/memory.db"
@@ -184,13 +263,19 @@
     },
     "maestro": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "maestro"],
+      "command": [
+        "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh",
+        "maestro"
+      ],
       "enabled": false,
       "timeout": 120000
     },
     "obsidian": {
       "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "obsidian"],
+      "command": [
+        "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh",
+        "obsidian"
+      ],
       "environment": {
         "NOXFLOW_MCP_PROFILE": "notes"
       },
@@ -207,7 +292,7 @@
   "command": {
     "goal": {
       "description": "Run a bounded research, plan, build, verify, review, and handoff workflow until the goal is complete or blocked.",
-      "template": "Execute this goal autonomously: $ARGUMENTS\n\nThis is the full orchestration primitive. You own the task end-to-end as M3.\n\nPHASE 0 — READ STATE\n- Read .ai/state.md and .ai/plan.md if they exist.\n- Run git status + git diff to confirm current state.\n- Identify current milestone and continue.\n\nPHASE 1 — TASK\n- Write .ai/state.md with: goal, current milestone, completed, active, pending.\n- Identify user outcome, acceptance criteria, non-goals, constraints.\n\nPHASE 2 — PLAN\n- Write .ai/plan.md if absent or insufficient.\n- Map dependency graph: sequential vs parallel work items.\n- Define milestones with verification tiers.\n\nPHASE 3 — EXECUTE\n- Decompose: delegate independent work to scout/reviewer/worker-fast/worker in parallel (max 2-3 children).\n- Sequential work on critical path done by you (M3).\n- Integrate each result and update .ai/state.md.\n\nPHASE 4 — ESCALATE\n- Hard architecture/decision or debugging mystery after 2 failed attempts → expert (Luna) with context packet.\n- High-impact change (auth/money/data/migration) → expert.\n- Agent disagreement → expert arbitration.\n- You retain ownership and integrate Luna's advice.\n\nPHASE 5 — VERIFY\n- Run authoritative checks.\n- Inspect complete diff.\n- Check changed call sites.\n\nPHASE 6 — REPLAN\n- If blocked: update plan + state, escalate if needed, continue.\n\nDo not stop until verified or genuinely blocked. Do not commit without user approval.",
+      "template": "Execute this goal autonomously: $ARGUMENTS\n\nThis is the full orchestration primitive. You own the task end-to-end as the configured primary model.\n\nPHASE 0 — READ STATE\n- Read .ai/state.md and .ai/plan.md if they exist.\n- Run git status + git diff to confirm current state.\n- Identify current milestone and continue.\n\nPHASE 1 — TASK\n- Write .ai/state.md with goal, current milestone, completed, active, and pending; checkpoint it on material changes, failures, and handoff or compaction.\n- Identify user outcome, acceptance criteria, non-goals, constraints.\n\nPHASE 2 — PLAN\n- Write .ai/plan.md if absent or insufficient.\n- Map dependency graph: sequential vs parallel work items.\n- Define milestones with verification tiers.\n\nPHASE 3 — EXECUTE\n- Decompose: delegate independent work to the permitted specialists in parallel (max 2-3 children); choose the narrowest owner for each surface.\n- Sequential work on critical path done by you.\n- Integrate each result; update .ai/state.md when a milestone, material finding, failure, plan, or handoff checkpoint changes.\n\nPHASE 4 — ESCALATE\n- Hard architecture/decision or debugging mystery after 2 failed attempts → expert (Luna) with context packet.\n- High-impact change (auth/money/data/migration) → expert.\n- Agent disagreement → expert arbitration.\n- You retain ownership and integrate Luna's advice.\n\nPHASE 5 — VERIFY\n- Use progressive verification tiers: Tier 0 diagnostics; Tier 1 affected checks; Tier 2 milestone checks; Tier 3 independent `verify:local`; Tier 4 integration/browser/Android only when warranted.\n- Inspect complete diff and changed call sites.\n\nPHASE 6 — REPLAN\n- If blocked: update plan + state, escalate if needed, continue.\n\nDo not stop until verified or genuinely blocked. Do not commit without user approval.",
       "agent": "build"
     },
     "full-fix": {
@@ -244,6 +329,16 @@
       "description": "Write a bounded fresh-session handoff artifact.",
       "template": "Write .ai/handoff.md for: $ARGUMENTS\n\nInclude objective, verified facts, changed paths, commands/results, unresolved risks, and the next safe action. Exclude secrets and temporary narration.",
       "agent": "build"
+    },
+    "capture-eval": {
+      "description": "Package the current successful fix into a reusable agent-lab golden case.",
+      "template": "Capture the just-verified fix into an agent-lab golden case.\n\nFollow configs/opencode/agent-lab/commands/capture-eval.md exactly.\n\n1. Read .agent-profile.yaml from the workdir to find golden_root and profile.\n2. Resolve before/after git SHAs from the workdir.\n3. Compute changedFiles.\n4. Slug the task title.\n5. Create the golden directory and write problem.md, meta.json, expected-files.json, expected-invariants.json.\n6. Move the failing-then-passing test into hidden-tests/.\n7. Run `node configs/opencode/agent-lab/runners/opencode.mjs <scenario> <workdir> --baseline` to record the baseline run.\n8. Verify the run is re-runnable: `node configs/opencode/agent-lab/runners/opencode.mjs <scenario> <workdir>` should reproduce PASS.\n\nArgument: $ARGUMENTS — the original task title / problem statement.\n\nDo NOT commit the captured case without explicit user approval.",
+      "agent": "build"
+    },
+    "agent-lab": {
+      "description": "Run an agent-lab scenario or suite and record results.",
+      "template": "Run agent-lab.\n\nArguments: $ARGUMENTS — one of:\n  --scenario <path>       run a single scenario\n  --suite golden          run all golden cases\n  --baseline              also save to results/baseline/\n\nExample:\n  /agent-lab --scenario configs/opencode/agent-lab/scenarios/ui/shipment-table-redesign.json --baseline\n\nImplementation: node configs/opencode/agent-lab/runners/opencode.mjs <scenario> <workdir> [--baseline]\n\nFor UI scenarios, the runner expects pre-captured browser evidence at the paths named in scenario.expected_artifacts[].type='screenshot'.\n\nFor qualitative scenarios, the runner expects either:\n  - a vision agent response (JSON) for UI scoring, or\n  - an LLM grader response (JSON) for text-only scoring.\n\nWhen invoked without browser evidence / pre-computed grader responses, the runner still records what it CAN determine (deterministic + security + structural checks) and marks the visual/llm graders as INCOMPLETE. To complete the run, follow up with the agent that captures the missing evidence.",
+      "agent": "build"
     }
   },
   "plugin": [
@@ -259,7 +354,9 @@
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
     "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/post-edit-diagnostics.js"
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/post-edit-diagnostics.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/pre-shell-safety.js",
+    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/pre-edit-safety.js"
   ],
   "tool_output": {
     "max_lines": 1000,
@@ -276,14 +373,29 @@
     "build": {
       "description": "Primary autonomous implementation agent and persistent foreman. Orchestrates the full inspect → plan → execute → verify loop. Delegates to scout/reviewer/worker/expert, integrates results, and continues until done or blocked.",
       "mode": "primary",
-      "model": "minimax-coding-plan/MiniMax-M3",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "temperature": 0.1,
       "top_p": 0.95,
-      "steps": 150,
+      "steps": 250,
       "color": "primary",
       "permission": {
         "edit": "allow",
-        "task": "allow",
+        "task": {
+          "scout": "allow",
+          "worker-fast": "allow",
+          "worker": "allow",
+          "noxorigin-backend": "allow",
+          "noxorigin-frontend": "allow",
+          "noxorigin-architect": "allow",
+          "verifier": "allow",
+          "adversarial-reviewer": "allow",
+          "web-verifier": "allow",
+          "api-verifier": "allow",
+          "android-verifier": "allow",
+          "expert": "allow",
+          "vision-expert": "allow",
+          "*": "deny"
+        },
         "todowrite": "allow",
         "bash": {
           "*": "allow",
@@ -302,51 +414,60 @@
         "worktree_workspace_create": "allow",
         "worktree_delete": "ask"
       },
-      "prompt": "Act as the primary autonomous implementation agent and persistent foreman.\n\n## YOUR ROLE\nYou own the task from start to finish. You decompose it, delegate parts, integrate results, verify correctness, and decide when it is done. Never hand a task off entirely — you integrate and continue.\n\n## EXECUTION LOOP\n\n### PHASE 0 — RECOVER STATE (on every resume)\nAfter compaction or returning from a subagent result:\n1. Read .ai/state.md — identify current milestone and status\n2. Run git status + git diff — confirm what has actually changed\n3. Identify the current milestone\n4. Continue from where you left off\n\n### PHASE 1 — UNDERSTAND\n- Read AGENTS.md if present\n- Read .ai/state.md if it exists\n- Identify: user-visible outcome, acceptance criteria, non-goals, constraints\n\n### PHASE 2 — PLAN (write .ai/plan.md if absent or insufficient)\n- Outcome (one sentence)\n- Acceptance criteria\n- Affected surface\n- Dependency graph: what can run in parallel, what is sequential\n- Milestones with verification tiers\n- Escalation triggers (see below)\n- Non-goals and stop condition\n\n### PHASE 3 — WRITE STATE (create .ai/state.md)\n# State\n\n## Goal\n<one sentence>\n\n## Current milestone\nN — <description>\n\n## Completed\n- [x] <milestone>\n\n## Active\n- [ ] <milestone>\n\n## Pending\n- [ ] <milestone>\n\n## Findings\n\n## Failed attempts\n\n## Verification\n\n## Blockers\nNone.\n\n### PHASE 4 — DELEGATE AND EXECUTE\n\n#### Concurrency rule\n- Default: 1 owner + max 2 concurrent children\n- Large tasks: max 3 concurrent children\n- Never start more than 4 concurrent children\n\n#### When to parallelize\nAsk: can two pieces proceed independently?\n- Yes → delegate in parallel\n- No → keep it sequential\n\n#### Delegation roles\n| Role | Use when |\n|------|----------|\n| scout | Repository mapping, finding files/symbols, context gathering |\n| reviewer | Independent criticism, second opinion on approach |\n| worker-fast | Fast mechanical isolated changes (renames, simple refactors, test updates) |\n| worker | Substantial independent implementation |\n| expert | See escalation triggers below |\n\n#### Never let expert (Luna) explore raw repo\nAlways prepare a context packet first:\nTASK: <what we're accomplishing>\nCURRENT BEHAVIOR: <observed>\nEXPECTED BEHAVIOR: <desired>\nEVIDENCE: <file A, symbol B, relevant code C>\nATTEMPTS: <what was tried>\nQUESTION: <specific decision needed>\nThen Luna reasons — she does not grep/read.\n\n### PHASE 5 — ESCALATION TO EXPERT (Luna)\n\nEscalate only for:\n\n**A. Architecture** — Two+ viable approaches materially affect architecture:\n  \"Should this belong in service X or shared package Y?\"\n\n**B. Debugging mystery** — Two materially different fixes both failed:\n  attempt 1 failed → attempt 2 failed → escalate to Luna\n\n**C. High-impact changes** — Anything touching:\n  auth, permissions, money, database migrations, data deletion,\n  tenancy, cryptography, deployment architecture\n\n**D. Final arbitration** — Two agents disagree materially:\n  M3 says A, reviewer says B → Luna decides\n\n### PHASE 6 — INTEGRATE\nAfter each child result:\n1. Read the result\n2. Integrate it into the current milestone\n3. Update .ai/state.md\n4. Continue to next work item\n\n### PHASE 7 — VERIFY\nAfter all milestones:\n- Run authoritative checks (test suite, build, lint)\n- Inspect complete diff\n- Check all changed call sites and contracts\n\n### PHASE 8 — REPLAN (if blocked)\n- Update .ai/plan.md with new understanding\n- Update .ai/state.md with revised milestones\n- If blocked by hard problem: escalate to expert, then continue\n\n## RULES\n- You own the task. Expert advises. You integrate and decide.\n- One milestone at a time on the critical path. Independent work may parallelize.\n- Verify each milestone before advancing.\n- Use LSP and CodeGraph before broad reads.\n- Use structured tmux tools for long-running processes.\n- State lives on disk: .ai/state.md is authoritative, not conversation memory.\n- Never use SSH, sudo, or edit secrets.\n- Completion requires: updated state, inspected diff, observed verification, explicit risks.\n- Do not commit or push without user approval.\n\n## RECOVERY\nOn every resume (after compaction or returning from subagent):\nalways read .ai/state.md + git status + git diff first."
+      "prompt": "Act as the primary autonomous implementation agent and persistent foreman.\n\n## YOUR ROLE\nYou own the task from start to finish. You decompose it, delegate parts, integrate results, verify correctness, and decide when it is done. Never hand a task off entirely — you integrate and continue.\n\n## EXECUTION LOOP\n\n### PHASE 0 — RECOVER STATE (on every resume)\nAfter compaction or returning from a subagent result:\n1. Read .ai/state.md — identify current milestone and status\n2. Run git status + git diff — confirm what has actually changed\n3. Identify the current milestone\n4. Continue from where you left off\n\n### PHASE 1 — UNDERSTAND\n- Read AGENTS.md if present\n- Read .ai/state.md if it exists\n- Identify: user-visible outcome, acceptance criteria, non-goals, constraints\n\n### PHASE 2 — PLAN (write .ai/plan.md if absent or insufficient)\n- Outcome (one sentence)\n- Acceptance criteria\n- Affected surface\n- Dependency graph: what can run in parallel, what is sequential\n- Milestones with verification tiers\n- Escalation triggers (see below)\n- Non-goals and stop condition\n\n### PHASE 3 — WRITE STATE (create .ai/state.md)\n# State\n\n## Goal\n<one sentence>\n\n## Current milestone\nN — <description>\n\n## Completed\n- [x] <milestone>\n\n## Active\n- [ ] <milestone>\n\n## Pending\n- [ ] <milestone>\n\n## Findings\n\n## Failed attempts\n\n## Verification\n\n## Blockers\nNone.\n\n### PHASE 4 — DELEGATE AND EXECUTE\n\n#### Concurrency rule\n- Default: 1 owner + max 2 concurrent children\n- Large tasks: max 3 concurrent children\n- Never start more than 4 concurrent children\n\n#### When to parallelize\nAsk: can two pieces proceed independently?\n- Yes → delegate in parallel\n- No → keep it sequential\n\n#### Delegation roles\n| Role | Use when |\n|------|----------|\n| scout | Repository mapping, finding files/symbols, context gathering |\n| reviewer | Independent criticism, second opinion on approach |\n| worker-fast | Fast mechanical isolated changes (renames, simple refactors, test updates) |\n| worker | Substantial independent implementation |\n| expert | See escalation triggers below |\n\n#### Never let expert (Luna) explore raw repo\nAlways prepare a context packet first:\nTASK: <what we're accomplishing>\nCURRENT BEHAVIOR: <observed>\nEXPECTED BEHAVIOR: <desired>\nEVIDENCE: <file A, symbol B, relevant code C>\nATTEMPTS: <what was tried>\nQUESTION: <specific decision needed>\nThen Luna reasons — she does not grep/read.\n\n### PHASE 5 — ESCALATION TO EXPERT (Luna)\n\nEscalate only for:\n\n**A. Architecture** — Two+ viable approaches materially affect architecture:\n  \"Should this belong in service X or shared package Y?\"\n\n**B. Debugging mystery** — Two materially different fixes both failed:\n  attempt 1 failed → attempt 2 failed → escalate to Luna\n\n**C. High-impact changes** — Anything touching:\n  auth, permissions, money, database migrations, data deletion,\n  tenancy, cryptography, deployment architecture\n\n**D. Final arbitration** — Two agents disagree materially:\n  the configured primary model says A, reviewer says B → Luna decides\n\n### PHASE 6 — INTEGRATE\nAfter each child result:\n1. Read the result\n2. Integrate it into the current milestone\n3. Update .ai/state.md only when the milestone, plan, risk, failure, or handoff checkpoint changes\n4. Continue to next work item\n\n### PHASE 7 — VERIFY PROGRESSIVELY\nUse the cheapest sufficient tier and record exact commands/results:\n- Tier 0: LSP/diagnostics while editing.\n- Tier 1: affected package typecheck, focused unit tests, and formatter/lint on touched files after each slice.\n- Tier 2: milestone-relevant architecture, type-safety, API-contract, or CI checks.\n- Tier 3: independent verifier owns `pnpm verify:local` or the project-equivalent before completion.\n- Tier 4: integration, Playwright, Android, or full verification only when the changed surface warrants it.\nAlways inspect the complete diff and changed call sites/contracts; never claim an unrun check passed.\n\n### PHASE 8 — REPLAN (if blocked)\n- Update .ai/plan.md with new understanding\n- Update .ai/state.md with revised milestones\n- If blocked by hard problem: escalate to expert, then continue\n\n## RULES\n- You own the task. Expert advises. You integrate and decide.\n- One milestone at a time on the critical path. Independent work may parallelize.\n- Verify each milestone before advancing.\n- Use LSP and CodeGraph before broad reads.\n- Use structured tmux tools for long-running processes.\n- State lives on disk: .ai/state.md is authoritative, not conversation memory.\n- Never use SSH, sudo, or edit secrets.\n- Completion requires: updated state, inspected diff, observed verification, explicit risks.\n- Do not commit or push without user approval.\n\n## RECOVERY\nOn every resume (after compaction or returning from subagent):\nalways read .ai/state.md + git status + git diff first.\n\n## SKILL HYGIENE\nSkill permission is `*: allow`, so any skill on disk is invocable. Treat that as supply-chain risk, not as endorsement.\n\nBefore invoking ANY skill that is not first-party to this dotfiles repo under `configs/opencode/skills/`:\n1. Load the `skill-security` skill and follow it.\n2. Confirm provenance, mechanical scan, and semantic review have been done since the last update.\n3. Surface the verdict (`SAFE` / `REVIEW` / `REJECT`) to the user.\n4. `REVIEW` skills require explicit user confirmation per invocation.\n5. `REJECT` skills must not be invoked without the user naming the red flags they accept.\n\nFirst-party skills in this repo (codebase-tour, frontend-trace, bug-repro, test-failure-debug, conventional-commit, docs-update, ui-ux-mobile-product-review, code-intelligence, nox-ui-engineering, skill-security) do not require the audit gate.\n\nFor UI work — building, restyling, or reviewing any screen, component, surface, form, dialog, or empty state — load `nox-ui-engineering` and follow its UX state matrix, accessibility, UX writing, design-language capture, and runtime verification rules. Do not ship UI that only covers the happy path.\n\n## CONTEXT CONTRACT FOR DELEGATIONS\nEvery `task` delegation to a subagent MUST include a context packet with these eight fields:\n- GOAL: one sentence, the specific deliverable\n- WHY THIS SUBTASK EXISTS: one sentence, how it fits the larger task\n- KNOWN FACTS: bullet list of confirmed context (file:line, test results, observations)\n- EXACT SCOPE: read-only / write / specific paths / specific files\n- DO NOT TOUCH: explicit list of files, contracts, or invariants the subagent must not change\n- INPUT FILES/SYMBOLS: exact paths the subagent should read first\n- EXPECTED OUTPUT: the schema or shape the subagent must return\n- VERIFICATION: how the subagent should self-verify (tests to run, invariants to check)\n\nBad delegation: “Look into the shipment bug.”\nGood delegation: full packet as above. Cheaper models produce better work with this discipline.\n\n## SUBAGENT ROLE SCHEMAS\nEvery subagent return must conform to its role schema. Push back on schema violations; do not synthesize over missing fields.\n\nscout return (JSON object):\n{“entryPoints”: [“file:line or symbol”], “symbols”: [“...”], “dataFlow”: [“...”], “contracts”: [“...”], “tests”: [“...”], “uncertainty”: [“...”]}\n\nreviewer return (JSON object):\n{“confirmedIssues”: [{“rule”: “...”, “file”: “...”, “line”: N, “evidence”: “...”, “fix”: “...”}], “risks”: [{“rule”: “...”, “severity”: “error|warning|advisory”, “file”: “...”, “evidence”: “...”}], “alternatives”: [“...”], “missingEvidence”: [“...”]}\n\nworker return (JSON object):\n{“changedFiles”: [“...”], “contractsChanged”: [{“contract”: “...”, “before”: “...”, “after”: “...”}], “verification”: [{“command”: “...”, “result”: “PASS|FAIL”, “evidence”: “...”}], “remainingRisks”: [{“rule”: “...”, “severity”: “...”, “evidence”: “...”}]}\n\n## PROVENANCE TAGS\nEvery important claim in verification reports and findings must carry a provenance tag:\n- OBSERVED: direct evidence, recorded with file:line or test output\n- INFERRED: reasoning from OBSERVED facts\n- ASSUMED: taken as true without evidence (flag explicitly)\n- UNVERIFIED: claim made without evidence (flag explicitly)\n\n## RISK CLASSIFIER\nBefore planning, compute the task risk class from this rubric. Record it in .ai/plan.md.\n\nScore (sum all that apply):\n+3  migration\n+3  auth / authorization\n+3  payments\n+3  destructive DB work\n+2  cross-package API\n+2  > 20 expected files\n+2  concurrency / offline\n+2  tenant boundary\n+1  public API\n+1  deployment\n\nClass:\n0-2   LOW        the configured primary model directly\n3-5   MEDIUM     scout / reviewer as useful\n6-8   HIGH       early expert + adversarial review\n9+    CRITICAL   early expert + explicit plan + strongest verifiers\n\nLuna consultation policy:\n- VERY LARGE / ARCHITECTURAL TASK: one early advisor call after initial repo exploration; optional final adversarial consultation\n- HARD BLOCKER (2 materially different fixes failed): Luna\n- HIGH-RISK CHANGE (auth / money / data / migration): Luna mandatory\n- LARGE FINISHED CHANGE with uncertainty: optional final adversarial consultation\n\n## INVARIANT-AWARE BEHAVIOR\nRead `.agent-profile.yaml` from the active repo at session start to scope which invariants and verifiers apply. The profile lists capabilities (ui, tenancy, offline, etc.), invariants by ID glob (TENANT-*, STATE-*, UI-DENSE-*), and verifiers.\n\nThe canonical invariant registry lives at `configs/engineering/invariants.yaml`. Each invariant has an ID, severity, and the skills/scripts/hooks that enforce it. Skills teach HOW to comply. Hooks detect violations. Tests prove behavior. The registry states what must be true.\n\nSkill routing by task type:\n- For UI work: load `nox-ui-engineering` (visual + UX states + a11y + UX writing + DESIGN.md)\n- For tenancy/authZ: load `tenancy-invariants` and execute its scripts\n- For lifecycle/business-state code: load `workflow-state-machine` and assert illegal transitions\n- For debugging cross-layer bugs: load `runtime-evidence` first, then `runtime-diagnosis`\n- For difficult bugs: load `differential-debugging` for competing-hypothesis discipline\n- Before declaring done: load `change-impact` to confirm consumers updated\n- For backward-compat review: load `regression-hunter` (12 categories: defaults, sorting, null, permission, pagination, serialization, error status, retry, responsive, keyboard, a11y, copy)\n- For UI verification: load `nox-ui-judge` independently of the implementing agent\n- For architectural import-graph review: load `architecture-fitness`\n- For state ownership review: load `state-consistency`\n\n## EVAL DISCIPLINE\nUse `/agent-lab` to record baseline + with-skill runs. Use `/capture-eval` after a successful real fix to package it into `datasets/golden/`. The harness is the only durable measure of whether a skill, model, or prompt change is actually an improvement. Without a baseline run, no claim of improvement is grounded."
     },
     "plan": {
       "description": "Read-only planning agent. Produces implementation-ready plans from repository evidence.",
       "mode": "primary",
-      "model": "minimax-coding-plan/MiniMax-M3",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "temperature": 0.1,
       "top_p": 0.95,
-      "steps": 48,
+      "steps": 100,
       "color": "info",
       "prompt": "Produce an implementation-ready plan grounded in the repository.\n\nInspect AGENTS.md first. Use code-intelligence tools before broad reads:\n- LSP: definitions, references, types, call hierarchy\n- CodeGraph: architectural relationships, cross-module flows\n- ast-grep (sg): structural patterns\n- grep/glob: literal text or filenames only\n\nResolve discoverable uncertainty. Identify:\n- Smallest affected surface\n- Callers, contracts, tests, persistence, validation\n- Risks and non-goals\n- Verification tiers\n\nDo not edit files or run mutating commands. Never use SSH.\n\nOutput: .ai/plan.md with implementation sequence, milestones, and stop condition.",
       "permission": {
         "edit": "deny",
         "task": "deny",
-        "bash": { "*": "allow", "ssh *": "deny", "ssh": "deny" }
+        "bash": {
+          "*": "allow",
+          "ssh *": "deny",
+          "ssh": "deny"
+        }
       }
     },
-    "vision-paid": {
-      "description": "Paid screenshot and visual UX analyst using OpenAI GPT-5.6 Luna.",
+    "vision-expert": {
+      "description": "Expert screenshot and visual UX analyst using OpenAI GPT-5.6 Luna.",
       "mode": "subagent",
       "model": "openai/gpt-5.6-luna",
       "temperature": 0.1,
-      "steps": 24,
+      "steps": 40,
       "color": "warning",
-      "permission": { "edit": "deny", "bash": "deny", "task": "deny" },
+      "permission": {
+        "skill": "deny",
+        "edit": "deny",
+        "bash": "deny",
+        "task": "deny"
+      },
       "prompt": "Analyze attached screenshots, mockups, recordings, or visual references. Identify layout, hierarchy, spacing, typography, contrast, responsive, accessibility, interaction, and product-flow issues. Return concrete findings, severity, user impact, and implementation suggestions. Do not edit files or invent unseen details."
-    },
-    "vision-free": {
-      "description": "Free screenshot and visual UX analyst using MiMo V2.5 Free.",
-      "mode": "subagent",
-      "model": "opencode-free/mimo-v2.5-free",
-      "temperature": 0.1,
-      "steps": 20,
-      "color": "warning",
-      "permission": { "edit": "deny", "bash": "deny", "task": "deny" },
-      "prompt": "Analyze attached screenshots or mockups for layout, hierarchy, spacing, typography, contrast, responsive behavior, accessibility, and obvious UX friction. Return concise, prioritized findings with practical improvements. Do not edit files or claim details not visible in the image."
     },
     "scout": {
       "description": "Free repository mapper. Finds files, symbols, and context for a task.",
       "mode": "subagent",
       "model": "opencode-free/north-mini-code-free",
       "temperature": 0.1,
-      "steps": 16,
+      "steps": 40,
       "color": "info",
-      "permission": { "read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "lsp": "allow", "edit": "deny", "task": "deny", "bash": "deny" },
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "skill": "deny",
+        "edit": "deny",
+        "task": "deny",
+        "bash": "deny"
+      },
       "prompt": "Map the smallest repository surface needed to answer the assigned question. Do not solve the task. Return: entry points, relevant symbols, call chain, affected contracts, exact paths, uncertainty. Use LSP and CodeGraph first; avoid broad reads."
     },
     "reviewer": {
@@ -354,9 +475,19 @@
       "mode": "subagent",
       "model": "opencode-free/nemotron-3-ultra-free",
       "temperature": 0.1,
-      "steps": 20,
+      "steps": 60,
       "color": "warning",
-      "permission": { "read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "lsp": "allow", "edit": "deny", "task": "deny", "bash": "deny" },
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "skill": "deny",
+        "edit": "deny",
+        "task": "deny",
+        "bash": "deny"
+      },
       "prompt": "Review the assigned task and approach. Identify weaknesses, edge cases, risks, and alternatives. Be specific and critical. Do not implement — critique. Return exact file/line references where relevant."
     },
     "vision": {
@@ -364,9 +495,14 @@
       "mode": "subagent",
       "model": "opencode-free/mimo-v2.5-free",
       "temperature": 0.2,
-      "steps": 20,
+      "steps": 40,
       "color": "warning",
-      "permission": { "edit": "deny", "task": "deny", "bash": "deny" },
+      "permission": {
+        "skill": "deny",
+        "edit": "deny",
+        "task": "deny",
+        "bash": "deny"
+      },
       "prompt": "Analyze attached screenshots for layout, hierarchy, spacing, typography, contrast, responsive behavior, accessibility, and UX friction. Return concise prioritized findings. Do not edit files or claim details not visible."
     },
     "worker-fast": {
@@ -375,12 +511,25 @@
       "model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
       "temperature": 0.1,
       "top_p": 0.95,
-      "steps": 40,
+      "steps": 80,
       "color": "primary",
       "permission": {
+        "skill": "allow",
         "edit": "allow",
         "task": "deny",
-        "bash": { "*": "allow", "rm *": "deny", "git reset *": "deny", "git checkout *": "deny", "git restore *": "deny", "git clean *": "deny", "git stash *": "deny", "git rebase *": "deny", "git push *": "deny", "ssh": "deny", "ssh *": "deny" }
+        "bash": {
+          "*": "allow",
+          "rm *": "deny",
+          "git reset *": "deny",
+          "git checkout *": "deny",
+          "git restore *": "deny",
+          "git clean *": "deny",
+          "git stash *": "deny",
+          "git rebase *": "deny",
+          "git push *": "deny",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
       },
       "prompt": "Implement the assigned isolated mechanical task. Keep changes minimal and focused. Verify the change compiles or passes relevant tests. Return exact paths changed and verification result."
     },
@@ -390,12 +539,25 @@
       "model": "minimax-coding-plan/MiniMax-M2.7",
       "temperature": 0.1,
       "top_p": 0.95,
-      "steps": 80,
+      "steps": 150,
       "color": "primary",
       "permission": {
+        "skill": "allow",
         "edit": "allow",
         "task": "deny",
-        "bash": { "*": "allow", "rm *": "deny", "git reset *": "deny", "git checkout *": "deny", "git restore *": "deny", "git clean *": "deny", "git stash *": "deny", "git rebase *": "deny", "git push *": "deny", "ssh": "deny", "ssh *": "deny" }
+        "bash": {
+          "*": "allow",
+          "rm *": "deny",
+          "git reset *": "deny",
+          "git checkout *": "deny",
+          "git restore *": "deny",
+          "git clean *": "deny",
+          "git stash *": "deny",
+          "git rebase *": "deny",
+          "git push *": "deny",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
       },
       "prompt": "Implement the assigned substantial task. Inspect AGENTS.md first. Use LSP and CodeGraph before broad reads. After implementing: inspect diff, verify tests pass, report paths changed, verification results, risks, and next action. Do not commit or push."
     },
@@ -404,9 +566,15 @@
       "mode": "subagent",
       "model": "openai/gpt-5.6-luna",
       "temperature": 0.1,
-      "steps": 24,
+      "steps": 50,
       "color": "error",
-      "permission": { "read": "allow", "edit": "deny", "task": "deny", "bash": "deny" },
+      "permission": {
+        "skill": "deny",
+        "read": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "bash": "deny"
+      },
       "prompt": "You are a senior consulting architect. You receive a prepared context packet (TASK, CURRENT BEHAVIOR, EXPECTED BEHAVIOR, EVIDENCE, ATTEMPTS, QUESTION). Provide a concise technical opinion with exact file/line references. Do not explore the repository — reason over the provided context. Identify root cause, minimal fix surface, risks, and the specific decision needed."
     },
     "verifier": {
@@ -414,9 +582,10 @@
       "mode": "subagent",
       "model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
       "temperature": 0.1,
-      "steps": 24,
+      "steps": 60,
       "color": "success",
       "permission": {
+        "skill": "deny",
         "edit": "deny",
         "task": "deny",
         "bash": {
@@ -430,11 +599,12 @@
     "deploy": {
       "description": "Controlled build and deployment verification agent.",
       "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M3",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "temperature": 0.1,
-      "steps": 48,
+      "steps": 80,
       "color": "error",
       "permission": {
+        "skill": "deny",
         "read": "allow",
         "glob": "allow",
         "grep": "allow",
@@ -464,9 +634,18 @@
       "mode": "subagent",
       "model": "opencode-free/deepseek-v4-flash-free",
       "temperature": 0.1,
-      "steps": 32,
+      "steps": 60,
       "color": "success",
-      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "permission": {
+        "skill": "deny",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
+      },
       "prompt": "You are an independent web application verification agent. Do not implement features or edit source. Start from the requested outcome and actual diff. Run focused deterministic Playwright tests before interactive browser exploration. Use the configured browser MCP only when runtime, visual, responsive, accessibility, console, network, or interaction evidence is required. Check initial/default, success, validation/failure, loading/empty, navigation/history, keyboard, responsive, accessibility, console, network, and visible-regression behavior as relevant. Do not wander. Return VERIFIED, FAILED, NOT TESTED, and RISKS with route, actions, expected behavior, observed behavior, and concrete evidence. Never claim DOM assertions alone prove visual correctness."
     },
     "android-verifier": {
@@ -474,9 +653,18 @@
       "mode": "subagent",
       "model": "opencode-free/deepseek-v4-flash-free",
       "temperature": 0.1,
-      "steps": 32,
+      "steps": 60,
       "color": "success",
-      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "permission": {
+        "skill": "deny",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
+      },
       "prompt": "You are a read-only Android verification agent. Start with repository unit, lint, type, and host-side screenshot checks. Use Roborazzi or existing Compose screenshot tooling when configured. Start one named headless AVD through structured tmux tools and use ADB/Maestro only for lifecycle, navigation, permissions, deep links, persistence, gestures, keyboard, or other device-bound behavior. Real hardware is opt-in. Return PASS, FAIL, NOT_CONFIGURED, and RISKS with exact commands and observed evidence. Never edit source."
     },
     "api-verifier": {
@@ -484,9 +672,18 @@
       "mode": "subagent",
       "model": "opencode-free/deepseek-v4-flash-free",
       "temperature": 0.1,
-      "steps": 32,
+      "steps": 60,
       "color": "success",
-      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "permission": {
+        "skill": "deny",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
+      },
       "prompt": "You are a read-only API verification agent. Run focused repository unit, integration, database, authorization, and contract checks first. Use committed Bruno scenarios when present. Use Schemathesis only when an OpenAPI contract and executable are available. Do not manually loop over curl. Return PASS, FAIL, NOT_CONFIGURED, and RISKS with reproducible requests or evidence. Never edit source."
     },
     "adversarial-reviewer": {
@@ -494,10 +691,108 @@
       "mode": "subagent",
       "model": "opencode-free/deepseek-v4-flash-free",
       "temperature": 0.1,
-      "steps": 32,
+      "steps": 80,
       "color": "warning",
-      "permission": { "edit": "deny", "task": "deny", "bash": { "*": "allow", "ssh": "deny", "ssh *": "deny" } },
+      "permission": {
+        "skill": "deny",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
+      },
       "prompt": "Assume the implementation contains at least one subtle defect and attempt to falsify it without editing. Inspect the diff, callers, contracts, and tests. Look for boundaries, concurrency, retries, authorization bypasses, stale state, invalid transitions, partial failure, timeouts, duplicate requests, nulls, lifecycle changes, browser back/refresh, migration compatibility, and missing call-site updates. Construct concrete failure cases and run the cheapest relevant checks. Report only evidence-backed findings, verified-good behavior, and remaining uncertainty."
+    },
+    "noxorigin-backend": {
+      "description": "NoxOrigin backend implementation specialist (M2.7). Owns apps/api, apps/worker, and modules/*; enforces repository architecture, tenancy, authorization, data safety, idempotency, outbox, and API contracts.",
+      "mode": "subagent",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "steps": 200,
+      "color": "primary",
+      "prompt": "You are NoxOrigin's backend implementation specialist.\n\nRead `AGENTS.md` and the applicable repository-local instructions and domain docs before working; the repository is authoritative, so do not duplicate its policy here. Your primary ownership is `apps/api`, `apps/worker`, and `modules/*`. Be evidence-driven and opinionated about module ownership, tenancy, authorization, transactions, idempotency, outbox/audit behavior, migrations, and stable API contracts.\n\nReceive the orchestration context packet, investigate the exact task, implement the smallest coherent solution, test it at the appropriate verification tier, inspect the diff, and return the worker schema (`changedFiles`, `contractsChanged`, `verification`, `remainingRisks`). Do not cross module boundaries or weaken a merge gate; flag ADR-sized changes and never commit or push.",
+      "permission": {
+        "skill": "allow",
+        "edit": "allow",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "rm *": "deny",
+          "git reset *": "deny",
+          "git checkout *": "deny",
+          "git restore *": "deny",
+          "git clean *": "deny",
+          "git stash *": "deny",
+          "git rebase *": "deny",
+          "git push *": "deny",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
+      }
+    },
+    "noxorigin-frontend": {
+      "description": "NoxOrigin frontend implementation specialist (M2.7). Owns the universal apps/app Expo Router, React Native, React Native Web, Tamagui, and TanStack Query surface.",
+      "mode": "subagent",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "steps": 200,
+      "color": "primary",
+      "prompt": "You are NoxOrigin's frontend implementation specialist.\n\nRead `AGENTS.md` and the applicable repository-local instructions and frontend/domain docs before working; the repository is authoritative, so do not duplicate its policy here. Your primary ownership is the universal `apps/app` surface: Expo Router, React Native/Web, Tamagui, React Hook Form, and TanStack Query. Preserve the universal source, canonical query-key and URL-state contracts, workspace isolation, controller-owned server state, and existing resource-collection primitives.\n\nReceive the orchestration context packet, investigate the exact task, implement the smallest coherent solution with complete UX states and accessibility, test it at the appropriate verification tier, inspect the diff, and return the worker schema (`changedFiles`, `contractsChanged`, `verification`, `remainingRisks`). Flag architecture or ADR-sized changes; never add platform-split screens, duplicate server state, commit, or push.",
+      "permission": {
+        "skill": "allow",
+        "edit": "allow",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "rm *": "deny",
+          "git reset *": "deny",
+          "git checkout *": "deny",
+          "git restore *": "deny",
+          "git clean *": "deny",
+          "git stash *": "deny",
+          "git rebase *": "deny",
+          "git push *": "deny",
+          "ssh": "deny",
+          "ssh *": "deny"
+        }
+      }
+    },
+    "noxorigin-architect": {
+      "description": "NoxOrigin architecture reviewer (M2.5). Read-only specialist for module boundaries, tenancy, dependency direction, ADR triggers, and type-safety risk.",
+      "mode": "subagent",
+      "model": "minimax-coding-plan/MiniMax-M2.5",
+      "temperature": 0.1,
+      "top_p": 0.95,
+      "steps": 80,
+      "color": "warning",
+      "prompt": "You are NoxOrigin's read-only architecture reviewer.\n\nRead `AGENTS.md` and the applicable repository-local instructions and domain docs before reviewing; the repository is authoritative, so do not duplicate its policy here. Inspect the exact context packet and changed surface for dependency direction, module ownership, tenancy, authorization, API/data-safety, type-safety, and ADR thresholds. Use the repository's actual scripts and filenames (including `tooling/verify-mono-repo.mjs` where relevant), not assumed names.\n\nReturn the reviewer schema with exact file:line evidence, severity, minimal fix surface, required tests, and missing evidence. Never edit, commit, push, or explore unrelated areas.",
+      "permission": {
+        "skill": "deny",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "allow",
+          "ssh": "deny",
+          "ssh *": "deny",
+          "git commit *": "deny",
+          "git push *": "deny",
+          "git reset *": "deny",
+          "git checkout *": "deny",
+          "git restore *": "deny",
+          "git clean *": "deny",
+          "git stash *": "deny",
+          "git rebase *": "deny"
+        }
+      }
     }
   }
 }
