@@ -10,6 +10,22 @@ This workstation standard is:
 This keeps one Wi-Fi control path and avoids the unstable dual-band roaming
 observed when the router advertises 2.4 GHz and 5 GHz under one SSID.
 
+## Saved-network autoconnect policy
+
+Use iwd's per-profile `AutoConnect` property when a saved network should remain
+available for manual use without taking over automatically:
+
+```sh
+iwctl known-networks "Preferred hotspot" set-property AutoConnect yes
+iwctl known-networks "Manual-only network" set-property AutoConnect no
+iwctl known-networks "Preferred hotspot" show
+iwctl known-networks "Manual-only network" show
+```
+
+This preserves the saved credentials. It does not make noxd or NoxFlow choose a
+fallback SSID; an `AutoConnect=no` network is still available through an
+explicit connection action.
+
 ## Enforce
 
 Run this from a local terminal because it changes system services:
