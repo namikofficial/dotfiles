@@ -28,6 +28,8 @@ const DEVICE_IFACE: &str = "org.freedesktop.NetworkManager.Device";
 const WIFI_IFACE: &str = "org.freedesktop.NetworkManager.Device.Wireless";
 const ACTIVE_IFACE: &str = "org.freedesktop.NetworkManager.Connection.Active";
 const AP_IFACE: &str = "org.freedesktop.NetworkManager.AccessPoint";
+const IWD_STATION_RETRY_ATTEMPTS: usize = 6;
+const IWD_STATION_RETRY_DELAY: Duration = Duration::from_millis(250);
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct NetworkState {
@@ -398,6 +400,36 @@ fn iwctl_station() -> io::Result<String> {
         .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no iwd station found"))
 }
 
+fn iwctl_station_for_action() -> io::Result<String> {
+    retry_iwd_station(
+        iwctl_station,
+        thread::sleep,
+        IWD_STATION_RETRY_ATTEMPTS,
+        IWD_STATION_RETRY_DELAY,
+    )
+}
+
+fn retry_iwd_station<F, S>(
+    mut locate: F,
+    mut sleep: S,
+    attempts: usize,
+    delay: Duration,
+) -> io::Result<String>
+where
+    F: FnMut() -> io::Result<String>,
+    S: FnMut(Duration),
+{
+    let attempts = attempts.max(1);
+    for attempt in 0..attempts {
+        match locate() {
+            Ok(station) => return Ok(station),
+            Err(_) if attempt + 1 < attempts => sleep(delay),
+            Err(error) => return Err(error),
+        }
+    }
+    unreachable!("at least one iwd station lookup is always attempted")
+}
+
 fn iwctl_output(args: &[&str]) -> io::Result<String> {
     let output = Command::new("iwctl").args(args).output()?;
     if !output.status.success() {
@@ -637,20 +669,20 @@ fn execute(command: &CommandRequest) -> io::Result<()> {
     }
     match command {
         CommandRequest::WifiSetEnabled(enabled) => {
-            let station = iwctl_station()?;
+            let station = iwctl_station_for_action()?;
             let value = if *enabled { "on" } else { "off" };
             iwctl_output(&["device", &station, "set-property", "Powered", value]).map(|_| ())
         }
         CommandRequest::Refresh => {
-            let station = iwctl_station()?;
+            let station = iwctl_station_for_action()?;
             iwctl_output(&["station", &station, "scan"]).map(|_| ())
         }
         CommandRequest::ConnectSaved(ssid) => {
-            let station = iwctl_station()?;
+            let station = iwctl_station_for_action()?;
             iwctl_output(&["--dont-ask", "station", &station, "connect", ssid]).map(|_| ())
         }
         CommandRequest::Connect { ssid, passphrase } => {
-            let station = iwctl_station()?;
+            let station = iwctl_station_for_action()?;
             if passphrase.is_empty() {
                 iwctl_output(&["--dont-ask", "station", &station, "connect", ssid]).map(|_| ())
             } else {
@@ -680,7 +712,7 @@ fn execute(command: &CommandRequest) -> io::Result<()> {
             iwctl_output(&["known-networks", ssid, "forget"]).map(|_| ())
         }
         CommandRequest::DisconnectWifi => {
-            let station = iwctl_station()?;
+            let station = iwctl_station_for_action()?;
             iwctl_output(&["station", &station, "disconnect"]).map(|_| ())
         }
         CommandRequest::VpnSetEnabled { .. } => unreachable!(),
@@ -854,6 +886,55 @@ mod tests {
         assert_eq!(networks[0]["saved"], json!(true));
         assert_eq!(networks[0]["connected"], json!(true));
         assert_eq!(networks[1]["secure"], json!(false));
+    }
+
+    #[test]
+    fn retries_transiently_missing_iwd_station() {
+        let mut calls = 0;
+        let mut sleeps = 0;
+        let station = retry_iwd_station(
+            || {
+                calls += 1;
+                if calls < 3 {
+                    Err(io::Error::new(
+                        io::ErrorKind::NotFound,
+                        "no iwd station found",
+                    ))
+                } else {
+                    Ok("wlan0".to_owned())
+                }
+            },
+            |_| sleeps += 1,
+            6,
+            Duration::from_millis(250),
+        )
+        .expect("station should become available");
+
+        assert_eq!(station, "wlan0");
+        assert_eq!(calls, 3);
+        assert_eq!(sleeps, 2);
+    }
+
+    #[test]
+    fn reports_iwd_station_unavailable_after_bounded_retries() {
+        let mut calls = 0;
+        let error = retry_iwd_station(
+            || {
+                calls += 1;
+                Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "no iwd station found",
+                ))
+            },
+            |_| {},
+            3,
+            Duration::ZERO,
+        )
+        .expect_err("station should remain unavailable");
+
+        assert_eq!(calls, 3);
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        assert_eq!(action_error_code(&error.to_string()), "adapter_unavailable");
     }
 
     #[test]
