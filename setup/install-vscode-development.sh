@@ -27,6 +27,9 @@ command -v code >/dev/null 2>&1 || {
 }
 
 extensions=(
+  denizhandaklr.minimax-vscode
+  biomejs.biome
+  ms-playwright.playwright
   rust-lang.rust-analyzer
   timonwong.shellcheck
   redhat.vscode-yaml
