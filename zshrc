@@ -231,9 +231,10 @@ lt() { _ls_unified time "$@"; }
 lS() { _ls_unified size "$@"; }
 
 # Auto-ls controls:
-#   AUTO_LS=0 disables automatic listing after cd
+#   AUTO_LS=1 opts into automatic listing after cd
 #   AUTO_LS_MAX_ENTRIES limits auto-ls output size in large directories
-AUTO_LS="${AUTO_LS:-1}"
+# Keep this opt-in: changing directories must not produce unsolicited output.
+AUTO_LS="${AUTO_LS:-0}"
 AUTO_LS_MAX_ENTRIES="${AUTO_LS_MAX_ENTRIES:-50}"
 
 _auto_ls_list() {
