@@ -107,6 +107,13 @@ Base installs leave the existing NVIDIA stack untouched. NVIDIA users can opt in
 ./setup/bootstrap.sh --install-packages --with-aur --with-nvidia
 ```
 
+For the NoxOrigin workstation integration (without copying any secrets into
+dotfiles), run:
+
+```bash
+./setup/install-noxorigin-profile.sh
+```
+
 You can run package install via `sudo` too; the script now delegates AUR operations to your normal user automatically.
 
 ## Package manifests
