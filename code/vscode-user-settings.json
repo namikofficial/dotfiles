@@ -1,5 +1,11 @@
 {
   "chat.mcp.gallery.enabled": true,
+  "chat.agentHost.byokModels.enabled": true,
+  "minimax.visibleModels": [
+    "MiniMax-M3",
+    "MiniMax-M2.7",
+    "MiniMax-M2.7-highspeed"
+  ],
   "terminal.integrated.profiles.linux": {
     "zsh (dotfiles)": {
       "path": "/usr/bin/zsh",
