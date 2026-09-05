@@ -77,8 +77,10 @@ PanelWindow {
     TapHandler {
         acceptedButtons: Qt.LeftButton
         onTapped: function(eventPoint) {
-            var point = island.mapFromItem(root, eventPoint.position.x, eventPoint.position.y);
-            island.clickAwayCheck(point);
+            // TapHandler coordinates are already local to this top-chrome
+            // surface, and island shares that surface's origin. PanelWindow
+            // is not a QQuickItem, so it cannot be passed to mapFromItem().
+            island.clickAwayCheck(eventPoint.position);
         }
     }
 
