@@ -1,0 +1,26 @@
+{
+  "id": "ui-form-validation-complete",
+  "title": "Shipment receive form — complete validation UX",
+  "domain": "ui",
+  "prompt": "The shipment receive form silently accepts invalid inputs. Implement complete validation: inline field errors, summary at submit, focus first invalid field, do not clear other fields. Use Zod for schema.",
+  "expected_artifacts": [
+    { "type": "diff", "path": "src/features/shipments/ReceiveForm.tsx" },
+    { "type": "diff", "path": "src/features/shipments/receiveSchema.ts" }
+  ],
+  "forbidden_changes": [
+    "src/features/shipments/api.ts"
+  ],
+  "hard_gates": [
+    { "name": "no-console-errors" },
+    { "name": "keyboard-path" },
+    { "name": "states-covered", "description": "pristine, validating, invalid, submitting, error, success all reachable" },
+    { "name": "errors-have-recovery", "description": "Each error message names the field and what to do" }
+  ],
+  "dimensions": [
+    { "name": "validation-coverage", "weight": 0.25 },
+    { "name": "error-copy-quality", "weight": 0.20 },
+    { "name": "form-architecture", "weight": 0.20 },
+    { "name": "accessibility", "weight": 0.20 },
+    { "name": "polish", "weight": 0.15 }
+  ]
+}

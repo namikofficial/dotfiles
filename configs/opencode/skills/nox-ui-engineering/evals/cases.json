@@ -1,0 +1,49 @@
+{
+  "skill": "nox-ui-engineering",
+  "rubric": "evals/rubric.md",
+  "cases": [
+    {
+      "id": "ui-shipment-table-redesign",
+      "scenario": "configs/opencode/agent-lab/scenarios/ui/shipment-table-redesign.json",
+      "expected_minimum_score": 70,
+      "expected_min_dimension_scores": {
+        "visual-hierarchy": 7,
+        "keyboard-completeness": 7,
+        "state-completeness": 7
+      },
+      "expected_gates_pass": [
+        "states-covered",
+        "no-console-errors",
+        "keyboard-path",
+        "tokens-not-literals"
+      ]
+    },
+    {
+      "id": "ui-empty-state-recovery",
+      "scenario": "configs/opencode/agent-lab/scenarios/ui/empty-state-recovery.json",
+      "expected_minimum_score": 75,
+      "expected_min_dimension_scores": {
+        "copy-quality": 7,
+        "next-action-clarity": 8
+      },
+      "expected_gates_pass": [
+        "states-covered",
+        "keyboard-path"
+      ]
+    },
+    {
+      "id": "ui-form-validation-complete",
+      "scenario": "configs/opencode/agent-lab/scenarios/ui/form-validation-complete.json",
+      "expected_minimum_score": 70,
+      "expected_min_dimension_scores": {
+        "validation-coverage": 8,
+        "error-copy-quality": 7
+      },
+      "expected_gates_pass": [
+        "states-covered",
+        "keyboard-path",
+        "errors-have-recovery"
+      ]
+    }
+  ]
+}

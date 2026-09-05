@@ -74,6 +74,8 @@
     "*.env.sops": "dotenv"
   },
   "files.exclude": {
+    "**/.env": false,
+    "**/.env.*": false,
     "**/.decrypted~*": true,
     "**/.git": true,
     "**/node_modules": true,
@@ -91,7 +93,7 @@
     "**/node_modules": true,
     "**/target": true
   },
-  "explorer.excludeGitIgnore": true,
+  "explorer.excludeGitIgnore": false,
   "typescript.disableAutomaticTypeAcquisition": true,
   "typescript.tsserver.maxTsServerMemory": 1536,
   "qt-core.additionalQtPaths": [
@@ -107,7 +109,23 @@
   "gitlens.ai.vscode.model": "copilotcli:",
   "github.copilot.nextEditSuggestions.eagerness": "high",
   "yaml.disableSchemaDetection": [
-    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml"
+    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml",
+    "**/.github/workflows/*.yml",
+    "**/.github/workflows/*.yaml",
+    "**/.gitea/workflows/*.yml",
+    "**/.gitea/workflows/*.yaml",
+    "**/.forgejo/workflows/*.yml",
+    "**/.forgejo/workflows/*.yaml"
   ],
-  "chat.viewSessions.orientation": "stacked"
+  "chat.viewSessions.orientation": "stacked",
+  "json.schemaDownload.trustedDomains": {
+    "https://schemastore.azurewebsites.net/": true,
+    "https://raw.githubusercontent.com/microsoft/vscode/": true,
+    "https://raw.githubusercontent.com/devcontainers/spec/": true,
+    "https://www.schemastore.org/": true,
+    "https://json.schemastore.org/": true,
+    "https://json-schema.org/": true,
+    "https://developer.microsoft.com/json-schemas/": true,
+    "https://biomejs.dev": true
+  }
 }

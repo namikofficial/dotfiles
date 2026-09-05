@@ -1,0 +1,31 @@
+{
+  "id": "ui-shipment-table-redesign",
+  "title": "Shipment table — improve data density and bulk selection",
+  "domain": "ui",
+  "prompt": "Review the shipment list screen. The table shows ~2,000 shipments with columns: id, warehouse, status, last_movement_at, owner, weight. The current screen has poor density and no bulk selection. Improve it without regressing keyboard access or filter persistence. Do not replace the table with cards.",
+  "expected_artifacts": [
+    { "type": "diff", "path": "src/features/shipments/ShipmentList.tsx" },
+    { "type": "screenshot", "path": ".ai/screenshots/shipments/loaded.png" },
+    { "type": "screenshot", "path": ".ai/screenshots/shipments/empty.png" },
+    { "type": "screenshot", "path": ".ai/screenshots/shipments/row-selected.png" }
+  ],
+  "forbidden_changes": [
+    "src/features/shipments/api.ts",
+    "src/features/shipments/queryKeys.ts"
+  ],
+  "hard_gates": [
+    { "name": "no-console-errors", "description": "Page loads with no console errors" },
+    { "name": "keyboard-path", "description": "All interactive elements reachable by Tab in logical order" },
+    { "name": "states-covered", "description": "Loaded, empty, filtering, error states all rendered correctly" },
+    { "name": "url-filters-persist", "description": "Filter chips serialize to URL and survive refresh" }
+  ],
+  "dimensions": [
+    { "name": "information-density", "weight": 0.25 },
+    { "name": "bulk-selection-model", "weight": 0.20 },
+    { "name": "keyboard-completeness", "weight": 0.15 },
+    { "name": "distinctiveness", "weight": 0.15 },
+    { "name": "consistency-with-design-system", "weight": 0.15 },
+    { "name": "polish", "weight": 0.10 }
+  ],
+  "timeout_seconds": 900
+}

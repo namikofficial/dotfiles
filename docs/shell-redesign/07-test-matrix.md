@@ -83,7 +83,7 @@ systemd-analyze --user verify systemd/user/*.service
 | 32 | Grid loads | `SUPER+W` | Thumbnails async-load; no flash of broken images |
 | 33 | Apply | Click wallpaper | Wallpaper changes; matugen runs; theme propagates |
 | 34 | Theme pass | Theme pass button | GTK/kitty/shell refreshed |
-| 35 | Empty dirs | Point WALLPAPER_DIRS at empty dir | Honest empty state |
+| 35 | Empty dirs | Point `WALLPAPER_DIRS` at `~/Pictures/wallpaper/handpicked/1080p` with no files | Honest empty state; panel shows "No wallpapers found" |
 | 36 | Apply failure | Set unwritable path | Error surfaces; no fake success |
 
 ## 7. Regression (pre-redesign bugs)

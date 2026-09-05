@@ -1,0 +1,21 @@
+{
+  "id": "ui-empty-state-recovery",
+  "title": "Empty state — give the user a way forward",
+  "domain": "ui",
+  "prompt": "The Bin selector shows nothing when no bins exist. The user has no idea why or what to do. Fix it: explain the empty state and offer the next action.",
+  "expected_artifacts": [
+    { "type": "diff", "path": "src/features/bins/BinSelector.tsx" },
+    { "type": "screenshot", "path": ".ai/screenshots/bins/empty.png" }
+  ],
+  "hard_gates": [
+    { "name": "no-console-errors" },
+    { "name": "states-covered", "description": "Empty, loading, error, permission-denied all distinguishable" },
+    { "name": "keyboard-path", "description": "Empty-state CTA reachable by Tab" }
+  ],
+  "dimensions": [
+    { "name": "copy-quality", "weight": 0.30 },
+    { "name": "next-action-clarity", "weight": 0.30 },
+    { "name": "visual-distinctiveness", "weight": 0.20 },
+    { "name": "consistency", "weight": 0.20 }
+  ]
+}

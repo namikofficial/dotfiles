@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dotfiles.local/schemas/agent-lab/scenario.json",
+  "title": "agent-lab scenario",
+  "description": "A reproducible engineering task with observable success criteria.",
+  "type": "object",
+  "required": ["id", "title", "domain", "prompt", "expected_artifacts", "hard_gates", "dimensions"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable identifier (e.g. 'ui-shipment-table-redesign').",
+      "pattern": "^[a-z][a-z0-9-]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3
+    },
+    "domain": {
+      "type": "string",
+      "enum": ["ui", "backend", "debugging", "architecture", "data", "infra"]
+    },
+    "prompt": {
+      "type": "string",
+      "description": "The user-style request shown to the agent under test."
+    },
+    "fixture": {
+      "type": "string",
+      "description": "Optional path to a fixture directory (relative to agent-lab/)."
+    },
+    "expected_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "path"],
+        "properties": {
+          "type": { "type": "string", "enum": ["file", "diff", "screenshot", "log"] },
+          "path": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "forbidden_changes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files that must NOT be modified."
+    },
+    "hard_gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "check": {
+            "type": "string",
+            "description": "Grader check identifier (e.g. 'no-console-errors', 'tests-pass')."
+          }
+        }
+      }
+    },
+    "dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "weight"],
+        "properties": {
+          "name": { "type": "string" },
+          "weight": { "type": "number", "minimum": 0, "maximum": 1 },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "minimum": 60,
+      "default": 600
+    }
+  }
+}

@@ -20,8 +20,7 @@ QtObject {
         var env = Quickshell.env("WALLPAPER_DIRS");
         if (env) return env;
         var home = Quickshell.env("HOME");
-        return home + "/Pictures/wallpaper/1080p:" + home + "/Pictures/wallpaper/4k:"
-            + home + "/Pictures/wallpaper:" + home + "/Pictures/Wallpapers";
+        return home + "/Pictures/wallpaper/handpicked/1080p:" + home + "/Pictures/wallpaper/handpicked/4k";
     }
 
     property Process scanProc: Process {

@@ -4,11 +4,9 @@
 
 `~/.config/hypr/scripts/set-wallpaper.sh` now does this on every change:
 
-1. Picks from the curated wallpaper pools:
-- `~/Pictures/wallpaper/1080p`
-- `~/Pictures/wallpaper/4k`
-- `~/Pictures/wallpaper`
-- `~/Pictures/Wallpapers`
+1. Picks from the handpicked wallpaper pool:
+- `~/Pictures/wallpaper/handpicked/1080p`
+- `~/Pictures/wallpaper/handpicked/4k`
 
 2. Applies wallpaper with safer defaults:
 - `WALLPAPER_RESIZE_MODE=fit` (default)
@@ -81,13 +79,13 @@ Core UI consumers also read the generated palette directly:
   `Super + Ctrl + Shift + Y` -> reload theme, Kitty, Hyprland, panel, and caches
 
 - Curate current rotating pool for your monitor ratio/resolution:
-`~/.config/hypr/scripts/wallpaper-curate.sh ~/Pictures/wallpaper`
+`~/.config/hypr/scripts/wallpaper-curate.sh ~/Pictures/wallpaper/handpicked`
 
-- Copy compatible wallpapers from source packs into the curated 1080p/4k pool:
-`~/.config/hypr/scripts/wallpaper-copy-from-sources.sh ~/Pictures/wallpaper-sources ~/Pictures/wallpaper`
+- Add an image to the handpicked pool (creates 4k copy + 1080p LANCZOS variant):
+`~/.config/hypr/scripts/wallpaper-add.sh <path-to-image>`
 
-- Download/update source packs:
-`~/Documents/code/dotfiles/setup/fetch-wallpaper-sources.sh`
+- List current pool and browse manually-curated sources:
+`~/Documents/code/dotfiles/setup/wallpaper-handpicked.sh`
 
 ## Environment knobs
 
@@ -96,15 +94,12 @@ Core UI consumers also read the generated palette directly:
 - `WALLPAPER_TRANSITION_FPS`
 - `WALLPAPER_TRANSITION_DURATION`
 - `WALLPAPER_TRANSITION_STEP`
-- `WALLPAPER_DIRS` (colon-separated pool list)
+- `WALLPAPER_DIRS` (colon-separated pool list; default: `~/Pictures/wallpaper/handpicked/{1080p,4k}`)
 - `WALLPAPER_ROTATE_MODE` (`daily` default, or `interval`)
 - `WALLPAPER_ROTATE_CHECK_INTERVAL` (seconds, daily mode check cadence, default `600`)
 - `WALLPAPER_ROTATE_INTERVAL` (seconds, interval mode only, default `1800`)
 - `WALLPAPER_ROTATE_STATE_FILE` (daily mode state file, default `~/.cache/hypr/wallpaper-last-rotate-date`)
 - `WALLPAPER_CANVAS_MODE` (`blurpad` default, `solidpad`, `raw`)
-- `WALL_SOURCE_ROOT` (for source downloader)
-- `WALL_GIT_TIMEOUT_SECONDS`
-- `WALL_UPDATE_EXISTING=1` to pull existing clones
 
 ## Notes
 

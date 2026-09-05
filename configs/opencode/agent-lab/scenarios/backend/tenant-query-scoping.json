@@ -1,0 +1,26 @@
+{
+  "id": "backend-tenant-query-scoping",
+  "title": "Tenant query scoping — invariant enforcement",
+  "domain": "backend",
+  "prompt": "Audit the parts module: every part query must include company/tenant scope derived from auth context, never from request body. Fix any violations and add tests that fail without the fix.",
+  "expected_artifacts": [
+    { "type": "diff", "path": "src/domain/parts/PartService.ts" },
+    { "type": "diff", "path": "src/domain/parts/PartRepository.ts" },
+    { "type": "file", "path": "tests/integration/parts.tenant-scope.test.ts" }
+  ],
+  "forbidden_changes": [
+    "src/auth/session.ts"
+  ],
+  "hard_gates": [
+    { "name": "tests-pass", "description": "All existing + new tests pass" },
+    { "name": "tenant-invariant-holds", "description": "Cross-tenant access attempts return 403 / not-found, never the wrong data" },
+    { "name": "no-req-body-company-id", "description": "No `req.body.companyId` used as authorization scope" }
+  ],
+  "dimensions": [
+    { "name": "invariant-coverage", "weight": 0.30 },
+    { "name": "test-quality", "weight": 0.25 },
+    { "name": "blast-radius-control", "weight": 0.20 },
+    { "name": "code-clarity", "weight": 0.15 },
+    { "name": "audit-trail", "weight": 0.10 }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "debugging-stale-cache-after-workspace-switch",
+  "title": "Differential debugging — stale parts cache after workspace switch",
+  "domain": "debugging",
+  "prompt": "User reports: after switching workspace, the parts list still shows parts from the previous workspace. Reproduce, generate competing hypotheses, run the cheapest discriminating test, fix the root cause (not the symptom).",
+  "expected_artifacts": [
+    { "type": "file", "path": "docs/debugging/stale-cache-2026-09-01.md" },
+    { "type": "diff", "path": "src/features/parts/queries.ts" }
+  ],
+  "hard_gates": [
+    { "name": "root-cause-identified", "description": "Bug analysis names the actual failure boundary (not just symptom)" },
+    { "name": "regression-test", "description": "A test fails before the fix and passes after" },
+    { "name": "hypotheses-documented", "description": "≥ 3 competing hypotheses evaluated with evidence" }
+  ],
+  "dimensions": [
+    { "name": "hypothesis-rigor", "weight": 0.30 },
+    { "name": "evidence-quality", "weight": 0.30 },
+    { "name": "minimal-fix-surface", "weight": 0.20 },
+    { "name": "blast-radius", "weight": 0.20 }
+  ]
+}
