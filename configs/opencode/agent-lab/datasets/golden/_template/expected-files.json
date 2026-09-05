@@ -1,0 +1,9 @@
+{
+  "expected": [
+    "src/features/parts/queries.ts"
+  ],
+  "forbidden": [
+    "src/auth/session.ts",
+    "src/db/migrations/"
+  ]
+}

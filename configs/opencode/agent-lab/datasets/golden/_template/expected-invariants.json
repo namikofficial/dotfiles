@@ -1,0 +1,14 @@
+{
+  "invariants": [
+    {
+      "id": "TENANT-001",
+      "description": "All queries scoped to active workspace",
+      "verifiedBy": "tests/integration/parts.tenant-scope.test.ts"
+    },
+    {
+      "id": "QUERY-KEY-001",
+      "description": "TanStack Query keys include workspace ID",
+      "verifiedBy": "tests/integration/parts.query-key.test.ts"
+    }
+  ]
+}

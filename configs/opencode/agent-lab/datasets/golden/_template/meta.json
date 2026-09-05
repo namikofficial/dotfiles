@@ -1,0 +1,24 @@
+{
+  "capturedAt": "TEMPLATE — replace with actual capture date",
+  "product": "operations-mobile",
+  "sourceRepo": "/absolute/path/to/repo",
+  "beforeCommit": "REPLACE_WITH_BEFORE_SHA",
+  "afterCommit": "REPLACE_WITH_AFTER_SHA",
+  "capturedBy": "build-agent",
+  "agentVersion": "minimax-coding-plan/MiniMax-M3",
+  "scenario": {
+    "id": "REPLACE_WITH_SLUG",
+    "title": "REPLACE_WITH_TITLE",
+    "domain": "backend",
+    "prompt": "REPLACE_WITH_ORIGINAL_USER_REQUEST",
+    "expected_artifacts": [
+      { "type": "diff", "path": "src/foo.ts" }
+    ],
+    "hard_gates": [
+      { "name": "tests-pass", "description": "All tests pass" }
+    ],
+    "dimensions": [
+      { "name": "blast-radius-control", "weight": 0.30 }
+    ]
+  }
+}

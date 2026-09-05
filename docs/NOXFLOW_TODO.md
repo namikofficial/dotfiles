@@ -24,8 +24,9 @@ Last updated: 2026-05-25
 - [x] Add fullscreen tabbed dev-cheatsheet overlay (`Super+.`) with searchable categories and clipboard copy (`hypr/scripts/dev-cheatsheet.sh`)
 - [x] Add config-driven cheatsheet tabs under `~/.config/dev-cheatsheet` (bootstrapped from `hypr/dev-cheatsheet-defaults/*.yaml`)
 - [x] Remove scratchpad keybinds/workspace rules to avoid stuck/hard-crash workflows; repoint notes shortcut to `open-notes.sh`
-- [x] Add wallpaper source downloader/importer workflow (`setup/fetch-wallpaper-sources.sh`, `hypr/scripts/wallpaper-import.sh`)
+- [x] ~~Add wallpaper source downloader/importer workflow~~ — superseded; replaced with handpicked pool model (`wallpaper-add.sh` + `wallpaper-handpicked.sh`)
 - [x] Unify wallpaper pool handling across `~/Pictures/wallpaper` + `~/Pictures/Wallpapers` in rotation script
+- [x] Replace wallpaper pool with handpicked curation: `~/Pictures/wallpaper/handpicked/{1080p,4k}`, `wallpaper-add.sh`, `setup/wallpaper-handpicked.sh`
 - [x] Upgrade wallpaper theme sync to real palette extraction and generate runtime color overlays for Rofi
 - [x] Add Kitty runtime wallpaper palette sync (`~/.cache/hypr/theme-colors-kitty.conf` + `kitty @ set-colors`)
 - [x] Add Hyprlock runtime palette sync (`~/.cache/hypr/theme-colors-hyprlock.conf` + sourced lock vars)

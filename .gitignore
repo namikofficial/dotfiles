@@ -29,6 +29,11 @@ settings/export/
 configs/opencode/skills/*-category-pointer/
 .opencode/tmux-sessions.json
 
+# agent-lab: commit scenarios, graders, runners, fixtures, README, golden templates,
+# and committed baseline runs. Gitignore ephemeral run output and golden repo snapshots.
+configs/opencode/agent-lab/results/runs/
+configs/opencode/agent-lab/datasets/golden/**/repo_snapshot/
+
 # Rust build output (Cargo.lock is kept tracked for the desktop binaries).
 **/target/
 

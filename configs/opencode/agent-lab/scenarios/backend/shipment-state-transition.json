@@ -1,0 +1,23 @@
+{
+  "id": "backend-shipment-state-transition",
+  "title": "Shipment workflow — explicit state machine",
+  "domain": "backend",
+  "prompt": "Refactor the shipment status field into an explicit state machine. Define allowed transitions; reject illegal ones with a clear error. Add tests for both legal and illegal transitions. Persist transitions in an audit log.",
+  "expected_artifacts": [
+    { "type": "diff", "path": "src/domain/shipments/stateMachine.ts" },
+    { "type": "diff", "path": "src/domain/shipments/ShipmentService.ts" },
+    { "type": "file", "path": "tests/integration/shipment-state-machine.test.ts" }
+  ],
+  "hard_gates": [
+    { "name": "tests-pass" },
+    { "name": "illegal-transitions-rejected", "description": "DRAFT → COMPLETED, RECEIVED → IN_TRANSIT, COMPLETED → DRAFT all return error" },
+    { "name": "audit-log-written", "description": "Every transition writes an immutable audit row with actor + timestamp" }
+  ],
+  "dimensions": [
+    { "name": "state-coverage", "weight": 0.30 },
+    { "name": "idempotency", "weight": 0.25 },
+    { "name": "error-clarity", "weight": 0.20 },
+    { "name": "code-clarity", "weight": 0.15 },
+    { "name": "migration-safety", "weight": 0.10 }
+  ]
+}

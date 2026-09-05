@@ -1,0 +1,283 @@
+{
+  "scenario": {
+    "id": "ui-empty-state-recovery",
+    "title": "Empty state — give the user a way forward",
+    "domain": "ui"
+  },
+  "workdir": "/home/namik/Documents/code/dotfiles",
+  "changedFiles": [],
+  "startedAt": "2026-09-01T20:03:42.192Z",
+  "finishedAt": "2026-09-01T20:03:42.192Z",
+  "overallStatus": "FAIL",
+  "overallScore": 56,
+  "graderResults": [
+    {
+      "grader": "deterministic",
+      "status": "FAIL",
+      "gates": [
+        {
+          "name": "expected-artifacts",
+          "status": "FAIL",
+          "findings": [
+            {
+              "rule": "expected-artifacts/missing",
+              "severity": "error",
+              "confidence": 1,
+              "file": "src/features/bins/BinSelector.tsx",
+              "line": 0,
+              "symbol": "",
+              "evidence": "expected diff src/features/bins/BinSelector.tsx does not exist",
+              "suggestedInvestigation": "create src/features/bins/BinSelector.tsx",
+              "provenance": "OBSERVED",
+              "meta": {}
+            }
+          ]
+        },
+        {
+          "name": "console-hygiene",
+          "status": "PASS",
+          "findings": []
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "blast-radius-control",
+          "score": 10,
+          "weight": 0.2,
+          "findings": []
+        }
+      ],
+      "findings": [],
+      "startedAt": "2026-09-01T20:03:42.192Z",
+      "finishedAt": "2026-09-01T20:03:42.192Z",
+      "meta": {
+        "workdir": "",
+        "changedFiles": 0
+      }
+    },
+    {
+      "grader": "security",
+      "status": "INCOMPLETE",
+      "gates": [
+        {
+          "name": "security-invariants",
+          "status": "PASS",
+          "reason": "tenancy-invariants/scripts/ not yet present (Layer 3)",
+          "findings": []
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "invariant-coverage",
+          "score": 0,
+          "weight": 0.3,
+          "findings": [],
+          "rationale": "no scripts available"
+        }
+      ],
+      "findings": [
+        {
+          "rule": "security/scripts-missing",
+          "severity": "advisory",
+          "confidence": 1,
+          "file": "/home/namik/Documents/code/dotfiles/configs/opencode/skills/tenancy-invariants/scripts",
+          "line": 0,
+          "symbol": "",
+          "evidence": "scripts directory not present",
+          "suggestedInvestigation": "Layer 3 must install tenancy-invariants/scripts/",
+          "provenance": "OBSERVED",
+          "meta": {}
+        }
+      ],
+      "startedAt": "2026-09-01T20:03:42.192Z",
+      "finishedAt": "2026-09-01T20:03:42.192Z",
+      "meta": {
+        "scriptsDir": "/home/namik/Documents/code/dotfiles/configs/opencode/skills/tenancy-invariants/scripts"
+      }
+    },
+    {
+      "grader": "browser",
+      "status": "PASS",
+      "gates": [
+        {
+          "name": "no-console-errors",
+          "status": "PASS",
+          "findings": []
+        },
+        {
+          "name": "no-network-5xx",
+          "status": "PASS",
+          "findings": []
+        },
+        {
+          "name": "states-covered",
+          "status": "PASS",
+          "findings": [
+            {
+              "rule": "states-covered/missing-screenshot",
+              "severity": "warning",
+              "confidence": 1,
+              "file": ".ai/screenshots/bins/empty.png",
+              "line": 0,
+              "symbol": "",
+              "evidence": "expected screenshot for state not captured",
+              "suggestedInvestigation": "capture .ai/screenshots/bins/empty.png",
+              "provenance": "OBSERVED",
+              "meta": {}
+            }
+          ]
+        }
+      ],
+      "dimensions": [
+        {
+          "name": "console-hygiene",
+          "score": 10,
+          "weight": 0.2,
+          "findings": [],
+          "rationale": "0 errors, 0 warnings"
+        },
+        {
+          "name": "network-correctness",
+          "score": 5,
+          "weight": 0.2,
+          "findings": [],
+          "rationale": "0/0 non-2xx responses"
+        }
+      ],
+      "findings": [],
+      "startedAt": "2026-09-01T20:03:42.192Z",
+      "finishedAt": "2026-09-01T20:03:42.192Z",
+      "meta": {
+        "screenshots": 0,
+        "consoleMessages": 0,
+        "networkCalls": 0
+      }
+    },
+    {
+      "grader": "visual",
+      "status": "INCOMPLETE",
+      "gates": [],
+      "dimensions": [],
+      "findings": [],
+      "startedAt": "2026-09-01T20:03:42.192Z",
+      "finishedAt": "2026-09-01T20:03:42.192Z",
+      "meta": {
+        "skipped": "no visual response provided"
+      }
+    },
+    {
+      "grader": "llm",
+      "status": "INCOMPLETE",
+      "gates": [],
+      "dimensions": [],
+      "findings": [],
+      "startedAt": "2026-09-01T20:03:42.192Z",
+      "finishedAt": "2026-09-01T20:03:42.192Z",
+      "meta": {
+        "skipped": "no llm response provided"
+      }
+    }
+  ],
+  "gates": [
+    {
+      "name": "expected-artifacts",
+      "status": "FAIL",
+      "findings": [
+        {
+          "rule": "expected-artifacts/missing",
+          "severity": "error",
+          "confidence": 1,
+          "file": "src/features/bins/BinSelector.tsx",
+          "line": 0,
+          "symbol": "",
+          "evidence": "expected diff src/features/bins/BinSelector.tsx does not exist",
+          "suggestedInvestigation": "create src/features/bins/BinSelector.tsx",
+          "provenance": "OBSERVED",
+          "meta": {}
+        }
+      ]
+    },
+    {
+      "name": "console-hygiene",
+      "status": "PASS",
+      "findings": []
+    },
+    {
+      "name": "security-invariants",
+      "status": "PASS",
+      "reason": "tenancy-invariants/scripts/ not yet present (Layer 3)",
+      "findings": []
+    },
+    {
+      "name": "no-console-errors",
+      "status": "PASS",
+      "findings": []
+    },
+    {
+      "name": "no-network-5xx",
+      "status": "PASS",
+      "findings": []
+    },
+    {
+      "name": "states-covered",
+      "status": "PASS",
+      "findings": [
+        {
+          "rule": "states-covered/missing-screenshot",
+          "severity": "warning",
+          "confidence": 1,
+          "file": ".ai/screenshots/bins/empty.png",
+          "line": 0,
+          "symbol": "",
+          "evidence": "expected screenshot for state not captured",
+          "suggestedInvestigation": "capture .ai/screenshots/bins/empty.png",
+          "provenance": "OBSERVED",
+          "meta": {}
+        }
+      ]
+    }
+  ],
+  "dimensions": [
+    {
+      "name": "blast-radius-control",
+      "score": 10,
+      "weight": 0.2,
+      "findings": []
+    },
+    {
+      "name": "invariant-coverage",
+      "score": 0,
+      "weight": 0.3,
+      "findings": [],
+      "rationale": "no scripts available"
+    },
+    {
+      "name": "console-hygiene",
+      "score": 10,
+      "weight": 0.2,
+      "findings": [],
+      "rationale": "0 errors, 0 warnings"
+    },
+    {
+      "name": "network-correctness",
+      "score": 5,
+      "weight": 0.2,
+      "findings": [],
+      "rationale": "0/0 non-2xx responses"
+    }
+  ],
+  "findings": [
+    {
+      "rule": "security/scripts-missing",
+      "severity": "advisory",
+      "confidence": 1,
+      "file": "/home/namik/Documents/code/dotfiles/configs/opencode/skills/tenancy-invariants/scripts",
+      "line": 0,
+      "symbol": "",
+      "evidence": "scripts directory not present",
+      "suggestedInvestigation": "Layer 3 must install tenancy-invariants/scripts/",
+      "provenance": "OBSERVED",
+      "meta": {}
+    }
+  ]
+}

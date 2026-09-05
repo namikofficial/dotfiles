@@ -1,0 +1,20 @@
+{
+  "id": "architecture-dual-write-vs-event-driven",
+  "title": "Architecture decision — dual-write vs event-driven",
+  "domain": "architecture",
+  "prompt": "When a shipment is received, we currently update the shipment row and the inventory ledger in two writes inside one transaction. Consider replacing with an event-driven approach (outbox + consumer). Produce an ADR comparing the two approaches on correctness, observability, blast radius, and migration cost.",
+  "expected_artifacts": [
+    { "type": "file", "path": "docs/adr/0042-shipment-receive-event-driven.md" }
+  ],
+  "hard_gates": [
+    { "name": "context-stated", "description": "Why now? what triggered this decision?" },
+    { "name": "alternatives-evaluated", "description": "≥ 2 alternatives compared" },
+    { "name": "consequences-named", "description": "Positive AND negative consequences of the decision" }
+  ],
+  "dimensions": [
+    { "name": "decision-quality", "weight": 0.30 },
+    { "name": "evidence-grounded", "weight": 0.25 },
+    { "name": "consequence-coverage", "weight": 0.25 },
+    { "name": "migration-plan-realism", "weight": 0.20 }
+  ]
+}

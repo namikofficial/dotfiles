@@ -1,0 +1,58 @@
+# .agent-profile.yaml — per-repo agent configuration
+#
+# Place this file at the root of a product repository to scope which invariants,
+# verifiers, and capabilities the agent applies to that repo. M3 reads this at
+# session start to avoid loading enterprise invariants into a game repo, etc.
+#
+# This file is consumed by:
+#   - the build agent (risk-class adjustment, invariant loading)
+#   - agent-lab runners (golden case placement, grader selection)
+#   - /capture-eval (golden_root location)
+
+# Required: profile name (free-form, used in messages and reports)
+profile: operations-mobile
+
+# Required: where agent-lab golden cases for this product live.
+# Path is absolute or relative to the workdir.
+golden_root: /home/namik/Documents/code/dotfiles/configs/opencode/agent-lab/datasets/golden/operations-mobile
+
+# Optional: which capabilities this product uses.
+# Used by the build agent to skip irrelevant invariants.
+capabilities:
+  ui: true
+  tenancy: true
+  offline: true
+  shipments: true
+  android: true
+  payments: false
+  web: false
+  ios: false
+
+# Optional: which invariants apply. Glob patterns from configs/engineering/invariants.yaml
+# IDs are matched with simple wildcards: TENANT-* matches TENANT-001, TENANT-002, etc.
+invariants:
+  - TENANT-*
+  - STATE-*
+  - OFFLINE-*
+  - UI-DENSE-*
+  - ARCH-*
+
+# Optional: which verifiers run for this product.
+# Each entry references an agent-lab grader by name.
+verifiers:
+  - web          # browser grader (screenshots, console, network)
+  - android      # android grader (only if capabilities.android)
+  - api          # api verifier (deterministic + security)
+  - tenancy      # security grader with tenancy-invariants
+
+# Optional: which capabilities the build agent may use without re-checking.
+# Listed capabilities skip the per-action risk-classification rubric.
+# Be conservative — listing a capability means "no extra approval needed".
+trusted_capabilities: []
+
+# Optional: extra notes shown to the agent at session start.
+# Use sparingly — most context should be in skills, not profiles.
+notes: |
+  TrackMe is a multi-tenant shipment and inventory application.
+  Offline mode is required; reconciliation policy lives in docs/adr/0031-offline-sync.md.
+  Workspace context is the canonical tenant scope; never use client-supplied companyId.

@@ -1,0 +1,175 @@
+# Engineering invariant registry
+#
+# This is the single source of truth for what must be true in our software.
+# Skills teach HOW to comply. Hooks detect violations. Tests prove behavior.
+# The registry states what must be true.
+#
+# Invariants are referenced by ID from skills, graders, hooks, and tests.
+# Adding a new invariant: append a new entry here, then reference it from
+# every enforcer (skill, script, hook, test) that should respect it.
+
+- id: TENANT-001
+  name: Trusted tenant scope
+  severity: error
+  domains: [api, database, cache, websocket]
+  description: >
+    Tenant authorization scope must derive from trusted server-side context
+    (auth session, JWT claim) — never from request body, query string, or path
+    parameters. Trusted tenant scope is the only source of tenant ownership
+    decisions across queries, writes, cache keys, WebSocket rooms, file paths,
+    object keys, and audit logs.
+  enforced_by:
+    - tenancy-invariants (scan-client-tenant-input)
+    - api-verifier
+  references:
+    - configs/opencode/skills/tenancy-invariants/references/tenancy-rules.md
+
+- id: TENANT-002
+  name: Cache keys include tenant boundary
+  severity: error
+  domains: [cache, query]
+  description: >
+    Every cache key (TanStack Query, Redis, in-memory LRU) must include the
+    tenant identity so that tenant A cannot read tenant B's cached value.
+  enforced_by:
+    - tenancy-invariants (scan-query-keys)
+    - api-verifier
+  references:
+    - configs/opencode/skills/tenancy-invariants/references/tenancy-rules.md
+
+- id: TENANT-003
+  name: Cross-tenant admin operations are explicit
+  severity: error
+  domains: [api, backend]
+  description: >
+    Operations that intentionally span tenants (cross-tenant admin, support
+    impersonation) must be explicitly tagged, gated behind a dedicated
+    capability check, and recorded in audit logs with the impersonated tenant
+    ID.
+  enforced_by:
+    - api-verifier
+  references: []
+
+- id: STATE-001
+  name: Workflow states have explicit transitions
+  severity: error
+  domains: [backend, domain]
+  description: >
+    Every entity with a workflow (shipment, invoice, ticket, lead, payment,
+    approval) must have an explicit state machine. Transitions are defined in
+    one place. Illegal transitions return a structured error and never silently
+    succeed.
+  enforced_by:
+    - workflow-state-machine (extract-states, assert-illegal-transitions)
+    - api-verifier
+  references:
+    - configs/opencode/skills/workflow-state-machine/references/state-machine-rules.md
+
+- id: STATE-002
+  name: State transitions are auditable
+  severity: error
+  domains: [backend, audit]
+  description: >
+    Every state transition writes an immutable audit row with the actor,
+    timestamp, before-state, after-state, and reason. Audit rows cannot be
+    updated or deleted by application code.
+  enforced_by:
+    - workflow-state-machine
+    - api-verifier
+  references: []
+
+- id: STATE-003
+  name: State transitions are idempotent under retry
+  severity: warning
+  domains: [backend, queue]
+  description: >
+    Retrying a state transition with the same idempotency key must not produce
+    duplicate audit rows or duplicate side effects.
+  enforced_by:
+    - workflow-state-machine
+    - adversarial-reviewer
+  references: []
+
+- id: ARCH-001
+  name: Apps cannot import other apps
+  severity: error
+  domains: [architecture]
+  description: >
+    In a feature-based / apps monorepo, code under apps/<a>/ may not import from
+    apps/<b>/. Cross-app integration goes through shared/ packages.
+  enforced_by:
+    - architecture-fitness (check-import-graph)
+  references: []
+
+- id: ARCH-002
+  name: Domain layer does not import framework
+  severity: error
+  domains: [architecture]
+  description: >
+    Domain logic must not import Fastify, Express, TanStack Query, or any other
+    framework package. Pure functions only.
+  enforced_by:
+    - architecture-fitness (check-import-graph)
+  references: []
+
+- id: ARCH-003
+  name: Shared packages do not depend on apps
+  severity: error
+  domains: [architecture]
+  description: >
+    Code under shared/ packages must not depend on any app. Dependency graph
+    must be acyclic between shared and apps.
+  enforced_by:
+    - architecture-fitness (check-import-graph)
+  references: []
+
+- id: UI-001
+  name: Filter state is addressable
+  severity: warning
+  domains: [web]
+  description: >
+    Filter and search state must be URL-addressable (e.g. via nuqs or
+    search params) so that views are bookmarkable and shareable.
+  enforced_by:
+    - nox-ui-engineering
+    - nox-ui-judge
+  references: []
+
+- id: UI-002
+  name: Each meaningful state has one canonical owner
+  severity: warning
+  domains: [web, state]
+  description: >
+    Each meaningful piece of state (auth, workspace, filters, selection, draft
+    data) is owned by exactly one source: URL, server, query cache, or local
+    component state. Derived state is computed, not duplicated.
+  enforced_by:
+    - state-consistency
+    - nox-ui-engineering
+  references:
+    - configs/opencode/skills/state-consistency/references/
+
+- id: UI-003
+  name: Empty-filtered ≠ empty-dataset
+  severity: warning
+  domains: [web]
+  description: >
+    The empty state when filters produce no matches must be visually distinct
+    from the empty state when the underlying dataset is empty. They must offer
+    different recovery actions.
+  enforced_by:
+    - nox-ui-engineering
+    - nox-ui-judge
+  references: []
+
+- id: UI-004
+  name: Destructive actions name the target
+  severity: warning
+  domains: [web, mobile]
+  description: >
+    Confirmation dialogs for destructive actions must name the target object
+    ("Delete 'Q3 Forecast'?") and offer undo or recovery when possible.
+  enforced_by:
+    - nox-ui-engineering
+    - nox-ui-judge
+  references: []

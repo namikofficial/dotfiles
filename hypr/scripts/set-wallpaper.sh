@@ -1,14 +1,11 @@
 #!/usr/bin/env sh
 set -eu
 
-wall_dirs="${WALLPAPER_DIRS:-$HOME/Pictures/wallpaper/1080p:$HOME/Pictures/wallpaper/4k:$HOME/Pictures/wallpaper:$HOME/Pictures/Wallpapers}"
+wall_dirs="${WALLPAPER_DIRS:-$HOME/Pictures/wallpaper/handpicked/1080p:$HOME/Pictures/wallpaper/handpicked/4k}"
 fallback_wall="$HOME/.cache/wallpapers/fallback-4k.png"
 mkdir -p \
-  "$HOME/Pictures/wallpaper/1080p" \
-  "$HOME/Pictures/wallpaper/4k" \
-  "$HOME/Pictures/wallpaper" \
-  "$HOME/Pictures/Wallpapers" \
-  "$HOME/Pictures/wallpaper-sources"
+  "$HOME/Pictures/wallpaper/handpicked/1080p" \
+  "$HOME/Pictures/wallpaper/handpicked/4k"
 
 emit_event() {
   if [ -x "$HOME/.config/hypr/scripts/lib/log.sh" ]; then
