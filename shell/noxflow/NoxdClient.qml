@@ -122,8 +122,11 @@ QtObject {
     /// Read all settings. Calls callback(result) with the settings map result.
     /// The result envelope is { type: "settings", data: { settings: {...} } }
     /// — callers should reach into result.data.settings to get the map.
-    function getSettings(callback, errorCallback) {
-        return sendRequest("get_settings", {}, callback, errorCallback);
+function getSettings(callback, errorCallback) {
+        // The IPC schema defines GetSettings as a unit request. Omitting
+        // params is required; sending `{}` is rejected by noxd as an invalid
+        // map and leaves the settings panel waiting for a timeout.
+        return sendRequest("get_settings", undefined, callback, errorCallback);
     }
 
     // ── Connection management ──
