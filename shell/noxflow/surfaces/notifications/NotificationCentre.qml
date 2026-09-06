@@ -50,6 +50,16 @@ Item {
                 Text { text: "Do Not Disturb"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; Layout.fillWidth: true }
                 Components.Toggle { accessibleName: "Do Not Disturb"; checked: notifModel.dnd; onToggled: notifModel.toggleDnd() }
             }
+            Text {
+                Layout.fillWidth: true
+                visible: !root.showHistory && notifModel.ingressStatus !== "dunst-owned"
+                text: notifModel.ingressStatus === "dunst-unavailable"
+                    ? "Dunst is unavailable; notification state cannot be synchronized."
+                    : "Notifications are owned by Dunst; NoxFlow history is local."
+                color: Theme.Tokens.stateWarning
+                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                wrapMode: Text.Wrap
+            }
 
             Components.Divider { Layout.fillWidth: true }
 

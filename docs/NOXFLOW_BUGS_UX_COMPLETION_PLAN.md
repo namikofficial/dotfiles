@@ -1,8 +1,22 @@
 # NoxFlow bugs, UI/UX, and completion plan
 
+## Implementation status (2026-09-06)
+
+The approved P1/P2 repair pass is being integrated in small, reviewable
+commits. Completed source-level slices are NF-01–NF-15 and NF-17–NF-20, with
+coordinator validation recorded in the commit history. NF-16 remains an
+explicit ownership boundary: Dunst continues to own the desktop notification
+bus, while NoxFlow exposes its local model and reports that it is not a live
+replacement. NF-21 (runtime/device warnings), physical and multi-monitor
+acceptance, and external-service proof remain open until exercised on the
+running shell. NF-22 smoke preflight is now read-only; NF-23 documentation
+reconciliation is limited to claims contradicted by current source.
+
 Date: 2026-09-06. Audited branch: `namik`. Source baseline: `7686037`.
 
-Status: **For user review. No implementation has been authorized by this document.** All work items below remain open. This document records an investigation and defines implementation packets for subsequent agents.
+Status: **Implementation in progress.** The original audit remains the source
+of truth for scope and evidence; the implementation-status note above and
+review records below identify what has actually been changed and verified.
 
 ## 1. Scope and evidence
 
