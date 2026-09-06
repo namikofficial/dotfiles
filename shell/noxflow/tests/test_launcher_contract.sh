@@ -6,6 +6,7 @@ set -euo pipefail
 # they can run in CI and on recovery consoles.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 QML="$ROOT/shell/noxflow/surfaces/launcher/Launcher.qml"
+RADIAL="$ROOT/shell/noxflow/surfaces/radialmenu/RadialWheel.qml"
 ISLAND="$ROOT/shell/noxflow/NoxIsland.qml"
 TOP_CHROME="$ROOT/shell/noxflow/TopChrome.qml"
 TEXT_FIELD="$ROOT/shell/noxflow/components/TextField.qml"
@@ -76,5 +77,25 @@ has '/.config/hypr/scripts/cliphist-rofi.sh' "$QML"
 has 'Super + Space' "$KEYBINDS"
 has 'Rofi' "$KEYBINDS"
 has 'NoxFlow' "$KEYBINDS"
+
+# NF-07: AI stale callback protection — generation counter invalidates old requests
+has 'aiGeneration' "$QML"
+has 'aiGeneration++' "$QML"
+has 'pendingAiQuery = ""' "$QML"
+
+# NF-08: Calculator returns structured result with valid/display/value fields
+has 'function evaluateCalc' "$QML"
+has 'display: "Invalid character"' "$QML"
+has 'display: "Division by zero"' "$QML"
+has 'display: "Unclosed parenthesis"' "$QML"
+has 'display: "Trailing operators"' "$QML"
+has 'valid: false, display: "?", value: ""' "$QML"
+
+# NF-09: Desktop scan retry — retryScan function and scanFailed flag exist
+has 'function retryScan()' "$QML"
+has 'property bool scanFailed' "$QML"
+
+# NF-19: Radial slotCount derived from slots.length so all geometry stays in sync
+has 'readonly property int slotCount: Math.max(1, slots.length)' "$RADIAL"
 
 printf 'noxflow launcher contract checks passed\n'

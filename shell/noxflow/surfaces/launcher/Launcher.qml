@@ -74,6 +74,8 @@ Item {
     readonly property string aiModel: Quickshell.env("NOXFLOW_AI_MODEL") || "qwen3-4b-local"
     readonly property int aiTimeoutMs: 30000
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
+    // Generation counter invalidates stale timers and callbacks on reset/mode-change/close/short-query
+    property int aiGeneration: 0
 
     readonly property var nerdMap: ({
         "firefox":"\uF269","chromium":"\uF268","google-chrome":"\uF268","kitty":"\uF120",
@@ -104,7 +106,10 @@ Item {
             // TextInput receives the first typed character without a click.
             Qt.callLater(function() { searchField.focusInput(); });
         }
-        function onClosed() { if (lifecycle.closeReason === "screenshot") root.requestCaptureAfterClose() }
+        function onClosed() {
+            root.resetAi()
+            if (lifecycle.closeReason === "screenshot") root.requestCaptureAfterClose()
+        }
     }
 
     // The inline island host creates this component only when Super+Space is
@@ -152,13 +157,23 @@ Item {
                 }
             }
             Components.Divider { Layout.fillWidth: true }
-            Text {
+            RowLayout {
                 Layout.fillWidth: true
                 visible: root.launchBusy || root.scanBusy || root.launchError !== "" || root.scanError !== ""
-                text: root.launchBusy ? "Opening " + root.launchTarget + "\u2026" : root.scanBusy ? "Loading applications\u2026" : (root.launchError || root.scanError)
-                color: root.launchBusy ? Theme.Tokens.textMuted : Theme.Tokens.stateDanger
-                font.pixelSize: Theme.Tokens.typographyLabelSmall
-                wrapMode: Text.WordWrap
+                spacing: Theme.Tokens.spacingSm
+                Text {
+                    Layout.fillWidth: true
+                    text: root.launchBusy ? "Opening " + root.launchTarget + "\u2026" : root.scanBusy ? "Loading applications\u2026" : (root.launchError || root.scanError)
+                    color: root.launchBusy ? Theme.Tokens.textMuted : Theme.Tokens.stateDanger
+                    font.pixelSize: Theme.Tokens.typographyLabelSmall
+                    wrapMode: Text.WordWrap
+                }
+                Components.TextButton {
+                    visible: root.scanFailed && !root.scanBusy && root.scanError !== ""
+                    text: "Retry"
+                    Layout.alignment: Qt.AlignVCenter
+                    onClicked: root.retryScan()
+                }
             }
             // Results area
             Item { Layout.fillWidth: true; Layout.fillHeight: true; clip: true
@@ -218,29 +233,32 @@ Item {
     property var aiXhr: null; property string pendingAiQuery: ""
     Timer { id: aiTimer; repeat: false; interval: 400; onTriggered: root.executeAiQuery(root.pendingAiQuery) }
     Timer { id: aiTimeout; repeat: false; interval: root.aiTimeoutMs; onTriggered: root.handleAiTimeout() }
-    function handleAiTimeout() { if (!aiLoading) return; if (aiXhr) { aiXhr.abort(); aiXhr = null } aiLoading = false; aiStatus = 3; aiResponse = "AI request timed out" }
-    function triggerAiQuery() { var q = searchText.trim(); if (q.length < 3) { if (aiStatus !== 0) resetAi(); return } if (aiXhr) { aiXhr.abort(); aiXhr = null } pendingAiQuery = q; aiTimer.restart() }
-    function executeAiQuery(query) { aiLoading = true; aiStatus = 1; aiResponse = ""; aiErrorDetail = ""; var xhr = new XMLHttpRequest(); aiXhr = xhr; xhr.open("POST", aiEndpoint, true); xhr.setRequestHeader("Content-Type", "application/json"); xhr.timeout = aiTimeoutMs; xhr.ontimeout = function() { aiXhr = null; aiLoading = false; aiStatus = 3; aiResponse = "AI timed out" }; xhr.onreadystatechange = function() { if (xhr.readyState !== XMLHttpRequest.DONE) return; aiTimeout.stop(); aiXhr = null; aiLoading = false; if (xhr.status === 200) { try { var j = JSON.parse(xhr.responseText); aiResponse = j.choices?.[0]?.message?.content || "No response"; aiStatus = 2 } catch(e) { aiResponse = "Failed to parse AI response"; aiStatus = 3 } } else if (xhr.status === 0) { aiResponse = "AI endpoint unreachable"; aiErrorDetail = "Ensure llama.cpp is running at " + aiEndpoint; aiStatus = 3 } else { aiResponse = "AI request failed (HTTP " + xhr.status + ")"; aiStatus = 3 } }; aiTimeout.start(); xhr.send(JSON.stringify({ model: aiModel, messages: [{ role: "system", content: "You are a helpful assistant. Answer concisely." }, { role: "user", content: query }], temperature: 0.7, max_tokens: 512, stream: false })) }
-    function resetAi() { aiQuery = ""; aiResponse = ""; aiLoading = false; aiStatus = 0; aiErrorDetail = ""; aiTimeout.stop(); if (aiXhr) { aiXhr.abort(); aiXhr = null } }
+    function handleAiTimeout() { if (!aiLoading) return; var gen = aiGeneration; if (aiXhr) { aiXhr.abort(); aiXhr = null } aiLoading = false; aiStatus = 3; aiResponse = "AI request timed out" }
+    function triggerAiQuery() { var q = searchText.trim(); if (q.length < 3) { if (aiStatus !== 0) resetAi(); return } aiGeneration++; if (aiXhr) { aiXhr.abort(); aiXhr = null } pendingAiQuery = q; aiTimer.restart() }
+    function executeAiQuery(query) { var execGen = aiGeneration; aiLoading = true; aiStatus = 1; aiResponse = ""; aiErrorDetail = ""; var xhr = new XMLHttpRequest(); aiXhr = xhr; xhr.open("POST", aiEndpoint, true); xhr.setRequestHeader("Content-Type", "application/json"); xhr.timeout = aiTimeoutMs; xhr.ontimeout = function() { if (execGen !== aiGeneration) return; aiXhr = null; aiLoading = false; aiStatus = 3; aiResponse = "AI timed out" }; xhr.onreadystatechange = function() { if (xhr.readyState !== XMLHttpRequest.DONE) return; if (execGen !== aiGeneration) return; aiTimeout.stop(); aiXhr = null; aiLoading = false; if (xhr.status === 200) { try { var j = JSON.parse(xhr.responseText); aiResponse = j.choices?.[0]?.message?.content || "No response"; aiStatus = 2 } catch(e) { aiResponse = "Failed to parse AI response"; aiStatus = 3 } } else if (xhr.status === 0) { aiResponse = "AI endpoint unreachable"; aiErrorDetail = "Ensure llama.cpp is running at " + aiEndpoint; aiStatus = 3 } else { aiResponse = "AI request failed (HTTP " + xhr.status + ")"; aiStatus = 3 } }; aiTimeout.start(); xhr.send(JSON.stringify({ model: aiModel, messages: [{ role: "system", content: "You are a helpful assistant. Answer concisely." }, { role: "user", content: query }], temperature: 0.7, max_tokens: 512, stream: false })) }
+    function resetAi() { aiGeneration++; aiQuery = ""; aiResponse = ""; aiLoading = false; aiStatus = 0; aiErrorDetail = ""; aiTimeout.stop(); aiTimer.stop(); pendingAiQuery = ""; if (aiXhr) { aiXhr.abort(); aiXhr = null } }
 
     // ── App scanning ──
     property var appCache: []; property bool scanStarted: false; property bool scanBusy: false
     property string scanError: ""; property string desktopBuffer: ""; property string scannerStderr: ""
+    // Retry button visible when last scan failed and we have defaults showing
+    property bool scanFailed: false
     property Process desktopScanner: Process { id: desktopScanner; running: false
         stdout: SplitParser { splitMarker: ""; onRead: function(data) { root.desktopBuffer += data } }
         stderr: SplitParser { splitMarker: ""; onRead: function(data) { root.scannerStderr += data } }
         onStarted: { root.scanBusy = true; root.scanError = "" }
         onExited: function(exitCode, exitStatus) {
             root.scanBusy = false
-            if (exitCode === 0 && root.desktopBuffer) root.parseDesktopFiles(root.desktopBuffer)
-            else if (exitCode !== 0) root.scanError = "Application discovery failed" + (root.scannerStderr.trim() ? ": " + root.scannerStderr.trim() : "")
-            else root.scanError = "No applications were discovered"
+            if (exitCode === 0 && root.desktopBuffer) { root.parseDesktopFiles(root.desktopBuffer); root.scanFailed = false; }
+            else if (exitCode !== 0) { root.scanError = "Application discovery failed" + (root.scannerStderr.trim() ? ": " + root.scannerStderr.trim() : ""); root.scanFailed = true; }
+            else { root.scanError = "No applications were discovered"; root.scanFailed = true; }
             root.desktopBuffer = ""
             root.scannerStderr = ""
             root.filterResults()
         }
     }
-    function scanDesktopFiles() { if (scanStarted || desktopScanner.running) return; scanStarted = true; desktopBuffer = ""; scannerStderr = ""; desktopScanner.command = [Quickshell.env("HOME") + "/.config/hypr/scripts/launcher.sh", "--list-json"]; desktopScanner.running = true }
+    function scanDesktopFiles() { if (desktopScanner.running) return; scanStarted = true; scanFailed = false; desktopBuffer = ""; scannerStderr = ""; desktopScanner.command = [Quickshell.env("HOME") + "/.config/hypr/scripts/launcher.sh", "--list-json"]; desktopScanner.running = true }
+    function retryScan() { if (desktopScanner.running) return; scanStarted = false; scanError = ""; scanDesktopFiles() }
     function iconSource(item) {
         var iconName = item && item.iconName ? String(item.iconName).trim() : "";
         if (iconName === "") return "";
@@ -294,7 +312,14 @@ Item {
         }
         if (activeMode === 3) {
             if (q === "") { filteredResults = []; return; }
-            filteredResults = [{ title:"= " + evaluateCalc(q), icon:"\uF1EC", subtitle:q, action:"copy_result", actionParams:{value:evaluateCalc(q)} }]; return;
+            var calcResult = evaluateCalc(q);
+            if (calcResult.valid) {
+                filteredResults = [{ title:"= " + calcResult.display, icon:"\uF1EC", subtitle:q, action:"copy_result", actionParams:{value:calcResult.value} }];
+            } else {
+                // Invalid calc results are shown but not copyable
+                filteredResults = [{ title:calcResult.display, icon:"\uF1EC", subtitle:q, action:"", actionParams:{} }];
+            }
+            return;
         }
         var src = activeMode === 0 ? buildAppResults() : activeMode === 1 ? buildWindowResults() : buildCommandResults();
         filteredResults = ranked(src, q, q === "" ? 20 : 30);
@@ -303,8 +328,108 @@ Item {
     function buildWindowResults() { try { if (!hyprland || !hyprland.windows) return []; var out = []; var wins = hyprland.windows; for (var i = 0; i < wins.length; i++) { var w = wins[i]; if (!w) continue; var wsLabel = ""; if (w.workspace) wsLabel = "ws " + (w.workspace.name || w.workspace.id || ""); out.push({ title:w.title||"Untitled", icon:"\uF2D2", subtitle:wsLabel, action:"focus_window", actionParams:{address:w.address||""} }) } return out } catch(e) { return [] } }
     function buildCommandResults() { return [{ title:"Lock", icon:"\uF023", subtitle:"Lock the screen", action:"lock", actionParams:{} }, { title:"Suspend", icon:"\uF186", subtitle:"Suspend to RAM", action:"suspend", actionParams:{} }, { title:"Reboot", icon:"\uF01E", subtitle:"Reboot the system", action:"reboot", actionParams:{} }, { title:"Power Off", icon:"\uF011", subtitle:"Shut down", action:"power_off", actionParams:{} }, { title:"Dolphin", icon:"\uF07C", subtitle:"Open file manager", action:"launch", actionParams:{command:"dolphin"} }, { title:"Screenshot", icon:"\uF030", subtitle:"Take a screenshot", action:"screenshot", actionParams:{} }, { title:"Reload shell", icon:"\uF021", subtitle:"Reload NoxFlow shell", action:"reload_shell", actionParams:{} }] }
 
-    // Safe calculator
-    function evaluateCalc(expr) { try { var tokens = []; var num = ""; for (var i = 0; i < expr.length; i++) { var ch = expr[i]; if (/[0-9.]/.test(ch)) { num += ch; continue } if (num) { tokens.push({t:"num",v:parseFloat(num)}); num = "" } if (ch === ' ') continue; if ('+-*/()%'.indexOf(ch) >= 0) { tokens.push({t:ch,v:ch}); continue } } if (num) tokens.push({t:"num",v:parseFloat(num)}); if (tokens.length === 0) return "?"; var pos = 0; function peek() { return pos < tokens.length ? tokens[pos] : null } function consume() { return pos < tokens.length ? tokens[pos++] : null } function parseExpr() { var left = parseTerm(); while (peek() && (peek().t === '+' || peek().t === '-')) { var op = consume().v; var right = parseTerm(); left = op === '+' ? left+right : left-right } return left } function parseTerm() { var left = parseFactor(); while (peek() && (peek().t === '*' || peek().t === '/' || peek().t === '%')) { var op = consume().v; var right = parseFactor(); if (op === '*') left *= right; else if (op === '/') { if (right === 0) throw "div0"; left /= right } else left %= right } return left } function parseFactor() { if (peek() && peek().t === '-') { consume(); return -parseFactor() } if (peek() && peek().t === '(') { consume(); var val = parseExpr(); if (peek() && peek().t === ')') consume(); return val } var tok = consume(); if (!tok || tok.t !== "num") throw "bad"; return tok.v } var result = parseExpr(); if (typeof result === "number" && isFinite(result)) return String(Math.round(result*100)/100); return "?" } catch(e) { return "?" } }
+    // Safe calculator with proper input validation.
+    // Returns { valid: bool, display: string, value: number|string }.
+    // display shows the human-readable result or error message.
+    // value is only set for valid finite numbers (used for copy action).
+    function evaluateCalc(expr) {
+        // Reject obviously malformed queries before tokenizing
+        if (!expr || expr.length === 0) return { valid: false, display: "?", value: "" };
+        var ch, num = "", tokens = [];
+        // Tokenize with strict character validation
+        for (var i = 0; i < expr.length; i++) {
+            ch = expr[i];
+            if ((ch >= '0' && ch <= '9') || ch === '.') {
+                num += ch;
+                continue;
+            }
+            if (num) {
+                var n = parseFloat(num);
+            if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(num) || isNaN(n)) return { valid: false, display: "Invalid number", value: "" };
+                tokens.push({ t: "num", v: n });
+                num = "";
+            }
+            if (ch === ' ') continue;
+            if (ch === '+' || ch === '-' || ch === '*' || ch === '/' || ch === '(' || ch === ')' || ch === '%') {
+                tokens.push({ t: ch, v: ch });
+                continue;
+            }
+            // Unknown character — reject
+            return { valid: false, display: "Invalid character", value: "" };
+        }
+        if (num) {
+            var n2 = parseFloat(num);
+        if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(num) || isNaN(n2)) return { valid: false, display: "Invalid number", value: "" };
+            tokens.push({ t: "num", v: n2 });
+            num = "";
+        }
+        if (tokens.length === 0) return { valid: false, display: "?", value: "" };
+
+        var pos = 0;
+        function peek() { return pos < tokens.length ? tokens[pos] : null; }
+        function consume() { return pos < tokens.length ? tokens[pos++] : null; }
+
+        // parseExpr → parseTerm → parseFactor with binary operators
+        function parseExpr() {
+            var left = parseTerm();
+            while (peek() && (peek().t === '+' || peek().t === '-')) {
+                var op = consume().v;
+                var right = parseTerm();
+                left = op === '+' ? left + right : left - right;
+            }
+            return left;
+        }
+        function parseTerm() {
+            var left = parseFactor();
+            while (peek() && (peek().t === '*' || peek().t === '/' || peek().t === '%')) {
+                var op = consume().v;
+                var right = parseFactor();
+                if (op === '*') {
+                    left *= right;
+                } else if (op === '/') {
+                    if (right === 0) throw new Error("div0");
+                    left /= right;
+                } else { // '%'
+                    if (right === 0) throw new Error("mod0");
+                    left = left % right;
+                }
+            }
+            return left;
+        }
+        function parseFactor() {
+            if (peek() && peek().t === '-') {
+                consume();
+                return -parseFactor();
+            }
+            if (peek() && peek().t === '(') {
+                consume();
+                var val = parseExpr();
+                if (!peek() || peek().t !== ')') throw new Error("unclosed");
+                consume(); // consume ')'
+                return val;
+            }
+            var tok = consume();
+            if (!tok || tok.t !== "num") throw new Error("bad");
+            return tok.v;
+        }
+
+        try {
+            var result = parseExpr();
+            // Check for unconsumed tokens
+            if (pos < tokens.length) throw new Error("unconsumed");
+            if (typeof result !== "number" || !isFinite(result)) throw new Error("notfinite");
+            var rounded = Math.round(result * 100) / 100;
+            return { valid: true, display: String(rounded), value: rounded };
+        } catch(e) {
+            var msg = e.message || String(e);
+            if (msg === "div0" || msg === "mod0") return { valid: false, display: "Division by zero", value: "" };
+            if (msg === "unclosed") return { valid: false, display: "Unclosed parenthesis", value: "" };
+            if (msg === "bad") return { valid: false, display: "Invalid expression", value: "" };
+            if (msg === "unconsumed") return { valid: false, display: "Trailing operators", value: "" };
+            if (msg === "notfinite") return { valid: false, display: "Invalid result", value: "" };
+            return { valid: false, display: "?", value: "" };
+        }
+    }
     function moveList(d) { if (filteredResults.length === 0) return; selectedIndex = (selectedIndex + d + filteredResults.length) % filteredResults.length; resultsList.currentIndex = selectedIndex; resultsList.positionViewAtIndex(selectedIndex, ListView.Contain) }
     function selectBoundary(last) { if (filteredResults.length === 0) return; selectedIndex = last ? filteredResults.length - 1 : 0; resultsList.currentIndex = selectedIndex; resultsList.positionViewAtIndex(selectedIndex, ListView.Contain) }
     function activateSelected() {
