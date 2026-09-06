@@ -562,3 +562,98 @@ fn settings_survive_restart() {
     let _ = fs::remove_dir_all(&runtime_dir);
     let _ = fs::remove_dir_all(&state_dir);
 }
+
+#[test]
+fn get_settings_returns_canonical_map_for_shell_hydration() {
+    // NF-05 contract: SettingsPanel hydrates from the canonical get_settings
+    // response. The daemon must round-trip every setting the user could have
+    // changed through the QML panel, so the shell's `applyAppearanceFromMap`
+    // can apply each key to its corresponding token binding.
+    let daemon = TestDaemon::start();
+    // Set every appearance/shell setting the panel currently writes.
+    let writes = [
+        ("appearance.profile", serde_json::json!("material-oled")),
+        ("appearance.density", serde_json::json!("spacious")),
+        ("appearance.radius", serde_json::json!(20)),
+        ("shell.reduced_motion", serde_json::json!(true)),
+    ];
+    for (idx, (key, value)) in writes.iter().enumerate() {
+        let resp = daemon.request(
+            Request::SetSetting {
+                key: (*key).into(),
+                value: value.clone(),
+            },
+            &format!("nf05-write-{idx}"),
+        );
+        assert!(resp.error.is_none(), "set_setting({key}) should succeed");
+    }
+
+    // Now read the canonical map. The shell's SettingsPanel hydrates from
+    // this payload (response.data.settings).
+    let resp = daemon.request(Request::GetSettings, "nf05-get-1");
+    assert!(resp.error.is_none(), "get_settings should succeed");
+    match resp.result {
+        Some(noxflow_ipc::Response::Settings(map)) => {
+            assert_eq!(map.settings.get("appearance.profile"), Some(&serde_json::json!("material-oled")));
+            assert_eq!(map.settings.get("appearance.density"), Some(&serde_json::json!("spacious")));
+            assert_eq!(map.settings.get("appearance.radius"), Some(&serde_json::json!(20)));
+            assert_eq!(map.settings.get("shell.reduced_motion"), Some(&serde_json::json!(true)));
+        }
+        other => panic!("expected Settings response, got {other:?}"),
+    }
+
+    // SettingUpdated must still echo the canonical key+value so the panel's
+    // saved-state callback can match it against the pending write.
+    let set_resp = daemon.request(
+        Request::SetSetting {
+            key: "appearance.radius".into(),
+            value: serde_json::json!(28),
+        },
+        "nf05-ack-1",
+    );
+    assert!(set_resp.error.is_none());
+    match set_resp.result {
+        Some(noxflow_ipc::Response::SettingUpdated(ack)) => {
+            assert_eq!(ack.key, "appearance.radius");
+            assert_eq!(ack.value, serde_json::json!(28));
+        }
+        other => panic!("expected SettingUpdated, got {other:?}"),
+    }
+}
+
+#[test]
+fn get_settings_includes_unchanged_keys_after_partial_writes() {
+    // NF-05 external-update: when the shell hydrates after a partial write
+    // session (some keys changed externally, others via the shell), the
+    // canonical map must reflect every value — not just the keys the shell
+    // touched this session.
+    let daemon = TestDaemon::start();
+    daemon
+        .request(
+            Request::SetSetting {
+                key: "appearance.profile".into(),
+                value: serde_json::json!("material-focus"),
+            },
+            "nf05-partial-1",
+        );
+    daemon
+        .request(
+            Request::SetSetting {
+                key: "appearance.density".into(),
+                value: serde_json::json!("compact"),
+            },
+            "nf05-partial-2",
+        );
+
+    let resp = daemon.request(Request::GetSettings, "nf05-partial-get");
+    assert!(resp.error.is_none());
+    match resp.result {
+        Some(noxflow_ipc::Response::Settings(map)) => {
+            assert!(map.settings.contains_key("appearance.profile"),
+                "every written key must be present in the canonical map");
+            assert!(map.settings.contains_key("appearance.density"),
+                "every written key must be present in the canonical map");
+        }
+        other => panic!("expected Settings response, got {other:?}"),
+    }
+}

@@ -105,8 +105,13 @@ QtObject {
     }
 
     /// Write a setting value. Returns true if queued.
-    function setSetting(key, value) {
-        return sendRequest("set_setting", { key: key, value: value });
+    /// Optional callback(result) fires when the daemon confirms the write
+    /// (SettingUpdated). Optional errorCallback(code, message) fires on
+    /// validation rejection or transport failure. Callers that ignore the
+    /// return value stay backwards compatible — this overload is purely
+    /// additive so existing call sites keep working unchanged.
+    function setSetting(key, value, callback, errorCallback) {
+        return sendRequest("set_setting", { key: key, value: value }, callback, errorCallback);
     }
 
     /// Read a setting. Calls callback(result) with the setting value result.
@@ -115,6 +120,8 @@ QtObject {
     }
 
     /// Read all settings. Calls callback(result) with the settings map result.
+    /// The result envelope is { type: "settings", data: { settings: {...} } }
+    /// — callers should reach into result.data.settings to get the map.
     function getSettings(callback, errorCallback) {
         return sendRequest("get_settings", {}, callback, errorCallback);
     }

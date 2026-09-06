@@ -12,7 +12,11 @@ QtObject {
     // appearance (config-level, not per-profile)
     readonly property string appearanceMode: "dark"
     readonly property string appearanceDensity: "comfortable"
-    readonly property int appearanceRadius: 14
+    // appearanceRadius is the canonical radius the user picked. Writable so
+    // the settings panel and external hydration stay in sync — the label
+    // ("14px", "20px", ...) must always reflect the radius actually applied
+    // to radiusMd, radiusLg and radiusXl.
+    property int appearanceRadius: 14
     readonly property string appearanceMotion: "fluid"
     readonly property string appearanceTransparency: "balanced"
 
@@ -242,5 +246,19 @@ QtObject {
         stateDisabledOverlay        = p.state.disabledOverlay;
 
         currentProfile = name;
+    }
+
+    /// Apply a corner radius (in scaled pixels) atomically. Updates every
+    /// radius step that depends on the base radius so the visual output and
+    /// the displayed appearanceRadius label never diverge.
+    function applyRadius(px) {
+        var clamped = Math.max(0, Math.min(36, Math.round(Number(px) || 0)));
+        radiusNone = 0;
+        radiusXs = 4;
+        radiusSm = 8;
+        radiusMd = clamped;
+        radiusLg = Math.min(clamped + 4, 28);
+        radiusXl = Math.min(clamped + 8, 36);
+        appearanceRadius = clamped;
     }
 }
