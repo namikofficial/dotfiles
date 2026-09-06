@@ -11,7 +11,9 @@ Item {
 
     required property var noxd
     required property var transfer
-    property int selectedDeviceIndex: -1
+    // Capture stable device ID at selection time to avoid index-staleness bugs
+    // when devices reorder or are removed between user selection and file picker.
+    property string selectedDeviceId: ""
     property bool picking: false
     property string pickBuffer: ""
     implicitHeight: contentColumn.implicitHeight
@@ -41,7 +43,7 @@ Item {
     }
 
     function sendFiles() {
-        if (picking || selectedDeviceIndex < 0)
+        if (picking || !root.selectedDeviceId)
             return
         picking = true
         pickBuffer = ""
@@ -68,8 +70,20 @@ Item {
             var paths = text.split("\n").filter(function (path) {
                 return path.trim() !== ""
             })
-            if (paths.length && root.selectedDeviceIndex >= 0 && root.selectedDeviceIndex < root.transfer.devices.length)
-                root.transfer.send(root.transfer.devices[root.selectedDeviceIndex].id, paths)
+            if (!paths.length || !root.selectedDeviceId)
+                return
+            // Verify the captured device ID is still present and eligible.
+            // If devices reordered or the peer disappeared, this prevents sending
+            // to a different device than the one the user explicitly selected.
+            var deviceStillPresent = root.transfer.devices.some(function(d) {
+                return d.id === root.selectedDeviceId
+            })
+            if (!deviceStillPresent) {
+                console.warn("quick-share: selected device", root.selectedDeviceId, "no longer present after picker; discarding")
+                root.selectedDeviceId = ""
+                return
+            }
+            root.transfer.send(root.selectedDeviceId, paths)
         }
     }
 
@@ -211,12 +225,12 @@ Item {
 
                 delegate: Rectangle {
                     required property var modelData
-                    required property int index
                     Layout.fillWidth: true
                     implicitHeight: 50
                     radius: Theme.Tokens.radiusMd
-                    color: root.selectedDeviceIndex === index ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
-                    border.color: root.selectedDeviceIndex === index ? Theme.Tokens.tonalPrimary : "transparent"
+                    // Use stable device ID comparison instead of array index
+                    color: modelData.id === root.selectedDeviceId ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
+                    border.color: modelData.id === root.selectedDeviceId ? Theme.Tokens.tonalPrimary : "transparent"
                     border.width: 1
 
                     RowLayout {
@@ -252,7 +266,7 @@ Item {
                     }
 
                     TapHandler {
-                        onTapped: root.selectedDeviceIndex = index
+                        onTapped: root.selectedDeviceId = modelData.id
                     }
                 }
             }
@@ -268,7 +282,7 @@ Item {
             Components.TextButton {
                 Layout.fillWidth: true
                 text: root.picking ? "Choosing files…" : "Send files…"
-                enabled: root.selectedDeviceIndex >= 0 && !root.picking
+                enabled: !!root.selectedDeviceId && !root.picking
                 onClicked: root.sendFiles()
             }
 

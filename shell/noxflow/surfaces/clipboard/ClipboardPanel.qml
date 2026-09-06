@@ -113,12 +113,22 @@ Item {
     function timeLabel(ts) { return clipModel.formatTime ? clipModel.formatTime(ts) : ""; }
 
     // ── Copy to clipboard via wl-copy (detached, no shell session) ──
-    property Process copyProcess: Process { running: false }
+    // Avoid duplicate process races by checking running state before each copy.
+    property Process copyProcess: Process {
+        running: false
+        onExited: { copyRunning = false; }
+    }
+    property bool copyRunning: false
 
     function copyEntry(entry) {
         if (!entry || !entry.text) return;
-        // wl-copy reads the entry from stdin; the text is passed as a JSON
+        if (copyRunning) {
+            console.warn("clipboard: copy already in progress, ignoring duplicate request");
+            return;
+        }
+        // wl-copy reads the entry from stdin; the text is passed as a
         // string arg to sh -c to avoid injection.
+        copyRunning = true;
         copyProcess.command = ["sh", "-c", "printf %s \"$1\" | wl-copy --type text/plain", "clipboard-panel", String(entry.text)];
         copyProcess.running = true;
         // Clipboard copy is fully shell-local: wl-copy owns the actual write
