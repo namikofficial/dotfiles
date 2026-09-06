@@ -5,10 +5,13 @@ Fetches Google Calendar events via gcalcli, writes JSON cache for QML FileView.
 """
 
 import argparse
+import calendar
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -20,6 +23,24 @@ GCALCLI_CONFIG = CONFIG_DIR  # absolute path
 
 def log(msg):
     print(f"[calendar-sync] {msg}", flush=True)
+
+
+# ── Utility ─────────────────────────────────────────────────────────────────
+
+def days_in_month(year, month):
+    """Return the number of days in the given month (0-indexed month)."""
+    return calendar.monthrange(year, month + 1)[1]
+
+
+def clamp_selected_day(day, year, month):
+    """Clamp day to the valid range for the given month."""
+    return max(1, min(day, days_in_month(year, month)))
+
+
+def event_id(date_str, title, time_str, calendar_name):
+    """Stable hash id for deduplication — different events get different ids."""
+    raw = f"{date_str}|{title}|{time_str or ''}|{calendar_name or ''}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
 def load_config():
@@ -104,12 +125,14 @@ def parse_gcalcli_tsv(output):
             except ValueError:
                 pass
 
+        cal_name = "primary"
         events.append({
+            "id": event_id(start_date, title, start_time, cal_name),
             "date": start_date,
             "title": title,
             "time": start_time,
             "duration": duration,
-            "calendar": "primary",
+            "calendar": cal_name,
             "calendarColor": "#4285f4",
             "description": "",
             "location": "",
@@ -206,13 +229,15 @@ def fetch_events(config):
 
     log(f"  → {len(events)} raw events")
 
-    # Deduplicate by title + date + time
-    seen = set()
+    # Deduplicate by stable event id (date + title + time + calendar hash)
+    # Distinct events with the same title but different times/calendars get different ids.
+    seen_ids = set()
     unique = []
     for e in sorted(events, key=lambda x: x.get("date", "") + x.get("time", "")):
-        key = (e["date"], e["title"], e["time"])
-        if key not in seen:
-            seen.add(key)
+        eid = e.get("id", event_id(e.get("date", ""), e.get("title", ""),
+                                    e.get("time", ""), e.get("calendar", "")))
+        if eid not in seen_ids:
+            seen_ids.add(eid)
             unique.append(e)
 
     # Color mapping
@@ -242,44 +267,24 @@ def fetch_events(config):
     log(f"  → {len(unique)} events, {len(cal_list)} calendars")
 
     return unique, cal_list, errors
-    seen = set()
-    unique = []
-    for e in sorted(events, key=lambda x: x.get("date", "") + x.get("time", "")):
-        key = (e["date"], e["title"], e["time"])
-        if key not in seen:
-            seen.add(key)
-            unique.append(e)
-
-    # Color mapping
-    color_map = {
-        "primary": "#4285f4",
-        "Work": "#db4437",
-        "Personal": "#0f9d58",
-        "University": "#f4b400",
-        "Family": "#ab47bc",
-        "Holidays": "#e67c73",
-    }
-
-    cal_list = []
-    seen_cals = set()
-    for e in unique:
-        cal_name = e.get("calendar", "primary")
-        if cal_name not in seen_cals:
-            seen_cals.add(cal_name)
-            cal_list.append({
-                "name": cal_name,
-                "color": color_map.get(cal_name, "#4285f4"),
-                "visible": config.get("calendar_visible", {}).get(cal_name, True),
-            })
-        e["calendarColor"] = color_map.get(cal_name, "#4285f4")
-
-    log(f"  → {len(unique)} events, {len(cal_list)} calendars")
-
-    return unique, cal_list, errors
 
 
-def write_cache(events, calendars, errors, path):
-    """Write events to JSON cache."""
+def write_cache_atomic(events, calendars, errors, path):
+    """Atomically write events to JSON cache.
+
+    Uses a temp file + os.rename for atomic POSIX semantics.
+    If events is empty AND errors is empty, skips the write to preserve
+    any previously-cached good data (transient failure with no partial result).
+    """
+    # A successful empty result can be a valid empty calendar, but a failed
+    # fetch must never replace the last-good event list with an empty one.
+    if errors and os.path.exists(path):
+        log("  → sync failed; preserving existing calendar cache")
+        return
+    if not events and not errors and os.path.exists(path):
+        log("  → cache unchanged (no events, no errors) — preserving existing cache")
+        return
+
     cache = {
         "events": events,
         "calendars": calendars,
@@ -287,14 +292,31 @@ def write_cache(events, calendars, errors, path):
         "errors": errors,
     }
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(cache, f)
+
+    dir_path = os.path.dirname(path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".json")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(cache, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.rename(tmp_path, path)
+    except Exception:
+        # Clean up temp file on failure
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+
+# Keep the original public name for scripts and older callers.
+def write_cache(events, calendars, errors, path):
+    return write_cache_atomic(events, calendars, errors, path)
 
 
 def run_sync(path, config):
     """Single sync pass."""
     events, calendars, errors = fetch_events(config)
-    write_cache(events, calendars, errors, path)
+    write_cache_atomic(events, calendars, errors, path)
     if errors:
         log(f"Warnings: {' / '.join(errors)}")
     return len(errors) == 0
@@ -331,7 +353,7 @@ def main():
     if args.background:
         run_background(args.cache, args.interval)
     else:
-        run_sync(args.cache, config)
+        sys.exit(0 if run_sync(args.cache, config) else 1)
 
 
 if __name__ == "__main__":
