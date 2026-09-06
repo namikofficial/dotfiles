@@ -12,6 +12,16 @@ acceptance, and external-service proof remain open until exercised on the
 running shell. NF-22 smoke preflight is now read-only; NF-23 documentation
 reconciliation is limited to claims contradicted by current source.
 
+| Packet | Status | Evidence |
+|---|---|---|
+| NF-01–NF-06 | Implemented | IPC/provider guards, panel lifecycle, settings hydration, and maintenance state in `743be99` and `fae24c7`; Rust/QML contract checks pass. |
+| NF-07–NF-09, NF-19 | Implemented | AI generation guards, strict calculator result model, discovery retry, and radial geometry in `2ea31c0`; calculator/launcher tests pass. |
+| NF-10–NF-12 | Implemented with external proof open | Capture waits for process completion, captures OCR once, uses unique artifacts, and uploads only after disclosure in `f07b3d4`; `qmllint` passes. |
+| NF-13–NF-15 | Implemented with provider/device proof open | Atomic calendar cache, last-good preservation, month clamping, weather retry/status/icon mapping in `c6edf95`; Python/QML checks pass. |
+| NF-16 | Ownership boundary | Dunst remains the live notification-bus owner; NoxFlow labels its local model and synchronizes DND without competing for the bus. A replacement bridge still requires a separate design and live proof. |
+| NF-17–NF-18, NF-20 | Implemented | Shell-local clipboard copy, controlled Toggle, stable share device IDs in `c4876da` and `88bf64e`; focused contract tests pass. |
+| NF-21–NF-23 | Partial/ongoing | Smoke is read-only and historical claims were marked; runtime warning inventory, physical input, and multi-monitor acceptance remain required. |
+
 Date: 2026-09-06. Audited branch: `namik`. Source baseline: `7686037`.
 
 Status: **Implementation in progress.** The original audit remains the source
