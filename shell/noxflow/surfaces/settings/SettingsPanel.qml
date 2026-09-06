@@ -247,7 +247,7 @@ PanelWindow {
         // accumulate stale saved/rejected messages during long sessions.
         interval: 4000
         repeat: false
-        running: root.lastStatusKind !== "" && root.lifecycle.interactive
+        running: root.lastStatusKind !== "" && lifecycle.interactive
         onTriggered: {
             // Only clear if no new status arrived in the meantime.
             if (Date.now() - root.lastStatusAt >= interval) {
