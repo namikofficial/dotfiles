@@ -92,8 +92,18 @@ Item {
                                 notification: modelData; width: parent ? parent.width : 0
                                 onDismissed: notifModel.dismissNotification(modelData.id)
                                 onActionInvoked: function(notif, actionId) {
-                                    if (root.noxd && root.noxd.connected) root.noxd.runAction({notification_action:{id:notif.id,action:actionId}});
-                                    if (actionId === "dismiss") notifModel.dismissNotification(notif.id);
+                                    if (actionId === "dismiss") {
+                                        notifModel.dismissNotification(notif.id);
+                                    }
+                                    // Other notification actions are
+                                    // shell-local: the notification store
+                                    // and any default handlers (xdg-open,
+                                    // clipboard copy) live in the shell,
+                                    // and the daemon IPC contract has no
+                                    // typed `notification_action` action.
+                                    // Specific surfaces that need to wire a
+                                    // real action (e.g. open URL) should
+                                    // branch on actionId here.
                                 }
                             }
                         }

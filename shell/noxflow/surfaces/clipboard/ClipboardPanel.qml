@@ -121,7 +121,9 @@ Item {
         // string arg to sh -c to avoid injection.
         copyProcess.command = ["sh", "-c", "printf %s \"$1\" | wl-copy --type text/plain", "clipboard-panel", String(entry.text)];
         copyProcess.running = true;
-        if (root.noxd && root.noxd.connected) root.noxd.runAction({ clipboard_copy: { text: entry.text } });
+        // Clipboard copy is fully shell-local: wl-copy owns the actual write
+        // and the daemon does not own a clipboard provider. There is no typed
+        // `clipboard_copy` action in the IPC contract, so do not send one.
     }
 
     function toggle() { lifecycle.toggle(); }

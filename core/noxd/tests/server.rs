@@ -145,6 +145,43 @@ fn oversized_message_is_disconnected_but_server_survives() {
 }
 
 #[test]
+fn shell_local_action_names_are_not_action_variants() {
+    // NF-02 guard rail: these action names were sent by previous versions of
+    // the shell and had no daemon owner. They must be rejected end-to-end so
+    // a regression that re-introduces a `noxd.runAction({...: ...})` call
+    // for one of them surfaces as an explicit error instead of silent
+    // success or silent no-op.
+    let daemon = TestDaemon::start();
+    for action_name in ["window_focus", "clipboard_copy", "notification_action", "toggle_launcher"] {
+        let envelope = serde_json::json!({
+            "version": PROTOCOL_VERSION,
+            "id": format!("nf02-{action_name}"),
+            "method": "run_action",
+            "params": {
+                "action": { action_name: serde_json::json!({}) }
+            }
+        });
+        let mut stream = UnixStream::connect(daemon.socket()).unwrap();
+        writeln!(stream, "{}", envelope).unwrap();
+        let mut line = String::new();
+        BufReader::new(stream)
+            .read_line(&mut line)
+            .expect("must read a response");
+        let resp: ResponseEnvelope = serde_json::from_str(&line).expect("response is JSON");
+        assert!(
+            resp.error.is_some(),
+            "daemon must reject unsupported action {action_name} instead of accepting it"
+        );
+        assert_eq!(
+            resp.error.as_ref().unwrap().code,
+            ErrorCode::InvalidRequest,
+            "expected InvalidRequest for {action_name}, got {:?}",
+            resp.error
+        );
+    }
+}
+
+#[test]
 fn owned_stale_socket_is_removed_and_unexpected_path_is_rejected() {
     let runtime = std::env::temp_dir().join(format!("noxd-safety-{}", std::process::id()));
     let _ = fs::remove_dir_all(&runtime);

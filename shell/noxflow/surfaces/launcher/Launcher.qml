@@ -20,6 +20,25 @@ Item {
     Behavior on openProgress { NumberAnimation { duration: Theme.Tokens.duration(lifecycle.animDuration); easing.type: lifecycle.easingType } }
     signal requestCaptureAfterClose()
 
+    // Shell-local window focus. The launcher "Windows" mode lists hyprland
+    // clients and activating one focuses it. There is no typed daemon action
+    // for window focus — the daemon's hyprland provider publishes state but
+    // does not own focus dispatch, and the noxd Action enum has no
+    // `window_focus` variant. Dispatch directly via hyprctl.
+    property Process windowFocusProcess: Process {
+        running: false
+        command: []
+    }
+    function focusWindowByAddress(address) {
+        var addr = String(address || "").trim();
+        if (!addr) return;
+        // hyprctl rejects malformed addresses; only accept hex digits.
+        if (!/^0x[0-9a-fA-F]+$/.test(addr)) return;
+        windowFocusProcess.running = false;
+        windowFocusProcess.command = ["hyprctl", "dispatch", "focuswindow", "address:" + addr];
+        windowFocusProcess.running = true;
+    }
+
     readonly property var modes: ["Apps","Windows","Commands","Calc","Ask AI","Clipboard"]
     property int activeMode: 0
     property string searchText: ""
@@ -304,7 +323,8 @@ Item {
             launchProcess.running = true
             break
         case "focus_window":
-            if (root.noxd && root.noxd.connected && item.actionParams && item.actionParams.address) root.noxd.runAction({window_focus:{address:item.actionParams.address}})
+            // Shell-local: dispatch via hyprctl. No typed daemon action exists.
+            if (item.actionParams && item.actionParams.address) root.focusWindowByAddress(item.actionParams.address);
             lifecycle.requestClose("action")
             break
         case "open_clipboard":

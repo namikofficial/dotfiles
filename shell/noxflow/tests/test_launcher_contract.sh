@@ -37,6 +37,14 @@ has 'root.launchError =' "$QML"
 has 'root.scanError =' "$QML"
 has 'IconImage' "$QML"
 has 'Quickshell.iconPath' "$QML"
+# NF-02: window focus from the launcher must be shell-local (hyprctl), not a
+# runAction({window_focus: ...}) call.
+has 'focusWindowByAddress' "$QML"
+has 'hyprctl", "dispatch", "focuswindow"' "$QML"
+if grep -Fq 'runAction({window_focus' "$QML"; then
+  printf 'launcher must not route window focus through noxd.runAction\n' >&2
+  exit 1
+fi
 
 # Super+Space must be hosted by the existing Dynamic Island. A launcher entry
 # in MorphSurface would create a second layer window and regress the morph.

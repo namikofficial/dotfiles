@@ -120,7 +120,12 @@ PanelWindow {
     function activateSlot(index){
         if(index<0||index>=slots.length)return;var slot=slots[index];if(!slot||!slot.action)return;
         switch(slot.action){case"close_wheel":lifecycle.requestClose("closeWheel");break;
-            case"toggle_launcher":lifecycle.requestClose("toggleLauncher");if(root.noxd&&root.noxd.connected)root.noxd.runAction({toggle_launcher:{}});break;
+            case"toggle_launcher":
+                // Shell-local: the launcher is a shell surface and the
+                // daemon IPC contract has no typed `toggle_launcher` action.
+                lifecycle.requestClose("toggleLauncher");
+                if (shellRoot && typeof shellRoot.toggleLauncher === "function") shellRoot.toggleLauncher();
+                break;
             case"launch":if(slot.actionParams&&slot.actionParams.command)Quickshell.exec(slot.actionParams.command);lifecycle.requestClose("launch");break;
             default:if(root.noxd&&root.noxd.connected){var action={};action[slot.action]=slot.actionParams||{};root.noxd.runAction(action);}lifecycle.requestClose("action");break;}
     }

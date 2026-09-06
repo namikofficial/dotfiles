@@ -524,12 +524,41 @@ mod tests {
             },
         ] {
             let envelope = RequestEnvelope {
-                protocol_version: 1,
+                protocol_version: PROTOCOL_VERSION,
                 request_id: "transfer-test".into(),
                 request: Request::RunAction { action },
             };
             let json = serde_json::to_string(&envelope).unwrap();
             assert_eq!(decode_request(&json).unwrap(), envelope);
+        }
+    }
+
+    #[test]
+    fn shell_local_action_names_are_not_action_variants() {
+        // Guard rail for NF-02: every QML runAction payload must be either a
+        // canonical typed daemon action or a shell-local call. The four
+        // names below were sent to noxd by previous versions of the shell
+        // and silently decoded as nothing (or succeeded against an
+        // unrelated handler). They have no daemon owner and must remain
+        // absent from the Action enum so they fail decoding instead of
+        // being silently dropped.
+        for action_name in [
+            "window_focus",
+            "clipboard_copy",
+            "notification_action",
+            "toggle_launcher",
+        ] {
+            let payload = format!(
+                r#"{{"version":1,"id":"nf02-{name}","method":"run_action","params":{{"action":{{"{name}":{{}}}}}}}}"#,
+                name = action_name,
+            );
+            let err = decode_request(&payload).expect_err(&format!(
+                "{action_name} must not decode as a typed Action"
+            ));
+            assert!(
+                matches!(err, DecodeError::InvalidRequest(_)),
+                "expected InvalidRequest for unsupported action {action_name}, got {err:?}"
+            );
         }
     }
 }
