@@ -18,6 +18,17 @@ Item {
     property string pickBuffer: ""
     implicitHeight: contentColumn.implicitHeight
 
+    Connections {
+        target: root.transfer
+        function onDevicesChanged() {
+            if (!root.selectedDeviceId) return
+            var present = root.transfer.devices.some(function (device) {
+                return device.id === root.selectedDeviceId
+            })
+            if (!present) root.selectedDeviceId = ""
+        }
+    }
+
     function humanSize(bytes) {
         if (!bytes)
             return "0 B"
