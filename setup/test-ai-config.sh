@@ -9,7 +9,8 @@ command -v jq >/dev/null 2>&1 || {
   printf 'jq is required\n' >&2
   exit 1
 }
-jq -e '.model == "minimax-coding-plan/MiniMax-M2.7" and (.enabled_providers | index("opencode-go") | not)' "$opencode" >/dev/null
+jq -e '.model == "minimax-coding-plan/MiniMax-M3" and (.enabled_providers | index("opencode-go") | not)' "$opencode" >/dev/null
+jq -e '. as $root | (["worker", "worker-m3", "worker-m27", "worker-m25", "worker-m25-fast", "worker-m21"] as $agents | all($agents[]; ($root.agent[.].model // "") | startswith("minimax-coding-plan/")))' "$opencode" >/dev/null
 jq -e '(.dependencies | has("mcp-orchestrate") | not)' "$runtime" >/dev/null
 
 if rg -n -i 'mcp-orchestrate|orchestrate-mcp|opencode-goal-plugin|opencode-snip|opencode-go' \
