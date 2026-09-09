@@ -894,3 +894,5 @@ export PATH="$PATH:$HOME/.maestro/bin"
 # OpenCode tooling (mirrored in .zshenv for non-interactive shells)
 export PATH="$HOME/go/bin:$PATH"
 export OPENCODE_EXPERIMENTAL_LSP_TOOL=true
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
