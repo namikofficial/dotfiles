@@ -66,4 +66,8 @@ setup/install-plannotator-improvement-hook.sh
 
 The shared Obsidian MCP launcher is `configs/opencode/obsidian-mcp.sh`. It reads the user-owned `~/.config/opencode/obsidian.env` and the vault's local REST API settings without copying credentials into this repository. OpenCode uses it from the tracked config; Codex and Claude Code use the same launcher as user-scoped MCP servers.
 
+The Stitch remote MCP entry reads its Google API key from the user-owned
+`~/.config/opencode/stitch-api-key` file. Keep that file mode `600`; the key is
+intentionally not stored in this repository.
+
 In Plannotator, open Settings, enable **Obsidian Integration**, and select `~/Documents/notes/DocsVault`. Approved plans will then be saved to the vault with frontmatter, tags, and a backlink to `[[Plannotator Plans]]`.

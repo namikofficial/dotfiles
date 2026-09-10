@@ -115,6 +115,15 @@
       "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "browser"],
       "enabled": false,
       "timeout": 120000
+    },
+    "stitch": {
+      "type": "remote",
+      "url": "https://stitch.googleapis.com/mcp",
+      "enabled": true,
+      "oauth": false,
+      "headers": {
+        "X-Goog-Api-Key": "{file:~/.config/opencode/stitch-api-key}"
+      }
     }
   },
   "skills": {"paths": ["/home/namik/Documents/code/dotfiles/configs/opencode/skills"]},

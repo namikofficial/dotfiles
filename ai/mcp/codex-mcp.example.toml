@@ -39,6 +39,11 @@ command = "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh"
 args = ["browser"]
 enabled = true
 
+[mcp_servers.stitch]
+url = "https://stitch.googleapis.com/mcp"
+env_http_headers = { "X-Goog-Api-Key" = "STITCH_API_KEY" }
+enabled = true
+
 [mcp_servers.postgres]
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:password@localhost/dbname"]
