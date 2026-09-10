@@ -20,16 +20,14 @@
       "models": {
         "MiniMax-M3": {"name": "MiniMax M3", "tool_call": true},
         "MiniMax-M2.7": {"name": "MiniMax M2.7", "tool_call": true},
-        "MiniMax-M2.7-highspeed": {"name": "MiniMax M2.7 Highspeed", "tool_call": true},
         "MiniMax-M2.5": {"name": "MiniMax M2.5", "tool_call": true},
-        "MiniMax-M2.5-highspeed": {"name": "MiniMax M2.5 Highspeed", "tool_call": true},
         "MiniMax-M2.1": {"name": "MiniMax M2.1", "tool_call": true}
       }
     }
   },
-  "enabled_providers": ["openai", "google", "minimax-coding-plan"],
+  "enabled_providers": ["openai", "minimax-coding-plan"],
   "model": "minimax-coding-plan/MiniMax-M3",
-  "small_model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
+  "small_model": "minimax-coding-plan/MiniMax-M2.7",
   "lsp": true,
   "default_agent": "build",
   "subagent_depth": 1,
@@ -189,9 +187,9 @@
       "prompt": "Produce a concise implementation plan grounded in repository evidence. Read AGENTS.md, inspect the smallest relevant surface, trace callers/contracts/tests, and state acceptance criteria, risks, non-goals, and verification. Keep ordinary plans in the response; write .ai/plan.md only when the task is large or multi-session. Do not edit source, delegate, use SSH, or invent repository facts."
     },
     "explore": {
-      "description": "Cheap read-only repository and web exploration using Gemini 3.5 Flash-Lite.",
+      "description": "Cheap read-only repository and web exploration using MiniMax M2.7.",
       "mode": "subagent",
-      "model": "google/gemini-3.5-flash-lite",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "steps": 35,
       "color": "info",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "lsp": "allow", "webfetch": "allow", "websearch": "allow", "skill": "deny", "edit": "deny", "task": "deny", "bash": "deny"},
@@ -205,16 +203,16 @@
       "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "git reset*": "deny", "git clean*": "deny", "git checkout*": "deny", "git restore*": "deny", "git rebase*": "deny", "ssh*": "deny", "sudo*": "deny"}},
       "prompt": "Complete the bounded task. Read repository instructions, work only within the stated scope, inspect your diff, run relevant checks, and report changed paths, observed verification, and remaining uncertainty. Do not commit, push, use SSH, or launch children."
     },
-    "worker": {"description": "Default isolated implementation worker using MiniMax M2.7 Highspeed.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M2.7-highspeed", "steps": 90, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement only the bounded task. Inspect instructions, keep the diff focused, run the cheapest relevant checks, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
+    "worker": {"description": "Default isolated implementation worker using MiniMax M2.7.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M2.7", "steps": 90, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement only the bounded task. Inspect instructions, keep the diff focused, run the cheapest relevant checks, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
     "worker-m3": {"description": "Isolated implementation worker using MiniMax M3.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M3", "steps": 130, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement the bounded task. Keep scope focused, inspect the diff, run relevant checks, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
     "worker-m27": {"description": "Isolated implementation worker using MiniMax M2.7.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M2.7", "steps": 130, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement the bounded task from repository evidence. Keep scope focused, verify the changed surface, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
     "worker-m25": {"description": "Isolated implementation worker using MiniMax M2.5.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M2.5", "steps": 110, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement the bounded task. Keep changes minimal, inspect the diff, run relevant checks, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
-    "worker-m25-fast": {"description": "Isolated implementation worker using MiniMax M2.5 Highspeed.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M2.5-highspeed", "steps": 90, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement the bounded task quickly and minimally. Verify the changed surface and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
+    "worker-m25-fast": {"description": "Isolated implementation worker using MiniMax M2.5.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M2.5", "steps": 90, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement the bounded task quickly and minimally. Verify the changed surface and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
     "worker-m21": {"description": "Isolated implementation worker using MiniMax M2.1.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M2.1", "steps": 90, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement the bounded task. Keep changes minimal, verify the changed surface, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
     "review": {
-      "description": "Independent read-only review using Gemini 3.7 Flash.",
+      "description": "Independent read-only review using GPT-5.6 Luna.",
       "mode": "subagent",
-      "model": "google/gemini-3.7-flash",
+      "model": "openai/gpt-5.6-luna",
       "steps": 55,
       "color": "warning",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "lsp": "allow", "edit": "deny", "task": "deny", "bash": {"*": "allow", "ssh*": "deny"}},
@@ -232,7 +230,7 @@
     "web-verifier": {
       "description": "Read-only web verification when browser evidence is required.",
       "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "steps": 55,
       "color": "success",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "bash": {"*": "allow", "ssh*": "deny"}, "edit": "deny", "task": "deny"},
@@ -241,7 +239,7 @@
     "android-verifier": {
       "description": "Read-only Android verification when device-bound behavior changed.",
       "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "steps": 55,
       "color": "success",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "bash": {"*": "allow", "ssh*": "deny"}, "edit": "deny", "task": "deny"},
@@ -250,7 +248,7 @@
     "api-verifier": {
       "description": "Read-only API and contract verification when an API surface changed.",
       "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
+      "model": "minimax-coding-plan/MiniMax-M2.7",
       "steps": 55,
       "color": "success",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "bash": {"*": "allow", "ssh*": "deny"}, "edit": "deny", "task": "deny"},
