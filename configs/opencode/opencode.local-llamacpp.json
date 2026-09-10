@@ -2,26 +2,6 @@
   "$schema": "https://opencode.ai/config.json",
   "shell": "/usr/bin/zsh",
   "provider": {
-    "opencode-free": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "OpenCode Zen Free",
-      "options": {
-        "baseURL": "https://opencode.ai/zen/v1",
-        "timeout": 600000
-      },
-      "models": {
-        "deepseek-v4-flash": {"name": "DeepSeek V4 Flash", "tool_call": true},
-        "deepseek-v4-flash-free": {"name": "DeepSeek V4 Flash Free", "tool_call": true},
-        "mimo-v2.5-free": {
-          "name": "MiMo V2.5 Free (Vision)",
-          "tool_call": true,
-          "modalities": {"input": ["text", "image"], "output": ["text"]}
-        },
-        "north-mini-code-free": {"name": "North Mini Code Free", "tool_call": true},
-        "nemotron-3-ultra-free": {"name": "Nemotron 3 Ultra Free", "tool_call": true},
-        "big-pickle": {"name": "Big Pickle", "tool_call": true}
-      }
-    },
     "openai": {
       "npm": "@ai-sdk/openai",
       "name": "OpenAI",
@@ -47,9 +27,9 @@
       }
     }
   },
-  "enabled_providers": ["opencode-free", "openai", "google", "groq", "minimax-coding-plan"],
+  "enabled_providers": ["openai", "google", "minimax-coding-plan"],
   "model": "minimax-coding-plan/MiniMax-M3",
-  "small_model": "opencode-free/deepseek-v4-flash-free",
+  "small_model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
   "lsp": true,
   "default_agent": "build",
   "subagent_depth": 1,
@@ -209,9 +189,9 @@
       "prompt": "Produce a concise implementation plan grounded in repository evidence. Read AGENTS.md, inspect the smallest relevant surface, trace callers/contracts/tests, and state acceptance criteria, risks, non-goals, and verification. Keep ordinary plans in the response; write .ai/plan.md only when the task is large or multi-session. Do not edit source, delegate, use SSH, or invent repository facts."
     },
     "explore": {
-      "description": "Cheap read-only repository and web exploration.",
+      "description": "Cheap read-only repository and web exploration using Gemini 3.5 Flash-Lite.",
       "mode": "subagent",
-      "model": "opencode-free/deepseek-v4-flash-free",
+      "model": "google/gemini-3.5-flash-lite",
       "steps": 35,
       "color": "info",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "lsp": "allow", "webfetch": "allow", "websearch": "allow", "skill": "deny", "edit": "deny", "task": "deny", "bash": "deny"},
@@ -232,9 +212,9 @@
     "worker-m25-fast": {"description": "Isolated implementation worker using MiniMax M2.5 Highspeed.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M2.5-highspeed", "steps": 90, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement the bounded task quickly and minimally. Verify the changed surface and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
     "worker-m21": {"description": "Isolated implementation worker using MiniMax M2.1.", "mode": "subagent", "model": "minimax-coding-plan/MiniMax-M2.1", "steps": 90, "color": "primary", "permission": {"edit": "allow", "task": "deny", "bash": {"*": "allow", "git push*": "deny", "ssh*": "deny", "sudo*": "deny"}}, "prompt": "Implement the bounded task. Keep changes minimal, verify the changed surface, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."},
     "review": {
-      "description": "Independent read-only review using Nemotron Ultra Free.",
+      "description": "Independent read-only review using Gemini 3.7 Flash.",
       "mode": "subagent",
-      "model": "opencode-free/nemotron-3-ultra-free",
+      "model": "google/gemini-3.7-flash",
       "steps": 55,
       "color": "warning",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "lsp": "allow", "edit": "deny", "task": "deny", "bash": {"*": "allow", "ssh*": "deny"}},
@@ -252,7 +232,7 @@
     "web-verifier": {
       "description": "Read-only web verification when browser evidence is required.",
       "mode": "subagent",
-      "model": "opencode-free/deepseek-v4-flash-free",
+      "model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
       "steps": 55,
       "color": "success",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "bash": {"*": "allow", "ssh*": "deny"}, "edit": "deny", "task": "deny"},
@@ -261,7 +241,7 @@
     "android-verifier": {
       "description": "Read-only Android verification when device-bound behavior changed.",
       "mode": "subagent",
-      "model": "opencode-free/deepseek-v4-flash-free",
+      "model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
       "steps": 55,
       "color": "success",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "bash": {"*": "allow", "ssh*": "deny"}, "edit": "deny", "task": "deny"},
@@ -270,7 +250,7 @@
     "api-verifier": {
       "description": "Read-only API and contract verification when an API surface changed.",
       "mode": "subagent",
-      "model": "opencode-free/deepseek-v4-flash-free",
+      "model": "minimax-coding-plan/MiniMax-M2.7-highspeed",
       "steps": 55,
       "color": "success",
       "permission": {"read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "bash": {"*": "allow", "ssh*": "deny"}, "edit": "deny", "task": "deny"},
