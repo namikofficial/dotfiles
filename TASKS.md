@@ -1,7 +1,13 @@
 # NoxFlow Refactor — Task Board
 
-**Branch:** `inspired-rewrite`
-**Status:** ✅ All phases complete. 0 errors, 0 non-benign warnings. See completed sessions below.
+> Historical task board (2026-07-28 snapshot). The branch, service state, and
+> feature claims below are not current acceptance evidence. See
+> `docs/NOXFLOW_BUGS_UX_COMPLETION_PLAN.md` for the current remediation ledger
+> and verification gates.
+
+**Branch at snapshot:** `inspired-rewrite`
+**Status at snapshot:** All phases were marked complete; current P1/P2 gaps and
+runtime/device proof are tracked separately.
 
 ---
 

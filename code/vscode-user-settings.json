@@ -1,49 +1,4 @@
 {
-  "chat.mcp.gallery.enabled": true,
-  "chat.agentHost.byokModels.enabled": true,
-  "minimax.visibleModels": [
-    "MiniMax-M3",
-    "MiniMax-M2.7",
-    "MiniMax-M2.7-highspeed"
-  ],
-  "terminal.integrated.profiles.linux": {
-    "zsh (dotfiles)": {
-      "path": "/usr/bin/zsh",
-      "args": [
-        "-l"
-      ],
-      "env": {
-        "SHELL": "/usr/bin/zsh",
-        "ZSH_ENABLE_EXTRA_PLUGINS": "1"
-      }
-    }
-  },
-  "terminal.integrated.defaultProfile.linux": "zsh (dotfiles)",
-  "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font Mono, JetBrainsMono Nerd Font, JetBrains Mono, monospace",
-  "terminal.integrated.fontSize": 13,
-  "terminal.integrated.lineHeight": 1.15,
-  "terminal.integrated.cursorStyle": "line",
-  "terminal.integrated.scrollback": 10000,
-  "terminal.integrated.shellIntegration.enabled": true,
-  "terminal.integrated.enableMultiLinePasteWarning": "auto",
-  "editor.fontFamily": "JetBrainsMono Nerd Font Mono, JetBrainsMono Nerd Font, JetBrains Mono, monospace",
-  "editor.fontLigatures": true,
-  "editor.fontSize": 13,
-  "editor.minimap.enabled": false,
-  "editor.renderWhitespace": "boundary",
-  "editor.bracketPairColorization.enabled": true,
-  "editor.guides.bracketPairs": true,
-  "editor.stickyScroll.enabled": true,
-  "editor.formatOnSave": false,
-  "files.autoSave": "afterDelay",
-  "files.autoSaveDelay": 1000,
-  "files.trimTrailingWhitespace": true,
-  "files.insertFinalNewline": true,
-  "workbench.startupEditor": "none",
-  "workbench.editor.enablePreview": false,
-  "git.confirmSync": false,
-  "git.autofetch": true,
-  "git.ignoreRebaseWarning": true,
   "workbench.colorCustomizations": {
     "editor.background": "#151218",
     "editor.foreground": "#f5eee9",
@@ -59,73 +14,9 @@
     "tab.activeForeground": "#f5eee9",
     "tab.inactiveForeground": "#afa2a1"
   },
-  "github.copilot.enable": {
-    "*": true,
-    "plaintext": false,
-    "markdown": false,
-    "scminput": false
-  },
-  "workbench.editorAssociations": {
-    "*.copilotmd": "vscode.markdown.preview.editor",
-    "{git,gitlens,chat-editing-snapshot-text-model,copilot,git-graph,git-graph-3}:*.qrc": "default",
-    "*.qrc": "qt-core.qrcEditor"
-  },
-  "files.associations": {
-    "*.env.sops": "dotenv"
-  },
-  "files.exclude": {
-    "**/.env": false,
-    "**/.env.*": false,
-    "**/.decrypted~*": true,
-    "**/.git": true,
-    "**/node_modules": true,
-    "**/target": true,
-    "**/.gradle": true,
-    "**/build": true,
-    "**/.cxx": true
-  },
-  "files.watcherExclude": {
-    "**/.git/objects.git/subtree-cachenode_modulestarget": true,
-    "**/.gradle": true,
-    "**/build": true,
-    "**/.cxx": true,
-    "**/android/app/build.git": true,
-    "**/node_modules": true,
-    "**/target": true
-  },
-  "explorer.excludeGitIgnore": false,
-  "typescript.disableAutomaticTypeAcquisition": true,
-  "typescript.tsserver.maxTsServerMemory": 1536,
-  "qt-core.additionalQtPaths": [
-    {
-      "name": "Qt-5.15.19-linux-g++-x86_64_from_PATH",
-      "path": "/usr/bin/qmake"
-    }
-  ],
-  "sops.enabled": true,
-  "sops.binPath": "/usr/bin/sops",
-  "sops.defaults.ageKeyFile": "/home/namik/Documents/code/dotfiles/private/scripts/noxorigin/sops/age/keys.txt",
-  "gitlens.ai.model": "vscode",
-  "gitlens.ai.vscode.model": "copilotcli:",
-  "github.copilot.nextEditSuggestions.eagerness": "high",
+  "git.confirmSync": false,
+  "editor.formatOnSave": true,
   "yaml.disableSchemaDetection": [
-    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml",
-    "**/.github/workflows/*.yml",
-    "**/.github/workflows/*.yaml",
-    "**/.gitea/workflows/*.yml",
-    "**/.gitea/workflows/*.yaml",
-    "**/.forgejo/workflows/*.yml",
-    "**/.forgejo/workflows/*.yaml"
-  ],
-  "chat.viewSessions.orientation": "stacked",
-  "json.schemaDownload.trustedDomains": {
-    "https://schemastore.azurewebsites.net/": true,
-    "https://raw.githubusercontent.com/microsoft/vscode/": true,
-    "https://raw.githubusercontent.com/devcontainers/spec/": true,
-    "https://www.schemastore.org/": true,
-    "https://json.schemastore.org/": true,
-    "https://json-schema.org/": true,
-    "https://developer.microsoft.com/json-schemas/": true,
-    "https://biomejs.dev": true
-  }
+    "**/.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows.github/workflows.github/workflows.gitea/workflows.gitea/workflows.forgejo/workflows.forgejo/workflows/*.yaml"
+  ]
 }

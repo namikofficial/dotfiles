@@ -1,5 +1,10 @@
 # NoxFlow Refactor Plan v2 — One Surface, Infinite Morphs
 
+> Historical plan from 2026-07-28. Its branch names, service observations,
+> completion claims, and stop/disable instructions are not current state.
+> Use `docs/NOXFLOW_BUGS_UX_COMPLETION_PLAN.md` plus the repository AGENTS.md
+> for current ownership and safe verification.
+
 **Branch:** `inspired-rewrite` · **Date:** 2026-07-28 · **Supersedes:** `PLAN.md`
 **Research basis:** Deep-study of 15 reference repos + 6 Reddit posts + 3 review agents
 

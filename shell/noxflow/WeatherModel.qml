@@ -11,7 +11,11 @@ QtObject {
     id: root
 
     property string providerName: "weather"
-    property string status: "available"
+    // Status state machine:
+    // "unavailable" = no data loaded yet (initial)
+    // "available"   = valid data loaded
+    // "error"       = last fetch/parse failed; recovery timer is active
+    property string status: "unavailable"
     readonly property bool available: status === "available"
 
     // ── Current weather ──
@@ -41,6 +45,7 @@ QtObject {
     // ── Settings (from env or config) ──
     readonly property string weatherLocation: Quickshell.env("NOXFLOW_WEATHER_LOCATION") || ""
     readonly property int fetchInterval: 600000  // 10 min
+    readonly property int retryInterval: 60000   // 1 min on failure
 
     // ── Fetch weather ──
     function fetch() {
@@ -67,12 +72,15 @@ QtObject {
             root.loading = false;
             if (code !== 0) {
                 root.lastError = "Weather fetch failed (curl exit " + code + ")";
+                root.status = "error";
                 console.warn("weather:", root.lastError);
+                scheduleRetry();
                 return;
             }
             try {
                 var json = JSON.parse(root.fetchBuffer);
                 root.parseWeather(json);
+                root.status = "available";
                 // Cache
                 try {
                     cacheFile.setText(JSON.stringify(json));
@@ -81,9 +89,25 @@ QtObject {
                 }
             } catch (e) {
                 root.lastError = "Weather parse failed: " + e;
+                root.status = "error";
                 console.warn("weather:", root.lastError);
+                scheduleRetry();
             }
         }
+    }
+
+    // ── Schedule a retry after failure ──
+    property Timer retryTimer: Timer {
+        id: retryTimer
+        interval: root.retryInterval
+        repeat: false
+        running: false
+        onTriggered: root.fetch()
+    }
+
+    function scheduleRetry() {
+        retryTimer.interval = root.retryInterval;
+        retryTimer.restart();
     }
 
     property FileView cacheFile: FileView {
@@ -94,10 +118,16 @@ QtObject {
             try {
                 var json = JSON.parse(cacheFile.text());
                 root.parseWeather(json);
-            } catch (e) { /* no cache yet */ }
+                // Cache loaded successfully means we have data
+                if (root.status !== "available") {
+                    root.status = "available";
+                }
+            } catch (e) {
+                // Cache parse failed — wait for network fetch
+            }
         }
         onLoadFailed: function(error) {
-            ensureCacheDir.running = true;
+            // No cache yet — trigger a fetch
             root.fetch();
         }
     }
@@ -111,13 +141,28 @@ QtObject {
         }
     }
 
-    // ── Fetch timer — declared as property because QtObject has no default child slot ──
+    // ── Persistent fetch timer — always running, provides regular refresh ──
     property Timer fetchTimer: Timer {
         id: fetchTimer
         interval: root.fetchInterval
-        repeat: false
-        running: false
+        repeat: true
+        running: true
         onTriggered: root.fetch()
+    }
+
+    // ── Map wttr.in condition string to an emoji icon ──
+    function mapConditionToIcon(condition, isDay) {
+        if (!condition) return isDay ? "🌡️" : "🌡️";
+        var c = condition.toLowerCase();
+        if (c.includes("sunny") || c.includes("clear")) return isDay ? "☀️" : "🌙";
+        if (c.includes("partly")) return isDay ? "⛅" : "☁️";
+        if (c.includes("cloudy") || c.includes("overcast")) return "☁️";
+        if (c.includes("mist") || c.includes("fog") || c.includes("haze")) return "🌫️";
+        if (c.includes("rain") || c.includes("drizzle")) return "🌧️";
+        if (c.includes("thunder") || c.includes("storm")) return "⛈️";
+        if (c.includes("snow") || c.includes("sleet") || c.includes("blizzard")) return "❄️";
+        if (c.includes("shower")) return "🌦️";
+        return isDay ? "☀️" : "🌙";
     }
 
     // ── Parse wttr.in JSON ──
@@ -131,13 +176,17 @@ QtObject {
         location = json.nearest_area && json.nearest_area[0]
                    ? json.nearest_area[0].areaName[0].value : "Unknown";
         condition = current.weatherDesc[0].value || "";
-        icon = "☀️";  // wttr.in icons are text; map later
+
+        // Detect day/night from the icon URL rather than string search
+        var iconUrl = current.weatherIconUrl || "";
+        isDay = iconUrl.indexOf("night") < 0 && iconUrl.indexOf("moon") < 0;
+
+        icon = mapConditionToIcon(condition, isDay);
         temperature = parseFloat(current.temp_C) || 0;
         feelsLike = parseFloat(current.FeelsLikeC) || 0;
         humidity = parseInt(current.humidity) || 0;
         windSpeed = parseFloat(current.windspeedKmph) || 0;
         windDir = current.winddir16Point || "";
-        isDay = current.weatherIconUrl.indexOf("day") >= 0;
 
         // Forecast
         var fc = [];
@@ -145,25 +194,27 @@ QtObject {
             for (var i = 0; i < Math.min(json.weather.length, 3); i++) {
                 var day = json.weather[i];
                 var date = new Date(day.date);
+                var dayIconUrl = day.hourly && day.hourly[0] && day.hourly[0].weatherIconUrl
+                                 ? day.hourly[0].weatherIconUrl : "";
+                var dayIsDay = dayIconUrl.indexOf("night") < 0 && dayIconUrl.indexOf("moon") < 0;
+                var dayCondition = day.hourly && day.hourly[0] && day.hourly[0].weatherDesc
+                                  ? day.hourly[0].weatherDesc[0].value : "";
                 fc.push({
                     day: date.toLocaleDateString(Qt.locale(), Locale.ShortFormat),
-                    condition: day.hourly[0].weatherDesc[0].value,
-                    icon: "☀️",
+                    condition: dayCondition,
+                    icon: mapConditionToIcon(dayCondition, dayIsDay),
                     tempHigh: parseFloat(day.maxtempC) || 0,
                     tempLow: parseFloat(day.mintempC) || 0,
-                    precip: parseInt(day.hourly[0].chanceofrain) || 0,
+                    precip: parseInt(day.hourly && day.hourly[0] ? day.hourly[0].chanceofrain : 0) || 0,
                 });
             }
         }
         root.forecast = fc;
-
-        // Schedule next fetch
-        fetchTimer.restart();
     }
 
     // ── Init ──
     function start() {
-        // Load cache first, then fetch fresh
+        // Load cache first, then the fetchTimer will periodically refresh
         cacheFile.path = root.cachePath;
     }
 }

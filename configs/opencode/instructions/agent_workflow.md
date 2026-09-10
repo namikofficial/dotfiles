@@ -9,7 +9,7 @@ Apply `quality_contract.md` to every phase. Every phase must leave an observable
 - `build` (M3): primary autonomous implementation agent and persistent foreman. Owns the task end-to-end, delegates to specialized subagents, integrates results.
 - `scout`: free repository mapper for context gathering (North Mini).
 - `reviewer`: free independent critic for second opinions (Nemotron).
-- `worker-fast`: fast mechanical isolated chunks (M2.7 Highspeed).
+- `worker-fast`: fast mechanical isolated chunks (normal MiniMax M2.5).
 - `worker`: substantial independent implementation (M2.7).
 - `expert`: GPT-5.6 Luna for architecture, hard debugging, and arbitration — receives prepared context packets, does not explore raw repo.
 - `verifier`, `review`, `web-verifier`, `android-verifier`, `api-verifier`, `adversarial-reviewer`: read-only verification agents.

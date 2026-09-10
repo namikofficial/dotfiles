@@ -39,7 +39,9 @@ Use the stronger media restart only when screen sharing still fails:
 
 ## Panel Policy
 
-Wayle is the primary panel shell and notification UI.
+NoxFlow is the primary panel shell. Wayle is the fallback shell and should
+remain stopped and disabled while NoxFlow is active; Dunst remains the current
+desktop notification bus owner.
 
 ```sh
 ~/.config/hypr/scripts/panel-switch.sh wayle

@@ -50,6 +50,16 @@ Item {
                 Text { text: "Do Not Disturb"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; Layout.fillWidth: true }
                 Components.Toggle { accessibleName: "Do Not Disturb"; checked: notifModel.dnd; onToggled: notifModel.toggleDnd() }
             }
+            Text {
+                Layout.fillWidth: true
+                visible: !root.showHistory && notifModel.ingressStatus !== "dunst-owned"
+                text: notifModel.ingressStatus === "dunst-unavailable"
+                    ? "Dunst is unavailable; notification state cannot be synchronized."
+                    : "Notifications are owned by Dunst; NoxFlow history is local."
+                color: Theme.Tokens.stateWarning
+                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                wrapMode: Text.Wrap
+            }
 
             Components.Divider { Layout.fillWidth: true }
 
@@ -92,8 +102,18 @@ Item {
                                 notification: modelData; width: parent ? parent.width : 0
                                 onDismissed: notifModel.dismissNotification(modelData.id)
                                 onActionInvoked: function(notif, actionId) {
-                                    if (root.noxd && root.noxd.connected) root.noxd.runAction({notification_action:{id:notif.id,action:actionId}});
-                                    if (actionId === "dismiss") notifModel.dismissNotification(notif.id);
+                                    if (actionId === "dismiss") {
+                                        notifModel.dismissNotification(notif.id);
+                                    }
+                                    // Other notification actions are
+                                    // shell-local: the notification store
+                                    // and any default handlers (xdg-open,
+                                    // clipboard copy) live in the shell,
+                                    // and the daemon IPC contract has no
+                                    // typed `notification_action` action.
+                                    // Specific surfaces that need to wire a
+                                    // real action (e.g. open URL) should
+                                    // branch on actionId here.
                                 }
                             }
                         }

@@ -4,12 +4,19 @@
 // DMS + Tide steal: grouped by app, DND, history, inline actions.
 
 import QtQml
+import Quickshell
+import Quickshell.Io
 import "ModelUtils.js" as Utils
 
 QtObject {
     id: root
 
     property string providerName: "notifications"
+    // Dunst owns org.freedesktop.Notifications in this profile. NoxFlow's
+    // model is a shell-local history/demo store until a non-conflicting bridge
+    // is installed; it must not claim daemon-backed ingress.
+    property string source: "dunst-owned"
+    property string ingressStatus: "dunst-owned"
     property string status: "available"
     readonly property bool available: status === "available"
 
@@ -20,6 +27,8 @@ QtObject {
     property int maxActive: 20
     property int maxHistory: 50
     property int nextId: 1
+    property bool dndQueryRunning: false
+    property bool dndUpdateRunning: false
 
     // ── Signals (names prefixed to avoid clashing with property change signals) ──
     signal sigNotificationAdded(var notification)
@@ -29,8 +38,6 @@ QtObject {
 
     // ── Public API ──
     function addNotification(appName, summary, body, icon, urgency, actions, timeout) {
-        if (dnd && urgency !== "critical") return;
-
         var notification = {
             id: nextId++,
             app_name: appName || "",
@@ -41,9 +48,16 @@ QtObject {
             time: Date.now(),
             actions: Array.isArray(actions) ? actions : [],
             dismissable: true,
-            timeout: timeout || 5000,
+            timeout: timeout === undefined ? 5000 : Math.max(0, Number(timeout)),
             timestamp: new Date().toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
         };
+
+        // DND suppresses presentation but retains the notification in history;
+        // critical notifications remain visible immediately.
+        if (dnd && urgency !== "critical") {
+            pushHistory(notification);
+            return notification.id;
+        }
 
         // Trim active list
         while (notifications.length >= maxActive) {
@@ -51,7 +65,7 @@ QtObject {
             pushHistory(removed);
         }
 
-        notifications.push(notification);
+        notifications = notifications.concat([notification]);
         sigNotificationAdded(notification);
         return notification.id;
     }
@@ -60,7 +74,7 @@ QtObject {
         var idx = findIndex(id);
         if (idx < 0) return false;
         var note = notifications[idx];
-        notifications.splice(idx, 1);
+        notifications = notifications.slice(0, idx).concat(notifications.slice(idx + 1));
         sigNotificationRemoved(id);
         sigNotificationDismissed(id);
         pushHistory(note);
@@ -68,8 +82,10 @@ QtObject {
     }
 
     function clearAll() {
-        while (notifications.length > 0) {
-            var note = notifications.shift();
+        var active = notifications;
+        notifications = [];
+        for (var i = 0; i < active.length; i++) {
+            var note = active[i];
             pushHistory(note);
         }
     }
@@ -86,21 +102,64 @@ QtObject {
     }
 
     function pushHistory(note) {
-        history.unshift(note);
-        while (history.length > maxHistory) history.pop();
+        var next = [note].concat(history);
+        history = next.slice(0, maxHistory);
     }
 
     function toggleDnd() {
-        dnd = !dnd;
-        sigDndChanged(dnd);
+        if (dndUpdateRunning) return;
+        dndUpdateRunning = true;
+        dndProcess.command = ["dunstctl", "set-paused", dnd ? "false" : "true"];
+        dndProcess.running = true;
     }
+
+    function refreshDnd() {
+        if (dndQueryRunning) return;
+        dndQueryRunning = true;
+        dndQuery.command = ["dunstctl", "is-paused"];
+        dndQuery.running = true;
+    }
+
+    property string dndOutput: ""
+    property Process dndQuery: Process {
+        running: false
+        stdout: SplitParser {
+            splitMarker: ""
+            onRead: function(data) { root.dndOutput += String(data || ""); }
+        }
+        onExited: function(code, status) {
+            root.dndQueryRunning = false;
+            if (code === 0) {
+                var value = root.dndOutput.trim().toLowerCase();
+                root.dnd = value === "true" || value === "1" || value === "paused";
+                root.sigDndChanged(root.dnd);
+            } else {
+                root.ingressStatus = "dunst-unavailable";
+            }
+            root.dndOutput = "";
+        }
+    }
+    property Process dndProcess: Process {
+        running: false
+        onExited: function(code, status) {
+            root.dndUpdateRunning = false;
+            if (code === 0) {
+                root.ingressStatus = "dunst-owned";
+                root.refreshDnd();
+            } else {
+                root.ingressStatus = "dunst-unavailable";
+            }
+        }
+    }
+
+    Component.onCompleted: refreshDnd()
 
     // ── Provider-style snapshot (for daemon compatibility) ──
     function applySnapshot(snapshot) {
         if (!Utils.applyBase(this, snapshot, providerName)) return false;
         var next = snapshot.data;
         if (Array.isArray(next.items)) {
-            notifications = next.items;
+            notifications = next.items.slice();
         }
         dnd = next.dnd === true;
         return true;

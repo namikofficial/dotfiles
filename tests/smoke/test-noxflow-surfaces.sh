@@ -77,9 +77,10 @@ else
   exit 1
 fi
 
-# Check IPC path
-if quickshell ipc -p "$IPC_PATH" call noxctl toggleDnd >/dev/null 2>&1; then
-  log_pass "IPC handshake works (toggleDnd succeeded)"
+# Check IPC path with a read-only panel state query. Do not toggle DND here:
+# preflight must not mutate persistent user state.
+if quickshell ipc -p "$IPC_PATH" call noxctl panelState >/dev/null 2>&1; then
+  log_pass "IPC handshake works (panelState query succeeded)"
 else
   log_fail "IPC handshake FAILED — is quickshell running with the right path?"
   echo "  quickshell process: $(pgrep -af quickshell || true)"

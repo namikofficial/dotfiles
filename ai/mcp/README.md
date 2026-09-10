@@ -12,6 +12,10 @@ This directory holds example MCP configs for local clients.
 
 Obsidian stays disabled until a vault and `OBSIDIAN_API_KEY` are available.
 
+Stitch uses a remote Streamable HTTP server. Keep its Google API key in the
+client's user-owned secret store and expose it as `STITCH_API_KEY` when using
+the Codex example (`env_http_headers`); do not commit the key here.
+
 ## Enabled by default
 The OpenCode baseline enables Workbench, filesystem, git, local-docs, browser,
 and Chrome DevTools. Mutating tools require OpenCode approval; Obsidian is

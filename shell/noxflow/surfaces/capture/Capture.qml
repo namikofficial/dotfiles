@@ -329,77 +329,174 @@ PanelWindow {
 
     function performAction(action) {
         var region = root.globalRegion()
+        var ts = new Date().toISOString().replace(/[:T]/g, "-").replace(/\..*$/, "")
+            + "-" + Math.floor(Math.random() * 1000000)
 
         switch (action) {
             case "copy":
                 copyToClipboard.command = ["sh", "-c", "grim -g \"" + region + "\" - | wl-copy"]
-                copyToClipboard.running = true; lifecycle.requestClose("copyDone")
+                copyToClipboard.running = true
                 break
             case "save": {
                 var base = Quickshell.env("XDG_PICTURES_DIR") || (Quickshell.env("HOME") + "/Pictures")
-                var file = base + "/Screenshots/" + new Date().toISOString().replace(/[:T]/g, "-").replace(/\..*$/, "") + ".png"
+                var file = base + "/Screenshots/" + ts + ".png"
                 saveScreenshot.command = ["sh", "-c",
                     "mkdir -p \"$(dirname '" + file.replace(/'/g, "'\\''") + "')\""
                     + " && grim -g \"" + region + "\" \"" + file + "\""
                     + " && notify-send 'Screenshot saved' \"" + file + "\" -t 3000"
-                    + " || notify-send 'Screenshot failed' 'grim returned an error' -u critical"]
-                saveScreenshot.running = true; lifecycle.requestClose("saveDone")
+                    + " || { notify-send 'Screenshot failed' 'grim returned an error' -u critical; exit 1; }"]
+                saveScreenshot.running = true
                 break
             }
-            case "lens":
-                lensUploadFile = "/tmp/nox-capture-lens.png"
+            case "lens": {
+                lensUploadFile = "/tmp/nox-capture-lens-" + ts + ".png"
+                lensResultFile = "/tmp/nox-lens-result-" + ts + ".html"
                 lensCapture.command = ["sh", "-c", "grim -g \"" + region + "\" \"" + lensUploadFile + "\""]
                 lensCapture.running = true
                 break
-            case "search":
-                searchImageFile = "/tmp/nox-capture-search.png"
+            }
+            case "search": {
+                searchImageFile = "/tmp/nox-capture-search-" + ts + ".png"
+                searchResultFile = "/tmp/nox-search-result-" + ts + ".html"
                 searchCapture.command = ["sh", "-c", "grim -g \"" + region + "\" \"" + searchImageFile + "\""]
-                searchCapture.running = true; lifecycle.requestClose("searchDone")
+                searchCapture.running = true
                 break
+            }
         }
     }
 
     property string lensUploadFile: ""
+    property string lensResultFile: ""
     property string searchImageFile: ""
+    property string searchResultFile: ""
 
     property Process lensCapture: Process {
         running: false
         onExited: function(code, status) {
-            if (code !== 0) return
+            if (code !== 0) {
+                notifyProcess.command = ["notify-send", "Lens capture failed", "grim returned an error", "-u", "critical"]
+                notifyProcess.running = true
+                return
+            }
+            // Show disclosure that we're opening an external service
+            notifyProcess.command = ["notify-send", "Opening Google Lens", "Uploading image to lens.google.com", "-t", "3000"]
+            notifyProcess.running = true
             lensUpload.command = ["sh", "-c",
                 "curl -s --data-binary @" + lensUploadFile
-                + " \"https://lens.google.com/v3/upload\" > /tmp/nox-lens-result.html"
-                + " && xdg-open /tmp/nox-lens-result.html"]
+                + " \"https://lens.google.com/v3/upload\" > \"" + lensResultFile + "\""
+                + " && xdg-open \"" + lensResultFile + "\""
+                + " ; rc=$?; rm -f \"" + lensUploadFile + "\"; exit $rc"]
             lensUpload.running = true
         }
     }
-    property Process lensUpload: Process { running: false }
+    property Process lensUpload: Process {
+        running: false
+        onExited: function(code, status) {
+            if (code !== 0) {
+                notifyProcess.command = ["notify-send", "Lens upload failed", "Could not reach lens.google.com", "-u", "critical"]
+                notifyProcess.running = true
+            }
+            lifecycle.requestClose("lensDone")
+        }
+    }
 
     property Process searchCapture: Process {
         running: false
         onExited: function(code, status) {
-            if (code !== 0) return
-            openUrlProcess.command = ["xdg-open",
-                "https://images.google.com/searchbyimage?image_url=file://" + searchImageFile]
-            openUrlProcess.running = true
+            if (code !== 0) {
+                notifyProcess.command = ["notify-send", "Search capture failed", "grim returned an error", "-u", "critical"]
+                notifyProcess.running = true
+                return
+            }
+            // Show disclosure before uploading to an external image-search service.
+            notifyProcess.command = ["notify-send", "Searching image", "Uploading image to Google", "-t", "3000"]
+            notifyProcess.running = true
+            searchUpload.command = ["sh", "-c",
+                "curl -s -L -F \"encoded_image=@" + searchImageFile + "\""
+                + " -F \"image_content=\" \"https://www.google.com/searchbyimage/upload\""
+                + " -o \"" + searchResultFile + "\""
+                + " && xdg-open \"" + searchResultFile + "\""
+                + " ; rc=$?; rm -f \"" + searchImageFile + "\"; exit $rc"]
+            searchUpload.running = true
+        }
+    }
+    property Process searchUpload: Process {
+        running: false
+        onExited: function(code, status) {
+            if (code !== 0) {
+                notifyProcess.command = ["notify-send", "Image search failed", "Could not open image search", "-u", "critical"]
+                notifyProcess.running = true
+            }
+            lifecycle.requestClose("searchDone")
         }
     }
     property Process openUrlProcess: Process { running: false }
 
     property Process copyToClipboard: Process {
         id: copyToClipboard; running: false
-        stdinEnabled: true
-        onStarted: { copyToClipboard.write(root.ocrText); copyToClipboard.stdinEnabled = false }
+        stdinEnabled: false
+        onExited: function(code, status) {
+            if (code !== 0) {
+                root.showCopyFailure()
+            } else {
+                root.showCopySuccess()
+                lifecycle.requestClose("copyDone")
+            }
+        }
     }
     property Process notifyProcess: Process { running: false }
-    property Process saveScreenshot: Process { running: false }
+    property Process saveScreenshot: Process {
+        running: false
+        onExited: function(code, status) {
+            if (code !== 0) {
+                // Failure is already handled in the command itself via notify-send
+            } else {
+                lifecycle.requestClose("saveDone")
+            }
+        }
+    }
+    property Process textCopyProcess: Process {
+        id: textCopyProcess; running: false
+        stdinEnabled: true
+        onExited: function(code, status) {
+            if (code !== 0) {
+                root.showCopyFailure()
+            } else {
+                root.showCopySuccess()
+                lifecycle.requestClose("textCopyDone")
+            }
+        }
+    }
+
+    property bool copyFailureVisible: false
+    property bool copySuccessVisible: false
+    function showCopyFailure() {
+        copyFailureVisible = true
+        notifyProcess.command = ["notify-send", "Copy failed", "wl-copy returned an error", "-u", "critical"]
+        notifyProcess.running = true
+        Qt.callLater(function() { copyFailureVisible = false })
+    }
+    function showCopySuccess() {
+        copySuccessVisible = true
+        Qt.callLater(function() { copySuccessVisible = false })
+    }
 
     function copyText(text) {
-        copyToClipboard.command = ["wl-copy"]; copyToClipboard.running = true
+        if (!text || text === "" || text === "Recognizing text…" || text === "OCR failed. Is tesseract installed?") return
+        textCopyProcess.command = ["wl-copy"]
+        textCopyProcess.stdinEnabled = true
+        textCopyProcess.running = true
+        Qt.callLater(function() {
+            if (textCopyProcess.running) {
+                textCopyProcess.write(text)
+                textCopyProcess.stdinEnabled = false
+            }
+        })
     }
 
     // ── OCR pipeline ──
     property string ocrBuffer: ""
+    property string ocrCaptureFile: ""
 
     function performOcr() {
         var region = root.globalRegion()
@@ -423,8 +520,13 @@ PanelWindow {
                 + " | sed 's/[[:space:]]*$//'"
         }
 
+        // Capture once to a temp file and derive both OCR text and TSV from it
+        var ts = new Date().toISOString().replace(/[:T]/g, "-").replace(/\..*$/, "")
+        ocrCaptureFile = "/tmp/nox-ocr-" + ts + ".png"
+
         ocrProcess.command = ["sh", "-c",
-            "grim -g \"" + region + "\" -s 2 - | magick - " + upscale
+            "grim -g \"" + region + "\" \"" + ocrCaptureFile + "\""
+            + " && magick \"" + ocrCaptureFile + "\" " + upscale
             + " -colorspace Gray -depth 8 - | tesseract stdin stdout -l " + root.ocrLanguage
             + " --oem 1 --psm " + psm + " 2>/dev/null" + postProcess]
         ocrBuffer = ""; ocrProcess.running = true
@@ -446,11 +548,11 @@ PanelWindow {
             var snippet = clean.substring(0, 100)
             if (clean.length > 100) snippet += "…"
             notifyProcess.command = ["sh", "-c",
-                "notify-send 'OCR Copied' '" + snippet.replace(/'/g, "'\\''") + "' -t 3000"]
+                "notify-send 'OCR ready' '" + snippet.replace(/'/g, "'\\''") + "' -t 3000"]
             notifyProcess.running = true
-            var region2 = root.globalRegion()
+            // Use the same captured file for TSV word boxes - no second grim capture
             tsvProcess.command = ["sh", "-c",
-                "grim -g \"" + region2 + "\" -s 2 - | tesseract stdin stdout -l "
+                "tesseract \"" + ocrCaptureFile + "\" stdout -l "
                 + root.ocrLanguage + " tsv 2>/dev/null"]
             tsvBuffer = ""; tsvProcess.running = true
         }
@@ -466,8 +568,12 @@ PanelWindow {
         onExited: function(code, status) {
             if (code !== 0) return
             root.parseTsv(root.tsvBuffer)
+            ocrCleanup.command = ["rm", "-f", root.ocrCaptureFile]
+            ocrCleanup.running = true
         }
     }
+
+    property Process ocrCleanup: Process { running: false }
 
     function parseTsv(tsv) {
         var lines = tsv.split("\n"); var words = []; var header = true

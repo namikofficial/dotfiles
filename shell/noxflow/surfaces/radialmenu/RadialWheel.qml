@@ -34,7 +34,9 @@ PanelWindow {
     property int hoveredSlot: -1
     readonly property real outerR: Math.min(width, height) / 2 - Theme.Tokens.scaled(20)
     readonly property real innerR: Theme.Tokens.scaled(44)
-    readonly property int slotCount: 8
+    // slotCount is derived from slots.length so all geometry (painting, labels,
+    // hover, hit-testing, keyboard nav) always shares one source of truth.
+    readonly property int slotCount: Math.max(1, slots.length)
     readonly property real cx: width / 2
     readonly property real cy: height / 2
 
@@ -76,7 +78,7 @@ PanelWindow {
         onPaint: {
             var ctx = getContext("2d"); var w = width; var h = height;
             ctx.clearRect(0,0,w,h); var outer=root.outerR; var inner=root.innerR; var seg=2*Math.PI/root.slotCount;
-            for(var i=0;i<root.slotCount;i++){var a0=-Math.PI/2+i*seg-seg/2;var a1=a0+seg;
+            for(var i=0;i<root.slotCount;i++){var a0=-Math.PI/2+i*seg;var a1=a0+seg;
                 ctx.beginPath();ctx.arc(root.cx,root.cy,outer,a0,a1);ctx.arc(root.cx,root.cy,inner,a1,a0,true);ctx.closePath();
                 if(i===root.hoveredSlot){ctx.fillStyle=hexColor(Theme.Tokens.tonalPrimaryContainer);ctx.globalAlpha=0.9;ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle=hexColor(Theme.Tokens.tonalPrimary);ctx.lineWidth=2;ctx.stroke();}
                 else{ctx.fillStyle=hexColor(Theme.Tokens.surfaceSurfaceContainer);ctx.globalAlpha=0.6;ctx.fill();ctx.globalAlpha=1;}
@@ -120,7 +122,12 @@ PanelWindow {
     function activateSlot(index){
         if(index<0||index>=slots.length)return;var slot=slots[index];if(!slot||!slot.action)return;
         switch(slot.action){case"close_wheel":lifecycle.requestClose("closeWheel");break;
-            case"toggle_launcher":lifecycle.requestClose("toggleLauncher");if(root.noxd&&root.noxd.connected)root.noxd.runAction({toggle_launcher:{}});break;
+            case"toggle_launcher":
+                // Shell-local: the launcher is a shell surface and the
+                // daemon IPC contract has no typed `toggle_launcher` action.
+                lifecycle.requestClose("toggleLauncher");
+                if (shellRoot && typeof shellRoot.toggleLauncher === "function") shellRoot.toggleLauncher();
+                break;
             case"launch":if(slot.actionParams&&slot.actionParams.command)Quickshell.exec(slot.actionParams.command);lifecycle.requestClose("launch");break;
             default:if(root.noxd&&root.noxd.connected){var action={};action[slot.action]=slot.actionParams||{};root.noxd.runAction(action);}lifecycle.requestClose("action");break;}
     }

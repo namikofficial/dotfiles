@@ -3,6 +3,11 @@ import "../theme" as Theme
 
 FocusScope {
     id: root
+
+    // Controlled component contract: callers bind checked to their state.
+    // User interaction emits toggled(newValue) signal WITHOUT mutating checked.
+    // The binding source updates checked, which drives the visual state.
+    // This avoids binding loops when callers bind checked to provider/token state.
     property bool checked: false
     property bool hovered: false
     property bool pressed: false
@@ -25,14 +30,16 @@ FocusScope {
         onTapped: {
             if (!root.enabled) return;
             root.forceActiveFocus();
-            root.checked = !root.checked;
-            root.toggled(root.checked);
+            // Emit the toggled signal with the requested new value.
+            // Do NOT assign to checked here — that is the caller's responsibility
+            // via the binding. This prevents binding-loop-prone checked mutation.
+            root.toggled(!root.checked);
         }
     }
     Keys.onSpacePressed: {
-        if (root.enabled) { root.checked = !root.checked; root.toggled(root.checked); }
+        if (root.enabled) { root.forceActiveFocus(); root.toggled(!root.checked); }
     }
     Keys.onReturnPressed: {
-        if (root.enabled) { root.checked = !root.checked; root.toggled(root.checked); }
+        if (root.enabled) { root.forceActiveFocus(); root.toggled(!root.checked); }
     }
 }

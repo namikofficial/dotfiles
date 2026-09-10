@@ -190,6 +190,18 @@ ShellRoot {
                 function onPanelClosed(panelName) { panelController.surfaceClosed(panelName, morphSurface); }
             }
             Component.onDestruction: {
+                // Unregister from every panel name so the controller doesn't
+                // retain a destroyed reference after a monitor disconnect or
+                // full shell teardown. surface() guards against destroyed
+                // entries, but pruning eagerly keeps the registry honest.
+                panelController.unregisterPanel("quick-settings", this);
+                panelController.unregisterPanel("calendar", this);
+                panelController.unregisterPanel("notifications", this);
+                panelController.unregisterPanel("media", this);
+                panelController.unregisterPanel("clipboard", this);
+                panelController.unregisterPanel("wallpaper", this);
+                panelController.unregisterPanel("quick-share", this);
+                panelController.unregisterPanel("sync", this);
                 surfaceCoordinatorInstance.unregister(this);
             }
         }

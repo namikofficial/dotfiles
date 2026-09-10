@@ -105,8 +105,13 @@ QtObject {
     }
 
     /// Write a setting value. Returns true if queued.
-    function setSetting(key, value) {
-        return sendRequest("set_setting", { key: key, value: value });
+    /// Optional callback(result) fires when the daemon confirms the write
+    /// (SettingUpdated). Optional errorCallback(code, message) fires on
+    /// validation rejection or transport failure. Callers that ignore the
+    /// return value stay backwards compatible — this overload is purely
+    /// additive so existing call sites keep working unchanged.
+    function setSetting(key, value, callback, errorCallback) {
+        return sendRequest("set_setting", { key: key, value: value }, callback, errorCallback);
     }
 
     /// Read a setting. Calls callback(result) with the setting value result.
@@ -115,8 +120,13 @@ QtObject {
     }
 
     /// Read all settings. Calls callback(result) with the settings map result.
+    /// The result envelope is { type: "settings", data: { settings: {...} } }
+    /// — callers should reach into result.data.settings to get the map.
     function getSettings(callback, errorCallback) {
-        return sendRequest("get_settings", {}, callback, errorCallback);
+        // The IPC schema defines GetSettings as a unit request. Omitting
+        // params is required; sending `{}` is rejected by noxd as an invalid
+        // map and leaves the settings panel waiting for a timeout.
+        return sendRequest("get_settings", undefined, callback, errorCallback);
     }
 
     // ── Connection management ──
@@ -393,8 +403,13 @@ QtObject {
             failProtocol("daemon returned malformed initial state");
             return;
         }
-        // Load settings if present
-        if (state.settings) emitSettingsEvents(state.settings);
+        // Load settings if present. Settings are observable through the
+        // explicit set_setting / get_setting requests (and the
+        // SettingUpdated response on writes); the QML surfaces do not yet
+        // subscribe to live setting events. Skipping the synthetic-event
+        // fan-out avoids sending envelopes into a void — when a future
+        // surface needs them, add "settings" to Protocol.providers and
+        // route the resulting eventReceived in shell.qml.
         publishSnapshots(state.providers);
         phase = "subscribing";
         connectionStateUpdated("subscribing");
@@ -445,7 +460,7 @@ QtObject {
     }
 
     function handleEvent(event) {
-        if (Protocol.providers.indexOf(event.provider) < 0) return;
+        if (!Protocol.isAllowedProvider(event.provider)) return;
         if (event.stream_id !== streamId) {
             errorText = "daemon stream changed; reconnecting";
             socket.connected = false;
@@ -455,35 +470,11 @@ QtObject {
         eventDescription = event.provider + ":" + event.event_type + " (#" + event.sequence + ")";
         var snapshot = { provider: event.provider, status: "available", data: event.data };
 
-        // Handle setting_changed events by emitting them
-        if (event.provider === "settings" && event.event_type === "changed") {
-            // Pass through to models if they handle it
-        }
-
         updateHealth(snapshot);
         eventReceived(event);
         var updates = {};
         updates[event.provider] = snapshot;
         publishSnapshots(updates);
-    }
-
-    function emitSettingsEvents(settings) {
-        if (!settings || typeof settings !== "object") return;
-        var keys = Object.keys(settings);
-        for (var i = 0; i < keys.length; i++) {
-            // Emit synthetic events for initial settings load
-            var fakeEvent = {
-                version: 1,
-                timestamp: Math.floor(Date.now() / 1000),
-                stream_id: streamId,
-                sequence: 0,
-                provider: "settings",
-                event_type: "changed",
-                schema_version: 1,
-                data: { key: keys[i], value: settings[keys[i]] }
-            };
-            // Don't send to models, just let the settings system know
-        }
     }
 
     // ── Snapshot dispatching ──

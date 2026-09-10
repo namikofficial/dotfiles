@@ -1,7 +1,35 @@
 .pragma library
 
 var protocolVersion = 1;
-var providers = ["hyprland", "audio", "brightness", "power", "network", "bluetooth", "media", "notifications"];
+// Provider event allowlist.
+//
+// The QML client only subscribes to providers whose events have a real,
+// observable consumer in the shell. Each entry must correspond to:
+//   1. A registered provider on the daemon side (core/noxd/src/main.rs).
+//   2. A consumer that wires `applyEvent` / `applySnapshot` from this client
+//      (typically via the daemonClient Connections in shell.qml).
+//
+// "transfer" is included because core/noxd/src/providers/transfer.rs publishes
+// `discovery` and `sessions` events that TransferModel.qml consumes in
+// shell.qml's `onEventReceived`. "notifications" is included because
+// NotificationModel.qml consumes its own snapshot fan-out via applySnapshot
+// (the provider is daemon-typed for state, even though the model is
+// shell-owned).
+//
+// "settings" is intentionally NOT in this allowlist. Settings changes are
+// delivered through the explicit set_setting / get_setting requests and the
+// SettingUpdated response (see NoxdClient.qml setSetting / getSetting). No QML
+// component consumes settings provider events today, and adding "settings"
+// here would route SettingChangedEvent envelopes into `onEventReceived` with
+// no handler — silently discarded and raising the question of why the event
+// exists at all. If a future surface needs live settings updates, add it here
+// AND wire a consumer in shell.qml on the same change.
+var providers = ["hyprland", "audio", "brightness", "power", "network", "bluetooth", "media", "notifications", "transfer"];
+
+function isAllowedProvider(name) {
+    if (typeof name !== "string") return false;
+    return providers.indexOf(name) >= 0;
+}
 
 function isObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
