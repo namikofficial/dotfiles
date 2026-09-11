@@ -1,117 +1,41 @@
 @/home/namik/.codex/RTK.md
 
-# AGENTS.md — dotfiles (Arch + Hyprland + NoxFlow)
+# Dotfiles repository guidance
 
-This repo has **two independent codebases** in one workspace. Know which one you're working on before acting.
+This repository contains independent workstation configuration surfaces. Read
+the nearest nested `AGENTS.md` before editing a scoped area:
 
-## Repo map
+- `shell/noxflow/AGENTS.md` — Quickshell/QML desktop shell.
+- `core/AGENTS.md` — Rust workspace and `cli/noxctl`.
+- `setup/AGENTS.md` — bootstrap, health, and shell scripts.
+- `configs/opencode/AGENTS.md` — OpenCode models, agents, MCP, skills, and links.
 
-```
-shell/noxflow/      QML desktop shell (Quickshell) — Bar, Launcher, Overview,
-│                   Capture, Calendar, Dashboard, Settings, ControlCentre,
-│                   NotificationCentre, NoxIsland, RadialWheel
-├── shell.qml       Entry point — wires all surfaces
-├── surfaces/       One subdir per major panel
-├── components/     Shared UI primitives (Elevation, Card, Toggle, etc.)
-├── theme/          Tokens.qml + ThemeProfiles — M3 design tokens
-├── core/           PanelController, MorphSurface
-└── MorphRegistry   Chip-geometry singleton for morph animations
+## Repository map
 
-core/               Rust workspace members:
-├── noxd/           Desktop state + IPC daemon (zbus, ureq)
-├── noxflow-ipc/    Versioned IPC contract (serde)
-├── noxflow-config/ Validated config loading (toml, serde)
-├── noxflow-state/  Persistent user state (toml, serde)
-└── noxflow-diagnostics/ Structured diagnostics
+- `shell/noxflow/`: NoxFlow shell; `shell.qml` is the entry point.
+- `core/` and `cli/noxctl/`: desktop daemon, IPC, config/state, diagnostics, and CLI.
+- `setup/`: workstation bootstrap, health, installers, and verification control planes.
+- `configs/opencode/`: canonical OpenCode configuration and local plugins.
+- `ai/`: shared system prompts, templates, and assistant skills.
 
-cli/noxctl/         Rust CLI for shell/daemon control (clap)
+## Invariants
 
-setup/              80+ shell scripts — bootstrap, check, install, health
-ai/                 System prompts, skill files, templates for AI assistants
-configs/opencode/   OpenCode config, MCP scripts, plugins, skills
-docs/               40+ docs — runbook, keybinds, IPC protocol, architecture
-```
+- NoxFlow is the primary shell. Wayle is the fallback; do not run both.
+- Shell IPC flows through `NoxdClient.qml` to the `noxd` Unix socket.
+- OpenCode's canonical config is `configs/opencode/opencode.local-llamacpp.json`,
+  linked to `~/.config/opencode/opencode.json` by `setup/normalize-links.sh`.
+- Use `settingsctl` for validated settings updates; do not edit generated local state.
+- The NVIDIA hybrid laptop uses Intel for compositor DRM and NVIDIA for compute;
+  never hardcode DRM card numbers.
+- `private/scripts` is an optional SSH-backed submodule; do not require it for checks.
 
-## Key commands
+## Working rules
 
-### Rust workspace
-```sh
-cargo build --workspace --release   # Build noxd + noxctl
-cargo test --workspace               # All Rust tests
-cargo check --workspace              # Fast compilation check
-```
-Test files: `core/noxd/tests/server.rs`, `cli/noxctl/tests/cli.rs`
+1. Inspect the current branch, status, nearest instructions, callers, and tests before editing.
+2. Preserve unrelated dirty work and stage exact paths only when staging is requested.
+3. Run the cheapest relevant verification after each scoped change; never claim an unobserved result.
+4. Use `git diff --check` on changed text. Do not publish, push, commit, or alter credentials unless the user explicitly requests it.
 
-### Shell scripts
-```sh
-./setup/check-shell.sh --all   # shellcheck (severity=error) + shfmt -d -i 2 -ci
-```
-
-### QML shell
-```sh
-systemctl --user restart noxflow-shell.service   # Restart after QML changes
-journalctl --user -u noxflow-shell --no-pager    # Check for warnings/errors
-```
-No formal QML test runner. Smoke tests: `tests/smoke/test-noxflow-surfaces.sh`
-Protocol unit tests: `shell/noxflow/tests/test_protocol.js`
-
-### Dotfiles health
-```sh
-./setup/check-dotfiles.sh --all   # Shell script checks
-dev-health                        # Fast workstation readiness
-dev-health --full                 # Deep weekly health
-dev-health --json                 # Machine-readable
-upgrade-verify                    # Post-upgrade verification
-workstationctl verify all         # Workstation verification
-```
-
-### Apply changes
-```sh
-exec zsh                                                           # Reload shell
-./setup/bootstrap.sh                                               # Full setup
-~/.config/hypr/scripts/hypr-reload-safe.sh                        # Reload Hyprland
-systemctl --user restart xdg-desktop-portal xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
-~/.config/hypr/scripts/theme-pass.sh                              # GTK theme pass
-~/.config/hypr/scripts/panel-switch.sh show                       # Refresh shell
-~/.config/hypr/scripts/launcher.sh --warm-cache                   # Warm launcher cache
-```
-
-## Architecture must-knows
-
-- **IPC wiring:** Shell → `NoxdClient.qml` → Unix socket → `noxd` daemon.
-  Toggle surfaces via `noxctl <surface>` or `quickshell ipc -p ~/.config/noxflow/shell call noxctl toggleLauncher`.
-
-- **Shell entry:** `shell/noxflow/shell.qml` — wires all surfaces.
-  `PanelController` owns major-panel selection. `MorphSurface` is the only major-panel layer-shell window.
-
-- **Wayle is the fallback shell.** NoxFlow is primary. Never start both.
-  Current state: `wayle.service` should be stopped+disabled, `noxflow-shell.service` active.
-
-- **OpenCode config** lives in `configs/opencode/opencode.local-llamacpp.json` (not root `opencode.json`).
-  Global instructions: `ai/system/GLOBAL_SYSTEM.md`. Skills: `configs/opencode/skills/`.
-
-- **NVIDIA hybrid laptop (RTX 4050 + Intel).** DRM KMS is blacklisted on NVIDIA — compositor uses Intel iGPU. CUDA/compute uses NVIDIA base module. Do not hardcode DRM card numbers.
-
-- **Settings system:** `settingsctl` for validated state updates. Schema-driven.
-  Local overrides: `settings/state.local.json` (gitignored).
-
-- **Private submodule:** `private/scripts` (requires SSH access). Skip `git submodule update` if unavailable.
-
-## Session workflow
-
-1. Verify the current branch before editing; do not assume an older branch name from handoff notes.
-2. After QML edits: restart shell service, check journal for warnings.
-3. After Rust edits: `cargo check --workspace` then `cargo test --workspace`.
-4. After shell script edits: `./setup/check-shell.sh --all`.
-5. Docs generation: `./setup/generate-keybind-docs.py` + `./setup/check-keybind-docs.sh`.
-6. Keep the worktree reviewable: preserve unrelated changes, stage exact paths only, run `git diff --cached --check`, and create one atomic commit for each validated slice. Never leave completed requested work uncommitted unless the user explicitly asks for no commits.
-
-## Repo quirks
-
-- **No CI/CD** — no `.github/` or CI config.
-- **`Cargo.lock` is tracked** (for desktop binary reproducibility).
-- **`.gitignore` excludes:** `logs/`, `settings/state.local.json`, `.noxflow/`, `noxflow.local.toml`, `target/`, OAuth tokens in `external/waylandar-backend/`.
-- **Keybind docs** `docs/KEYBINDS.md` are generated from Lua. Change Lua bindings first, then regenerate.
-- **Active refactor phases** tracked in `TASKS.md`. `PLAN_v2.md` supersedes `PLAN.md`.
-- **Shell compilation criteria:** zero errors, zero warnings. Benign exception: `FileView: file does not exist` on first run.
-- **Reference repos** in `REFERENCES.md` — pinned commits, don't install as deps.
+Common checks are `./setup/check-shell.sh --all`, `./setup/check-dotfiles.sh --all`,
+`cargo check --workspace`, and `cargo test --workspace`; use only those relevant
+to the changed surface.

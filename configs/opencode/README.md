@@ -17,6 +17,13 @@ setup/install-verify-adapters.sh --apply
 
 The focused commands are available inside OpenCode as `/fix`, `/plan`, `/review`, `/verify`, and `/handoff`. Runtime `.ai/` artifacts are created only for large or multi-session work, not for every task.
 
+MiniMax M2.7 is the normal model for build, plan, exploration, worker, and
+review. MiniMax M3 is available through the explicit `worker-m3` escalation;
+GPT-5.6 Luna (and its fast variant) is reserved for deliberate escalation.
+The catalog also keeps MiniMax M2.5/M2.1 plus one GPT-5.6 Terra model for
+manual selection. `ask` is the ten-step read-only agent for quick repository
+questions.
+
 `Super+Tab` is owned by Hyprland workspace overview and is unrelated to OpenCode task execution. Use `/fix` inside OpenCode for end-to-end coding work; use `Super+Space` for the NoxFlow AI launcher.
 
 Optional Bruno, Schemathesis, axe, Roborazzi, browser CLI, cloud-device, and physical-device checks are capability-gated. They are never silently installed or reported as passing when unavailable.
@@ -27,8 +34,11 @@ MCP servers are scoped by profile so every client does not start every expensive
 server. The default profile is `minimal` (browser only). Opt into a profile in
 the shell before starting Codex, OpenCode, or Claude:
 
-The local OpenCode config explicitly uses the `dev` profile for CodeGraph and
-the `mobile` profile for Maestro; browser remains disabled until a task needs it.
+The local OpenCode config keeps CodeGraph, Maestro, browser, and Stitch MCP
+tools denied globally. `explore` enables only CodeGraph, `android-verifier`
+enables Maestro, `web-verifier` enables browser, and `ui-specialist` enables
+Stitch. The servers remain configured but are started and exposed only when the
+selected agent is allowed to use them.
 
 ```sh
 eval "$(mcp-profile env dev)"    # browser + CodeGraph + local docs
@@ -68,6 +78,16 @@ The shared Obsidian MCP launcher is `configs/opencode/obsidian-mcp.sh`. It reads
 
 The Stitch remote MCP entry reads its Google API key from the user-owned
 `~/.config/opencode/stitch-api-key` file. Keep that file mode `600`; the key is
-intentionally not stored in this repository.
+intentionally not stored in this repository. OpenCode Quota is pinned to
+`@slkiser/opencode-quota@4.8.0`; its tracked sidecar is
+`opencode-quota/quota-toast.json` and the linked TUI config is `tui.json`.
+
+OpenCode Tool Search is pinned to `opencode-tool-search@0.4.3` with the core
+file/edit/search tools kept visible and larger tool descriptions deferred.
+Before changing quota installation, preview the upstream installer with:
+
+```sh
+npx @slkiser/opencode-quota@4.8.0 init --dry-run
+```
 
 In Plannotator, open Settings, enable **Obsidian Integration**, and select `~/Documents/notes/DocsVault`. Approved plans will then be saved to the vault with frontmatter, tags, and a backlink to `[[Plannotator Plans]]`.

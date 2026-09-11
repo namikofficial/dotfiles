@@ -209,6 +209,9 @@ link_path "$REPO_DIR/git/hooks/commit-msg" "$HOME/.config/git/hooks/commit-msg"
 link_path "$REPO_DIR/tmux/tmux.conf" "$HOME/.tmux.conf"
 link_path "$REPO_DIR/tmux/tmux-help" "$HOME/.local/bin/tmux-help"
 link_path "$REPO_DIR/tmux/tmux-sessions" "$HOME/.local/bin/tmux-sessions"
+link_path "$REPO_DIR/tmux/tmux-project-cockpit" "$HOME/.local/bin/tmux-project-cockpit"
+link_path "$REPO_DIR/tmux/tmux-actions" "$HOME/.local/bin/tmux-actions"
+link_path "$REPO_DIR/tmux/tmux-diagnostics" "$HOME/.local/bin/tmux-diagnostics"
 link_path "$REPO_DIR/setup/dev-health.sh" "$HOME/.local/bin/dev-health"
 link_path "$REPO_DIR/setup/check-stale-references.sh" "$HOME/.local/bin/dotfiles-stale-check"
 link_path "$REPO_DIR/setup/project-profile.sh" "$HOME/.local/bin/project-profile"
@@ -278,11 +281,11 @@ copy_path "$REPO_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
 link_path "$REPO_DIR/theme/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
 link_path "$REPO_DIR/theme/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
 
-if ((!DRY_RUN)) && command -v luac >/dev/null 2>&1; then
+if ((! DRY_RUN)) && command -v luac >/dev/null 2>&1; then
   "$REPO_DIR/hypr/scripts/hypr-validate.sh" "$REPO_DIR/hypr/hyprland.lua"
 fi
 
-if ((!DRY_RUN)) && command -v systemctl >/dev/null 2>&1; then
+if ((! DRY_RUN)) && command -v systemctl >/dev/null 2>&1; then
   systemctl --user daemon-reload 2>/dev/null || true
 fi
 

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+start_dir="${1:-$PWD}"
+roots=("$HOME/Documents/code" "$HOME/dev")
+choices=()
+for root in "${roots[@]}"; do
+  [[ -d "$root" ]] || continue
+  while IFS= read -r -d '' path; do choices+=("$path"); done < <(find "$root" -maxdepth 3 -type d -name .git -prune -printf '%h\0' 2>/dev/null)
+done
+git_root="$(git -C "$start_dir" rev-parse --show-toplevel 2>/dev/null || true)"
+[[ -n "$git_root" ]] && choices=("$git_root" "${choices[@]}")
+(( ${#choices[@]} > 0 )) || choices=("$start_dir")
+
+selected="$(printf '%s\n' "${choices[@]}" | awk '!seen[$0]++' | fzf --height=55% --layout=reverse --border --prompt=' project › ' --header='Select a project, then choose an action' --preview='git -C {} status -sb 2>/dev/null || true')" || true
+[[ -n "$selected" ]] || exit 0
+
+name="$(basename "$selected" | tr -cs '[:alnum:]_-' '-' | sed 's/^-*//;s/-*$//')"
+[[ -n "$name" ]] || name="project"
+action="$(printf '%s\n' \
+  'attach  · switch to the project session' \
+  'editor  · open the project in EDITOR' \
+  'git     · open lazygit' \
+  'logs    · inspect project logs or recent commits' \
+  'check   · run the project check/doctor' | \
+  fzf --height=45% --layout=reverse --border --prompt=' action › ' --header="$selected")" || true
+[[ -n "$action" ]] || exit 0
+
+case "$action" in
+  attach*)
+    tmux has-session -t "=$name" 2>/dev/null || tmux new-session -d -s "$name" -c "$selected"
+    tmux switch-client -t "=$name"
+    ;;
+  editor*) exec "${EDITOR:-nvim}" "$selected" ;;
+  git*)
+    if command -v lazygit >/dev/null 2>&1; then exec lazygit -p "$selected"; fi
+    git -C "$selected" status -sb; read -r
+    ;;
+  logs*)
+    log_script="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/hypr/scripts/project-logs.sh"
+    if [[ -x "$log_script" ]]; then exec "$log_script" "$selected"; fi
+    git -C "$selected" --no-pager log --oneline -n 40; read -r
+    ;;
+  check*)
+    if command -v dev-doctor >/dev/null 2>&1; then (cd "$selected" && dev-doctor); else git -C "$selected" status -sb; fi
+    read -r
+    ;;
+esac

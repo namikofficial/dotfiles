@@ -187,7 +187,7 @@ if ((WITH_AUR)); then
   fi
 fi
 
-if ((!DRY_RUN)) && command -v pkgfile >/dev/null 2>&1; then
+if ((! DRY_RUN)) && command -v pkgfile >/dev/null 2>&1; then
   echo "Refreshing pkgfile database..."
   if ((EUID == 0)); then
     pkgfile --update || echo "warning: pkgfile --update failed" >&2

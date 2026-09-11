@@ -433,7 +433,7 @@ toggle_sidecar() {
 restore_all() {
   target_ws="$(normal_current_workspace)"
   clients_json="$(hyprctl -j clients 2>/dev/null || printf '[]')"
-  python3 - "$state_file" "$clients_json" <<'PY' | while IFS= read -r address; do
+  python3 - "$state_file" "$clients_json" <<'PY' | while IFS= read -r address
 import json
 import sys
 from pathlib import Path
@@ -458,6 +458,7 @@ for item in items:
 data["windows"] = []
 path.write_text(json.dumps(data, indent=2))
 PY
+  do
     [ -n "$address" ] || continue
     move_window_to_workspace "$address" "$target_ws" >/dev/null 2>&1 || true
   done

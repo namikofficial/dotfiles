@@ -1,98 +1,66 @@
 #!/usr/bin/env bash
-# tmux-help — keybinding cheatsheet shown via: Prefix + ?
-set -euo pipefail
+# NoxFlow tmux guide — opened with Prefix + ?
+set -u
 
-B=$'\033[1m'
-D=$'\033[2m'
-RST=$'\033[0m'
-CYN=$'\033[36m'
-GRN=$'\033[32m'
-YLW=$'\033[33m'
-MAG=$'\033[35m'
-BLU=$'\033[34m'
-RED=$'\033[31m'
-
-line() { printf "${CYN}"; printf '─%.0s' {1..54}; printf "${RST}\n"; }
+B=$'\033[1m'; D=$'\033[2m'; R=$'\033[0m'
+PEACH=$'\033[38;5;216m'; SAGE=$'\033[38;5;157m'; PLUM=$'\033[38;5;183m'
 
 section() {
-  echo
-  printf "${B}${YLW}  %-50s${RST}\n" "$1"
-  line
+  printf '\n%s%s%s\n' "$B$PEACH" "$1" "$R"
+  printf '%s────────────────────────────────────────────────────────%s\n' "$D" "$R"
 }
-
-kv() { printf "  ${GRN}%-24s${RST}  ${BLU}%s${RST}\n" "$1" "$2"; }
+item() { printf '  %s%-18s%s %s\n' "$SAGE" "$1" "$R" "$2"; }
 
 {
-  echo
-  printf "${B}${MAG}  ╔══════════════════════════════════════════════╗${RST}\n"
-  printf "${B}${MAG}  ║        tmux  keybinding  cheatsheet          ║${RST}\n"
-  printf "${B}${MAG}  ║   Prefix = Ctrl+Space  (press then release)  ║${RST}\n"
-  printf "${B}${MAG}  ╚══════════════════════════════════════════════╝${RST}\n"
+  printf '\n%s╭────────────────────────────────────────────────────╮%s\n' "$PLUM$B" "$R"
+  printf '%s│              NoxFlow tmux cockpit                │%s\n' "$PLUM$B" "$R"
+  printf '%s│       Prefix = Ctrl-Space (press, release)       │%s\n' "$PLUM$B" "$R"
+  printf '%s╰────────────────────────────────────────────────────╯%s\n' "$PLUM$B" "$R"
 
-  section "SESSIONS"
-  kv "Prefix  s"          "list/switch sessions (interactive)"
-  kv "Prefix  \$"         "rename current session"
-  kv "Prefix  d"          "detach (keep session running)"
-  kv "Prefix  q"          "kill current session (asks y/n)"
-  kv "ta [name]"          "shell: attach or create session"
-  kv "tls"                "shell: list all sessions"
+  section 'START HERE'
+  item 'Prefix + ?' 'open this guide'
+  item 'Prefix + p' 'project cockpit: session, editor, Git, logs, checks'
+  item 'Prefix + a' 'searchable action palette'
+  item 'Prefix + D' 'project and system diagnostics'
+  item 'Prefix + s' 'switch, rename, create, or kill sessions'
+  item 'Prefix + t' 'scratch terminal popup'
+  item 'Prefix + g' 'lazygit in the current directory'
+  item 'Prefix + O' 'OpenCode session browser'
 
-  section "WINDOWS  (like browser tabs)"
-  kv "Prefix  c"          "new window (opens in current dir)"
-  kv "Prefix  ,"          "rename window"
-  kv "Prefix  X"          "kill window"
-  kv "Prefix  1-9"        "jump to window by number"
-  kv "Prefix  Tab"        "go to next window"
-  kv "Alt + h / l"        "prev/next window  ← no prefix needed!"
-  kv "Prefix  w"          "visual window tree"
+  section 'WINDOWS · browser-like tabs'
+  item 'Prefix + c' 'new window in the current directory'
+  item 'Prefix + ,' 'rename the current window'
+  item 'Prefix + 1-9' 'jump to a window'
+  item 'Alt + h / l' 'previous / next window (no prefix)'
+  item 'Prefix + Tab' 'next window'
+  item 'Prefix + X' 'kill the current window (confirmed)'
 
-  section "PANES  (splits inside a window)"
-  kv "Prefix  |"          "split right (new pane on right)"
-  kv "Prefix  -"          "split down (new pane below)"
-  kv "Prefix  h/j/k/l"    "move between panes (vim keys)"
-  kv "Prefix  H/J/K/L"    "resize pane (hold, repeat)"
-  kv "Prefix  z"          "zoom pane to full / unzoom"
-  kv "Prefix  x"          "kill current pane"
-  kv "Prefix  Space"      "cycle through pane layouts"
-  kv "Prefix  q"          "show pane numbers (then press one)"
+  section 'PANES · split your workspace'
+  item 'Prefix + |' 'split right'
+  item 'Prefix + -' 'split down'
+  item 'Prefix + h/j/k/l' 'move between panes'
+  item 'Prefix + H/J/K/L' 'resize the active pane'
+  item 'Prefix + z' 'zoom / unzoom the active pane'
+  item 'Prefix + Space' 'cycle layouts'
+  item 'Prefix + q' 'show pane numbers'
+  item 'Prefix + x' 'kill the current pane (confirmed)'
 
-  section "COPY MODE  (scrollback + text selection)"
-  kv "Prefix  ["          "enter copy mode"
-  kv "v"                  "start selection"
-  kv "Ctrl+v"             "rectangle / block selection"
-  kv "y  or  Enter"       "copy selection → clipboard"
-  kv "F"                  "smart-pick: URLs, paths, hashes…  (tmux-thumbs)"
-  kv "q  or  Escape"      "exit copy mode"
-  kv "/ or ?"             "search forward / backward"
+  section 'COPY MODE · scrollback and selection'
+  item 'Prefix + [' 'enter vi copy mode'
+  item 'v' 'start a selection'
+  item 'Ctrl + v' 'rectangle selection'
+  item 'y / Enter' 'copy to the system clipboard'
+  item 'F' 'smart-pick URLs, paths, hashes (plugin)'
+  item 'q / Escape' 'leave copy mode'
 
-  section "POPUPS & TOOLS"
-  kv "Prefix  t"          "scratch terminal popup (80%×80%)"
-  kv "Prefix  g"          "lazygit popup  (needs lazygit)"
-  kv "Prefix  u"          "FZF URL picker from scrollback"
-  kv "Prefix  \\"         "context menu  (menus — great for new users!)"
-  kv "Prefix  F"          "tmux-fzf session/window/pane picker"
-  kv "Prefix  ?"          "this cheatsheet"
+  section 'PERSISTENCE AND PLUGINS'
+  item 'Prefix + Ctrl-s' 'save the session manually'
+  item 'Prefix + Ctrl-r' 'restore a saved session'
+  item 'Prefix + I' 'install TPM plugins'
+  item 'Prefix + U' 'update TPM plugins'
+  item 'Prefix + u' 'pick a URL from scrollback'
+  item "Prefix + \\" 'open the context menu'
 
-  section "SESSION MANAGEMENT  (tmux-sessionist)"
-  kv "Prefix  g"          "go-to / switch session interactively"
-  kv "Prefix  C"          "new session (prompted)"
-  kv "Prefix  X"          "kill current session (no prompt)"
-  kv "Prefix  @"          "promote pane → new session"
-
-  section "SESSION PERSISTENCE"
-  kv "Prefix  Ctrl+s"     "save session manually"
-  kv "Prefix  Ctrl+r"     "restore saved session"
-  kv "(auto)"             "sessions auto-save every 15 min"
-  kv "(auto)"             "desktop notification when long cmd (>15s) finishes"
-
-  section "CONFIG & PLUGINS"
-  kv "Prefix  r"          "reload ~/.tmux.conf"
-  kv "Prefix  I"          "install new plugins  (TPM)"
-  kv "Prefix  U"          "update plugins  (TPM)"
-  kv "Prefix  Ctrl+A"     "send prefix to a nested tmux"
-
-  echo
-  printf "  ${D}Tip: run  tmux list-keys  in a shell for the full list.${RST}\n"
-  echo
-
+  printf '\n%sTry this 5-minute loop:%s split → move → Prefix+p → Prefix+z → Prefix+D → Prefix+d to detach.\n' "$B" "$R"
+  printf '%sSessions keep running after detach: Prefix+d detaches, tmux attach restores them.%s\n\n' "$D" "$R"
 } | less -R -X -F

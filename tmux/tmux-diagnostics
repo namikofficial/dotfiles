@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -u
+
+cwd="${1:-$PWD}"
+repo="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$cwd")"
+printf '\n\033[1;38;5;216m  NoxFlow tmux diagnostics\033[0m\n'
+printf '\033[2m  %s\033[0m\n\n' "$repo"
+
+printf '\033[1;38;5;157m  tmux\033[0m\n'
+tmux display-message -p '  session: #S  window: #I/#W  pane: #P  command: #{pane_current_command}' 2>/dev/null || true
+tmux display-message -p '  size: #{client_width}x#{client_height}  path: #{pane_current_path}' 2>/dev/null || true
+
+printf '\n\033[1;38;5;157m  git\033[0m\n'
+git -C "$repo" status -sb 2>/dev/null || printf '  not a git repository\n'
+
+printf '\n\033[1;38;5;157m  project health\033[0m\n'
+if command -v dev-doctor >/dev/null 2>&1; then
+  (cd "$repo" && timeout 10s dev-doctor) 2>&1 || printf '  dev-doctor reported issues (run it directly for details)\n'
+else
+  printf '  dev-doctor is not installed\n'
+fi
+
+printf '\n\033[1;38;5;157m  resources\033[0m\n'
+if command -v resource-report >/dev/null 2>&1; then resource-report 2>&1 || true; else printf '  resource-report is not installed\n'; fi
+
+printf '\n\033[2mPress Enter to close.\033[0m\n'
+read -r
