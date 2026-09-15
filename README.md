@@ -10,8 +10,10 @@ This repository bootstraps an Arch + Hyprland workstation with reproducible shel
 - `atuin/config.toml` for consistent Atuin history UI/search defaults
 - `docs/KEYBINDS.md` full keybind tables + Mermaid map
 - `docs/RUNBOOK.md` 3-command pre/post reboot flow + log paths
+- `docs/ARCHITECTURE.md` current runtime ownership and subsystem boundaries
+- `docs/ROADMAP.md` the single list of unfinished architecture work
 - `docs/NOXFLOW_TODO.md` tracked setup checklist
-- `docs/NETWORK_STACK_POLICY.md` locked Wi-Fi stack policy (NetworkManager + wpa_supplicant)
+- `docs/NETWORK_STACK_POLICY.md` locked Wi-Fi stack policy (iwd + systemd-networkd + systemd-resolved)
 - `docs/LOCAL_DEVELOPER_WORKFLOW.md` day-to-day developer readiness, project, AI, and recovery workflow
 - `docs/NOXFLOW_LOGGING.md` structured diagnostics, journald integration, and `noxctl logs`
 - `docs/NOXCTL.md` stable NoxFlow CLI commands, JSON output, exit codes, and completions
@@ -130,8 +132,10 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 
 This repo standard is:
 
-- `NetworkManager` + `wpa_supplicant`
-- no `iwd`
+- `iwd`/`iwctl` for Wi-Fi
+- `systemd-networkd` for DHCP and routes
+- `systemd-resolved` for DNS
+- `NetworkManager` and `wpa_supplicant` disabled to avoid backend contention
 
 Enforce it any time with:
 
@@ -208,12 +212,14 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 ## Keybind highlights (Hyprland)
 
 - `Super + Y`: primary workspace hub (`workspace-overview.sh`)
-- `Super + W`: workspace/window overview switcher (direct Rofi list)
+- `Super + W`: wallpaper and theme panel
 - `Super + Tab`: overview toggle (`hyprexpo` if loaded, otherwise fallback Rofi overview)
 - `Super + Shift + Tab`: direct Rofi overview
 - `Super + Space`: desktop command palette
 - `Super + Shift + Space`: ultra-fast app launcher
 - `Super + Ctrl + Space`: workspace/window search
+- `Super + O`: pick a wallpaper
+- `Super + Shift + O`: apply the next wallpaper
 - `Super + F1`: open keybind helper overlay (`hypr-binds.sh`)
 - `Super + Ctrl + /`: open keybind helper overlay
 - `Super + A` / `Super + /`: desktop command palette (press again to close)
@@ -468,8 +474,8 @@ sudo reboot
 ```
 
 The system stage keeps SDDM, launches the normal session through UWSM exactly
-once, uses Intel for the compositor and NVIDIA for PRIME offload, makes
-NetworkManager the sole network owner, installs the independent **Hyprland
+once, uses Intel for the compositor and NVIDIA for PRIME offload, keeps the
+iwd/networkd/resolved network policy as the sole network owner, installs the independent **Hyprland
 Recovery (Intel, minimal)** session, and configures QEMU/KVM/libvirt. It creates
 a rollback snapshot under `/var/lib/noxflow-workstation/backups`; restore it
 with `sudo ./setup/workstationctl rollback`.

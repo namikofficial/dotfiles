@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://noxflow.local/schemas/nox-theme-schema-v1.json",
+  "title": "NoxFlow generated theme",
+  "type": "object",
+  "required": ["schema", "policy_version", "source", "scheme", "colors", "effects", "motion", "validation", "selection"],
+  "properties": {
+    "schema": { "const": "nox-theme-schema-v1" },
+    "policy_version": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "required": ["wallpaper", "sha256", "seed"],
+      "properties": {
+        "wallpaper": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "seed": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+      },
+      "additionalProperties": false
+    },
+    "scheme": {
+      "type": "object",
+      "required": ["mode", "variant"],
+      "properties": { "mode": { "enum": ["dark", "light"] }, "variant": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "colors": { "type": "object", "required": ["background", "onBackground", "surface", "onSurface", "primary", "onPrimary", "error", "warning", "success"] },
+    "effects": { "type": "object", "required": ["surfaceOpacity", "scrimOpacity", "blur"] },
+    "motion": { "type": "object", "required": ["themeTransitionMs"] },
+    "validation": { "type": "object", "required": ["contrast", "passed", "failed"] },
+    "selection": { "type": "object", "required": ["entropy", "candidateCount", "explanation"] }
+  },
+  "additionalProperties": true
+}

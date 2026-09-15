@@ -442,7 +442,10 @@ Item {
             FocusScope {
                 id: updatePill
                 property bool ho: false
-                visible: false
+                // Keep updates discoverable in the right-side status cluster.
+                // The legacy left-side slot remains disabled to avoid showing
+                // duplicate controls while this pill owns update actions.
+                visible: true
                 Layout.alignment: Qt.AlignVCenter
                 implicitWidth: Math.max(Theme.Tokens.scaled(58), updateRow.implicitWidth + Theme.Tokens.scaled(18))
                 implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)

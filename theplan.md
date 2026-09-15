@@ -2,6 +2,10 @@
 
 # Verdict
 
+> Historical review and mood-board material. It is retained for provenance;
+> current architecture and work items live in `docs/ARCHITECTURE.md` and
+> `docs/ROADMAP.md`.
+
 Your dotfiles do **not** need more scripts, menus, widgets, or keybinds.
 
 They need to become a **desktop shell product**.

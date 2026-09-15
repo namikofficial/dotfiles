@@ -1,6 +1,8 @@
 pragma Singleton
 import QtQml
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import "ThemeProfiles.js" as Profiles
 
 QtObject {
@@ -8,6 +10,26 @@ QtObject {
 
     // ── Current active profile name ──
     property string currentProfile: "material-expressive"
+
+    // Wallpaper themes are generated outside the shell. FileView watches the
+    // canonical JSON so the bar, borders, and every semantic surface update
+    // in place instead of requiring a shell restart.
+    readonly property string runtimeThemePath: {
+        var cache = Quickshell.env("XDG_CACHE_HOME");
+        if (!cache) cache = Quickshell.env("HOME") + "/.cache";
+        return cache + "/hypr/theme-palette.json";
+    }
+    property string runtimeThemeHash: ""
+    property string runtimeThemeError: ""
+    property FileView runtimeThemeFile: FileView {
+        path: root.runtimeThemePath
+        watchChanges: true
+        onLoaded: root.loadRuntimeTheme()
+        onLoadFailed: function(error) {
+            // The static profile remains the safe fallback on first boot.
+            root.runtimeThemeError = "Wallpaper theme unavailable: " + error;
+        }
+    }
 
     // appearance (config-level, not per-profile)
     readonly property string appearanceMode: "dark"
@@ -41,6 +63,8 @@ QtObject {
     property color surfaceSurfaceContainer: "#241F29"
     property color surfaceSurfaceContainerHigh: "#302A36"
     property color surfaceSurfaceContainerHighest: "#3D3442"
+    // Compatibility alias used by older bar/capsule components.
+    readonly property color surfaceSurfaceHighest: surfaceSurfaceContainerHighest
     property color surfaceSurfaceVariant: "#463B49"
     property color surfaceInverseSurface: "#F0E8E0"
     property color surfaceInverseOnSurface: "#2B2529"
@@ -147,11 +171,11 @@ QtObject {
     // Keep the chrome calm and legible over busy wallpapers. The old values
     // let terminal text and wallpaper compete with controls, which made the
     // sheet feel like a translucent debug overlay instead of a system panel.
-    readonly property real glassPanelAlpha: 0.92
-    readonly property real glassCardAlpha: 0.76
-    readonly property real glassOverlayAlpha: 0.60
-    readonly property real glassBorderAlpha: 0.64
-    readonly property real glassScrimAlpha: 0.32
+    property real glassPanelAlpha: 0.92
+    property real glassCardAlpha: 0.76
+    property real glassOverlayAlpha: 0.60
+    property real glassBorderAlpha: 0.64
+    property real glassScrimAlpha: 0.32
 
     // blur
     readonly property int blurNone: 0
@@ -188,6 +212,67 @@ QtObject {
         return Qt.rgba(value.r || 0, value.g || 0, value.b || 0, alpha);
     }
     function glass(value, alpha) { return withAlpha(value, alpha === undefined ? glassPanelAlpha : alpha); }
+
+    function runtimeColor(colors, name, fallback) {
+        var value = colors && colors[name] ? colors[name] : fallback;
+        return value || fallback;
+    }
+
+    function loadRuntimeTheme() {
+        try {
+            var data = JSON.parse(runtimeThemeFile.text());
+            if (data.schema !== "nox-theme-schema-v1" || !data.validation || data.validation.passed !== true) {
+                runtimeThemeError = "Rejected invalid wallpaper theme";
+                return;
+            }
+            var colors = data.colors || {};
+            tonalBackground = runtimeColor(colors, "background", tonalBackground);
+            tonalPrimary = runtimeColor(colors, "primary", tonalPrimary);
+            tonalOnPrimary = runtimeColor(colors, "onPrimary", tonalOnPrimary);
+            tonalPrimaryContainer = runtimeColor(colors, "primaryContainer", tonalPrimaryContainer);
+            tonalOnPrimaryContainer = runtimeColor(colors, "onPrimaryContainer", tonalOnPrimaryContainer);
+            tonalSecondary = runtimeColor(colors, "secondary", tonalSecondary);
+            tonalOnSecondary = runtimeColor(colors, "onSecondary", tonalOnSecondary);
+            tonalSecondaryContainer = runtimeColor(colors, "secondaryContainer", tonalSecondaryContainer);
+            tonalOnSecondaryContainer = runtimeColor(colors, "onSecondaryContainer", tonalOnSecondaryContainer);
+            surfaceSurface = runtimeColor(colors, "surface", surfaceSurface);
+            surfaceSurfaceContainerLow = runtimeColor(colors, "surfaceContainer", surfaceSurfaceContainerLow);
+            surfaceSurfaceContainer = runtimeColor(colors, "surfaceContainer", surfaceSurfaceContainer);
+            surfaceSurfaceContainerHigh = runtimeColor(colors, "surfaceContainer", surfaceSurfaceContainerHigh);
+            surfaceSurfaceContainerHighest = runtimeColor(colors, "surfaceContainer", surfaceSurfaceContainerHighest);
+            surfaceSurfaceVariant = runtimeColor(colors, "outline", surfaceSurfaceVariant);
+            textPrimary = runtimeColor(colors, "onBackground", textPrimary);
+            textSecondary = runtimeColor(colors, "onSurface", textSecondary);
+            textMuted = runtimeColor(colors, "onSurfaceVariant", textMuted);
+            textOnPrimary = runtimeColor(colors, "onPrimary", textOnPrimary);
+            textOnSurfaceVariant = runtimeColor(colors, "onSurfaceVariant", textOnSurfaceVariant);
+            outlineDefault = runtimeColor(colors, "outline", outlineDefault);
+            outlineSubtle = runtimeColor(colors, "outline", outlineSubtle);
+            outlineStrong = runtimeColor(colors, "onSurfaceVariant", outlineStrong);
+            outlineFocus = runtimeColor(colors, "primary", outlineFocus);
+            stateSuccess = runtimeColor(colors, "success", stateSuccess);
+            stateWarning = runtimeColor(colors, "warning", stateWarning);
+            stateDanger = runtimeColor(colors, "error", stateDanger);
+            stateInfo = runtimeColor(colors, "secondary", stateInfo);
+            if (data.effects) {
+                glassPanelAlpha = Number(data.effects.surfaceOpacity) || glassPanelAlpha;
+                glassScrimAlpha = Number(data.effects.scrimOpacity) || glassScrimAlpha;
+            }
+            runtimeThemeHash = data.source && data.source.sha256 ? String(data.source.sha256) : "";
+            runtimeThemeError = "";
+            currentProfile = "wallpaper-runtime";
+        } catch (error) {
+            runtimeThemeError = "Wallpaper theme parse error: " + error;
+        }
+    }
+
+    // Keep the visible chrome and border transitions coherent. Other semantic
+    // roles update through the same singleton in the same event turn.
+    Behavior on tonalBackground { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on tonalPrimary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on tonalSecondary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceContainerHigh { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on outlineDefault { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
 
     /// Apply a named theme profile, updating all color properties.
     function applyProfile(name) {
