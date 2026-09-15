@@ -21,8 +21,19 @@ MiniMax M2.7 is the normal model for build, plan, exploration, worker, and
 review. MiniMax M3 is available through the explicit `worker-m3` escalation;
 GPT-5.6 Luna (and its fast variant) is reserved for deliberate escalation.
 The catalog also keeps MiniMax M2.5/M2.1 plus one GPT-5.6 Terra model for
-manual selection. `ask` is the ten-step read-only agent for quick repository
-questions.
+manual selection. `ask` is the twenty-step quick repository agent.
+
+The high-autonomy profile uses two delegation levels and larger bounded
+budgets: build 250, plan 120, explore 60, worker 200, review 100, worker-m3
+300, worker-luna 220, expert 80, web-verifier 100, android-verifier 100,
+ui-specialist 180, security-audit 120, devops-run 120, explore-m3 80, and ask
+20. `worker-luna` uses GPT-5.6 Luna with the `medium` variant.
+
+All configured agents and tools are permission-allowed, including shell,
+external directories, skills, MCP, delegation, and destructive operations.
+Use this profile only when that level of autonomy is intentional; it can
+modify or delete files, expose credentials to a model, or perform irreversible
+commands. OpenCode still needs to be restarted after configuration changes.
 
 `Super+Tab` is owned by Hyprland workspace overview and is unrelated to OpenCode task execution. Use `/fix` inside OpenCode for end-to-end coding work; use `Super+Space` for the NoxFlow AI launcher.
 
@@ -31,27 +42,35 @@ Optional Bruno, Schemathesis, axe, Roborazzi, browser CLI, cloud-device, and phy
 ## MCP resource profiles
 
 MCP servers are scoped by profile so every client does not start every expensive
-server. The default profile is `minimal` (browser only). Opt into a profile in
+servers. The default profile is `minimal` (browser and Playwright). Opt into a profile in
 the shell before starting Codex, OpenCode, or Claude:
 
-The local OpenCode config keeps CodeGraph, Maestro, browser, and Stitch MCP
-tools denied globally. `explore` enables only CodeGraph, `android-verifier`
-enables Maestro, `web-verifier` enables browser, and `ui-specialist` enables
-Stitch. The servers remain configured but are started and exposed only when the
-selected agent is allowed to use them.
+The local OpenCode config exposes CodeGraph, Maestro, browser, Playwright, and
+Stitch to every configured agent. The two browser paths remain intentionally
+different: `playwright` is the isolated deterministic browser, while `browser`
+attaches to the existing Chrome session through Chrome DevTools MCP. The
+launcher still uses the selected MCP resource profile for server startup.
 
 ```sh
-eval "$(mcp-profile env dev)"    # browser + CodeGraph + local docs
+eval "$(mcp-profile env dev)"    # browser + Playwright + CodeGraph + local docs
 eval "$(mcp-profile env notes)"  # dev + Obsidian
 eval "$(mcp-profile env mobile)" # dev + Maestro
 mcp-profile verify-codegraph      # fresh OpenCode CodeGraph handshake
 mcp-profile status                # classify scoped vs legacy processes
 ```
 
-The browser server attaches to the existing Chrome session through Chrome's
-local remote-debugging flow; it does not launch an additional Chromium profile.
-Enable it once at `chrome://inspect/#remote-debugging` and accept Chrome's
-local connection prompt.
+The browser server launches a dedicated, visible Chrome instance for agent
+work using a persistent profile at
+`~/.local/state/opencode/chrome-devtools-profile` (override with
+`CHROME_DEVTOOLS_MCP_USER_DATA_DIR`). This is intentionally separate from your
+personal Chrome profile, so it does not require `chrome://inspect` or an
+**Allow remote debugging?** prompt. Log in to sites once inside this agent
+Chrome; cookies and local storage persist across OpenCode sessions. Do not run
+two independent MCP clients against the same profile at the same time; set a
+different `CHROME_DEVTOOLS_MCP_USER_DATA_DIR` for parallel sessions.
+
+After normalizing the managed OpenCode link, restart OpenCode and verify the
+resolved config before using browser tools.
 
 The development resource profile is separate from MCP profiles. Review and
 apply it with:

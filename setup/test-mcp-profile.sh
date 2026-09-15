@@ -48,6 +48,17 @@ codegraph_args="$(NOXFLOW_MCP_PROFILE=dev OPENCODE_MCP_HOME="$test_dir" "$scoped
   exit 1
 }
 
+cat >"$test_dir/node_modules/.bin/playwright-mcp" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*"
+MOCK
+chmod +x "$test_dir/node_modules/.bin/playwright-mcp"
+playwright_args="$(NOXFLOW_MCP_PROFILE=minimal OPENCODE_MCP_HOME="$test_dir" "$scoped" playwright --headed)"
+[ "$playwright_args" = '--headed' ] || {
+  printf 'unexpected playwright launcher args: %s\n' "$playwright_args" >&2
+  exit 1
+}
+
 cat >"$test_dir/obsidian-mcp-server" <<'MOCK'
 #!/usr/bin/env bash
 printf 'obsidian-launcher-ok\n'

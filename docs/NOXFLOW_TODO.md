@@ -37,7 +37,7 @@ Last updated: 2026-05-25
 - [x] Switch notification helpers to the shell-native backend (`notif-center-toggle.sh`, `notif-dnd-toggle.sh`)
 - [x] Add AI freeform (`raw`) mode — freeform prompt with no preset base prompt (`Super + Alt + 2`)
 - [x] Add dynamic monitor layouts (`dynamic-up`, `dynamic-right`) with automatic workspace routing (workspaces 1–5 on laptop, 6–10 on first connected external display)
-- [x] Enable system tray controls via applets; `nm-applet` and `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls
+- [x] Keep NoxFlow as the normal Bluetooth control surface; retain `blueman-manager` as recovery and make `blueman-applet` opt-in
 - [x] Change Tmux prefix from `Ctrl + A` to `Ctrl + Space`
 - [x] Add `open-syncthing.sh` helper and Syncthing entry in quick-actions menu
 - [x] Add fast local developer readiness check (`setup/dev-health.sh`, `dev-health`)

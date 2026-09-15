@@ -7,6 +7,6 @@
   "showSessionTokens": false,
   "sessionTokenScope": "current",
   "tuiSidebarPanel": {"enabled": true},
-  "tuiCompactStatus": {"enabled": false},
+  "tuiCompactStatus": {"enabled": true},
   "maintainerAnnouncements": {"enabled": true, "home": true}
 }

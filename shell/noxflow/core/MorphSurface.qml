@@ -44,11 +44,15 @@ PanelWindow {
     readonly property real targetBottomMargin: Theme.Tokens.scaled(Theme.Tokens.spacingLg)
     readonly property real targetWidth: activePanel === "calendar" ? Theme.Tokens.scaled(520) : activePanel === "sync" ? Theme.Tokens.scaled(520) : activePanel === "quick-share" ? Theme.Tokens.scaled(460) : activePanel === "launcher" ? Theme.Tokens.scaled(620) : Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth)
     readonly property real targetSurfaceWidth: screen ? screen.width : Theme.Tokens.scaled(1920)
-    readonly property real targetHeight: activePanel === "media" ? Theme.Tokens.scaled(230) :
-        (activePanel === "calendar" ? Theme.Tokens.scaled(650) :
-        (activePanel === "launcher" ? Theme.Tokens.scaled(520) :
-        (activePanel === "notifications" ? Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)) :
-        Math.min(Theme.Tokens.scaled(720), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700)))))
+    readonly property real targetHeight: {
+        var available = screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700);
+        if (activePanel === "media") return Theme.Tokens.scaled(230);
+        if (activePanel === "calendar") return Theme.Tokens.scaled(650);
+        if (activePanel === "launcher") return Theme.Tokens.scaled(520);
+        if (activePanel === "quick-settings") return Math.min(Theme.Tokens.scaled(640), available);
+        if (activePanel === "notifications") return Math.min(Theme.Tokens.scaled(760), available);
+        return Math.min(Theme.Tokens.scaled(720), available);
+    }
     readonly property int morphDuration: Config.Motion.panelOpen
     property bool switching: pendingPanel !== ""
 
@@ -88,6 +92,13 @@ PanelWindow {
     implicitWidth: surfaceWidth; implicitHeight: surfaceHeight
     exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
     visible: root.active
+    // The host layer spans the monitor for stable morph geometry, but only
+    // the visible frame should own pointer input. Without this mask the
+    // transparent layer can either swallow clicks outside the panel or leave
+    // controls visually present but unreachable depending on the compositor.
+    mask: Region {
+        Region { item: frame }
+    }
 
     // Layer-surface geometry transitions (OutCubic, no overshoot).
     Behavior on topMargin { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
@@ -263,6 +274,7 @@ PanelWindow {
         else if (name === "calendar") height = Theme.Tokens.scaled(650);
         else if (name === "sync") height = Theme.Tokens.scaled(680);
         else if (name === "quick-share") height = Theme.Tokens.scaled(560);
+        else if (name === "quick-settings") height = Math.min(Theme.Tokens.scaled(640), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(640));
         else if (name === "notifications") height = Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700));
         return { top: targetTopMargin, right: targetRightMargin, width: width, height: height };
     }

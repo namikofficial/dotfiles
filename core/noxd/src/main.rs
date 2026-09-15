@@ -318,6 +318,9 @@ fn handle_request(
                         discovering,
                     ))
                     .map_err(bluetooth_error)?,
+                Action::BluetoothPair { device_id } => bluetooth
+                    .send(noxd::providers::bluetooth::CommandRequest::Pair(device_id))
+                    .map_err(bluetooth_error)?,
                 Action::BluetoothConnect { device_id } => bluetooth
                     .send(noxd::providers::bluetooth::CommandRequest::Connect(
                         device_id,
@@ -326,6 +329,24 @@ fn handle_request(
                 Action::BluetoothDisconnect { device_id } => bluetooth
                     .send(noxd::providers::bluetooth::CommandRequest::Disconnect(
                         device_id,
+                    ))
+                    .map_err(bluetooth_error)?,
+                Action::BluetoothPairingResponse {
+                    request_id,
+                    accepted,
+                    passkey,
+                } => bluetooth
+                    .send(
+                        noxd::providers::bluetooth::CommandRequest::PairingResponse {
+                            request_id,
+                            accepted,
+                            passkey,
+                        },
+                    )
+                    .map_err(bluetooth_error)?,
+                Action::BluetoothCancelPairing { request_id } => bluetooth
+                    .send(noxd::providers::bluetooth::CommandRequest::CancelPairing(
+                        request_id,
                     ))
                     .map_err(bluetooth_error)?,
                 Action::BluetoothSetTrusted { device_id, trusted } => bluetooth

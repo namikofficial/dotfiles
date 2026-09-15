@@ -112,7 +112,9 @@ ShellRoot {
             }
         }
         function onEventReceived(event) {
-            if (event && event.provider === "transfer") transferModel.applyEvent(event);
+            if (!event) return;
+            if (event.provider === "transfer") transferModel.applyEvent(event);
+            else if (event.provider === "bluetooth") bluetoothModel.applyEvent(event);
         }
     }
 
@@ -207,17 +209,25 @@ ShellRoot {
         }
     }
 
-    function toggleControlCentre() { panelController.toggle("quick-settings"); }
-    function openControl()   { panelController.open("quick-settings"); }
-    function openControlSection(section) { panelController.open("quick-settings", "", null, section); }
+    function closeInlineCalendars() {
+        for (var key in islandHosts) {
+            var host = islandHosts[key];
+            if (host && typeof host.closeInlineCalendar === "function") host.closeInlineCalendar();
+        }
+    }
+    function toggleControlCentre() { closeInlineCalendars(); panelController.toggle("quick-settings"); }
+    function openControl()   { closeInlineCalendars(); panelController.open("quick-settings"); }
+    function openControlSection(section) { closeInlineCalendars(); panelController.open("quick-settings", "", null, section); }
+    function toggleBluetoothPanel() { closeInlineCalendars(); panelController.toggle("quick-settings", "", null, "bluetooth"); }
+    function openBluetoothPanel() { closeInlineCalendars(); panelController.open("quick-settings", "", null, "bluetooth"); }
     function closeControl()  { panelController.close("quick-settings"); }
 
     function toggleNotificationCentre() { panelController.toggle("notifications"); }
     function openNotifications()   { panelController.open("notifications"); }
     function closeNotifications()  { panelController.close("notifications"); }
 
-    function toggleCalendar() { panelController.toggle("calendar"); }
-    function openCalendar()   { panelController.open("calendar"); }
+    function toggleCalendar() { closeInlineCalendars(); panelController.toggle("calendar"); }
+    function openCalendar()   { closeInlineCalendars(); panelController.open("calendar"); }
     function closeCalendar()  { panelController.close("calendar"); }
 
     function toggleMediaPanel() { panelController.toggle("media"); }
@@ -368,6 +378,8 @@ ShellRoot {
         function handleEscape()     { return shellRoot.surfaceCoordinator ? shellRoot.surfaceCoordinator.handleEscape() : false; }
         function toggleQuickSettingsPanel() { return shellRoot.toggleControlCentre(); }
         function openQuickSettingsPanel()   { return shellRoot.openControl(); }
+        function toggleBluetoothPanel() { return shellRoot.toggleBluetoothPanel(); }
+        function openBluetoothPanel() { return shellRoot.openBluetoothPanel(); }
         function openNetworkPanel()         { return shellRoot.openControlSection("network"); }
         function toggleMediaPanelFromIpc()  { return shellRoot.toggleMediaPanel(); }
         function openMediaPanelFromIpc()    { return shellRoot.openMediaPanel(); }

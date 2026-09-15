@@ -120,8 +120,20 @@ pub enum Action {
     BluetoothConnect {
         device_id: String,
     },
+    BluetoothPair {
+        device_id: String,
+    },
     BluetoothDisconnect {
         device_id: String,
+    },
+    BluetoothPairingResponse {
+        request_id: String,
+        accepted: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        passkey: Option<String>,
+    },
+    BluetoothCancelPairing {
+        request_id: String,
     },
     BluetoothSetTrusted {
         device_id: String,
@@ -526,6 +538,31 @@ mod tests {
             let envelope = RequestEnvelope {
                 protocol_version: PROTOCOL_VERSION,
                 request_id: "transfer-test".into(),
+                request: Request::RunAction { action },
+            };
+            let json = serde_json::to_string(&envelope).unwrap();
+            assert_eq!(decode_request(&json).unwrap(), envelope);
+        }
+    }
+
+    #[test]
+    fn bluetooth_pairing_actions_round_trip() {
+        for action in [
+            Action::BluetoothPair {
+                device_id: "AA:BB:CC:DD:EE:FF".into(),
+            },
+            Action::BluetoothPairingResponse {
+                request_id: "pair-1".into(),
+                accepted: true,
+                passkey: Some("123456".into()),
+            },
+            Action::BluetoothCancelPairing {
+                request_id: "pair-1".into(),
+            },
+        ] {
+            let envelope = RequestEnvelope {
+                protocol_version: PROTOCOL_VERSION,
+                request_id: "bluetooth-pairing-test".into(),
                 request: Request::RunAction { action },
             };
             let json = serde_json::to_string(&envelope).unwrap();

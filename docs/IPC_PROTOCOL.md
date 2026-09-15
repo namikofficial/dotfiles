@@ -93,13 +93,18 @@ state and scan results, connected SSID, signal strength, IPv4/IPv6 addresses,
 metering, and VPN state.
 
 Bluetooth actions are `bluetooth_set_powered`, `bluetooth_set_discovering`,
+`bluetooth_pair`, `bluetooth_pairing_response`, `bluetooth_cancel_pairing`,
 `bluetooth_connect`, `bluetooth_disconnect`, and `bluetooth_set_trusted`.
-Bluetooth device IDs are canonical uppercase Bluetooth addresses. Actions only
-operate on already paired devices; pairing agents, PIN handling, and new-device
-pairing are not exposed. Discovery starts on all adapters and stops after 30
-seconds unless stopped earlier. The provider reports adapter state, paired
-devices, normalized device categories, connection/trust state, and nullable
-Battery1 percentages.
+Bluetooth device IDs are canonical uppercase Bluetooth addresses. Discovery
+exposes both nearby unpaired devices and already paired devices. Pairing is a
+user-initiated asynchronous flow: the provider emits a `pairing_request` event
+with a request ID, device identity, method, and any displayable passkey; the
+shell answers with `bluetooth_pairing_response` or cancels with
+`bluetooth_cancel_pairing`. Passkeys are never persisted or written to logs.
+Discovery starts on all adapters and stops after 30 seconds unless stopped
+earlier. The provider reports adapter state, paired/discovered devices,
+normalized device categories, connection/trust state, optional RSSI, and
+nullable Battery1 percentages.
 
 Media actions are `media_play`, `media_pause`, `media_play_pause`,
 `media_previous`, `media_next`, `media_seek` (signed microsecond offset), and

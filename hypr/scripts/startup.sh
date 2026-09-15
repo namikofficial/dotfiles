@@ -197,8 +197,10 @@ if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
   ) &
 fi
 
-# Start the Bluetooth tray applet; Wi-Fi is controlled through iwd/NoxFlow.
-if [ "$(setting_bool startup.blueman_applet_autostart true)" = "true" ]; then
+# NoxFlow owns Bluetooth controls. Keep Blueman Manager available as a
+# recovery tool, but do not start a second tray/panel by default. Opt in for
+# fallback sessions with startup.blueman_applet_autostart=true.
+if [ "$(setting_bool startup.blueman_applet_autostart false)" = "true" ]; then
   log "starting blueman-applet"
   run_once blueman-applet blueman-applet
 fi

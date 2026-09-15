@@ -11,7 +11,7 @@ mcp_home="${OPENCODE_MCP_HOME:-$HOME/.local/share/opencode/mcp}"
 enabled_for_profile() {
   local name="$1"
   case "$profile:$name" in
-    minimal:browser | dev:browser | dev:codegraph | dev:local-docs | notes:browser | notes:codegraph | notes:local-docs | notes:obsidian | mobile:browser | mobile:codegraph | mobile:local-docs | mobile:maestro)
+    minimal:browser | minimal:playwright | dev:browser | dev:playwright | dev:codegraph | dev:local-docs | notes:browser | notes:playwright | notes:codegraph | notes:local-docs | notes:obsidian | mobile:browser | mobile:playwright | mobile:codegraph | mobile:local-docs | mobile:maestro)
       return 0
       ;;
     *)
@@ -21,7 +21,7 @@ enabled_for_profile() {
 }
 
 if [ -z "$server" ]; then
-  printf 'usage: %s {browser|codegraph|local-docs|obsidian|maestro}\n' "$0" >&2
+  printf 'usage: %s {browser|playwright|codegraph|local-docs|obsidian|maestro}\n' "$0" >&2
   exit 2
 fi
 
@@ -33,6 +33,15 @@ fi
 case "$server" in
   browser)
     exec "$script_dir/chrome-devtools-mcp.sh" "$@"
+    ;;
+  playwright)
+    playwright_bin="${PLAYWRIGHT_MCP_BIN:-$mcp_home/node_modules/.bin/playwright-mcp}"
+    if [ ! -x "$playwright_bin" ]; then
+      printf 'Playwright MCP is not installed at %s; run %s/setup/install-opencode-mcp.sh\n' \
+        "$playwright_bin" "$(cd "$script_dir/../.." && pwd)" >&2
+      exit 127
+    fi
+    exec "$playwright_bin" "$@"
     ;;
   codegraph)
     codegraph_bin="${CODEGRAPH_MCP_BIN:-$mcp_home/node_modules/.bin/codegraph}"

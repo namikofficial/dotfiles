@@ -8,6 +8,7 @@ FocusScope {
     property bool ho: false
     property bool hovered: ho
     signal openNetwork()
+    signal openBluetooth()
     readonly property var connectedDevices: bluetooth && bluetooth.connectedDevices ? bluetooth.connectedDevices : []
     readonly property bool vpnActive: network && network.vpn && network.vpn.length > 0
     readonly property string shortSsid: { var value = network ? String(network.connectedSsid || "") : ""; return value.length > 12 ? value.slice(0, 10) + "…" : value; }
@@ -22,7 +23,18 @@ FocusScope {
         id: values; anchors.centerIn: parent; spacing: Theme.Tokens.scaled(6)
         Text { text: root.vpnActive ? "\uF023" : root.online ? "\uF1EB" : "\uF071"; color: root.online ? Theme.Tokens.textSecondary : Theme.Tokens.stateWarning; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }
         Text { visible: root.shortSsid !== ""; text: root.shortSsid; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium }
-        Text { visible: root.connectedDevices.length > 0; text: "\uF294"; color: Theme.Tokens.tonalSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }
+        Text {
+            id: bluetoothIcon
+            text: "\uF294"
+            color: root.connectedDevices.length > 0 ? Theme.Tokens.tonalSecondary : Theme.Tokens.textMuted
+            font.family: "Symbols Nerd Font Mono"
+            font.pixelSize: Theme.Tokens.iconXs
+            Accessible.ignored: false
+            TapHandler {
+                onTapped: root.openBluetooth()
+            }
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
+        }
         Text { visible: root.connectedDevices.length > 0; text: root.connectedDevices.length === 1 ? String(root.connectedDevices[0].name || "Device") : String(root.connectedDevices.length); color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; elide: Text.ElideRight; Layout.maximumWidth: Theme.Tokens.scaled(72) }
     }
     HoverHandler { onHoveredChanged: root.ho = hovered }

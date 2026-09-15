@@ -66,6 +66,9 @@ Item {
     // ── Panel yield ──
     property bool panelOpen: false
     property bool calendarExpanded: false
+    // Keep the legacy inline calendar in the top-chrome input mask while it
+    // is available, so its close button receives pointer events.
+    readonly property alias calendarInputRegionItem: inlineCalendarHost
     property bool launcherOpen: false
     property bool launcherClosing: false
     property bool launcherWasVisible: false
@@ -166,7 +169,7 @@ Item {
     activeFocusOnTab: launcherVisible || islandPinned
     Keys.onEscapePressed: function(event) {
         if (root.launcherVisible) { root.closeLauncher(); event.accepted = true; return; }
-        if (root.calendarExpanded) { root.calendarExpanded = false; inlineCalendar.close(); event.accepted = true; return; }
+        if (root.calendarExpanded) { root.closeInlineCalendar(); event.accepted = true; return; }
         if (root.islandPinned) { root.pinRelease(); event.accepted = true; return; }
         if (root.engagement.critical.active) { return; }
         if (root.hoverEngaged) {
@@ -378,14 +381,26 @@ Item {
     function openPanelFromIsland() {
         if (root.launcherVisible) return;
         if (root.islandState === "idle") {
-            root.calendarExpanded = !root.calendarExpanded;
-            if (root.calendarExpanded) inlineCalendar.open();
-            else inlineCalendar.close();
+            // The clock is the central entry point for the system controls.
+            // Keep Calendar available through its explicit panel/API routes,
+            // but make a normal time click open the same unified Control
+            // Centre used by the top-bar connectivity controls.
+            shellRoot.coordinator.toggle(
+                "quick-settings",
+                root.screen && root.screen.name ? root.screen.name : "",
+                root.islandGeometry()
+            );
             return;
         }
         var target = root.panelForIslandState();
         if (target && target.panel)
             shellRoot.coordinator.toggle(target.panel, root.screen && root.screen.name ? root.screen.name : "", root.islandGeometry(), target.section);
+    }
+
+    function closeInlineCalendar() {
+        if (!root.calendarExpanded) return;
+        root.calendarExpanded = false;
+        inlineCalendar.close();
     }
 
     Connections {
@@ -1049,8 +1064,7 @@ Item {
     function openLauncher() {
         if (root.launcherOpen) return;
         if (root.calendarExpanded) {
-            inlineCalendar.close();
-            root.calendarExpanded = false;
+            root.closeInlineCalendar();
         }
         root.launcherWasVisible = false;
         root.launcherClosing = false;

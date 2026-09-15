@@ -144,11 +144,14 @@ QtObject {
 
     // Moderate glass: surfaces remain legible while the wallpaper contributes
     // atmosphere. Keep these centralized so every surface can be tuned together.
-    readonly property real glassPanelAlpha: 0.82
-    readonly property real glassCardAlpha: 0.68
-    readonly property real glassOverlayAlpha: 0.54
-    readonly property real glassBorderAlpha: 0.52
-    readonly property real glassScrimAlpha: 0.24
+    // Keep the chrome calm and legible over busy wallpapers. The old values
+    // let terminal text and wallpaper compete with controls, which made the
+    // sheet feel like a translucent debug overlay instead of a system panel.
+    readonly property real glassPanelAlpha: 0.92
+    readonly property real glassCardAlpha: 0.76
+    readonly property real glassOverlayAlpha: 0.60
+    readonly property real glassBorderAlpha: 0.64
+    readonly property real glassScrimAlpha: 0.32
 
     // blur
     readonly property int blurNone: 0

@@ -264,6 +264,7 @@ Item {
             // Health capsule: CPU + RAM + Temp in one pill
             HealthCapsule {
                 id: healthCapsule
+                visible: true
                 systemModel: root.systemModel
                 Layout.alignment: Qt.AlignVCenter
                 onOpenSystem: root.toggleQuickSettingsFromBar(healthCapsule, "system")
@@ -275,6 +276,7 @@ Item {
 
             FocusScope {
                 id: leftUpdatePill
+                visible: false
                 property bool ho: false
                 Layout.alignment: Qt.AlignVCenter
                 implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), leftUpdateRow.implicitWidth + root.capsulePadH * 2)
@@ -312,6 +314,7 @@ Item {
                 bluetooth: root.bluetooth
                 Layout.alignment: Qt.AlignVCenter
                 onOpenNetwork: root.toggleQuickSettingsFromBar(connectivityCapsule, "network")
+                onOpenBluetooth: root.toggleQuickSettingsFromBar(connectivityCapsule, "bluetooth")
                 onHoveredChanged: {
                     if (!root.islandHost) return;
                     root.islandHost.sourceHoverChanged("connectivity", hovered);
@@ -380,7 +383,7 @@ Item {
                 id: syncPill
                 property bool ho: false
                 property bool pr: false
-                visible: syncActive() || syncWarning()
+                visible: false
                 Layout.alignment: Qt.AlignVCenter
                 implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), syncRow.implicitWidth + root.capsulePadH * 2)
                 implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)

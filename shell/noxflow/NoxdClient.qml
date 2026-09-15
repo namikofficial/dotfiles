@@ -262,11 +262,16 @@ QtObject {
     }
 
     function canRetry(method, metadata) {
-        // Never retry destructive actions
+        // Never retry actions whose outcome depends on a human or device
+        // handshake. Replaying one after a socket reconnect can create a
+        // second pairing prompt or answer an already-expired agent request.
         if (method === "run_action" && metadata && metadata.params && metadata.params.action) {
             var actionKey = Object.keys(metadata.params.action)[0];
             if (actionKey === "reboot" || actionKey === "power_off"
-                || actionKey === "suspend" || actionKey === "lock") {
+                || actionKey === "suspend" || actionKey === "lock"
+                || actionKey === "bluetooth_pair"
+                || actionKey === "bluetooth_pairing_response"
+                || actionKey === "bluetooth_cancel_pairing") {
                 return false;
             }
         }

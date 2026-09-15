@@ -36,6 +36,7 @@ PanelWindow {
     mask: Region {
         Region { item: bar }
         Region { item: island.inputRegionItem }
+        Region { item: island.calendarInputRegionItem }
     }
     // The launcher must own keyboard input immediately, before any pointer
     // interaction. OnDemand/focusable only permits focus and does not reliably

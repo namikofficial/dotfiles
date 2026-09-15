@@ -510,8 +510,9 @@ Or use repo automation:
   blacklisted because it blocks compositor initialization; CUDA/compute can use
   the base NVIDIA module, while graphical work and Android Emulator use Intel.
   The explicit iGPU-safe boot entry remains the kernel-level fallback.
-- Wayle plus tray applets now own panel status, and `nm-applet` plus `blueman-applet` auto-start by default for menu-style Wi-Fi/Bluetooth controls.
-  Set `HYPR_ENABLE_NM_APPLET=0` or `HYPR_ENABLE_BLUEMAN_APPLET=0` if you want the panel-only workflow instead.
+- NoxFlow owns the normal Wi-Fi/Bluetooth panel workflow. `blueman-manager`
+  remains available for recovery, while `blueman-applet` is opt-in through
+  `startup.blueman_applet_autostart=true` for fallback sessions.
 
 If login freezes, collect evidence before changing the driver policy:
 

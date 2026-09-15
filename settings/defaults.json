@@ -97,7 +97,7 @@
   },
   "startup": {
     "nm_applet_autostart": true,
-    "blueman_applet_autostart": true,
+    "blueman_applet_autostart": false,
     "nvidia_settings_autoload": false
   },
   "shortcuts": {

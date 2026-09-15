@@ -12,11 +12,15 @@ if [ -z "$mcp_bin" ] || [ ! -x "$mcp_bin" ]; then
   exit 127
 fi
 
-# Attach to the user's already-running Chrome. This deliberately does not
-# launch a second Chromium profile or expose a non-local debugging endpoint.
+# Launch a dedicated, persistent Chrome profile for agent work. This keeps the
+# user's personal Chrome session and credentials completely separate, avoids
+# Chrome's current-profile approval dialog, and preserves the agent profile's
+# cookies/local storage between OpenCode sessions.
+profile_dir="${CHROME_DEVTOOLS_MCP_USER_DATA_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/opencode/chrome-devtools-profile}"
+mkdir -p "$profile_dir"
 exec "$mcp_bin" \
-  --autoConnect \
   --channel stable \
+  --userDataDir "$profile_dir" \
   --no-usage-statistics \
   --experimentalPageIdRouting \
   "$@"
