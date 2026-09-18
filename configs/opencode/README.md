@@ -15,7 +15,7 @@ setup/install-verify-adapters.sh       # dry run
 setup/install-verify-adapters.sh --apply
 ```
 
-The focused commands are available inside OpenCode as `/fix`, `/plan`, `/review`, `/verify`, and `/handoff`. Runtime `.ai/` artifacts are created only for large or multi-session work, not for every task.
+The only configured custom command is `/fix`. OpenCode's quota plugin adds `/quota`. Runtime `.ai/` artifacts are created only for large or multi-session work, not for every task.
 
 MiniMax M2.7 is the normal model for build, plan, exploration, worker, and
 review. MiniMax M3 is available through the explicit `worker-m3` escalation;
@@ -97,16 +97,18 @@ The shared Obsidian MCP launcher is `configs/opencode/obsidian-mcp.sh`. It reads
 
 The Stitch remote MCP entry reads its Google API key from the user-owned
 `~/.config/opencode/stitch-api-key` file. Keep that file mode `600`; the key is
-intentionally not stored in this repository. OpenCode Quota is pinned to
-`@slkiser/opencode-quota@4.8.0`; its tracked sidecar is
-`opencode-quota/quota-toast.json` and the linked TUI config is `tui.json`.
-
-OpenCode Tool Search is pinned to `opencode-tool-search@0.4.3` with the core
-file/edit/search tools kept visible and larger tool descriptions deferred.
-Before changing quota installation, preview the upstream installer with:
+intentionally not stored in this repository. OpenCode v2 quota uses a tested
+community port pinned to commit `75d9b5d`. Install/build it with:
 
 ```sh
-npx @slkiser/opencode-quota@4.8.0 init --dry-run
+setup/install-opencode-quota-v2.sh
 ```
+
+The managed `cli.json` contains TUI preferences. OpenCode auto-discovers the
+quota adapter from `~/.config/opencode/plugins`; Linux notifications are also
+linked there.
+The quota adapter exposes `/quota` and `/quota_status`. After installing or
+relinking these plugins, restart the background server with
+`opencode service restart`, then open a new TUI session.
 
 In Plannotator, open Settings, enable **Obsidian Integration**, and select `~/Documents/notes/DocsVault`. Approved plans will then be saved to the vault with frontmatter, tags, and a backlink to `[[Plannotator Plans]]`.

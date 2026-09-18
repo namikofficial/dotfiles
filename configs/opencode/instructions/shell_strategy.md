@@ -2,7 +2,8 @@
 
 Shell commands run non-interactively.
 
-- Never invoke editors, pagers, interactive shells, or commands that wait for input.
-- Prefer OpenCode file tools and command-specific non-interactive flags.
-- Fail instead of prompting for credentials; never pipe passwords or blanket `yes`.
-- Use managed process/tmux tools only for genuinely long-running commands.
+- Use focused repository scripts and command-specific non-interactive flags.
+- Keep output bounded and preserve exit status; do not hide failed steps in command chains.
+- Stop rather than prompt for credentials. Never pipe passwords or use blanket `yes`.
+- Read state-changing scripts before running them and preserve user files before replacement.
+- Use registered project tmux sessions only for genuinely long-running work.

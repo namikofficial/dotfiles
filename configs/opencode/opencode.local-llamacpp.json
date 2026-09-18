@@ -32,8 +32,8 @@
   "small_model": "minimax-coding-plan/MiniMax-M2.7",
   "lsp": true,
   "default_agent": "build",
-  "subagent_depth": 2,
   "share": "manual",
+  "experimental": {"subagent_depth": 2},
   "watcher": {
     "ignore": [
       "node_modules/**", ".git/**", ".headroom/**", ".beads/**", "dist/**", "build/**",
@@ -45,7 +45,7 @@
     "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md",
     "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/shell_strategy.md"
   ],
-  "permission": "allow",
+  "permissions": [{"action": "*", "resource": "*", "effect": "allow"}],
   "mcp": {
     "codegraph": {
       "type": "local",
@@ -81,51 +81,20 @@
       "headers": {"X-Goog-Api-Key": "{file:~/.config/opencode/stitch-api-key}"}
     }
   },
-  "skills": {"paths": ["/home/namik/Documents/code/dotfiles/configs/opencode/skills"]},
-  "command": {
+  "skills": ["/home/namik/Documents/code/dotfiles/configs/opencode/skills"],
+  "commands": {
     "fix": {
       "description": "Investigate and fix a problem end to end.",
       "template": "Investigate and fix this end-to-end: $ARGUMENTS\n\nInspect the relevant code and understand the issue. Implement the smallest correct fix. Use subagents only when they materially help. Run the cheapest relevant verification, repair failures, and continue until the requested behavior works or a genuine external blocker remains. Do not merely explain or stop after planning. Do not commit or push.",
       "agent": "build"
-    },
-    "plan": {
-      "description": "Create a focused implementation plan from repository evidence.",
-      "template": "Plan this request from repository evidence: $ARGUMENTS\n\nInspect AGENTS.md and the smallest relevant surface. Trace callers, contracts, and tests. Return a concise implementation sequence, acceptance criteria, risks, and verification. Do not edit source. Use .ai/plan.md only for large, multi-session, migration, or architecture work.",
-      "agent": "plan"
-    },
-    "review": {
-      "description": "Review the current change for concrete defects and missing tests.",
-      "template": "Review this change for correctness, regressions, security, and missing tests: $ARGUMENTS\n\nInspect the actual diff and relevant callers. Report only evidence-backed findings with exact paths and severity. Do not edit files.",
-      "agent": "review"
-    },
-    "verify": {
-      "description": "Verify the changed behavior with the cheapest applicable checks.",
-      "template": "Verify the requested outcome and current diff: $ARGUMENTS\n\nInspect what changed, run affected type/lint/tests, and use browser/Android/API checks only when the changed surface requires them. Report PASS, FAIL, NOT_CONFIGURED, or SKIPPED with exact commands and observed evidence. Do not edit files.",
-      "agent": "review"
-    },
-    "handoff": {
-      "description": "Write a concise handoff for continuing work in a fresh session.",
-      "template": "Prepare a concise handoff for: $ARGUMENTS\n\nInclude objective, verified facts, changed paths, commands and results, blockers, risks, and the next safe action. Write .ai/handoff.md only when a handoff is actually needed. Exclude secrets and narration.",
-      "agent": "build"
     }
   },
-  "plugin": [
-    "@slkiser/opencode-quota@4.8.0",
-    ["opencode-tool-search@0.4.3", {"alwaysLoad": ["read", "edit", "bash", "glob", "grep", "lsp", "task", "skill"]}],
-    ["@dahuangggg/opencode-headroom@0.3.2", {"engine": "native", "profile": "coding"}],
-    "opencode-beads@0.8.0",
-    "@andrewhampton/opencode-handoff@0.2.0",
-    "@nick-vi/opencode-type-inject",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/post-edit-diagnostics.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/pre-shell-safety.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/pre-edit-safety.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/agent-status.js"
+  "plugins": [
+    "/home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/plugins/safety-guards"
   ],
   "tool_output": {"max_lines": 2000, "max_bytes": 131072},
-  "compaction": {"auto": true, "prune": true, "tail_turns": 8, "preserve_recent_tokens": 12000, "reserved": 24000},
+  "compaction": {"auto": true, "keep": {"tokens": 12000}, "buffer": 24000},
   "agent": {
     "build": {
       "description": "Primary M2.7 implementation agent.",

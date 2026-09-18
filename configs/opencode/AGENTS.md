@@ -6,10 +6,14 @@ MiniMax M2.7 is the normal model for primary, planning, exploration,
 implementation, and review paths. M3 and GPT-5.6 Luna are explicit escalation
 models; keep the other configured MiniMax models and the Terra catalog entry.
 
-MCP tools and skills are denied globally to keep ordinary turns small. Enable
-only the server or skill needed by the relevant specialist agent. Keep quota
-and TUI sidecar files under version control and link them from
-`setup/normalize-links.sh`.
+Configured MCP servers and skills are available globally; select only the
+server or skill needed for a task. The current permission profile allows
+configured tools, including shell, so prompts must keep destructive actions
+and credential changes under explicit user control. OpenCode v2 uses `cli.json`
+for TUI preferences and discovers managed CLI plugins from
+`~/.config/opencode/plugins`. The quota adapter is pinned to the tested
+community v2 port and installed under user state by
+`setup/install-opencode-quota-v2.sh`.
 
 Validate configuration changes with:
 
@@ -19,6 +23,5 @@ jq empty configs/opencode/opencode.local-llamacpp.json
 git diff --check
 ```
 
-Do not commit, push, install credentials, or apply user-level changes without
-an explicit request. Package plugins are pinned in the canonical config when
-reproducibility matters; runtime authentication remains user-owned.
+Do not commit, push, or alter credentials. Runtime authentication remains
+user-owned.

@@ -1,5 +1,6 @@
 {
   "enabledProviders": "auto",
+  "requestTimeoutMs": 15000,
   "formatStyle": "allWindows",
   "percentDisplayMode": "remaining",
   "tuiCommandDisplay": "inline",

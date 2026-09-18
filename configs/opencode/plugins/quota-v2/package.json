@@ -1,0 +1,8 @@
+{
+  "name": "nox-opencode-quota",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tui": "./tui.ts"
+  }
+}
