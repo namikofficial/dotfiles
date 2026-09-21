@@ -32,7 +32,7 @@ jq -e '.commands | keys == ["fix"]' "$opencode" >/dev/null
 jq -e '(.plugins | length) == 2 and ([.plugins[] | contains("tmux-tools") or contains("safety-guards")] | all)' "$opencode" >/dev/null
 jq -e '(.plugins? // []) == []' "$cli" >/dev/null
 rg -q 'force_link .*plugins/quota-v2' "$root/setup/normalize-links.sh"
-jq -e '.mcp.maestro.enabled == true and .mcp.maestro.command[1] == "maestro" and .mcp.maestro.environment.NOXFLOW_MCP_PROFILE == "mobile"' "$root/.opencode/opencode.json" >/dev/null
+jq -e '(.mcp? // {}) | (has("maestro") | not)' "$root/.opencode/opencode.json" >/dev/null
 jq -e '.plugin == []' "$root/configs/opencode/tui.json" >/dev/null
 rg -q 'Plugin.define' "$root/configs/opencode/plugins/quota-v2/tui.ts"
 rg -q 'dist/tui-v2.js' "$root/configs/opencode/plugins/quota-v2/tui.ts"

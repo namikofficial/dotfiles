@@ -1,18 +1,4 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugins": [],
-  "mcp": {
-    "maestro": {
-      "type": "local",
-      "command": [
-        "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh",
-        "maestro"
-      ],
-      "environment": {
-        "NOXFLOW_MCP_PROFILE": "mobile"
-      },
-      "enabled": true,
-      "timeout": 120000
-    }
-  }
+  "plugins": []
 }
