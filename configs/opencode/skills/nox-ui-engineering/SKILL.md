@@ -32,11 +32,11 @@ Do not use this for purely backend, CLI, IPC, or schema work — those have dedi
 
 ## Principles
 
-1. **No screen ships with a single state.** A screen is a matrix of states; one is not enough.
+1. **No user flow ships with only a happy path.** Cover the states relevant to the changed surface; do not require unrelated states for an isolated component or token change.
 2. **Generic is the failure mode.** If the design could be mistaken for any other AI-generated product, redo it. Pick a deliberate aesthetic direction and commit.
 3. **A11y is interaction, not a checkbox.** A screen is not accessible if a keyboard user cannot reach the primary action or a screen-reader user cannot recover from an error.
 4. **Tokens, not magic numbers.** Spacing, radii, font sizes, and motion durations must come from a token table. If you typed a literal in a component, you leaked.
-5. **Browser evidence is required.** "It compiles" and "it renders" are not proof. Show the page in a real runtime, capture console, network, and a screenshot of the relevant state.
+5. **Runtime evidence is proportional.** For a screen or flow, use the relevant browser/device runtime and capture console, network, and screenshots. For an isolated component or non-runtime change, focused tests and source evidence are sufficient; mark unavailable gates unverified.
 6. **Less UI, better UI.** No decorative elements that don't carry meaning. No modal inside a modal. No icon button without a label.
 
 ## Anti-AI-generic-UI checklist
@@ -59,7 +59,7 @@ If you produce any of these, explain why in the review. If you cannot justify it
 
 ## UX state matrix
 
-Every interactive surface MUST specify behavior for each state below. "Same as happy path" is not acceptable.
+Every changed interactive surface MUST specify behavior for the states it can reach. Use the full matrix for a new screen or end-to-end flow; use a focused subset for a component, copy, token, or bug fix.
 
 | State | Trigger | Required UI elements |
 |---|---|---|
@@ -96,7 +96,7 @@ If a screen fails any of these, it is not done. Do not ship.
 
 ## Design before JSX (substantial new UI / major redesigns)
 
-For any non-trivial UI work — new screen, major redesign, anything that takes more than a few hours — implement this pre-flight BEFORE writing code. The discipline is the difference between an interface that looks intentional and one that looks AI-generated.
+For a new screen or major redesign, implement this pre-flight before writing code. For a focused component or bug fix, use the short route: identify the user goal, affected states, tokens, accessibility impact, and cheapest proof. Scale the pre-flight to the blast radius.
 
 ```
 1. Visual thesis
@@ -152,8 +152,7 @@ For any non-trivial UI work — new screen, major redesign, anything that takes 
    If the implementation deviates from the concept, fix the code OR fix the concept.
    Never let the implementation drift to generic patterns.
 
-If you skip this pre-flight and go straight to code, you will produce a generic AI-generated screen.
-The pre-flight is the discipline that prevents that.
+If the change is large enough to alter information architecture or visual language, do not skip the full pre-flight. Smaller changes should not be forced through an unrelated multi-hour process.
 ```
 
 ## UX writing
@@ -226,7 +225,7 @@ Before claiming any UI work is done, capture browser evidence for the relevant s
 4. **Keyboard navigation** traverses the primary flow end-to-end with visible focus
 5. **Responsive behavior** at the breakpoints the product targets
 6. **A11y quick pass** — tab through, verify focus order, verify labels and errors are announced
-7. **Visual regression** — at least one screenshot per state, archived under `.ai/screenshots/<date>/<screen>/<state>.png`
+7. **Visual regression** — capture screenshots for changed states when the project has a browser/device harness; otherwise record the visual gate as `UNVERIFIED` with the reason.
 
 Use the browser MCP (`browser_navigate_page`, `browser_take_snapshot`, `browser_take_screenshot`, `browser_list_console_messages`, `browser_list_network_requests`, `browser_press_key`, `browser_resize_page`). Playwright tests are preferred when the project already has them.
 

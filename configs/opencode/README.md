@@ -15,7 +15,26 @@ setup/install-verify-adapters.sh       # dry run
 setup/install-verify-adapters.sh --apply
 ```
 
-The only configured custom command is `/fix`. OpenCode's quota plugin adds `/quota`. Runtime `.ai/` artifacts are created only for large or multi-session work, not for every task.
+Configured workflow commands are `/auto`, `/handoff`, `/ui`, and `/fix`.
+`/auto` classifies the request and chooses one bounded specialist handoff only
+when it helps; `/handoff` makes the contract explicit; `/ui` selects UI and
+verification guidance. OpenCode's quota plugin adds `/quota`. Runtime `.ai/`
+artifacts are created only for large or multi-session work, not for every task.
+
+For automatic capability selection without changing the normal `codex` or
+`opencode` commands, use the explicit launcher:
+
+```sh
+setup/ai-session.sh opencode
+setup/ai-session.sh codex
+```
+
+It selects `dev`, `web`, `mobile`, `notes`, or `minimal` from the project path
+and request text, prints the selection, and respects `AI_SESSION_PROFILE`.
+OpenCode receives the scoped MCP environment. Codex uses the design overlay only
+for web/UI work; otherwise its normal config and `AGENTS.md` routing remain in
+control. This is intentionally opt-in so a normal launch cannot unexpectedly
+change profiles or hand work to another agent.
 
 MiniMax M2.7 is the normal model for build, plan, exploration, worker, and
 review. MiniMax M3 is available through the explicit `worker-m3` escalation;
@@ -43,16 +62,17 @@ Optional Bruno, Schemathesis, axe, Roborazzi, browser CLI, cloud-device, and phy
 ## MCP resource profiles
 
 MCP servers are scoped by profile so every client does not start every expensive
-servers. The default profile is `minimal` with no browser/mobile/design server.
-Opt into a profile in the shell before starting Codex, OpenCode, or Claude:
+servers. The launcher pins each configured server to its correct scoped profile
+so normal OpenCode launches work without shell reconfiguration. Use explicit
+profile commands when starting standalone MCP clients:
 
-The local OpenCode config keeps CodeGraph available for repository exploration
-but disables Maestro, browser, Playwright, and Stitch by default. Enable those
-servers only in the matching profile. The two browser paths remain intentionally
-different: `playwright` is the isolated deterministic browser, while `browser`
-attaches to the dedicated agent Chrome session through Chrome DevTools MCP. The
-launcher still uses the selected MCP resource profile for server startup;
-verify the effective process map with `opencode mcp list`.
+The local OpenCode config declares CodeGraph, Maestro, browser, Playwright, and
+Stitch, but only CodeGraph is enabled by default. The others are opt-in and
+pinned to `dev`, `mobile`, or `web` so an agent handoff does not silently launch
+an expensive or stateful capability. The two browser paths
+remain intentionally different: `playwright` is the isolated deterministic
+browser, while `browser` attaches to the dedicated agent Chrome session through
+Chrome DevTools MCP. Verify the effective process map with `opencode mcp list`.
 
 ```sh
 eval "$(mcp-profile env dev)"    # browser + Playwright + CodeGraph + local docs

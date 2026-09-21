@@ -1,12 +1,12 @@
 ---
 name: nox-ui-judge
-description: Independent visual UX judge for UI implementations. Reads screenshots against the 100-point UI rubric (hard gates + dimensions). Separates creator taste from judge taste. Verdict thresholds: <70 reject, 70-84 needs revision, 85-92 ship-quality, 93+ exceptional.
+description: Opt-in final visual UX gate for UI implementations. Use after a focused UI change when screenshots and source evidence exist; do not invoke for every UI task.
 compatibility: opencode
 ---
 
 ## What I do
 
-Read screenshots of a UI implementation and produce a structured score against the rubric in `references/rubric.md`. I do NOT implement UI — I judge it. The implementing agent and the judging agent are deliberately separate to remove creator bias.
+Read screenshots of a UI implementation and produce a structured score against the rubric in `../nox-ui-engineering/evals/rubric.md`. I do NOT implement UI — I judge it. The implementing agent and the judging agent are deliberately separate to remove creator bias.
 
 Reference: complements `nox-ui-engineering`. Where `nox-ui-engineering` defines what to build, this skill defines how to judge whether what was built is good.
 
@@ -19,7 +19,7 @@ Use this skill when:
 - Comparing two implementations of the same screen (A/B selection).
 - Establishing a baseline before a redesign.
 
-Do NOT use this skill to generate UI feedback that the build agent uses to iterate — that's `nox-ui-engineering`'s job. Use this skill for the FINAL gate, not for in-progress feedback.
+Do NOT use this skill to generate UI feedback that the build agent uses to iterate — that's `nox-ui-engineering`'s job. Use this skill for the FINAL gate, not for in-progress feedback. For a small component, use a focused review; do not demand a full-screen state archive when the relevant states cannot be exercised.
 
 ## Hard gates (all must PASS)
 
@@ -36,7 +36,7 @@ Any hard-gate failure overrides the dimension score. The implementation cannot s
 
 ## Dimensions (0-10)
 
-See `references/rubric.md` for the full rubric. Summary:
+See `../nox-ui-engineering/evals/rubric.md` for the full rubric. Summary:
 
 | Dimension | Weight |
 | --- | --- |

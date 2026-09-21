@@ -64,12 +64,14 @@
     "browser": {
       "type": "local",
       "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "browser"],
+      "environment": {"NOXFLOW_MCP_PROFILE": "web"},
       "enabled": false,
       "timeout": 120000
     },
     "playwright": {
       "type": "local",
       "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "playwright"],
+      "environment": {"NOXFLOW_MCP_PROFILE": "web"},
       "enabled": false,
       "timeout": 120000
     },
@@ -87,6 +89,21 @@
       "description": "Investigate and fix a problem end to end.",
       "template": "Investigate and fix this end-to-end: $ARGUMENTS\n\nInspect the relevant code and understand the issue. Implement the smallest correct fix. Use subagents only when they materially help. Run the cheapest relevant verification, repair failures, and continue until the requested behavior works or a genuine external blocker remains. Do not merely explain or stop after planning. Do not commit or push.",
       "agent": "build"
+    },
+    "auto": {
+      "description": "Classify the task and route it to the smallest capable agent/profile.",
+      "template": "Route this task before implementation: $ARGUMENTS\n\nFirst classify it as question, exploration, plan, backend/API, UI/web, mobile/device, security, or implementation. Choose the smallest capable agent. If a specialist is needed, hand off once with a bounded context packet containing objective, acceptance criteria, relevant paths, known evidence, non-goals, and required return. Keep the primary coordinator responsible for integration and final verification. Announce the selected route in one line, then continue until the requested outcome works or a genuine blocker remains.",
+      "agent": "build"
+    },
+    "handoff": {
+      "description": "Hand off the current bounded task to one specialist and return a concise evidence packet.",
+      "template": "Prepare a bounded handoff for this task: $ARGUMENTS\n\nSelect exactly one specialist (explore, plan, review, web-verifier, android-verifier, ui-specialist, security-audit, or worker). Include objective, acceptance criteria, known evidence, relevant paths, do-not-investigate boundaries, and required return fields. Do not duplicate the primary agent's work. The coordinator owns integration and the final verdict.",
+      "agent": "build"
+    },
+    "ui": {
+      "description": "Route UI work through Nox UI engineering and the appropriate runtime verifier.",
+      "template": "Handle this UI task: $ARGUMENTS\n\nUse the nox-ui-engineering skill as the primary UI contract. Select web-verifier, android-verifier, or no verifier based on the affected platform. Apply only the relevant UX states and evidence gates for the changed surface. Keep the diff focused and report observed versus unverified evidence.",
+      "agent": "ui-specialist"
     }
   },
   "plugins": [
