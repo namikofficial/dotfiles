@@ -23,11 +23,12 @@ GPT-5.6 Luna (and its fast variant) is reserved for deliberate escalation.
 The catalog also keeps MiniMax M2.5/M2.1 plus one GPT-5.6 Terra model for
 manual selection. `ask` is the twenty-step quick repository agent.
 
-The high-autonomy profile uses two delegation levels and larger bounded
-budgets: build 250, plan 120, explore 60, worker 200, review 100, worker-m3
-300, worker-luna 220, expert 80, web-verifier 100, android-verifier 100,
-ui-specialist 180, security-audit 120, devops-run 120, explore-m3 80, and ask
-20. `worker-luna` uses GPT-5.6 Luna with the `medium` variant.
+The default profile uses bounded budgets: build 180, plan 120, explore 60,
+worker 140, review 100, worker-m3 220, worker-luna 160, expert 80,
+web-verifier 100, android-verifier 100, ui-specialist 140, security-audit 100,
+devops-run 100, explore-m3 80, and ask 20. These are ceilings, not targets.
+Escalate deliberately for migrations or long runtime debugging. `worker-luna`
+uses GPT-5.6 Luna with the `medium` variant.
 
 All configured agents and tools are permission-allowed, including shell,
 external directories, skills, MCP, delegation, and destructive operations.
@@ -42,14 +43,16 @@ Optional Bruno, Schemathesis, axe, Roborazzi, browser CLI, cloud-device, and phy
 ## MCP resource profiles
 
 MCP servers are scoped by profile so every client does not start every expensive
-servers. The default profile is `minimal` (browser and Playwright). Opt into a profile in
-the shell before starting Codex, OpenCode, or Claude:
+servers. The default profile is `minimal` with no browser/mobile/design server.
+Opt into a profile in the shell before starting Codex, OpenCode, or Claude:
 
-The local OpenCode config exposes CodeGraph, Maestro, browser, Playwright, and
-Stitch to every configured agent. The two browser paths remain intentionally
+The local OpenCode config keeps CodeGraph available for repository exploration
+but disables Maestro, browser, Playwright, and Stitch by default. Enable those
+servers only in the matching profile. The two browser paths remain intentionally
 different: `playwright` is the isolated deterministic browser, while `browser`
-attaches to the existing Chrome session through Chrome DevTools MCP. The
-launcher still uses the selected MCP resource profile for server startup.
+attaches to the dedicated agent Chrome session through Chrome DevTools MCP. The
+launcher still uses the selected MCP resource profile for server startup;
+verify the effective process map with `opencode mcp list`.
 
 ```sh
 eval "$(mcp-profile env dev)"    # browser + Playwright + CodeGraph + local docs

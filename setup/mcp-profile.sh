@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  mcp-profile env {minimal|dev|notes|mobile}
+  mcp-profile env {minimal|dev|web|notes|mobile}
   mcp-profile status
   mcp-profile stop PID...
   mcp-profile verify-codegraph
@@ -18,7 +18,7 @@ case "${1:-}" in
   env)
     profile="${2:-}"
     case "$profile" in
-      minimal | dev | notes | mobile)
+      minimal | dev | web | notes | mobile)
         printf 'export NOXFLOW_MCP_PROFILE=%q\n' "$profile"
         ;;
       *)

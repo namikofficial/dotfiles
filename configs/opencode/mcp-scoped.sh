@@ -11,7 +11,7 @@ mcp_home="${OPENCODE_MCP_HOME:-$HOME/.local/share/opencode/mcp}"
 enabled_for_profile() {
   local name="$1"
   case "$profile:$name" in
-    minimal:browser | minimal:playwright | dev:browser | dev:playwright | dev:codegraph | dev:local-docs | notes:browser | notes:playwright | notes:codegraph | notes:local-docs | notes:obsidian | mobile:browser | mobile:playwright | mobile:codegraph | mobile:local-docs | mobile:maestro)
+    web:browser | web:playwright | dev:codegraph | dev:local-docs | notes:codegraph | notes:local-docs | notes:obsidian | mobile:codegraph | mobile:local-docs | mobile:maestro)
       return 0
       ;;
     *)
