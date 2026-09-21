@@ -5,10 +5,21 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 scoped="$root/configs/opencode/mcp-scoped.sh"
 profile="$root/setup/mcp-profile.sh"
 
-test_rc=0
-NOXFLOW_MCP_PROFILE=minimal "$scoped" codegraph >/dev/null 2>&1 || test_rc=$?
-[ "$test_rc" -eq 78 ] || {
-  printf 'expected minimal/codegraph to exit 78, got %s\n' "$test_rc" >&2
+test_dir="$(mktemp -d)"
+cleanup() {
+  find "$test_dir" -type f -delete 2>/dev/null || true
+  find "$test_dir" -depth -type d -empty -delete 2>/dev/null || true
+}
+trap cleanup EXIT
+mkdir -p "$test_dir/node_modules/.bin"
+cat >"$test_dir/node_modules/.bin/codegraph" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*"
+MOCK
+chmod +x "$test_dir/node_modules/.bin/codegraph"
+codegraph_args="$(NOXFLOW_MCP_PROFILE=minimal OPENCODE_MCP_HOME="$test_dir" "$scoped" codegraph --no-watch)"
+[ "$codegraph_args" = 'serve --mcp --no-watch' ] || {
+  printf 'minimal profile did not keep CodeGraph available: %s\n' "$codegraph_args" >&2
   exit 1
 }
 
@@ -27,24 +38,6 @@ fi
 status_output="$($profile status)"
 printf '%s\n' "$status_output" | grep -Fq 'profile=' || {
   printf 'status did not report the active profile\n' >&2
-  exit 1
-}
-
-test_dir="$(mktemp -d)"
-cleanup() {
-  find "$test_dir" -type f -delete 2>/dev/null || true
-  find "$test_dir" -depth -type d -empty -delete 2>/dev/null || true
-}
-trap cleanup EXIT
-mkdir -p "$test_dir/node_modules/.bin"
-cat >"$test_dir/node_modules/.bin/codegraph" <<'MOCK'
-#!/usr/bin/env bash
-printf '%s\n' "$*"
-MOCK
-chmod +x "$test_dir/node_modules/.bin/codegraph"
-codegraph_args="$(NOXFLOW_MCP_PROFILE=dev OPENCODE_MCP_HOME="$test_dir" "$scoped" codegraph --no-watch)"
-[ "$codegraph_args" = 'serve --mcp --no-watch' ] || {
-  printf 'unexpected codegraph launcher args: %s\n' "$codegraph_args" >&2
   exit 1
 }
 

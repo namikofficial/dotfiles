@@ -219,6 +219,26 @@ alias ..="cd .."
 alias ...="cd ../.."
 alias ....="cd ../../.."
 
+# AI session shortcuts. These are explicit wrappers: normal `codex` and
+# `opencode` commands keep their defaults, while these select a bounded route.
+AI_SESSION_SCRIPT="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/setup/ai-session.sh"
+if [ -x "$AI_SESSION_SCRIPT" ]; then
+  alias ai-opencode="$AI_SESSION_SCRIPT opencode"
+  alias ai-codex="$AI_SESSION_SCRIPT codex"
+fi
+alias ai-rag='rag'
+alias ragq='rag quick'
+alias ragd='rag deep'
+alias rag-dotfiles='rag ask --repo dotfiles'
+alias rag-index-dotfiles='rag index "$DOTFILES_HOME" --changed-only'
+alias ai-workbench='${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/hypr/scripts/open-ai-workbench.sh'
+alias llama-manager='llama-swap-manager'
+alias llama-up='llama-swap-manager start'
+alias llama-down='llama-swap-manager stop'
+alias llama-health='local-ai-runtime status'
+alias codegraph-verify='mcp-profile verify-codegraph'
+alias codegraph-status='mcp-profile status'
+
 # Quick edits
 alias zrc="vim ~/.zshrc"
 alias zalias="vim $DOTFILES_HOME/aliases.zsh"

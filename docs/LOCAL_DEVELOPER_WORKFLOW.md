@@ -170,6 +170,26 @@ Routing rules:
 - Use OpenCode from the AI scratchpad when you want an interactive local-agent loop.
 - Use cloud tools only when explicitly chosen for a task that exceeds local model quality or context.
 
+Convenient explicit shell shortcuts are available after reloading zsh:
+
+```sh
+ai-opencode             # scoped OpenCode session routing
+ai-codex                # scoped Codex session routing
+ragq "where is X"       # cheap local retrieval
+ragd "review X"         # deeper local retrieval
+rag-dotfiles "how does X work?"
+rag-index-dotfiles      # changed-only dotfiles indexing
+ai-workbench            # open the local AI Workbench
+llama-up                # start llama-swap
+llama-down              # stop llama-swap
+llama-health            # local model runtime status
+codegraph-verify        # verify the always-on CodeGraph MCP path
+```
+
+CodeGraph is deliberately available in every MCP profile. Browser, Maestro,
+Playwright, Stitch, and Obsidian remain explicitly scoped so indexing and code
+navigation never require launching stateful or expensive integrations.
+
 Status commands:
 
 ```sh
