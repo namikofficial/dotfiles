@@ -29,12 +29,22 @@ setup/ai-session.sh opencode
 setup/ai-session.sh codex
 ```
 
-It selects `dev`, `web`, `mobile`, `notes`, or `minimal` from the project path
-and request text, prints the selection, and respects `AI_SESSION_PROFILE`.
-OpenCode receives the scoped MCP environment. Codex uses the design overlay only
-for web/UI work; otherwise its normal config and `AGENTS.md` routing remain in
-control. This is intentionally opt-in so a normal launch cannot unexpectedly
-change profiles or hand work to another agent.
+It detects repository/path, request intent, task class, and the smallest
+specialist hint; prints the route; preserves every tool argument (including
+`--yolo`, prompts, sessions, and explicit profiles); and supports:
+
+```sh
+setup/ai-session.sh --explain --dry-run opencode --yolo
+AI_SESSION_PROFILE=mobile setup/ai-session.sh opencode
+AI_SESSION_TASK=security setup/ai-session.sh codex
+AI_SESSION_NO_PROFILE=1 setup/ai-session.sh codex
+```
+
+OpenCode receives the scoped MCP environment. Codex uses the design or notes
+overlay only when the classifier selects it and no explicit profile was passed.
+This is intentionally opt-in so a normal launch cannot unexpectedly change
+profiles or hand work to another agent. After reloading zsh, `ai-opencode` and
+`ai-codex` are equivalent argument-preserving shell functions.
 
 MiniMax M2.7 is the normal model for build, plan, exploration, worker, and
 review. MiniMax M3 is available through the explicit `worker-m3` escalation;

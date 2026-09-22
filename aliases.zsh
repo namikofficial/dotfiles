@@ -219,6 +219,12 @@ alias ..="cd .."
 alias ...="cd ../.."
 alias ....="cd ../../.."
 
+# Explicit AI router functions. Functions preserve all arguments (`--yolo`,
+# prompts, sessions, and profiles); normal codex/opencode commands are unchanged.
+ai-opencode() { "${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/setup/ai-session.sh" opencode "$@"; }
+ai-codex() { "${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/setup/ai-session.sh" codex "$@"; }
+alias ai-route='ai-session.sh --explain'
+
 # Quick edits
 alias zrc="vim ~/.zshrc"
 alias zalias="vim $DOTFILES_HOME/aliases.zsh"
