@@ -77,9 +77,9 @@ so normal OpenCode launches work without shell reconfiguration. Use explicit
 profile commands when starting standalone MCP clients:
 
 The local OpenCode config declares CodeGraph, Maestro, browser, Playwright, and
-Stitch, but only CodeGraph is enabled by default. The others are opt-in and
-pinned to `dev`, `mobile`, or `web` so an agent handoff does not silently launch
-an expensive or stateful capability. The two browser paths
+Stitch. They remain enabled for workflow compatibility, but each local server
+is pinned to `dev`, `mobile`, or `web` so an agent handoff does not launch the
+wrong capability. The two browser paths
 remain intentionally different: `playwright` is the isolated deterministic
 browser, while `browser` attaches to the dedicated agent Chrome session through
 Chrome DevTools MCP. Verify the effective process map with `opencode mcp list`.
