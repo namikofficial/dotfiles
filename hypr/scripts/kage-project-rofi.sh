@@ -219,11 +219,8 @@ case "$CHOICE_CLEAN" in
   "Switch project")
     "$HOME/.config/hypr/scripts/workbench-project-switcher"
     ;;
-  "Open Workbench" | "Reindex project")
-    "$HOME/.config/hypr/scripts/open-ai-workbench.sh" overview
-    ;;
-  "Resume current work")
-    "$HOME/.config/hypr/scripts/open-ai-workbench.sh" work
+  "Open Workbench" | "Reindex project" | "Resume current work")
+    notify "AI Workbench removed" "Choose a replacement runtime before using this action"
     ;;
   "Review pending approval")
     approval_id="$(jq -r '.status.activeWork.approvalId // ""' "$WORKBENCH_CACHE" 2>/dev/null || true)"
@@ -233,14 +230,8 @@ case "$CHOICE_CLEAN" in
     workflow_execution_id="$(jq -r '.status.activeWork.workflowExecutionId // ""' "$WORKBENCH_CACHE" 2>/dev/null || true)"
     [ -n "$workflow_execution_id" ] && xdg-open "${AI_WORKBENCH_URL%/}/workflow-executions/$(jq -rn --arg value "$workflow_execution_id" '$value|@uri')" >/dev/null 2>&1 &
     ;;
-  "Show failed checks")
-    "$HOME/.config/hypr/scripts/open-ai-workbench.sh" checks
-    ;;
-  "Ask AI about project")
-    "$HOME/.config/hypr/scripts/open-ai-workbench.sh" ask
-    ;;
-  "Explain retrieval context")
-    "$HOME/.config/hypr/scripts/open-ai-workbench.sh" retrieval
+  "Show failed checks" | "Ask AI about project" | "Explain retrieval context")
+    notify "AI runtime removed" "Choose a replacement runtime before using this action"
     ;;
   "Open Lazygit")
     _path="$(project_path)"

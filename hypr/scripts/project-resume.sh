@@ -167,9 +167,6 @@ restore_sidecar() {
 
 start_local_ai_runtime() {
   [ "$start_ai" -eq 1 ] || return 0
-  if command -v local-ai-runtime >/dev/null 2>&1; then
-    local-ai-runtime start >/dev/null 2>&1 || true
-  fi
 }
 
 launch_scratchpad() {

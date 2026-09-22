@@ -219,26 +219,6 @@ alias ..="cd .."
 alias ...="cd ../.."
 alias ....="cd ../../.."
 
-# AI session shortcuts. These are explicit wrappers: normal `codex` and
-# `opencode` commands keep their defaults, while these select a bounded route.
-AI_SESSION_SCRIPT="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/setup/ai-session.sh"
-if [ -x "$AI_SESSION_SCRIPT" ]; then
-  alias ai-opencode="$AI_SESSION_SCRIPT opencode"
-  alias ai-codex="$AI_SESSION_SCRIPT codex"
-fi
-alias ai-rag='rag'
-alias ragq='rag quick'
-alias ragd='rag deep'
-alias rag-dotfiles='rag ask --repo dotfiles'
-alias rag-index-dotfiles='rag index "$DOTFILES_HOME" --changed-only'
-alias ai-workbench='${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/hypr/scripts/open-ai-workbench.sh'
-alias llama-manager='llama-swap-manager'
-alias llama-up='llama-swap-manager start'
-alias llama-down='llama-swap-manager stop'
-alias llama-health='local-ai-runtime status'
-alias codegraph-verify='mcp-profile verify-codegraph'
-alias codegraph-status='mcp-profile status'
-
 # Quick edits
 alias zrc="vim ~/.zshrc"
 alias zalias="vim $DOTFILES_HOME/aliases.zsh"
@@ -268,14 +248,6 @@ alias gbage="$SCRIPTS_BIN/git-branch-age"
 alias gpropen="$SCRIPTS_BIN/git-pr-open"
 alias wtprune="$SCRIPTS_BIN/prune-worktrees"
 alias chlog="$SCRIPTS_BIN/changelog-since"
-
-# Local AI git helpers (use llama-swap on :8080, qwen3-4b by default)
-alias gai='kage ai'                          # kage ai menu
-alias gaicm='kage ai commit-msg'             # generate commit message, copy to clipboard
-alias gaicmc='kage ai commit-msg --commit'   # generate AND commit immediately
-alias gairv='kage ai review'                 # review last commit
-alias gaiex='kage ai explain'                # explain clipboard contents pedagogically
-alias gaicmf='kage ai commit-msg --type feat'  # hint type
 
 # Enhanced gcm: interactive or with argument
 gcm() {

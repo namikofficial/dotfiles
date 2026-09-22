@@ -147,11 +147,6 @@ fi
   if [ -x "$HOME/.config/hypr/scripts/scratchpad-manager.sh" ]; then
     "$HOME/.config/hypr/scripts/scratchpad-manager.sh" menu >/dev/null 2>&1 || true
   fi
-  if [ "${HYPR_AUTOSTART_LOCAL_LLM:-0}" = "1" ] && command -v curl >/dev/null 2>&1 && command -v llama-swap-manager >/dev/null 2>&1; then
-    if ! curl -fsS --max-time 1 "${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}" >/dev/null 2>&1; then
-      llama-swap-manager start >/dev/null 2>&1 || true
-    fi
-  fi
 ) &
 
 # Keep the clipboard browser daemon warm so clipboard UI opens on the hot path.

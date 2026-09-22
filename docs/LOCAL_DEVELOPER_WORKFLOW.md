@@ -149,61 +149,13 @@ plus Sidecar. Use `project-resume launch` for editor/tmux without manifest scrat
 `project-resume --fallback-path /absolute/path` for a terminal-only offline fallback. The fallback never creates a
 second task/session record or executes a legacy project command.
 
-## Local AI Routing Policy
+## AI runtime boundary
 
-The TypeScript AI Workbench at `~/Documents/code/ai` is the canonical application for project indexing, retrieval, sessions, plans, dev runs, memory, and MCP. Dotfiles owns the desktop launchers and local model runtime. The legacy Python RAG remains a migration fallback only.
-
-Use one local router path unless explicitly testing something else:
-
-- router: `llama-swap-manager`
-- endpoint: `http://127.0.0.1:8080/v1`
-- model alias: `local`
-- default model: `qwen3-4b-local`
-
-Routing rules:
-
-- Primary daily model: `qwen3-4b-local` via the `local` alias.
-- Agent/tool sessions: `granite-agent`.
-- Embeddings: separate nomic llama.cpp server on port 8081.
-- Use local helper scripts for shell explanations, commit messages, short reviews, and clipboard summaries.
-- Use `rag quick` / `rag deep` when repo-grounded context matters.
-- Use OpenCode from the AI scratchpad when you want an interactive local-agent loop.
-- Use cloud tools only when explicitly chosen for a task that exceeds local model quality or context.
-
-Convenient explicit shell shortcuts are available after reloading zsh:
-
-```sh
-ai-opencode             # scoped OpenCode session routing
-ai-codex                # scoped Codex session routing
-ragq "where is X"       # cheap local retrieval
-ragd "review X"         # deeper local retrieval
-rag-dotfiles "how does X work?"
-rag-index-dotfiles      # changed-only dotfiles indexing
-ai-workbench            # open the local AI Workbench
-llama-up                # start llama-swap
-llama-down              # stop llama-swap
-llama-health            # local model runtime status
-codegraph-verify        # verify the always-on CodeGraph MCP path
-```
-
-CodeGraph is deliberately available in every MCP profile. Browser, Maestro,
-Playwright, Stitch, and Obsidian remain explicitly scoped so indexing and code
-navigation never require launching stateful or expensive integrations.
-
-Status commands:
-
-```sh
-local-ai-runtime status
-llama-swap-manager status
-rag doctor
-```
-
-Workbench status:
-
-```sh
-cd ~/Documents/code/ai
-pnpm cli -- health --deep
-```
+The repository no longer installs or manages a local model runtime, RAG stack,
+embedding server, or AI Workbench desktop bridge. Choose and install a future
+model/runtime separately; keep its configuration outside this repository until
+the replacement contract is decided. OpenCode and Codex remain available as
+the hosted/developer-agent interfaces.
 
 ## Scratchpad Roles
 

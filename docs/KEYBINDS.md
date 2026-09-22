@@ -47,7 +47,6 @@ flowchart LR
 | `Super + Ctrl + Shift + I` | Execute command | `android-studio` |
 | `Super + Ctrl + I` | Execute command | `~/.config/hypr/scripts/android-dev.sh menu` |
 | `Super + Alt + I` | Execute command | `~/.config/hypr/scripts/android-dev.sh logcat` |
-| `Super + Alt + S` | Execute command | `~/.config/hypr/scripts/open-ai-workbench.sh` |
 | `Super + G` | Execute command | `~/.config/hypr/scripts/layout-switcher.sh cycle` |
 | `Super + Alt + G` | Execute command | `~/.config/hypr/scripts/layout-switcher.sh toggle` |
 | `Super + P` | Execute command | `~/.config/hypr/scripts/monitor-control.sh menu` |

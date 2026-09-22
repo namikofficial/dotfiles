@@ -42,7 +42,7 @@
       "command": ["rag-mcp"],
       "enabled": true,
       "timeout": 8000,
-      "_note": "Local RAG MCP server. Requires install-local-rag-stack.sh to be run."
+      "_note": "Retired local RAG integration; kept only as historical example."
     },
     "qdrant": {
       "command": "npx",

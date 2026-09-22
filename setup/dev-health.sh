@@ -243,49 +243,8 @@ else
 fi
 
 section "Local AI / RAG"
-LOCAL_AI_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/local-ai"
-if have local-ai-runtime; then
-  local_ai_state="$TMP_DIR/local-ai-runtime.$$"
-  local-ai-runtime status 2>"$local_ai_state" | sed -n '1,12p' | sed 's/^/      /' || warn "local-ai-runtime status failed"
-  rm -f "$local_ai_state"
-  record_json local_ai "local-ai-runtime:ok"
-else
-  warn "local-ai-runtime missing"
-  record_json local_ai "local-ai-runtime:missing"
-fi
-if [ -f "$LOCAL_AI_DIR/current-model.env" ]; then
-  ok "current-model.env present"
-  record_json local_ai "current-model.env:present"
-else
-  warn "current-model.env missing"
-  record_json local_ai "current-model.env:missing"
-fi
-if [ -f "$LOCAL_AI_DIR/rag.json" ]; then
-  ok "rag.json present"
-  record_json local_ai "rag.json:present"
-else
-  warn "rag.json missing"
-  record_json local_ai "rag.json:missing"
-fi
-if curl -fsS --max-time 2 http://127.0.0.1:8080/v1/models >/dev/null 2>&1; then
-  ok "local AI endpoint reachable"
-  record_json local_ai "endpoint:reachable"
-else
-  warn "local AI endpoint unreachable at http://127.0.0.1:8080/v1/models"
-  record_json local_ai "endpoint:unreachable"
-fi
-if have llama-swap-manager; then
-  run_optional "llama-swap-manager status" llama-swap-manager status
-else
-  warn "llama-swap-manager missing"
-  record_json local_ai "llama-swap-manager:missing"
-fi
-if have rag; then
-  run_optional "rag doctor" rag doctor
-else
-  warn "rag CLI missing"
-  record_json local_ai "rag:missing"
-fi
+info "Local model, RAG, embedding, and Workbench integrations are not managed by dotfiles"
+record_json local_ai "managed_externally"
 
 section "Projects"
 "$REPO_DIR/setup/project-profile.sh" status | sed 's/^/      /' || warn "project-profile status failed"

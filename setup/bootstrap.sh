@@ -242,9 +242,6 @@ link_path "$REPO_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xd
 link_path "$REPO_DIR/systemd/user/noxflow-session-optional.service" "$HOME/.config/systemd/user/noxflow-session-optional.service"
 link_path "$REPO_DIR/systemd/user/noxflow-shell.service" "$HOME/.config/systemd/user/noxflow-shell.service"
 link_path "$REPO_DIR/systemd/user/noxflow-fallback.service" "$HOME/.config/systemd/user/noxflow-fallback.service"
-link_path "$REPO_DIR/systemd/user/ai-workbench-desktop-observer.service" "$HOME/.config/systemd/user/ai-workbench-desktop-observer.service"
-link_path "$REPO_DIR/systemd/user/ai-workbench-project-watch.service" "$HOME/.config/systemd/user/ai-workbench-project-watch.service"
-link_path "$REPO_DIR/systemd/user/ai-workbench-notification-bridge.service" "$HOME/.config/systemd/user/ai-workbench-notification-bridge.service"
 
 # Remove the obsolete managed drop-in that discarded the GPU selected by
 # env-hyprland. Unrelated local overrides are deliberately left alone.
