@@ -12,15 +12,13 @@ if [ -z "$mcp_bin" ] || [ ! -x "$mcp_bin" ]; then
   exit 127
 fi
 
-# Launch a dedicated, persistent Chrome profile for agent work. This keeps the
-# user's personal Chrome session and credentials completely separate, avoids
-# Chrome's current-profile approval dialog, and preserves the agent profile's
-# cookies/local storage between OpenCode sessions.
-profile_dir="${CHROME_DEVTOOLS_MCP_USER_DATA_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/opencode/chrome-devtools-profile}"
-mkdir -p "$profile_dir"
+# Attach to the user's active Chrome profile. Chrome 144+ must have remote
+# debugging enabled at chrome://inspect/#remote-debugging and may ask for
+# approval when the agent connects. The MCP can access open tabs and session
+# data in that profile.
 exec "$mcp_bin" \
   --channel stable \
-  --userDataDir "$profile_dir" \
+  --autoConnect \
   --no-usage-statistics \
   --experimentalPageIdRouting \
   "$@"

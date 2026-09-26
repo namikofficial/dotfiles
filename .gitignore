@@ -43,6 +43,7 @@ configs/opencode/agent-lab/datasets/golden/**/repo_snapshot/
 # config/, theme/, and systemd/ and must remain tracked.
 .noxflow/
 noxflow.local.toml
+theme-policy.toml
 noxflow-*.log
 hypr/rofi/theme-colors-*.rasi
 

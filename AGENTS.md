@@ -35,6 +35,10 @@ the nearest nested `AGENTS.md` before editing a scoped area:
 2. Preserve unrelated dirty work and stage exact paths only when staging is requested.
 3. Run the cheapest relevant verification after each scoped change; never claim an unobserved result.
 4. Use `git diff --check` on changed text. Do not publish, push, commit, or alter credentials unless the user explicitly requests it.
+5. For home/system discovery, name exact roots and use shallow depth/excludes.
+   Never recursively search `.codex/sessions`, browser profiles, caches,
+   dependencies, build output, `.git`, or credential stores. Byte-cap unknown
+   output and summarize structured data mechanically.
 
 Common checks are `./setup/check-shell.sh --all`, `./setup/check-dotfiles.sh --all`,
 `cargo check --workspace`, and `cargo test --workspace`; use only those relevant

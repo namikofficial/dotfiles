@@ -9,26 +9,68 @@ set -eu
 css_content="$(
   cat <<EOF2
 :root {
-  --nox-bg: ${THEME_BG};
-  --nox-bg-soft: ${THEME_BG_SOFT:-$THEME_BG};
-  --nox-surface: ${THEME_SURFACE:-$THEME_BG_SOFT};
-  --nox-text: ${THEME_TEXT};
-  --nox-muted: ${THEME_MUTED:-$THEME_TEXT};
-  --nox-accent: ${THEME_ACCENT};
-  --nox-accent2: ${THEME_ACCENT2};
-  --nox-warn: ${THEME_WARN:-$THEME_ACCENT};
-  --nox-danger: ${THEME_DANGER:-$THEME_ACCENT2};
+  /* Surface hierarchy */
+  --nox-canvas:    ${THEME_SURF_CANVAS:-$THEME_BG};
+  --nox-base:      ${THEME_SURF_BASE:-$THEME_SURFACE};
+  --nox-surface1:  ${THEME_SURF_1:-$THEME_BG_SOFT};
+  --nox-surface2:  ${THEME_SURF_2:-$THEME_SURFACE_ALT};
+  --nox-surface3:  ${THEME_SURF_3:-$THEME_BG_SOFT};
+  --nox-floating:  ${THEME_SURF_FLOAT:-$THEME_SURFACE_ALT};
 
-  --background-primary: var(--nox-bg) !important;
-  --background-secondary: var(--nox-bg-soft) !important;
-  --background-secondary-alt: var(--nox-surface) !important;
-  --background-tertiary: var(--nox-bg-soft) !important;
-  --background-floating: var(--nox-surface) !important;
-  --text-normal: var(--nox-text) !important;
-  --text-muted: var(--nox-muted) !important;
-  --text-link: var(--nox-accent) !important;
-  --brand-experiment: var(--nox-accent) !important;
+  /* Text */
+  --nox-text:      ${THEME_TEXT};
+  --nox-muted:     ${THEME_MUTED:-$THEME_TEXT};
+
+  /* Accent hierarchy */
+  --nox-accent:    ${THEME_ACCENT};
+  --nox-accent2:   ${THEME_ACCENT2};
+  --nox-tertiary:  ${THEME_TERTIARY:-$THEME_ACCENT2};
+  --nox-hover:     ${THEME_ACCENT_HOVER:-$THEME_ACCENT};
+  --nox-pressed:   ${THEME_ACCENT_PRESSED:-$THEME_ACCENT};
+
+  /* Semantic */
+  --nox-success:   ${THEME_SUCCESS};
+  --nox-warn:     ${THEME_WARN:-$THEME_ACCENT};
+  --nox-danger:    ${THEME_DANGER:-$THEME_ACCENT2};
+
+  /* Borders */
+  --nox-outline:        ${THEME_OUTLINE:-$THEME_MUTED};
+  --nox-outline-subtle: ${THEME_OUTLINE_SUBTLE:-$THEME_MUTED};
+  --nox-outline-strong: ${THEME_OUTLINE_STRONG:-$THEME_TEXT};
+
+  /* Discord-specific mapping */
+  --background-primary:   var(--nox-canvas) !important;
+  --background-secondary: var(--nox-base) !important;
+  --background-tertiary: var(--nox-surface1) !important;
+  --background-floating: var(--nox-floating) !important;
+  --background-overlay:  var(--nox-surface2) !important;
+  --background-modifier-accent: var(--nox-accent) !important;
+
+  --text-normal:       var(--nox-text) !important;
+  --text-muted:       var(--nox-muted) !important;
+  --text-link:         var(--nox-accent) !important;
+
+  --header-primary:    var(--nox-text) !important;
+  --header-secondary:  var(--nox-muted) !important;
+
+  --interactive-normal: var(--nox-text) !important;
+  --interactive-hover: var(--nox-hover) !important;
+  --interactive-active: var(--nox-pressed) !important;
+  --interactive-muted: var(--nox-muted) !important;
+
+  --brand-experiment:  var(--nox-accent) !important;
   --brand-experiment-560: var(--nox-accent2) !important;
+
+  --focus-primary:     var(--nox-accent) !important;
+  --mention-foreground: var(--nox-accent) !important;
+  --mention-background: color-mix(in srgb, var(--nox-accent) 15%, transparent) !important;
+
+  --status-success:   var(--nox-success) !important;
+  --status-danger:    var(--nox-danger) !important;
+  --status-warning:   var(--nox-warn) !important;
+  --status-possible-running: var(--nox-success) !important;
+
+  --modals-backdrop:  rgba(0, 0, 0, 0.6) !important;
 }
 EOF2
 )"

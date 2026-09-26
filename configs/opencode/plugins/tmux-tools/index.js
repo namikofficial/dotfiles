@@ -5,6 +5,8 @@ const tmuxBinary = process.env.TMUX_BIN || "tmux"
 const blockedCommand = /(^|[;&|\s])(sudo|ssh|rm\s+-rf|git\s+(reset|clean|push|rebase)|tmux\s+kill-server)(?=$|[;&|\s])/i
 const safeName = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/
 const safeKeys = new Set(["C-c", "C-d", "C-l", "C-z", "ENTER", "ESC", "UP", "DOWN", "LEFT", "RIGHT"])
+let tmuxServerArgs = []
+let sharedSessions = new Set()
 
 function fail(message) {
   throw new Error(`tmux-tools: ${message}`)
@@ -30,7 +32,7 @@ function projectPath(directory, requested) {
 }
 
 async function runTmux(args) {
-  const process = Bun.spawn([tmuxBinary, ...args], { stdout: "pipe", stderr: "pipe" })
+  const process = Bun.spawn([tmuxBinary, ...tmuxServerArgs, ...args], { stdout: "pipe", stderr: "pipe" })
   const [exitCode, stdout, stderr] = await Promise.all([
     process.exited,
     process.stdout.text(),
@@ -77,6 +79,10 @@ async function markManaged(directory, session, window) {
 }
 
 async function assertManagedSession(directory, session, action = "access") {
+  if (sharedSessions.has(session)) {
+    if (!(await hasSession(session))) fail(`configured shared tmux session '${session}' is not running`)
+    return
+  }
   const state = await readState(directory)
   if (!state.sessions[session]) fail(`refusing to ${action} an unregistered tmux session`)
 }
@@ -215,6 +221,7 @@ const definitions = [
     async execute(args, context) {
       if (!args.confirm) fail("confirm=true is required")
       assertName(args.session, "session")
+      if (sharedSessions.has(args.session)) fail("refusing to kill a shared system tmux session")
       await assertManagedSession(context.directory, args.session, "kill")
       await runTmux(["kill-session", "-t", args.session])
       return response(`Killed managed tmux session ${args.session}`)
@@ -280,6 +287,16 @@ const definitions = [
 export default {
   id: "nox.tmux-tools",
   async setup(ctx) {
+    const socketName = ctx.options?.socketName
+    if (typeof socketName !== "string" || !safeName.test(socketName)) {
+      fail("plugin option socketName must be a valid tmux socket name")
+    }
+    const configuredSharedSessions = ctx.options?.sharedSessions
+    if (!Array.isArray(configuredSharedSessions) || configuredSharedSessions.some((name) => typeof name !== "string" || !safeName.test(name))) {
+      fail("plugin option sharedSessions must be an array of valid tmux session names")
+    }
+    tmuxServerArgs = ["-L", socketName]
+    sharedSessions = new Set(configuredSharedSessions)
     await ctx.tool.transform((editor) => {
       for (const definition of definitions) editor.add(definition)
     })

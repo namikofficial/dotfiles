@@ -359,14 +359,14 @@ Item {
                     spacing: root.innerGap
                     Text {
                         text: root.notificationModel && root.notificationModel.dnd ? "\uF1F6" : root.showNotificationBadge ? "\uF0F3" : "\uF0A2"
-                        color: root.notificationModel && root.notificationModel.dnd ? Theme.Tokens.stateWarning : root.showNotificationBadge ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted
+                        color: root.notificationModel && root.notificationModel.dnd ? Theme.Tokens.stateWarning : root.showNotificationBadge ? Theme.Tokens.tonalPrimary : Theme.Tokens.tonalSecondary
                         font.family: "Symbols Nerd Font Mono"
                         font.pixelSize: Theme.Tokens.iconSm
                     }
                     Text {
                         visible: root.showNotificationBadge
                         text: root.notificationModel && root.notificationModel.notifications ? String(root.notificationModel.notifications.length) : ""
-                        color: Theme.Tokens.stateInfo
+                        color: Theme.Tokens.tonalPrimary
                         font.pixelSize: Theme.Tokens.typographyLabelSmall
                         font.family: Theme.Tokens.typographyFontFamily
                         font.bold: true

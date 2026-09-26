@@ -56,14 +56,28 @@ QtObject {
     property color tonalOnTertiary: "#21172A"
     property color tonalTertiaryContainer: "#493A50"
     property color tonalOnTertiaryContainer: "#EBDCF0"
+    // Neutral palette (new — from wallpaper-derived neutral hue).
+    property color tonalNeutral: "#9B8FA0"
+    property color tonalOnNeutral: "#2B2529"
+    property color tonalNeutralContainer: "#383040"
+    property color tonalOnNeutralContainer: "#EBDCF0"
+    property color tonalNeutralVariant: "#8E8390"
+    property color tonalOnNeutralVariant: "#2B2529"
 
     // ── Surface (writable) ──
+    // Fine-grained surface ladder from wallpaper compiler.
+    property color surfaceSurfaceCanvas: "#151218"
+    property color surfaceSurfaceBase: "#1C1820"
+    property color surfaceSurface1: "#201C22"
+    property color surfaceSurface2: "#252029"
+    property color surfaceSurface3: "#2C2630"
+    property color surfaceSurfaceFloating: "#332C38"
+    // Legacy aliases for existing components.
     property color surfaceSurface: "#1C1820"
     property color surfaceSurfaceContainerLow: "#17141A"
     property color surfaceSurfaceContainer: "#241F29"
     property color surfaceSurfaceContainerHigh: "#302A36"
     property color surfaceSurfaceContainerHighest: "#3D3442"
-    // Compatibility alias used by older bar/capsule components.
     readonly property color surfaceSurfaceHighest: surfaceSurfaceContainerHighest
     property color surfaceSurfaceVariant: "#463B49"
     property color surfaceInverseSurface: "#F0E8E0"
@@ -87,16 +101,35 @@ QtObject {
     // ── State (writable) ──
     property color stateSuccess: "#A9D3A7"
     property color stateOnSuccess: "#152016"
+    property color stateSuccessContainer: "#30483A"
+    property color stateOnSuccessContainer: "#D1E8D4"
     property color stateWarning: "#E5C184"
     property color stateOnWarning: "#2B2111"
+    property color stateWarningContainer: "#4A3820"
+    property color stateOnWarningContainer: "#F8E8C0"
     property color stateDanger: "#E79A9A"
     property color stateOnDanger: "#32191D"
+    property color stateDangerContainer: "#5A3038"
+    property color stateOnDangerContainer: "#F8D8D8"
     property color stateInfo: "#A8C4D0"
     property color stateOnInfo: "#17242A"
+    property color stateInfoContainer: "#2A3A48"
+    property color stateOnInfoContainer: "#C8E4F0"
     property color stateHoverOverlay: "#FFFFFF"
     property color statePressedOverlay: "#000000"
     property color stateFocusOverlay: "#E0B39A"
     property color stateDisabledOverlay: "#FFFFFF"
+
+    // Accent interaction states (hover, pressed, focus).
+    property color accentPrimary: "#D6A083"
+    property color accentSecondary: "#9DB9A6"
+    property color accentTertiary: "#B7A3C7"
+    property color accentHover: "#E0B090"
+    property color accentPressed: "#C09070"
+    property color accentFocus: "#D8B093"
+
+    // Wallpaper-derived personality classification.
+    property string personalityClass: "material-expressive"
 
     // spacing
     readonly property int spacingNone: 0
@@ -226,6 +259,8 @@ QtObject {
                 return;
             }
             var colors = data.colors || {};
+
+            // Tonal palette
             tonalBackground = runtimeColor(colors, "background", tonalBackground);
             tonalPrimary = runtimeColor(colors, "primary", tonalPrimary);
             tonalOnPrimary = runtimeColor(colors, "onPrimary", tonalOnPrimary);
@@ -235,29 +270,84 @@ QtObject {
             tonalOnSecondary = runtimeColor(colors, "onSecondary", tonalOnSecondary);
             tonalSecondaryContainer = runtimeColor(colors, "secondaryContainer", tonalSecondaryContainer);
             tonalOnSecondaryContainer = runtimeColor(colors, "onSecondaryContainer", tonalOnSecondaryContainer);
-            surfaceSurface = runtimeColor(colors, "surface", surfaceSurface);
-            surfaceSurfaceContainerLow = runtimeColor(colors, "surfaceContainer", surfaceSurfaceContainerLow);
-            surfaceSurfaceContainer = runtimeColor(colors, "surfaceContainer", surfaceSurfaceContainer);
-            surfaceSurfaceContainerHigh = runtimeColor(colors, "surfaceContainer", surfaceSurfaceContainerHigh);
-            surfaceSurfaceContainerHighest = runtimeColor(colors, "surfaceContainer", surfaceSurfaceContainerHighest);
-            surfaceSurfaceVariant = runtimeColor(colors, "outline", surfaceSurfaceVariant);
+            tonalTertiary = runtimeColor(colors, "tertiary", tonalTertiary);
+            tonalOnTertiary = runtimeColor(colors, "onTertiary", tonalOnTertiary);
+            tonalTertiaryContainer = runtimeColor(colors, "tertiaryContainer", tonalTertiaryContainer);
+            tonalOnTertiaryContainer = runtimeColor(colors, "onTertiaryContainer", tonalOnTertiaryContainer);
+            tonalNeutral = runtimeColor(colors, "neutral", tonalNeutral);
+            tonalOnNeutral = runtimeColor(colors, "onNeutral", tonalOnNeutral);
+            tonalNeutralContainer = runtimeColor(colors, "neutralContainer", tonalNeutralContainer);
+            tonalOnNeutralContainer = runtimeColor(colors, "onNeutralContainer", tonalOnNeutralContainer);
+            tonalNeutralVariant = runtimeColor(colors, "neutralVariant", tonalNeutralVariant);
+            tonalOnNeutralVariant = runtimeColor(colors, "onNeutralVariant", tonalOnNeutralVariant);
+
+            // Surface ladder
+            surfaceSurfaceCanvas = runtimeColor(colors, "surfaceCanvas", surfaceSurfaceCanvas);
+            surfaceSurfaceBase = runtimeColor(colors, "surfaceBase", surfaceSurfaceBase);
+            surfaceSurface1 = runtimeColor(colors, "surface1", surfaceSurface1);
+            surfaceSurface2 = runtimeColor(colors, "surface2", surfaceSurface2);
+            surfaceSurface3 = runtimeColor(colors, "surface3", surfaceSurface3);
+            surfaceSurfaceFloating = runtimeColor(colors, "surfaceFloating", surfaceSurfaceFloating);
+            // Legacy surface aliases
+            surfaceSurface = runtimeColor(colors, "surfaceBase", surfaceSurface);
+            surfaceSurfaceContainerLow = runtimeColor(colors, "surfaceCanvas", surfaceSurfaceContainerLow);
+            surfaceSurfaceContainer = runtimeColor(colors, "surface1", surfaceSurfaceContainer);
+            surfaceSurfaceContainerHigh = runtimeColor(colors, "surface2", surfaceSurfaceContainerHigh);
+            surfaceSurfaceContainerHighest = runtimeColor(colors, "surface3", surfaceSurfaceContainerHighest);
+            surfaceSurfaceVariant = runtimeColor(colors, "surface1", surfaceSurfaceVariant);
+
+            // Text
             textPrimary = runtimeColor(colors, "onBackground", textPrimary);
             textSecondary = runtimeColor(colors, "onSurface", textSecondary);
             textMuted = runtimeColor(colors, "onSurfaceVariant", textMuted);
             textOnPrimary = runtimeColor(colors, "onPrimary", textOnPrimary);
             textOnSurfaceVariant = runtimeColor(colors, "onSurfaceVariant", textOnSurfaceVariant);
+
+            // Outline / border
             outlineDefault = runtimeColor(colors, "outline", outlineDefault);
-            outlineSubtle = runtimeColor(colors, "outline", outlineSubtle);
-            outlineStrong = runtimeColor(colors, "onSurfaceVariant", outlineStrong);
+            outlineSubtle = runtimeColor(colors, "outlineSubtle", outlineSubtle);
+            outlineStrong = runtimeColor(colors, "outlineStrong", outlineStrong);
             outlineFocus = runtimeColor(colors, "primary", outlineFocus);
+
+            // State semantic
             stateSuccess = runtimeColor(colors, "success", stateSuccess);
+            stateOnSuccess = runtimeColor(colors, "onSuccess", stateOnSuccess);
+            stateSuccessContainer = runtimeColor(colors, "successContainer", stateSuccessContainer);
+            stateOnSuccessContainer = runtimeColor(colors, "onSuccessContainer", stateOnSuccessContainer);
             stateWarning = runtimeColor(colors, "warning", stateWarning);
+            stateOnWarning = runtimeColor(colors, "onWarning", stateOnWarning);
+            stateWarningContainer = runtimeColor(colors, "warningContainer", stateWarningContainer);
+            stateOnWarningContainer = runtimeColor(colors, "onWarningContainer", stateOnWarningContainer);
             stateDanger = runtimeColor(colors, "error", stateDanger);
-            stateInfo = runtimeColor(colors, "secondary", stateInfo);
+            stateOnDanger = runtimeColor(colors, "onError", stateOnDanger);
+            stateDangerContainer = runtimeColor(colors, "errorContainer", stateDangerContainer);
+            stateOnDangerContainer = runtimeColor(colors, "onErrorContainer", stateOnDangerContainer);
+            stateInfo = runtimeColor(colors, "info", stateInfo);
+            stateOnInfo = runtimeColor(colors, "onInfo", stateOnInfo);
+            stateInfoContainer = runtimeColor(colors, "infoContainer", stateInfoContainer);
+            stateOnInfoContainer = runtimeColor(colors, "onInfoContainer", stateOnInfoContainer);
+
+            // Accent interaction states
+            if (colors.accent) {
+                accentPrimary = runtimeColor(colors.accent, "primary", accentPrimary);
+                accentSecondary = runtimeColor(colors.accent, "secondary", accentSecondary);
+                accentTertiary = runtimeColor(colors.accent, "tertiary", accentTertiary);
+                accentHover = runtimeColor(colors.accent, "hover", accentHover);
+                accentPressed = runtimeColor(colors.accent, "pressed", accentPressed);
+                accentFocus = runtimeColor(colors.accent, "focus", accentFocus);
+            }
+
+            // Effects
             if (data.effects) {
                 glassPanelAlpha = Number(data.effects.surfaceOpacity) || glassPanelAlpha;
                 glassScrimAlpha = Number(data.effects.scrimOpacity) || glassScrimAlpha;
             }
+
+            // Personality classification
+            if (data.selection && data.selection.personality) {
+                personalityClass = data.selection.personality.class || personalityClass;
+            }
+
             runtimeThemeHash = data.source && data.source.sha256 ? String(data.source.sha256) : "";
             runtimeThemeError = "";
             currentProfile = "wallpaper-runtime";
@@ -271,8 +361,19 @@ QtObject {
     Behavior on tonalBackground { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
     Behavior on tonalPrimary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
     Behavior on tonalSecondary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on tonalTertiary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on tonalNeutral { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceCanvas { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceBase { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurface1 { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurface2 { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurface3 { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceFloating { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
     Behavior on surfaceSurfaceContainerHigh { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
     Behavior on outlineDefault { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on accentPrimary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on accentSecondary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on accentTertiary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
 
     /// Apply a named theme profile, updating all color properties.
     function applyProfile(name) {
@@ -294,7 +395,14 @@ QtObject {
         tonalTertiaryContainer      = p.tonals.tertiaryContainer;
         tonalOnTertiaryContainer    = p.tonals.onTertiaryContainer;
 
-        // surfaces
+        // surfaces — fine-grained ladder
+        surfaceSurfaceCanvas       = p.surfaces.canvas      || p.surfaces.surface || surfaceSurfaceCanvas;
+        surfaceSurfaceBase        = p.surfaces.base       || p.surfaces.surface || surfaceSurfaceBase;
+        surfaceSurface1           = p.surfaces.surface     || surfaceSurface1;
+        surfaceSurface2           = p.surfaces.surfaceAlt  || surfaceSurface2;
+        surfaceSurface3           = p.surfaces.surfaceAlt2 || surfaceSurface3;
+        surfaceSurfaceFloating    = p.surfaces.floating   || surfaceSurfaceFloating;
+        // legacy aliases
         surfaceSurface              = p.surfaces.surface;
         surfaceSurfaceContainerLow  = p.surfaces.surfaceContainerLow;
         surfaceSurfaceContainer     = p.surfaces.surfaceContainer;
@@ -303,6 +411,12 @@ QtObject {
         surfaceSurfaceVariant       = p.surfaces.surfaceVariant;
         surfaceInverseSurface       = p.surfaces.inverseSurface;
         surfaceInverseOnSurface     = p.surfaces.inverseOnSurface;
+
+        // neutral palette
+        tonalNeutral             = p.neutral ? (p.neutral.primary || tonalNeutral) : tonalNeutral;
+        tonalOnNeutral           = p.neutral ? (p.neutral.onPrimary || tonalOnNeutral) : tonalOnNeutral;
+        tonalNeutralContainer    = p.neutral ? (p.neutral.container || tonalNeutralContainer) : tonalNeutralContainer;
+        tonalOnNeutralContainer  = p.neutral ? (p.neutral.onContainer || tonalOnNeutralContainer) : tonalOnNeutralContainer;
 
         // text
         textPrimary                 = p.text.primary;
@@ -322,16 +436,32 @@ QtObject {
         // state
         stateSuccess               = p.state.success;
         stateOnSuccess             = p.state.onSuccess;
+        stateSuccessContainer      = p.state.successContainer || stateSuccessContainer;
+        stateOnSuccessContainer    = p.state.onSuccessContainer || stateOnSuccessContainer;
         stateWarning               = p.state.warning;
         stateOnWarning             = p.state.onWarning;
-        stateDanger                 = p.state.danger;
-        stateOnDanger               = p.state.onDanger;
-        stateInfo                   = p.state.info;
-        stateOnInfo                 = p.state.onInfo;
-        stateHoverOverlay           = p.state.hoverOverlay;
-        statePressedOverlay         = p.state.pressedOverlay;
-        stateFocusOverlay           = p.state.focusOverlay;
-        stateDisabledOverlay        = p.state.disabledOverlay;
+        stateWarningContainer      = p.state.warningContainer || stateWarningContainer;
+        stateOnWarningContainer    = p.state.onWarningContainer || stateOnWarningContainer;
+        stateDanger                = p.state.danger;
+        stateOnDanger              = p.state.onDanger;
+        stateDangerContainer       = p.state.dangerContainer || stateDangerContainer;
+        stateOnDangerContainer     = p.state.onDangerContainer || stateOnDangerContainer;
+        stateInfo                  = p.state.info;
+        stateOnInfo                = p.state.onInfo;
+        stateInfoContainer         = p.state.infoContainer || stateInfoContainer;
+        stateOnInfoContainer       = p.state.onInfoContainer || stateOnInfoContainer;
+        stateHoverOverlay          = p.state.hoverOverlay;
+        statePressedOverlay        = p.state.pressedOverlay;
+        stateFocusOverlay          = p.state.focusOverlay;
+        stateDisabledOverlay       = p.state.disabledOverlay;
+
+        // accent interaction states
+        accentPrimary              = p.accent ? (p.accent.primary || accentPrimary) : accentPrimary;
+        accentSecondary            = p.accent ? (p.accent.secondary || accentSecondary) : accentSecondary;
+        accentTertiary             = p.accent ? (p.accent.tertiary || accentTertiary) : accentTertiary;
+        accentHover                = p.accent ? (p.accent.hover || accentHover) : accentHover;
+        accentPressed              = p.accent ? (p.accent.pressed || accentPressed) : accentPressed;
+        accentFocus                = p.accent ? (p.accent.focus || accentFocus) : accentFocus;
 
         currentProfile = name;
     }

@@ -15,11 +15,11 @@ setup/install-verify-adapters.sh       # dry run
 setup/install-verify-adapters.sh --apply
 ```
 
-Configured workflow commands are `/auto`, `/handoff`, `/ui`, and `/fix`.
-`/auto` classifies the request and chooses one bounded specialist handoff only
-when it helps; `/handoff` makes the contract explicit; `/ui` selects UI and
-verification guidance. OpenCode's quota plugin adds `/quota`. Runtime `.ai/`
-artifacts are created only for large or multi-session work, not for every task.
+Configured workflow commands are `/fix` and `/ui`. Routing and handoff commands
+were removed because ordinary tasks should run directly; delegation is an
+explicit choice inside `build`, not a mandatory pre-step. OpenCode's quota
+plugin adds `/quota`. Runtime `.ai/` artifacts are created only for genuinely
+large or multi-session work, not for every task.
 
 For automatic capability selection without changing the normal `codex` or
 `opencode` commands, use the explicit launcher:
@@ -46,24 +46,21 @@ This is intentionally opt-in so a normal launch cannot unexpectedly change
 profiles or hand work to another agent. After reloading zsh, `ai-opencode` and
 `ai-codex` are equivalent argument-preserving shell functions.
 
-MiniMax M2.7 is the normal model for build, plan, exploration, worker, and
-review. MiniMax M3 is available through the explicit `worker-m3` escalation;
-GPT-5.6 Luna (and its fast variant) is reserved for deliberate escalation.
-The catalog also keeps MiniMax M2.5/M2.1 plus one GPT-5.6 Terra model for
-manual selection. `ask` is the twenty-step quick repository agent.
+MiniMax M2.7 is the normal build and plan model. From the same build session it
+can spawn `explore-m2.7`, cheaper `explore-m2.5`, `worker-m2.7`, `worker-m3`,
+or `worker-luna`; no restart or primary mode switch is required. Luna uses the
+medium variant.
 
-The default profile uses bounded budgets: build 180, plan 120, explore 60,
-worker 140, review 100, worker-m3 220, worker-luna 160, expert 80,
-web-verifier 100, android-verifier 100, ui-specialist 140, security-audit 100,
-devops-run 100, explore-m3 80, and ask 20. These are ceilings, not targets.
-Escalate deliberately for migrations or long runtime debugging. `worker-luna`
-uses GPT-5.6 Luna with the `medium` variant.
+The ceilings are build 250, plan 120, M2.7 explorer 60, M2.5 explorer 50, M2.7
+worker 200, M3 worker 220, and Luna worker 160. Delegation depth is one and
+children cannot launch children. There are no verifier, expert, review, ask,
+UI-specialist, security, or devops roles.
 
-All configured agents and tools are permission-allowed, including shell,
-external directories, skills, MCP, delegation, and destructive operations.
-Use this profile only when that level of autonomy is intentional; it can
-modify or delete files, expose credentials to a model, or perform irreversible
-commands. OpenCode still needs to be restarted after configuration changes.
+Sensitive environment/auth/session paths remain denied. Build has every
+configured tool. Build, plan, and all workers can use the full installed skill
+catalog. Restart or run `opencode reload` after configuration changes, then
+inspect resolved role names with
+`opencode debug config | jq -r '.[0].info.agents | keys[]'`.
 
 `Super+Tab` is owned by Hyprland workspace overview and is unrelated to OpenCode task execution. Use `/fix` inside OpenCode for end-to-end coding work; use `Super+Space` for the NoxFlow AI launcher.
 
@@ -76,13 +73,17 @@ servers. The launcher pins each configured server to its correct scoped profile
 so normal OpenCode launches work without shell reconfiguration. Use explicit
 profile commands when starting standalone MCP clients:
 
-The local OpenCode config declares CodeGraph, Maestro, browser, Playwright, and
-Stitch. They remain enabled for workflow compatibility, but each local server
-is pinned to `dev`, `mobile`, or `web` so an agent handoff does not launch the
-wrong capability. The two browser paths
-remain intentionally different: `playwright` is the isolated deterministic
-browser, while `browser` attaches to the dedicated agent Chrome session through
-Chrome DevTools MCP. Verify the effective process map with `opencode mcp list`.
+The local OpenCode config declares CodeGraph, Maestro, browser, Playwright,
+Stitch, v0, and VP0, and build can use all of them. v0 uses remote OAuth;
+authenticate with `opencode mcp auth v0`. VP0 runs through `npx -y vp0-mcp`.
+For native mobile UI work, `/ui` routes through the installed native UI and
+mobile design skills and can use v0/VP0 when their workflows help. The two browser paths remain
+intentionally different: `playwright` is isolated and deterministic;
+`browser` attaches to the active Chrome profile. Chrome 144+ and remote
+debugging at `chrome://inspect/#remote-debugging` are required; Chrome may ask
+you to approve the connection. This gives the agent access to open tabs and
+session data in that profile. Verify the effective process map with
+`opencode mcp list`.
 
 ```sh
 eval "$(mcp-profile env dev)"    # browser + Playwright + CodeGraph + local docs
@@ -92,15 +93,10 @@ mcp-profile verify-codegraph      # fresh OpenCode CodeGraph handshake
 mcp-profile status                # classify scoped vs legacy processes
 ```
 
-The browser server launches a dedicated, visible Chrome instance for agent
-work using a persistent profile at
-`~/.local/state/opencode/chrome-devtools-profile` (override with
-`CHROME_DEVTOOLS_MCP_USER_DATA_DIR`). This is intentionally separate from your
-personal Chrome profile, so it does not require `chrome://inspect` or an
-**Allow remote debugging?** prompt. Log in to sites once inside this agent
-Chrome; cookies and local storage persist across OpenCode sessions. Do not run
-two independent MCP clients against the same profile at the same time; set a
-different `CHROME_DEVTOOLS_MCP_USER_DATA_DIR` for parallel sessions.
+The browser server uses Chrome DevTools MCP auto-connect to attach to your
+active Chrome Stable profile. Enable remote debugging in Chrome settings and
+approve the connection when prompted. Do not run independent agents against
+the same active browser session at the same time.
 
 After normalizing the managed OpenCode link, restart OpenCode and verify the
 resolved config before using browser tools.
@@ -140,6 +136,9 @@ setup/install-opencode-quota-v2.sh
 The managed `cli.json` contains TUI preferences. OpenCode auto-discovers the
 quota adapter from `~/.config/opencode/plugins`; Linux notifications are also
 linked there.
+The selected `noxflow-dynamic` theme is regenerated into
+`~/.config/opencode/themes/` whenever the wallpaper palette syncs, including
+separate markdown, diff, syntax, and muted-text colors.
 The quota adapter exposes `/quota` and `/quota_status`. After installing or
 relinking these plugins, restart the background server with
 `opencode service restart`, then open a new TUI session.

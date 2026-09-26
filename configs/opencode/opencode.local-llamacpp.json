@@ -33,19 +33,28 @@
   "lsp": true,
   "default_agent": "build",
   "share": "manual",
-  "experimental": {"subagent_depth": 2},
+  "experimental": {"subagent_depth": 1},
   "watcher": {
     "ignore": [
       "node_modules/**", ".git/**", ".headroom/**", ".beads/**", "dist/**", "build/**",
       "coverage/**", ".turbo/**", ".next/**", ".expo/**", "android/.gradle/**",
-      "android/**/build/**", "ios/Pods/**"
+      "android/**/build/**", "ios/Pods/**", ".codex/sessions/**", ".codex/archived_sessions/**"
     ]
   },
   "instructions": [
     "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md",
     "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/shell_strategy.md"
   ],
-  "permissions": [{"action": "*", "resource": "*", "effect": "allow"}],
+  "permissions": [
+    {"action": "*", "resource": "*", "effect": "allow"},
+    {"action": "read", "resource": "*.env", "effect": "deny"},
+    {"action": "read", "resource": "*.env.*", "effect": "deny"},
+    {"action": "read", "resource": "*.env.example", "effect": "allow"},
+    {"action": "read", "resource": "~/.ssh/**", "effect": "deny"},
+    {"action": "read", "resource": "~/.codex/auth.json", "effect": "deny"},
+    {"action": "read", "resource": "~/.codex/sessions/**", "effect": "deny"},
+    {"action": "read", "resource": "~/.codex/archived_sessions/**", "effect": "deny"}
+  ],
   "mcp": {
     "codegraph": {
       "type": "local",
@@ -75,6 +84,16 @@
       "enabled": true,
       "timeout": 120000
     },
+    "v0": {
+      "type": "remote",
+      "url": "https://v0.app/api/mcp",
+      "enabled": true
+    },
+    "vp0": {
+      "type": "local",
+      "command": ["npx", "-y", "vp0-mcp"],
+      "enabled": true
+    },
     "stitch": {
       "type": "remote",
       "url": "https://stitch.googleapis.com/mcp",
@@ -86,290 +105,101 @@
   "skills": ["/home/namik/Documents/code/dotfiles/configs/opencode/skills"],
   "commands": {
     "fix": {
-      "description": "Investigate and fix a problem end to end.",
-      "template": "Investigate and fix this end-to-end: $ARGUMENTS\n\nInspect the relevant code and understand the issue. Implement the smallest correct fix. Use subagents only when they materially help. Run the cheapest relevant verification, repair failures, and continue until the requested behavior works or a genuine external blocker remains. Do not merely explain or stop after planning. Do not commit or push.",
-      "agent": "build"
-    },
-    "auto": {
-      "description": "Classify the task and route it to the smallest capable agent/profile.",
-      "template": "Route this task before implementation: $ARGUMENTS\n\nFirst classify it as question, exploration, plan, backend/API, UI/web, mobile/device, security, or implementation. Choose the smallest capable agent. If a specialist is needed, hand off once with a bounded context packet containing objective, acceptance criteria, relevant paths, known evidence, non-goals, and required return. Keep the primary coordinator responsible for integration and final verification. Announce the selected route in one line, then continue until the requested outcome works or a genuine blocker remains.",
-      "agent": "build"
-    },
-    "handoff": {
-      "description": "Hand off the current bounded task to one specialist and return a concise evidence packet.",
-      "template": "Prepare a bounded handoff for this task: $ARGUMENTS\n\nSelect exactly one specialist (explore, plan, review, web-verifier, android-verifier, ui-specialist, security-audit, or worker). Include objective, acceptance criteria, known evidence, relevant paths, do-not-investigate boundaries, and required return fields. Do not duplicate the primary agent's work. The coordinator owns integration and the final verdict.",
+      "description": "Implement the smallest verified fix.",
+      "template": "Fix this outcome: $ARGUMENTS\n\nLocate the owner, implement the smallest coherent patch, run the cheapest risk-appropriate check, inspect the diff, and finish. Delegate only one independent bounded slice when it saves duplicated work. Do not commit or push.",
       "agent": "build"
     },
     "ui": {
-      "description": "Route UI work through Nox UI engineering and the appropriate runtime verifier.",
-      "template": "Handle this UI task: $ARGUMENTS\n\nUse the nox-ui-engineering skill as the primary UI contract. Select web-verifier, android-verifier, or no verifier based on the affected platform. Apply only the relevant UX states and evidence gates for the changed surface. Keep the diff focused and report observed versus unverified evidence.",
-      "agent": "ui-specialist"
+      "description": "Implement a focused UI change using the project UI contract.",
+      "template": "Handle this UI outcome: $ARGUMENTS\n\nFor native mobile work, use building-native-ui and mobile-design; apply anti-ui-slop and emil-design-eng where useful. If this is NoxOrigin mobile work, first read /home/namik/Documents/code/dotfiles/ai/system/NOXORIGIN_SYSTEM.md. Use v0 or VP0 MCP only when their design/generation workflows materially help, then adapt results to the repository's actual stack and components. Inspect existing screens, states, tokens, and owner components; make the smallest coherent change; verify on the affected native target where available; report untested targets explicitly.",
+      "agent": "build"
     }
   },
   "plugins": [
-    "/home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools",
+    {
+      "package": "/home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools",
+      "options": {
+        "socketName": "nox",
+        "sharedSessions": ["nox"]
+      }
+    },
     "/home/namik/Documents/code/dotfiles/configs/opencode/plugins/safety-guards"
   ],
-  "tool_output": {"max_lines": 2000, "max_bytes": 131072},
+  "tool_output": {"max_lines": 500, "max_bytes": 32768},
   "compaction": {"auto": true, "keep": {"tokens": 12000}, "buffer": 24000},
   "agent": {
+    "general": {"disable": true},
     "build": {
-      "description": "Primary M2.7 implementation agent.",
+      "description": "Primary M2.7 implementation agent with all configured tools and skills, including native mobile UI design tools.",
       "mode": "primary",
       "model": "minimax-coding-plan/MiniMax-M2.7",
-      "temperature": 0.1,
-      "top_p": 0.95,
       "steps": 250,
       "color": "primary",
       "permission": {
-        "*": "allow",
         "question": "allow",
         "plan_enter": "allow",
         "plan_exit": "allow",
         "doom_loop": "allow",
-        "read": {"*": "allow", "*.env": "allow", "*.env.*": "allow"},
-        "external_directory": {"*": "allow"}
+        "read": {"*": "allow", "*.env": "deny", "*.env.*": "deny", "*.env.example": "allow"},
+        "skill": "allow",
+        "subagent": {"*": "deny", "explore-m2.7": "allow", "explore-m2.5": "allow", "worker-m2.7": "allow", "worker-m3": "allow", "worker-luna": "allow"}
       },
-      "prompt": "Finish the requested outcome.\n\nInspect AGENTS.md and only the relevant code before editing. Work directly by default and keep the diff focused.\n\nDelegate one bounded child task only when it materially helps. Use two only when the tasks are genuinely independent. Prefer explore for discovery, worker for independent implementation, and review for final review.\n\nAfter changes, inspect the diff and run the cheapest relevant verification. Repair failures before finishing. Never report checks you did not observe.\n\nPreserve unrelated work. Stop only when the requested outcome works or a real external blocker remains.\n\nFor mobile/Expo UI tasks: apply NOXORIGIN_SYSTEM.md — Tamagui for visual identity, @expo/ui for native interaction primitives, Reanimated for custom motion only. Never add a new UI library. Tokens, not literals. Cover full UX state matrix. Prefer native lists, bottom sheets, grouped form sections. Haptic on selection and success."
+      "prompt": "Finish the requested outcome. Use any configured tool or skill that materially helps. Work directly by default; spawn one explicit explorer or model worker only for a substantial independent slice. Preserve unrelated work, inspect the final diff, run risk-appropriate validation, and never claim unobserved proof."
     },
     "plan": {
-      "description": "Read-only M2.7 planning agent.",
+      "description": "Read-only M2.7 planning mode with the full skill catalog and inspection tools.",
       "mode": "primary",
       "model": "minimax-coding-plan/MiniMax-M2.7",
       "steps": 120,
       "color": "info",
-      "permission": {
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow"},
-        "shell": "deny",
-        "external_directory": "deny"
-      },
-      "prompt": "Produce a concise implementation plan grounded in repository evidence. Read AGENTS.md, inspect the smallest relevant surface, trace callers/contracts/tests, and state acceptance criteria, risks, non-goals, and verification. Do not edit source, delegate, use SSH, or invent repository facts."
+      "permission": {"edit": "deny", "skill": "allow", "subagent": "deny"},
+      "prompt": "Produce a concise implementation plan grounded in repository evidence. Use any relevant configured skill or inspection tool. Name owners, acceptance criteria, risks, non-goals, and proportional validation. Do not edit or delegate."
     },
-    "explore": {
-      "description": "Cheap M2.7 repository exploration with CodeGraph on demand.",
+    "explore-m2.7": {
+      "description": "MiniMax M2.7 explorer for difficult repository investigation.",
       "mode": "subagent",
       "model": "minimax-coding-plan/MiniMax-M2.7",
       "steps": 60,
       "color": "info",
-      "permission": {
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow"},
-        "shell": "deny",
-        "external_directory": "deny"
-      },
-      "prompt": "Map only the smallest repository surface needed for the assigned question. Use CodeGraph when semantic references materially help. Find entry points, relevant symbols, callers, contracts, tests, and uncertainty. Do not implement or wander into unrelated areas. Return concise prose with exact paths."
+      "permission": {"edit": "deny", "skill": "allow", "subagent": "deny"},
+      "prompt": "Answer one bounded repository question. Inspect only relevant files, callers, tests, and history. Do not modify files or launch children. Return concise findings with file:line evidence, uncertainty, and the next useful action."
     },
-    "worker": {
-      "description": "Default isolated implementation child using MiniMax M2.7.",
+    "explore-m2.5": {
+      "description": "Cheaper MiniMax M2.5 explorer for straightforward repository search and mapping.",
+      "mode": "subagent",
+      "model": "minimax-coding-plan/MiniMax-M2.5",
+      "steps": 50,
+      "color": "info",
+      "permission": {"edit": "deny", "skill": "allow", "subagent": "deny"},
+      "prompt": "Answer one narrow repository question. Use targeted search and relevant files only. Do not modify files or launch children. Return concise findings with file:line evidence and uncertainty."
+    },
+    "worker-m2.7": {
+      "description": "MiniMax M2.7 implementation worker.",
       "mode": "subagent",
       "model": "minimax-coding-plan/MiniMax-M2.7",
       "steps": 200,
       "color": "primary",
-      "permission": {
-        "*": "allow",
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow", "*.env": "allow", "*.env.*": "allow"},
-        "external_directory": {"*": "allow"}
-      },
-      "prompt": "Implement only the bounded task. Inspect instructions, keep the diff focused, run the cheapest relevant checks, and report exact paths, observed results, and remaining uncertainty. Do not commit, push, use SSH, or launch children."
-    },
-    "review": {
-      "description": "Independent M2.7 read-only review.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 100,
-      "color": "warning",
-      "permission": {
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow"},
-        "shell": "deny",
-        "external_directory": "deny"
-      },
-      "prompt": "Review the requested outcome and actual diff independently. Look for concrete defects, missing callers/tests, regressions, and security or contract issues. Report only evidence-backed findings with exact paths and severity. Do not edit files."
+      "permission": {"skill": "allow", "subagent": "deny"},
+      "prompt": "Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
     },
     "worker-m3": {
-      "description": "Manual hard-fallback implementation child using MiniMax M3.",
+      "description": "MiniMax M3 implementation worker for larger or harder bounded tasks.",
       "mode": "subagent",
       "model": "minimax-coding-plan/MiniMax-M3",
-      "steps": 300,
-      "color": "primary",
-      "permission": {
-        "*": "allow",
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow", "*.env": "allow", "*.env.*": "allow"},
-        "external_directory": {"*": "allow"}
-      },
-      "prompt": "Implement the bounded task only when explicitly escalated. Keep scope focused, inspect the diff, run relevant checks, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."
+      "steps": 220,
+      "color": "warning",
+      "permission": {"skill": "allow", "subagent": "deny"},
+      "prompt": "Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
     },
     "worker-luna": {
-      "description": "GPT-5.6 Luna implementation worker with medium reasoning.",
+      "description": "GPT-5.6 Luna implementation worker for difficult bounded tasks.",
       "mode": "subagent",
       "model": "openai/gpt-5.6-luna",
       "variant": "medium",
-      "steps": 220,
-      "color": "primary",
-      "permission": {
-        "*": "allow",
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow", "*.env": "allow", "*.env.*": "allow"},
-        "external_directory": {"*": "allow"}
-      },
-      "prompt": "Implement the bounded task with medium reasoning effort. Inspect the relevant instructions and code, keep the diff focused, run the cheapest applicable verification, and report exact paths and observed results. Do not commit or push."
-    },
-    "expert": {
-      "description": "Manual GPT-5.6 Luna expert fallback for hard decisions.",
-      "mode": "subagent",
-      "model": "openai/gpt-5.6-luna",
-      "steps": 80,
+      "steps": 160,
       "color": "error",
-      "permission": {
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow"},
-        "shell": "deny",
-        "external_directory": "deny"
-      },
-      "prompt": "Give a concise technical decision for the bounded architecture or debugging question. Inspect only the relevant repository surface, state the evidence, recommend the smallest safe approach, and call out uncertainty. Do not edit, commit, push, or launch children."
-    },
-    "web-verifier": {
-      "description": "Read-only web verifier with browser MCP enabled on demand.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 100,
-      "color": "success",
-      "permission": {
-        "*": "allow",
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow", "*.env": "allow", "*.env.*": "allow"},
-        "external_directory": {"*": "allow"}
-      },
-      "prompt": "Verify only the requested web behavior. Run focused deterministic checks first; use browser MCP only when enabled and needed. Report VERIFIED, FAILED, NOT TESTED, and RISKS with exact actions and observed evidence. Do not edit files."
-    },
-    "android-verifier": {
-      "description": "Read-only Android verifier with Maestro MCP enabled on demand.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 100,
-      "color": "success",
-      "permission": {
-        "*": "allow",
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow", "*.env": "allow", "*.env.*": "allow"},
-        "external_directory": {"*": "allow"}
-      },
-      "prompt": "Verify only the requested Android behavior. Start with host-side tests and use ADB/Maestro only for device-bound evidence. Report PASS, FAIL, NOT_CONFIGURED, or SKIPPED with exact commands and observed evidence. Do not edit files."
-    },
-    "ui-specialist": {
-      "description": "M2.7 UI specialist with Stitch MCP and focused UI skills.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 180,
-      "color": "success",
-      "permission": {
-        "*": "allow",
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow", "*.env": "allow", "*.env.*": "allow"},
-        "external_directory": {"*": "allow"}
-      },
-      "prompt": "Handle only the bounded UI/design task. Inspect the relevant surface, use Stitch only when design evidence is needed, keep the diff focused, verify the changed behavior, and report exact paths and observed results. Do not commit, push, use SSH, or launch children.\n\nFor mobile/Expo tasks: apply NOXORIGIN_SYSTEM.md — Tamagui for visual identity, @expo/ui for native primitives, Reanimated for custom motion. Reject AI-generic patterns. Cover every UX state (loading/empty/error/validation/permission/offline/destructive/success). Prefer native lists, bottom sheets, and grouped form sections over card soup. Run haptic on selection and success. Use expo-keyboard-controller for forms."
-    },
-    "ask": {
-      "description": "Cheap read-only answers about the current repository.",
-      "mode": "primary",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 20,
-      "color": "info",
-      "permission": {
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow"},
-        "shell": "deny",
-        "external_directory": "deny"
-      },
-      "prompt": "Answer the question from the smallest relevant repository context. Do not edit, delegate, or investigate beyond what is needed."
-    },
-    "security-audit": {
-      "description": "M2.7 security audit specialist.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 120,
-      "color": "error",
-      "permission": {
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow"},
-        "shell": "deny",
-        "external_directory": "deny"
-      },
-      "prompt": "Perform a focused security audit of the bounded surface. Inspect the smallest relevant code, identify injection vectors, credential leaks, privilege escalation paths, and supply-chain risks. Report only evidence-backed findings with exact paths and severity. Do not edit files."
-    },
-    "devops-run": {
-      "description": "M2.7 devops/script execution specialist.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 120,
-      "color": "warning",
-      "permission": {
-        "*": "allow",
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow", "*.env": "allow", "*.env.*": "allow"},
-        "external_directory": {"*": "allow"}
-      },
-      "prompt": "Execute the bounded devops or scripting task. Inspect the relevant surface, run focused commands, verify the outcome, and report exact paths, observed results, and remaining uncertainty. Do not commit, push, use SSH, or launch children."
-    },
-    "explore-m3": {
-      "description": "Cheap M3 repository exploration with CodeGraph on demand.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M3",
-      "steps": 80,
-      "color": "info",
-      "permission": {
-        "question": "allow",
-        "plan_enter": "allow",
-        "plan_exit": "allow",
-        "doom_loop": "allow",
-        "read": {"*": "allow"},
-        "shell": "deny",
-        "external_directory": "deny"
-      },
-      "prompt": "Map only the smallest repository surface needed for the assigned question. Use CodeGraph when semantic references materially help. Find entry points, relevant symbols, callers, contracts, tests, and uncertainty. Do not implement or wander into unrelated areas. Return concise prose with exact paths."
+      "permission": {"skill": "allow", "subagent": "deny"},
+      "prompt": "Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
     }
   }
 }

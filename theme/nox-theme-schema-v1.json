@@ -20,14 +20,76 @@
     "scheme": {
       "type": "object",
       "required": ["mode", "variant"],
-      "properties": { "mode": { "enum": ["dark", "light"] }, "variant": { "type": "string" } },
+      "properties": {
+        "mode": { "enum": ["dark", "light", "oled"] },
+        "variant": { "type": "string", "enum": ["dark", "neon", "muted", "vibrant", "minimal", "bright", "pastel", "calm", "balanced", "vibrant", "ambient", "focus", "performance", "content"] }
+      },
       "additionalProperties": false
     },
-    "colors": { "type": "object", "required": ["background", "onBackground", "surface", "onSurface", "primary", "onPrimary", "error", "warning", "success"] },
-    "effects": { "type": "object", "required": ["surfaceOpacity", "scrimOpacity", "blur"] },
-    "motion": { "type": "object", "required": ["themeTransitionMs"] },
-    "validation": { "type": "object", "required": ["contrast", "passed", "failed"] },
-    "selection": { "type": "object", "required": ["entropy", "candidateCount", "explanation"] }
+    "colors": {
+      "type": "object",
+      "required": [
+        "background", "onBackground",
+        "surfaceCanvas", "surfaceBase", "surface1", "surface2", "surface3", "surfaceFloating",
+        "onSurface", "onSurfaceVariant",
+        "primary", "onPrimary", "primaryContainer", "onPrimaryContainer",
+        "secondary", "onSecondary", "secondaryContainer", "onSecondaryContainer",
+        "tertiary", "onTertiary", "tertiaryContainer", "onTertiaryContainer",
+        "neutral", "onNeutral", "neutralContainer", "onNeutralContainer",
+        "neutralVariant", "onNeutralVariant",
+        "error", "warning", "success", "info",
+        "outline", "outlineSubtle", "outlineStrong",
+        "accent",
+        "terminal"
+      ],
+      "additionalProperties": true
+    },
+    "accent": {
+      "type": "object",
+      "required": ["primary", "secondary", "tertiary", "hover", "pressed", "focus"],
+      "additionalProperties": false
+    },
+    "terminal": {
+      "type": "object",
+      "required": ["background", "foreground", "red", "green", "yellow", "blue"],
+      "additionalProperties": true
+    },
+    "effects": {
+      "type": "object",
+      "required": ["surfaceOpacity", "scrimOpacity", "blur"],
+      "additionalProperties": false
+    },
+    "motion": {
+      "type": "object",
+      "required": ["themeTransitionMs"],
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "required": ["contrast", "passed", "failed"],
+      "additionalProperties": false
+    },
+    "selection": {
+      "type": "object",
+      "required": ["entropy", "candidateCount", "explanation", "personality"],
+      "additionalProperties": false
+    },
+    "personality": {
+      "type": "object",
+      "required": ["class", "mode", "entropy", "avgChroma", "avgLuminance", "maxChroma", "chromaBoost", "warmth", "contrastMult"],
+      "properties": {
+        "class": { "type": "string", "enum": ["dark", "neon", "muted", "vibrant", "minimal", "bright", "pastel"] },
+        "mode": { "type": "string", "enum": ["dark", "light", "oled"] },
+        "entropy": { "type": "number", "minimum": 0 },
+        "avgChroma": { "type": "number", "minimum": 0 },
+        "avgLuminance": { "type": "number", "minimum": 0, "maximum": 1 },
+        "maxChroma": { "type": "number", "minimum": 0 },
+        "chromaBoost": { "type": "number", "minimum": 0 },
+        "warmth": { "type": "number", "minimum": -1, "maximum": 1 },
+        "contrastMult": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": true
 }

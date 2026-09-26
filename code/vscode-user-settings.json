@@ -24,5 +24,6 @@
     "**/.gitea/workflows/*.yaml",
     "**/.forgejo/workflows/*.yml",
     "**/.forgejo/workflows/*.yaml"
-  ]
+  ],
+  "yaml.maxItemsComputed": 50000
 }

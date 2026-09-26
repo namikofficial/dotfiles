@@ -11,7 +11,7 @@ window {
 }
 
 button {
-  color: #f5f2ee;
+  color: #f2f2f2;
   background-color: rgba(36, 37, 41, 0.94);
   border: 1px solid rgba(111, 148, 201, 0.45);
   border-radius: 14px;
@@ -57,8 +57,8 @@ button:hover {
 }
 
 #shutdown {
-  background-color: rgba(224,108,116, 0.3);
-  border-color: #e06c74;
+  background-color: rgba(239,32,48, 0.3);
+  border-color: #ef2030;
   background-image: url("/usr/share/wlogout/icons/shutdown.png");
 }
 
@@ -68,23 +68,23 @@ button:hover {
 
 /* Generated palette overrides. */
 window {
-  background-color: rgba(6,7,10, 0.90);
+  background-color: rgba(4,3,4, 0.90);
 }
 
 button {
-  color: #f5f2ee;
-  background-color: rgba(43,44,47, 0.94);
-  border-color: rgba(101,43,14, 0.66);
+  color: #f2f2f2;
+  background-color: rgba(45,22,0, 0.94);
+  border-color: rgba(199,90,81, 0.66);
 }
 
 button:hover,
 button:focus,
 button:active {
-  background-color: rgba(26,27,30, 0.98);
-  border-color: #ff6714;
+  background-color: rgba(21,5,0, 0.98);
+  border-color: #f50012;
 }
 
 #firmware {
-  background-color: rgba(40,133,172, 0.20);
-  border-color: rgba(40,133,172, 0.70);
+  background-color: rgba(0,165,19, 0.20);
+  border-color: rgba(0,165,19, 0.70);
 }

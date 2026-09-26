@@ -26,14 +26,6 @@ command = "rag-mcp"
 args = []
 enabled = true
 
-[mcp_servers.local-docs]
-command = "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh"
-args = ["local-docs"]
-enabled = true
-
-[mcp_servers.local-docs.env]
-NOXFLOW_MCP_PROFILE = "dev"
-
 [mcp_servers.browser]
 command = "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh"
 args = ["browser"]
@@ -48,3 +40,8 @@ enabled = true
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-postgres", "postgresql://user:password@localhost/dbname"]
 enabled = false
+
+[mcp_servers.vp0]
+command = "npx"
+args = ["-y", "vp0-mcp"]
+enabled = true
