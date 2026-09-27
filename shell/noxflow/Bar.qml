@@ -75,9 +75,9 @@ Item {
 
     // ── Layout constants ──
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
-    readonly property int outerMargin: Theme.Tokens.scaled(8)
-    readonly property int groupGap: Theme.Tokens.scaled(10)
-    readonly property int innerGap: Theme.Tokens.scaled(5)
+    readonly property int outerMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+    readonly property int groupGap: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+    readonly property int innerGap: Theme.Tokens.scaled(Theme.Tokens.spacingSm)
     readonly property int capsulePadH: Theme.Tokens.scaled(12)
     readonly property int capsulePadV: Theme.Tokens.scaled(9)
 
@@ -88,9 +88,10 @@ Item {
     readonly property rect notificationChipGeometry: chipRect(notifPill)
     readonly property rect statusClusterGeometry: chipRect(rightZone)
     readonly property rect healthGeometry: chipRect(healthCapsule)
-    readonly property rect networkGeometry: chipRect(connectivityCapsule)
-    readonly property rect volumeGeometry: chipRect(audioPowerCapsule)
-    readonly property rect batteryGeometry: chipRect(audioPowerCapsule)
+    readonly property rect networkGeometry: chipRect(connectivityCapsule.networkActionItem)
+    readonly property rect bluetoothGeometry: chipRect(connectivityCapsule.bluetoothActionItem)
+    readonly property rect volumeGeometry: chipRect(audioPowerCapsule.audioActionItem)
+    readonly property rect batteryGeometry: chipRect(audioPowerCapsule.powerActionItem)
     readonly property rect syncGeometry: chipRect(syncPill)
 
     function registerMorphChips() {
@@ -101,6 +102,7 @@ Item {
         reg.registerTrigger("notifications", monitorName, notificationChipGeometry, Theme.Tokens.radiusPill);
         reg.registerTrigger("quick-settings", monitorName, volumeGeometry, Theme.Tokens.radiusPill);
         reg.registerTrigger("quick-settings", monitorName, networkGeometry, Theme.Tokens.radiusPill, "network");
+        reg.registerTrigger("quick-settings", monitorName, bluetoothGeometry, Theme.Tokens.radiusPill, "bluetooth");
         reg.registerTrigger("quick-settings", monitorName, volumeGeometry, Theme.Tokens.radiusPill, "volume");
         reg.registerTrigger("quick-settings", monitorName, batteryGeometry, Theme.Tokens.radiusPill, "battery");
         reg.registerTrigger("sync", monitorName, syncGeometry, Theme.Tokens.radiusPill);
@@ -313,8 +315,8 @@ Item {
                 network: root.network
                 bluetooth: root.bluetooth
                 Layout.alignment: Qt.AlignVCenter
-                onOpenNetwork: root.toggleQuickSettingsFromBar(connectivityCapsule, "network")
-                onOpenBluetooth: root.toggleQuickSettingsFromBar(connectivityCapsule, "bluetooth")
+                onOpenNetwork: root.toggleQuickSettingsFromBar(connectivityCapsule.networkActionItem, "network")
+                onOpenBluetooth: root.toggleQuickSettingsFromBar(connectivityCapsule.bluetoothActionItem, "bluetooth")
                 onHoveredChanged: {
                     if (!root.islandHost) return;
                     root.islandHost.sourceHoverChanged("connectivity", hovered);
@@ -329,7 +331,7 @@ Item {
                 Layout.alignment: Qt.AlignVCenter
                 onToggleMute: root.toggleMute()
                 onAdjustVolume: function(delta) { root.adjustVolume(delta); }
-                onOpenPower: root.toggleQuickSettingsFromBar(audioPowerCapsule, "battery")
+                onOpenPower: root.toggleQuickSettingsFromBar(audioPowerCapsule.powerActionItem, "battery")
                 onHoveredChanged: {
                     if (!root.islandHost) return;
                     root.islandHost.sourceHoverChanged("audio-power", hovered);

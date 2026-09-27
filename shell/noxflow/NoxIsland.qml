@@ -1031,8 +1031,7 @@ Item {
 
     function labelForState(state) {
         if (state === "idle") {
-            var context = root.activeApp !== "" ? " · " + root.activeApp : "";
-            return Qt.formatDate(root.now, "ddd d") + " · " + Qt.formatTime(root.now, "HH:mm") + context;
+            return Qt.formatDate(root.now, "ddd d") + " · " + Qt.formatTime(root.now, "HH:mm");
         }
         if (state === "focused-app") return root.activeApp !== "" ? root.activeApp : "No focused app";
         if (state === "updates") return root.updates && root.updates.checked ? (root.updates.count > 0 ? root.updates.count + " updates" : "System up to date") : "Checking updates";

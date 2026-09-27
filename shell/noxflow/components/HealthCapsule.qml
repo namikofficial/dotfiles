@@ -39,7 +39,7 @@ FocusScope {
     readonly property string cpuLabel: ready ? Math.round(systemModel.cpuUsage) + "%" : "—"
     readonly property string temperatureLabel: temperature > 0 ? Math.round(temperature) + "°" : "—"
 
-    implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), values.implicitWidth + Theme.Tokens.scaled(20))
+    implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), values.implicitWidth + Theme.Tokens.scaled(24))
     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
@@ -61,7 +61,7 @@ FocusScope {
         return "System health " + freshnessLabel + ": " + cpu + ", " + mem + therm + ", " + source + stale;
     }
 
-    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusMd; color: root.hovered ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62); border.color: root.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: root.activeFocus ? 2 : 0 }
+    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: root.hovered ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62); border.color: root.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: root.activeFocus ? 2 : 0 }
     RowLayout {
         id: values; anchors.centerIn: parent; spacing: Theme.Tokens.scaled(6)
         Text { text: "\uF2DB"; color: Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }

@@ -225,7 +225,7 @@ QtObject {
     readonly property int heightField: 48
     readonly property int heightChip: 32
     // Keep the persistent bar thin; panels use their own control metrics.
-    readonly property int heightToolbar: 40
+    readonly property int heightToolbar: 44
 
     // reduced_motion
     readonly property bool reducedMotionEnabled: false
