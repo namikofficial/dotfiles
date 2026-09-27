@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+cwd="${1:-$PWD}"
+choice="$(printf '%s\n' \
+  'help        · open the tmux guide' \
+  'sessions    · switch, rename, create, or kill sessions' \
+  'projects    · open the project cockpit' \
+  'diagnostics · inspect project and system health' \
+  'git         · open lazygit here' \
+  'opencode    · open the OpenCode session browser' \
+  'reload      · reload ~/.tmux.conf' \
+  'new-window  · create a window in this directory' \
+  'zoom        · toggle the current pane zoom' \
+  'copy-mode   · enter vi copy mode' | \
+  fzf --height=70% --layout=reverse --border --prompt=' action › ' --header='NoxFlow tmux command palette')" || true
+[[ -n "$choice" ]] || exit 0
+
+case "$choice" in
+  help*) exec "$HOME/.local/bin/tmux-help" ;;
+  sessions*) exec "$HOME/.local/bin/tmux-sessions" ;;
+  projects*) exec "$HOME/.local/bin/tmux-project-cockpit" "$cwd" ;;
+  diagnostics*) exec "$HOME/.local/bin/tmux-diagnostics" "$cwd" ;;
+  git*) exec lazygit -p "$cwd" ;;
+  opencode*)
+    popup="$HOME/.tmux/plugins/tmux-opencode/scripts/popup-run.sh"
+    if [[ -x "$popup" ]]; then
+      tmux display-popup -E -w 90% -h 80% -d "$cwd" "$popup"
+    else
+      printf '\n  tmux-opencode is not installed.\n  Press Enter to close.\n'
+      read -r
+    fi
+    ;;
+  reload*) tmux source-file "$HOME/.tmux.conf" \; display-message ' NoxFlow tmux reloaded' ;;
+  new-window*) tmux new-window -c "$cwd" ;;
+  zoom*) tmux resize-pane -Z ;;
+  copy-mode*) tmux copy-mode ;;
+esac

@@ -58,13 +58,9 @@ if [ -x "$HOME/.config/hypr/scripts/panel-switch.sh" ]; then
   "$HOME/.config/hypr/scripts/panel-switch.sh" show >/dev/null 2>&1 || true
 fi
 
-# NoxFlow owns the panel in the normal session. Never restart Wayle as a side
-# effect of a theme refresh; doing so can bring the fallback shell back over
-# the active Quickshell bar. A running NoxFlow service will pick up the
-# generated theme state on restart, while an inactive service is left alone.
-if systemctl --user is-active --quiet noxflow-shell.service 2>/dev/null; then
-  systemctl --user try-restart noxflow-shell.service >/dev/null 2>&1 || true
-fi
+# NoxFlow owns the panel in the normal session. Theme refreshes deliberately
+# do not restart it: the runtime token watcher is tracked as the next shell
+# milestone, and restarting here would discard panel state.
 
 kitty_remote_all load-config "$HOME/.config/kitty/kitty.conf"
 

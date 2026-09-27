@@ -38,3 +38,6 @@ DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
 if [ -r "$DOTFILES_HOME/shell/claude-minimax.sh" ]; then
   . "$DOTFILES_HOME/shell/claude-minimax.sh"
 fi
+
+# MiniMax Code CLI
+export PATH="/home/namik/.minimax-code/bin:$PATH"

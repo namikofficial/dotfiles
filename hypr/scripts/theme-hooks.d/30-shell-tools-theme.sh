@@ -30,13 +30,13 @@ cat >"$bat_theme_file" <<EOF2
       <key>settings</key>
       <dict>
         <key>background</key>
-        <string>${THEME_BG}</string>
+        <string>${THEME_SURF_CANVAS:-$THEME_BG}</string>
         <key>foreground</key>
         <string>${THEME_TEXT}</string>
         <key>caret</key>
         <string>${THEME_ACCENT}</string>
         <key>selection</key>
-        <string>${THEME_BG_SOFT:-$THEME_BG}</string>
+        <string>${THEME_SURF_2:-$THEME_BG_SOFT}</string>
       </dict>
     </dict>
     <dict>
@@ -78,6 +78,14 @@ cat >"$bat_theme_file" <<EOF2
       <string>invalid</string>
       <key>settings</key>
       <dict><key>foreground</key><string>${THEME_DANGER:-$THEME_ACCENT}</string></dict>
+    </dict>
+    <dict>
+      <key>name</key>
+      <string>Tertiary / Info</string>
+      <key>scope</key>
+      <string>info</string>
+      <key>settings</key>
+      <dict><key>foreground</key><string>${THEME_TERTIARY:-$THEME_ACCENT2}</string></dict>
     </dict>
   </array>
 </dict>

@@ -147,11 +147,6 @@ fi
   if [ -x "$HOME/.config/hypr/scripts/scratchpad-manager.sh" ]; then
     "$HOME/.config/hypr/scripts/scratchpad-manager.sh" menu >/dev/null 2>&1 || true
   fi
-  if [ "${HYPR_AUTOSTART_LOCAL_LLM:-0}" = "1" ] && command -v curl >/dev/null 2>&1 && command -v llama-swap-manager >/dev/null 2>&1; then
-    if ! curl -fsS --max-time 1 "${LLM_HEALTH_ENDPOINT:-http://127.0.0.1:8080/v1/models}" >/dev/null 2>&1; then
-      llama-swap-manager start >/dev/null 2>&1 || true
-    fi
-  fi
 ) &
 
 # Keep the clipboard browser daemon warm so clipboard UI opens on the hot path.
@@ -197,8 +192,10 @@ if [ -x "$HOME/.config/hypr/scripts/monitor-control.sh" ]; then
   ) &
 fi
 
-# Start the Bluetooth tray applet; Wi-Fi is controlled through iwd/NoxFlow.
-if [ "$(setting_bool startup.blueman_applet_autostart true)" = "true" ]; then
+# NoxFlow owns Bluetooth controls. Keep Blueman Manager available as a
+# recovery tool, but do not start a second tray/panel by default. Opt in for
+# fallback sessions with startup.blueman_applet_autostart=true.
+if [ "$(setting_bool startup.blueman_applet_autostart false)" = "true" ]; then
   log "starting blueman-applet"
   run_once blueman-applet blueman-applet
 fi

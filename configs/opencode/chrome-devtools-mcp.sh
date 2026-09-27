@@ -12,11 +12,13 @@ if [ -z "$mcp_bin" ] || [ ! -x "$mcp_bin" ]; then
   exit 127
 fi
 
-# Attach to the user's already-running Chrome. This deliberately does not
-# launch a second Chromium profile or expose a non-local debugging endpoint.
+# Attach to the user's active Chrome profile. Chrome 144+ must have remote
+# debugging enabled at chrome://inspect/#remote-debugging and may ask for
+# approval when the agent connects. The MCP can access open tabs and session
+# data in that profile.
 exec "$mcp_bin" \
-  --autoConnect \
   --channel stable \
+  --autoConnect \
   --no-usage-statistics \
   --experimentalPageIdRouting \
   "$@"

@@ -9,16 +9,10 @@
         "gpt-5.6-luna": {
           "name": "GPT-5.6 Luna (Vision)",
           "tool_call": true,
-          "modalities": {
-            "input": [
-              "text",
-              "image"
-            ],
-            "output": [
-              "text"
-            ]
-          }
-        }
+          "modalities": {"input": ["text", "image"], "output": ["text"]}
+        },
+        "gpt-5.6-luna-fast": {"name": "GPT-5.6 Luna Fast", "tool_call": true},
+        "gpt-5.6-terra": {"name": "GPT-5.6 Terra", "tool_call": true}
       }
     },
     "minimax-coding-plan": {
@@ -47,84 +41,34 @@
       }
     }
   },
-  "enabled_providers": [
-    "openai",
-    "minimax-coding-plan"
-  ],
-  "model": "minimax-coding-plan/MiniMax-M3",
+  "enabled_providers": ["openai", "minimax-coding-plan"],
+  "model": "minimax-coding-plan/MiniMax-M2.7",
   "small_model": "minimax-coding-plan/MiniMax-M2.7",
   "lsp": true,
   "default_agent": "build",
-  "subagent_depth": 1,
   "share": "manual",
+  "experimental": {"subagent_depth": 1},
   "watcher": {
     "ignore": [
-      "node_modules/**",
-      ".git/**",
-      ".headroom/**",
-      ".beads/**",
-      "dist/**",
-      "build/**",
-      "coverage/**",
-      ".turbo/**",
-      ".next/**",
-      ".expo/**",
-      "android/.gradle/**",
-      "android/**/build/**",
-      "ios/Pods/**"
+      "node_modules/**", ".git/**", ".headroom/**", ".beads/**", "dist/**", "build/**",
+      "coverage/**", ".turbo/**", ".next/**", ".expo/**", "android/.gradle/**",
+      "android/**/build/**", "ios/Pods/**", ".codex/sessions/**", ".codex/archived_sessions/**"
     ]
   },
   "instructions": [
     "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md",
     "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/shell_strategy.md"
   ],
-  "permission": {
-    "lsp": "allow",
-    "read": "allow",
-    "glob": "allow",
-    "grep": "allow",
-    "list": "allow",
-    "skill": {
-      "*": "deny",
-      "code-intelligence": "allow",
-      "codebase-tour": "allow",
-      "bug-repro": "allow",
-      "test-failure-debug": "allow",
-      "frontend-trace": "allow",
-      "nox-ui-engineering": "allow",
-      "nox-ui-judge": "allow",
-      "tenancy-invariants": "allow",
-      "workflow-state-machine": "allow",
-      "runtime-evidence": "allow",
-      "change-impact": "allow",
-      "regression-hunter": "allow",
-      "architecture-fitness": "allow",
-      "state-consistency": "allow",
-      "skill-security": "allow"
-    },
-    "todowrite": "allow",
-    "question": "allow",
-    "edit": "allow",
-    "task": "allow",
-    "webfetch": "allow",
-    "websearch": "allow",
-    "doom_loop": "ask",
-    "external_directory": {
-      "*": "ask",
-      "/home/namik/Documents/code/**": "allow"
-    },
-    "bash": {
-      "*": "allow",
-      "ssh *": "deny",
-      "ssh": "deny"
-    },
-    "browser_*": "ask",
-    "codegraph_*": "allow",
-    "maestro_*": "allow",
-    "worktree_create": "allow",
-    "worktree_workspace_create": "allow",
-    "worktree_delete": "deny"
-  },
+  "permissions": [
+    {"action": "*", "resource": "*", "effect": "allow"},
+    {"action": "read", "resource": "*.env", "effect": "deny"},
+    {"action": "read", "resource": "*.env.*", "effect": "deny"},
+    {"action": "read", "resource": "*.env.example", "effect": "allow"},
+    {"action": "read", "resource": "~/.ssh/**", "effect": "deny"},
+    {"action": "read", "resource": "~/.codex/auth.json", "effect": "deny"},
+    {"action": "read", "resource": "~/.codex/sessions/**", "effect": "deny"},
+    {"action": "read", "resource": "~/.codex/archived_sessions/**", "effect": "deny"}
+  ],
   "mcp": {
     "codegraph": {
       "type": "local",
@@ -152,52 +96,46 @@
     },
     "browser": {
       "type": "local",
-      "command": [
-        "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh",
-        "browser"
-      ],
-      "enabled": false,
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "browser"],
+      "environment": {"NOXFLOW_MCP_PROFILE": "web"},
+      "enabled": true,
       "timeout": 120000
+    },
+    "playwright": {
+      "type": "local",
+      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "playwright"],
+      "environment": {"NOXFLOW_MCP_PROFILE": "web"},
+      "enabled": true,
+      "timeout": 120000
+    },
+    "v0": {
+      "type": "remote",
+      "url": "https://v0.app/api/mcp",
+      "enabled": true
+    },
+    "vp0": {
+      "type": "local",
+      "command": ["npx", "-y", "vp0-mcp"],
+      "enabled": true
     },
     "stitch": {
       "type": "remote",
       "url": "https://stitch.googleapis.com/mcp",
       "enabled": true,
       "oauth": false,
-      "headers": {
-        "X-Goog-Api-Key": "{file:~/.config/opencode/stitch-api-key}"
-      }
+      "headers": {"X-Goog-Api-Key": "{file:~/.config/opencode/stitch-api-key}"}
     }
   },
-  "skills": {
-    "paths": [
-      "/home/namik/Documents/code/dotfiles/configs/opencode/skills"
-    ]
-  },
-  "command": {
+  "skills": ["/home/namik/Documents/code/dotfiles/configs/opencode/skills"],
+  "commands": {
     "fix": {
-      "description": "Investigate and fix a problem end to end.",
-      "template": "Investigate and fix this end-to-end: $ARGUMENTS\n\nInspect the relevant code and understand the issue. Implement the smallest correct fix. Use subagents only when they materially help. Run the cheapest relevant verification, repair failures, and continue until the requested behavior works or a genuine external blocker remains. Do not merely explain or stop after planning. Do not commit or push.",
+      "description": "Implement the smallest verified fix.",
+      "template": "Fix this outcome: $ARGUMENTS\n\nLocate the owner, implement the smallest coherent patch, run the cheapest risk-appropriate check, inspect the diff, and finish. Delegate only one independent bounded slice when it saves duplicated work. Do not commit or push.",
       "agent": "build"
     },
-    "plan": {
-      "description": "Create a focused implementation plan from repository evidence.",
-      "template": "Plan this request from repository evidence: $ARGUMENTS\n\nInspect AGENTS.md and the smallest relevant surface. Trace callers, contracts, and tests. Return a concise implementation sequence, acceptance criteria, risks, and verification. Do not edit source. Use .ai/plan.md only for large, multi-session, migration, or architecture work.",
-      "agent": "plan"
-    },
-    "review": {
-      "description": "Review the current change for concrete defects and missing tests.",
-      "template": "Review this change for correctness, regressions, security, and missing tests: $ARGUMENTS\n\nInspect the actual diff and relevant callers. Report only evidence-backed findings with exact paths and severity. Do not edit files.",
-      "agent": "review"
-    },
-    "verify": {
-      "description": "Verify the changed behavior with the cheapest applicable checks.",
-      "template": "Verify the requested outcome and current diff: $ARGUMENTS\n\nInspect what changed, run affected type/lint/tests, and use browser/Android/API checks only when the changed surface requires them. Report PASS, FAIL, NOT_CONFIGURED, or SKIPPED with exact commands and observed evidence. Do not edit files.",
-      "agent": "review"
-    },
-    "handoff": {
-      "description": "Write a concise handoff for continuing work in a fresh session.",
-      "template": "Prepare a concise handoff for: $ARGUMENTS\n\nInclude objective, verified facts, changed paths, commands and results, blockers, risks, and the next safe action. Write .ai/handoff.md only when a handoff is actually needed. Exclude secrets and narration.",
+    "ui": {
+      "description": "Implement a focused UI change using the project UI contract.",
+      "template": "Handle this UI outcome: $ARGUMENTS\n\nFor native mobile work, use building-native-ui and mobile-design; apply anti-ui-slop and emil-design-eng where useful. If this is NoxOrigin mobile work, first read /home/namik/Documents/code/dotfiles/ai/system/NOXORIGIN_SYSTEM.md. Use v0 or VP0 MCP only when their design/generation workflows materially help, then adapt results to the repository's actual stack and components. Inspect existing screens, states, tokens, and owner components; make the smallest coherent change; verify on the affected native target where available; report untested targets explicitly.",
       "agent": "build"
     },
     "capture-eval": {
@@ -211,352 +149,91 @@
       "agent": "build"
     }
   },
-  "plugin": [
-    [
-      "@dahuangggg/opencode-headroom@0.3.2",
-      {
-        "engine": "native",
-        "profile": "coding"
+  "plugins": [
+    {
+      "package": "/home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools",
+      "options": {
+        "socketName": "nox",
+        "sharedSessions": ["nox"]
       }
-    ],
-    "opencode-beads@0.8.0",
-    "@andrewhampton/opencode-handoff@0.2.0",
-    "@nick-vi/opencode-type-inject",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/tmux-tools.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/strip-reasoning-history.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/linux-notify.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/post-edit-diagnostics.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/pre-shell-safety.js",
-    "file:///home/namik/Documents/code/dotfiles/configs/opencode/plugins/pre-edit-safety.js"
+    },
+    "/home/namik/Documents/code/dotfiles/configs/opencode/plugins/safety-guards"
   ],
-  "tool_output": {
-    "max_lines": 1000,
-    "max_bytes": 65536
-  },
-  "compaction": {
-    "auto": true,
-    "prune": false,
-    "tail_turns": 3,
-    "preserve_recent_tokens": 12000,
-    "reserved": 16000
-  },
+  "tool_output": {"max_lines": 500, "max_bytes": 32768},
+  "compaction": {"auto": true, "keep": {"tokens": 12000}, "buffer": 24000},
   "agent": {
+    "general": {"disable": true},
     "build": {
-      "description": "Primary coding foreman. Understand, implement, delegate selectively, verify, and finish.",
+      "description": "Primary M2.7 implementation agent with all configured tools and skills, including native mobile UI design tools.",
       "mode": "primary",
-      "model": "minimax-coding-plan/MiniMax-M3",
-      "temperature": 0.1,
-      "top_p": 0.95,
-      "steps": 220,
+      "model": "minimax-coding-plan/MiniMax-M2.7",
+      "steps": 250,
       "color": "primary",
       "permission": {
-        "edit": "allow",
-        "task": {
-          "*": "deny",
-          "explore": "allow",
-          "general": "allow",
-          "worker": "allow",
-          "worker-m3": "allow",
-          "worker-m27": "allow",
-          "worker-m25": "allow",
-          "worker-m25-fast": "allow",
-          "worker-m21": "allow",
-          "review": "allow",
-          "expert": "allow",
-          "web-verifier": "allow",
-          "android-verifier": "allow",
-          "api-verifier": "allow"
-        },
-        "todowrite": "allow",
-        "bash": {
-          "*": "allow",
-          "git commit *": "ask",
-          "git push*": "deny",
-          "git reset*": "deny",
-          "git clean*": "deny",
-          "git checkout*": "deny",
-          "git restore*": "deny",
-          "git rebase*": "deny",
-          "git stash*": "deny",
-          "ssh*": "deny",
-          "sudo*": "deny"
-        },
-        "worktree_create": "allow",
-        "worktree_workspace_create": "allow",
-        "worktree_delete": "deny"
+        "question": "allow",
+        "plan_enter": "allow",
+        "plan_exit": "allow",
+        "doom_loop": "allow",
+        "read": {"*": "allow", "*.env": "deny", "*.env.*": "deny", "*.env.example": "allow"},
+        "skill": "allow",
+        "subagent": {"*": "deny", "explore-m2.7": "allow", "explore-m2.5": "allow", "worker-m2.7": "allow", "worker-m3": "allow", "worker-luna": "allow"}
       },
-      "prompt": "You are the primary coding agent. Your job is to finish the user's requested outcome, not merely propose work.\n\nUNDERSTAND\n- Read AGENTS.md and the smallest relevant repository surface.\n- Resolve uncertainty from code before asking the user.\n\nWORK\n- Implement directly by default. Keep changes focused and consistent with repository architecture.\n\nDELEGATE SELECTIVELY\n- Use a child only for parallel repository research, a large independent implementation, independent review, runtime verification, or expertise you genuinely lack.\n- Available roles: explore, general, worker, review, expert, web-verifier, android-verifier, api-verifier. Choose one model variant; do not fan out trivial work.\n- Run at most two independent children by default. Reuse a specialist's task_id for follow-up review or clarification instead of spawning another instance. Use short TASK, SCOPE, CONTEXT, RETURN prompts; prose is enough, JSON is not required.\n\nSTATE\n- Small tasks (fewer than five files or roughly 30 minutes) need no .ai files.\n- Medium tasks keep the plan in conversation.\n- Large, multi-session, migration, or architecture work may use .ai/plan.md and .ai/state.md as bounded checkpoints, not a diary.\n\nVERIFY\n- Inspect the complete diff and changed callers.\n- Run the cheapest relevant type, lint, test, build, or runtime check; run broader and browser/device checks only when the changed surface warrants them.\n- Repair failures and rerun. Never claim a command passed unless you observed it.\n\nCONTINUE\n- Keep working through investigation, delegation, implementation, and verification until the outcome is working or a genuine external blocker remains. Never commit or push without user approval. Preserve unrelated changes and never use SSH or sudo."
+      "prompt": "Finish the requested outcome. Use any configured tool or skill that materially helps. Work directly by default; spawn one explicit explorer or model worker only for a substantial independent slice. Preserve unrelated work, inspect the final diff, run risk-appropriate validation, and never claim unobserved proof."
     },
     "plan": {
-      "description": "Read-only planning agent for focused repository plans.",
+      "description": "Read-only M2.7 planning mode with the full skill catalog and inspection tools.",
       "mode": "primary",
-      "model": "minimax-coding-plan/MiniMax-M3",
-      "temperature": 0.1,
-      "steps": 80,
+      "model": "minimax-coding-plan/MiniMax-M2.7",
+      "steps": 120,
       "color": "info",
-      "permission": {
-        "edit": "deny",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "ssh *": "deny",
-          "ssh": "deny"
-        }
-      },
-      "prompt": "Produce a concise implementation plan grounded in repository evidence. Read AGENTS.md, inspect the smallest relevant surface, trace callers/contracts/tests, and state acceptance criteria, risks, non-goals, and verification. Keep ordinary plans in the response; write .ai/plan.md only when the task is large or multi-session. Do not edit source, delegate, use SSH, or invent repository facts."
+      "permission": {"edit": "deny", "skill": "allow", "subagent": "deny"},
+      "prompt": "Produce a concise implementation plan grounded in repository evidence. Use any relevant configured skill or inspection tool. Name owners, acceptance criteria, risks, non-goals, and proportional validation. Do not edit or delegate."
     },
-    "explore": {
-      "description": "Cheap read-only repository and web exploration using MiniMax M2.7.",
+    "explore-m2.7": {
+      "description": "MiniMax M2.7 explorer for difficult repository investigation.",
       "mode": "subagent",
       "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 35,
+      "steps": 60,
       "color": "info",
-      "permission": {
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow",
-        "list": "allow",
-        "lsp": "allow",
-        "webfetch": "allow",
-        "websearch": "allow",
-        "skill": "deny",
-        "edit": "deny",
-        "task": "deny",
-        "bash": "deny"
-      },
-      "prompt": "Map only the smallest repository surface needed for the assigned question. Find entry points, relevant symbols, callers, contracts, tests, and uncertainty. Do not implement or wander into unrelated areas. Return concise prose with exact paths."
+      "permission": {"edit": "deny", "skill": "allow", "subagent": "deny"},
+      "prompt": "Answer one bounded repository question. Inspect only relevant files, callers, tests, and history. Do not modify files or launch children. Return concise findings with file:line evidence, uncertainty, and the next useful action."
     },
-    "general": {
-      "description": "General-purpose MiniMax subagent; inherits the selected session model.",
+    "explore-m2.5": {
+      "description": "Cheaper MiniMax M2.5 explorer for straightforward repository search and mapping.",
       "mode": "subagent",
-      "steps": 80,
-      "color": "primary",
-      "permission": {
-        "edit": "allow",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "git push*": "deny",
-          "git reset*": "deny",
-          "git clean*": "deny",
-          "git checkout*": "deny",
-          "git restore*": "deny",
-          "git rebase*": "deny",
-          "ssh*": "deny",
-          "sudo*": "deny"
-        }
-      },
-      "prompt": "Complete the bounded task. Read repository instructions, work only within the stated scope, inspect your diff, run relevant checks, and report changed paths, observed verification, and remaining uncertainty. Do not commit, push, use SSH, or launch children."
+      "model": "minimax-coding-plan/MiniMax-M2.5",
+      "steps": 50,
+      "color": "info",
+      "permission": {"edit": "deny", "skill": "allow", "subagent": "deny"},
+      "prompt": "Answer one narrow repository question. Use targeted search and relevant files only. Do not modify files or launch children. Return concise findings with file:line evidence and uncertainty."
     },
-    "worker": {
-      "description": "Default isolated implementation worker using MiniMax M2.7.",
+    "worker-m2.7": {
+      "description": "MiniMax M2.7 implementation worker.",
       "mode": "subagent",
       "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 90,
+      "steps": 200,
       "color": "primary",
-      "permission": {
-        "edit": "allow",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "git push*": "deny",
-          "ssh*": "deny",
-          "sudo*": "deny"
-        }
-      },
-      "prompt": "Implement only the bounded task. Inspect instructions, keep the diff focused, run the cheapest relevant checks, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."
+      "permission": {"skill": "allow", "subagent": "deny"},
+      "prompt": "Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
     },
     "worker-m3": {
-      "description": "Isolated implementation worker using MiniMax M3.",
+      "description": "MiniMax M3 implementation worker for larger or harder bounded tasks.",
       "mode": "subagent",
       "model": "minimax-coding-plan/MiniMax-M3",
-      "steps": 130,
-      "color": "primary",
-      "permission": {
-        "edit": "allow",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "git push*": "deny",
-          "ssh*": "deny",
-          "sudo*": "deny"
-        }
-      },
-      "prompt": "Implement the bounded task. Keep scope focused, inspect the diff, run relevant checks, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."
-    },
-    "worker-m27": {
-      "description": "Isolated implementation worker using MiniMax M2.7.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 130,
-      "color": "primary",
-      "permission": {
-        "edit": "allow",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "git push*": "deny",
-          "ssh*": "deny",
-          "sudo*": "deny"
-        }
-      },
-      "prompt": "Implement the bounded task from repository evidence. Keep scope focused, verify the changed surface, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."
-    },
-    "worker-m25": {
-      "description": "Isolated implementation worker using MiniMax M2.5.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.5",
-      "steps": 110,
-      "color": "primary",
-      "permission": {
-        "edit": "allow",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "git push*": "deny",
-          "ssh*": "deny",
-          "sudo*": "deny"
-        }
-      },
-      "prompt": "Implement the bounded task. Keep changes minimal, inspect the diff, run relevant checks, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."
-    },
-    "worker-m25-fast": {
-      "description": "Isolated implementation worker using MiniMax M2.5.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.5",
-      "steps": 90,
-      "color": "primary",
-      "permission": {
-        "edit": "allow",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "git push*": "deny",
-          "ssh*": "deny",
-          "sudo*": "deny"
-        }
-      },
-      "prompt": "Implement the bounded task quickly and minimally. Verify the changed surface and report exact paths and observed results. Do not commit, push, use SSH, or launch children."
-    },
-    "worker-m21": {
-      "description": "Isolated implementation worker using MiniMax M2.1.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.1",
-      "steps": 90,
-      "color": "primary",
-      "permission": {
-        "edit": "allow",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "git push*": "deny",
-          "ssh*": "deny",
-          "sudo*": "deny"
-        }
-      },
-      "prompt": "Implement the bounded task. Keep changes minimal, verify the changed surface, and report exact paths and observed results. Do not commit, push, use SSH, or launch children."
-    },
-    "review": {
-      "description": "Independent read-only review using GPT-5.6 Luna.",
-      "mode": "subagent",
-      "model": "openai/gpt-5.6-luna",
-      "steps": 55,
+      "steps": 220,
       "color": "warning",
-      "permission": {
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow",
-        "list": "allow",
-        "lsp": "allow",
-        "edit": "deny",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "ssh*": "deny"
-        }
-      },
-      "prompt": "Review the requested outcome and actual diff independently. Look for concrete defects, missing callers/tests, regressions, and security or contract issues. Report only evidence-backed findings with exact paths and severity. Do not edit files."
+      "permission": {"skill": "allow", "subagent": "deny"},
+      "prompt": "Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
     },
-    "expert": {
-      "description": "GPT-5.6 Luna for hard architecture, debugging, or high-risk decisions.",
+    "worker-luna": {
+      "description": "GPT-5.6 Luna implementation worker for difficult bounded tasks.",
       "mode": "subagent",
       "model": "openai/gpt-5.6-luna",
-      "steps": 50,
+      "variant": "medium",
+      "steps": 160,
       "color": "error",
-      "permission": {
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow",
-        "list": "allow",
-        "lsp": "allow",
-        "edit": "deny",
-        "task": "deny",
-        "bash": {
-          "*": "allow",
-          "ssh*": "deny"
-        }
-      },
-      "prompt": "Give a concise technical decision for the bounded architecture or debugging question. Inspect only the relevant repository surface, state the evidence, recommend the smallest safe approach, and call out uncertainty. Do not edit, commit, push, or launch children."
-    },
-    "web-verifier": {
-      "description": "Read-only web verification when browser evidence is required.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 55,
-      "color": "success",
-      "permission": {
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow",
-        "list": "allow",
-        "bash": {
-          "*": "allow",
-          "ssh*": "deny"
-        },
-        "edit": "deny",
-        "task": "deny"
-      },
-      "prompt": "Verify only the requested web behavior. Run focused deterministic checks first; use browser MCP only if enabled and needed. Report VERIFIED, FAILED, NOT TESTED, and RISKS with exact actions and observed evidence. Do not edit files."
-    },
-    "android-verifier": {
-      "description": "Read-only Android verification when device-bound behavior changed.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 55,
-      "color": "success",
-      "permission": {
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow",
-        "list": "allow",
-        "bash": {
-          "*": "allow",
-          "ssh*": "deny"
-        },
-        "edit": "deny",
-        "task": "deny"
-      },
-      "prompt": "Verify only the requested Android behavior. Start with host-side tests and use ADB/Maestro only for device-bound evidence. Report PASS, FAIL, NOT_CONFIGURED, or SKIPPED with exact commands and observed evidence. Do not edit files."
-    },
-    "api-verifier": {
-      "description": "Read-only API and contract verification when an API surface changed.",
-      "mode": "subagent",
-      "model": "minimax-coding-plan/MiniMax-M2.7",
-      "steps": 55,
-      "color": "success",
-      "permission": {
-        "read": "allow",
-        "glob": "allow",
-        "grep": "allow",
-        "list": "allow",
-        "bash": {
-          "*": "allow",
-          "ssh*": "deny"
-        },
-        "edit": "deny",
-        "task": "deny"
-      },
-      "prompt": "Verify only the requested API behavior. Run configured unit, integration, database, authorization, and contract checks. Report PASS, FAIL, NOT_CONFIGURED, or SKIPPED with exact commands and observed evidence. Do not edit files."
+      "permission": {"skill": "allow", "subagent": "deny"},
+      "prompt": "Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
     }
   }
 }

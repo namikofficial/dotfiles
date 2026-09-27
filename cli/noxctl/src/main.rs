@@ -232,6 +232,7 @@ enum BluetoothCommand {
     Status,
     Power { action: BluetoothPower },
     Discover { action: DiscoverAction },
+    Pair { address: String },
     Connect { address: String },
     Disconnect { address: String },
     Trust { address: String },
@@ -1088,6 +1089,9 @@ fn execute(cli: Cli) -> Result<(), CliError> {
                 },
                 BluetoothCommand::Discover { action } => Action::BluetoothSetDiscovering {
                     discovering: matches!(action, DiscoverAction::Start),
+                },
+                BluetoothCommand::Pair { address } => Action::BluetoothPair {
+                    device_id: validate_address(&address)?,
                 },
                 BluetoothCommand::Connect { address } => Action::BluetoothConnect {
                     device_id: validate_address(&address)?,

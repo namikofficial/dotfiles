@@ -1,0 +1,13 @@
+{
+  "enabledProviders": "auto",
+  "requestTimeoutMs": 15000,
+  "formatStyle": "allWindows",
+  "percentDisplayMode": "remaining",
+  "tuiCommandDisplay": "inline",
+  "enableToast": false,
+  "showSessionTokens": false,
+  "sessionTokenScope": "current",
+  "tuiSidebarPanel": {"enabled": true},
+  "tuiCompactStatus": {"enabled": true},
+  "maintainerAnnouncements": {"enabled": true, "home": true}
+}

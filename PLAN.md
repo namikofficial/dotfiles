@@ -1,5 +1,8 @@
 # NoxFlow Refactor Plan — "One Surface, Many Shapes"
 
+> Historical design notes from 2026-07-28. This file is not an execution
+> plan; use [`docs/ROADMAP.md`](docs/ROADMAP.md) for current unfinished work.
+
 **Branch:** `inspired-rewrite` · **Date:** 2026-07-28 · **Supersedes:** the steal-table in `session-ses_05bd.md` prompt
 **Reviewed by:** zen-deep-reviewer, zen-long-context, zen-general-mimo, zen-general-big-pickle (round 1) · **Revised by:** zen-general-mimo + 2× zen-vision-context (round 2 — 10 revisions folded in below)
 

@@ -17,11 +17,11 @@
 
 3. Triggers sync:
 - lockscreen wallpaper sync
-- palette extraction from current wallpaper
+- deterministic `nox-theme.py` compilation from wallpaper bytes
 - runtime color files for Rofi/Kitty/Hyprlock
 - unified palette contract for wlogout, SDDM, clipboard, scratchpad, and Wayle
 - GTK3/GTK4 override CSS generation
-- VSCode dynamic workbench color update
+- generated adapters only; user-owned VS Code settings are not rewritten
 
 ## Runtime color files
 
@@ -33,11 +33,17 @@ Generated under `~/.cache/hypr/`:
 - `theme-palette.json`
 - `theme-palette.env`
 - `theme-colors-sddm.js`
+- `theme-colors-tmux.conf`
+- `theme-nvim.lua`
+- `noxflow-vscode-color-theme.json`
 
-The canonical palette exposes `bg`, `surface`, `surface_alt`, `text`,
-`muted`, `accent`, `accent_soft`, `danger`, and `success`. Compatibility
-aliases such as `bg_soft`, `accent2`, and `warn` remain available to older
-hooks.
+The canonical palette is versioned as `nox-theme-schema-v1` and records the
+wallpaper SHA-256, selected scheme, deterministic selection explanation,
+adaptive surface effects, motion metadata, and a contrast validation report.
+Compatibility aliases such as `bg`, `surface`, `surface_alt`, `text`, `muted`,
+`accent`, `accent_soft`, `danger`, `success`, `bg_soft`, `accent2`, and `warn`
+remain available to existing adapters. `hypr/scripts/nox-theme.py` is the
+single palette owner; `theme-sync.sh` only renders compatibility adapters.
 
 ## App Hook Layer
 
@@ -108,12 +114,16 @@ Core UI consumers also read the generated palette directly:
 - GTK overrides are written to:
   - `~/.config/gtk-3.0/gtk.css`
   - `~/.config/gtk-4.0/gtk.css`
-- VSCode colors are merged into:
-  - `~/.config/Code/User/settings.json`
-- Optional external integrations (auto-run only if installed):
-  - `wal` (pywal)
-  - `matugen`
-  - `pywalfox update` (Firefox)
+- VS Code settings are never mutated by the wallpaper pipeline.
+- `wal`, `matugen`, and `pywalfox` are not co-run with NoxFlow's compiler;
+  integrations must consume the canonical JSON as explicit adapters.
+- tmux loads `~/.cache/hypr/theme-colors-tmux.conf` after its structural config.
+- Neovim loads `~/.cache/hypr/theme-nvim.lua` from its small core module and
+  reapplies highlights after colorscheme changes/focus events.
+- VS Code receives an isolated generated extension at
+  `~/.vscode/extensions/noxflow.dynamic-theme-0.0.1`; select **NoxFlow Dynamic**
+  once from the Color Theme picker. The wallpaper pipeline never rewrites
+  `settings.json`.
 - Discord/Vesktop dynamic theming is applied when the client theme directories are available.
 - PrismLauncher uses `ApplicationTheme=system` in `~/.local/share/PrismLauncher/prismlauncher.cfg`; it follows the system/Qt theme rather than panel CSS.
 - If you want absolutely no visual transition artifacts, set:

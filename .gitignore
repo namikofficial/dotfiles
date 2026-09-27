@@ -7,6 +7,7 @@ __pycache__/
 settings/state.local.json
 settings/export/
 *.bak.*
+nvim.log
 
 # RAG runtime artifacts (keep durable notes like .agent/memory.md tracked if desired)
 .agent/archive/
@@ -42,7 +43,9 @@ configs/opencode/agent-lab/datasets/golden/**/repo_snapshot/
 # config/, theme/, and systemd/ and must remain tracked.
 .noxflow/
 noxflow.local.toml
+theme-policy.toml
 noxflow-*.log
+hypr/rofi/theme-colors-*.rasi
 
 # Calendar sync (Waylandar-style): OAuth tokens, credentials, config, cache
 external/waylandar-backend/config.json

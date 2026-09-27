@@ -4,12 +4,13 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  mcp-profile env {minimal|dev|notes|mobile}
+  mcp-profile env {minimal|dev|web|notes|mobile}
   mcp-profile status
   mcp-profile stop PID...
   mcp-profile verify-codegraph
 
-Use the environment form with:
+CodeGraph is available in every profile. Other servers remain explicitly
+scoped. Use the environment form with:
   eval "$(mcp-profile env dev)"
 EOF
 }
@@ -18,7 +19,7 @@ case "${1:-}" in
   env)
     profile="${2:-}"
     case "$profile" in
-      minimal | dev | notes | mobile)
+      minimal | dev | web | notes | mobile)
         printf 'export NOXFLOW_MCP_PROFILE=%q\n' "$profile"
         ;;
       *)
@@ -49,7 +50,7 @@ case "${1:-}" in
     output="$(NOXFLOW_MCP_PROFILE=dev timeout 45s opencode mcp list --pure 2>&1 || true)"
     clean_output="$(printf '%s\n' "$output" | sed $'s/\033\\[[0-9;]*m//g')"
     failed=0
-    for server in codegraph local-docs browser obsidian; do
+    for server in codegraph; do
       if printf '%s\n' "$clean_output" | awk -v server="$server" '$0 ~ server && $0 ~ /connected/ { found=1 } END { exit(found ? 0 : 1) }'; then
         printf '%s: connected\n' "$server"
       else

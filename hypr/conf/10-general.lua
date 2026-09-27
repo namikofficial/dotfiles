@@ -2,25 +2,22 @@ local ctx = assert(NOX_HYPR, "NOX_HYPR context missing")
 
 hl.config({
   general = {
-    gaps_in = 4,
-    gaps_out = 8,
-    border_size = 2,
+    gaps_in = 6,
+    gaps_out = 12,
+    border_size = 1,
     resize_on_border = false,
     allow_tearing = false,
     layout = "dwindle",
     col = {
-      active_border = {
-        colors = { "rgba(00e5ffff)", "rgba(ff3cacff)" },
-        angle = 45,
-      },
-      inactive_border = "rgba(40205fcc)",
+      active_border = "rgba(d6a083dd)",
+      inactive_border = "rgba(4a3d4966)",
     },
   },
   decoration = {
-    rounding = 12,
+    rounding = 14,
     rounding_power = 2,
-    active_opacity = 0.94,
-    inactive_opacity = 0.88,
+    active_opacity = 1.0,
+    inactive_opacity = 0.96,
     dim_inactive = false,
     dim_strength = 0.04,
     shadow = {

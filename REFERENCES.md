@@ -1,14 +1,48 @@
 # Reference Repositories
 
-Pinned commits for architecture and feature inspiration. See `PLAN.md` for the steal mapping.
+Pinned commits for architecture and feature inspiration. These are references,
+not vendored dependencies. Record the studied commit and license so an idea can
+be revisited without pretending that a moving `main` branch was reviewed.
 
-## Deep Study
+## Current architecture references (studied 2026-09-16)
+
+### AvengeMedia/DankMaterialShell
+- **URL:** https://github.com/AvengeMedia/DankMaterialShell
+- **Studied commit:** `6ecdd6d45d7222509a0040fda86fbe26fc41e35c` (`master`)
+- **License:** MIT
+- **Adopt:** Modules/Services/Widgets responsibility boundaries and explicit
+  shell IPC surfaces; keep Noxd as this repository's backend.
+- **Do not copy:** provider implementations or the full shell/backend.
+
+### WerWolv/noctalia-shell
+- **URL:** https://github.com/WerWolv/noctalia-shell
+- **Studied commit:** `5dc9a2f47c72d8a388022be0fee0f6798dfa8fe4` (`main`)
+- **License:** MIT
+- **Adopt:** quiet-by-default presentation and dedicated semantic surfaces.
 
 ### caelestia-dots/shell
 - **URL:** https://github.com/caelestia-dots/shell
-- **Pinned:** (check latest commit)
-- **Steal:** drawer morph geometry, component/module/service split, shell IPC, morphing animation transitions
-- **Ignore:** visual identity, dependency set
+- **Studied commit:** `0f1435a2f5f0c6ad25a2858f282eee1a0453d8b0` (`main`)
+- **License:** GPL-3.0
+- **Adopt:** fluid geometry transitions and module boundaries as inspiration;
+  no source is copied into this repository.
+
+### material-foundation/material-color-utilities
+- **URL:** https://github.com/material-foundation/material-color-utilities
+- **Studied commit:** `5b3618b16fdc3825e21d5679bafd144662088ea1` (`main`)
+- **License:** Apache-2.0
+- **Adopt:** future HCT/Material dynamic-scheme adapter boundary. The current
+  compiler keeps a Pillow-only deterministic fallback until the dependency is
+  deliberately packaged.
+
+### InioX/matugen
+- **URL:** https://github.com/InioX/matugen
+- **Studied commit:** `519e4a4bffdc78adbdc65f7882ce999d99a074c7` (`main`)
+- **License:** GPL-2.0
+- **Adopt:** template-oriented adapter concept only; it is not automatically
+  co-run with `nox-theme.py`.
+
+## Deep Study
 
 ### caelestia-dots/caelestia
 - **URL:** https://github.com/caelestia-dots/caelestia
@@ -46,10 +80,6 @@ Pinned commits for architecture and feature inspiration. See `PLAN.md` for the s
 - **Steal:** navbar, calendar inspiration, non-invasive shell layered over compositor config
 
 ## Deferred (visual/mood-board only)
-
-### AvengeMedia/DankMaterialShell
-- **URL:** https://github.com/AvengeMedia/DankMaterialShell
-- **Note:** Defer full provider/plugin architecture until noxd hits a ceiling
 
 ### adi-chan/monochrome-os
 - **URL:** https://github.com/adi-chan/monochrome-os

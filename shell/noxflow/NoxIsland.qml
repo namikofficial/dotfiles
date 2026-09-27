@@ -6,10 +6,12 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import "theme" as Theme
 import "HoverEngagement.js" as HoverEngagement
 import "surfaces/calendar" as CalendarSurface
+import "surfaces/island" as IslandSurface
 
 Item {
     id: root
@@ -29,6 +31,7 @@ Item {
     required property var transfer
     required property var syncthing
     required property var updates
+    required property var activityController
 
     // ── State machine ──
     readonly property var states: [
@@ -50,22 +53,19 @@ Item {
     // HoverEngagement.js for the pure transition logic and generation
     // guards used here.
     property var engagement: HoverEngagement.newState()
-    property int transitGraceMs: HoverEngagement.TRANSIT_GRACE_MS
+    property int transitGraceMs: Theme.Tokens.islandTransitGrace
     property var activeTransitToken: ({ generation: -1, deadline: 0 })
     property bool pointerInside: engagement.islandHovered
     property bool islandPinned: engagement.pin.active
     readonly property bool hoverEngaged: HoverEngagement.isEngaged(engagement)
     readonly property string effectiveEngagementKind: HoverEngagement.effectiveKind(engagement)
 
-    // ── Manual context mode ──
-    // When user scrolls the island or clicks a context, we lock to that
-    // context and auto-return to "idle" after 10 seconds.
-    property bool manualMode: false
-    property string manualContext: "idle"
-
     // ── Panel yield ──
     property bool panelOpen: false
     property bool calendarExpanded: false
+    // Keep the legacy inline calendar in the top-chrome input mask while it
+    // is available, so its close button receives pointer events.
+    readonly property alias calendarInputRegionItem: inlineCalendarHost
     property bool launcherOpen: false
     property bool launcherClosing: false
     property bool launcherWasVisible: false
@@ -109,6 +109,10 @@ Item {
     property string aiCompletionText: ""
     property string buildResultText: ""
     property int buildResultStatus: 0
+    property bool dashboardStatusVisible: false
+    property string dashboardStatusText: ""
+    property real dashboardStatusValue: 0
+    property real dashboardStatusMaximum: 1
     property int displayPercent: Math.round(activityMaximum > 0 ? (activityValue / activityMaximum * 100) : activityValue)
 
     property int lastOutputVolume: audio.outputVolume
@@ -125,12 +129,12 @@ Item {
         if (guardsSeeded || (audio.hasSynced && brightness.hasSynced)) guardsSeeded = true;
     }
 
-    // ── Priority queue ──
-    property var queue: []
+    // The shell-level ActivityController owns arbitration and queueing. The
+    // host keeps only the activity it is currently rendering.
     property string currentKind: "idle"
     property int currentPriority: 0
     property double currentStarted: 0
-    property var lastEventKeys: ({})
+    property string currentActivityId: ""
 
     readonly property int priTimer: 9
     readonly property int priRecording: 9
@@ -146,33 +150,44 @@ Item {
     readonly property int priOutputMute: 4
     readonly property int priInputMute: 4
 
-    // ── Context priority list for manual cycling ──
-    // Order determines which context wins in auto mode.
-    readonly property var contextPriorityList: ["focused-app", "updates", "network", "battery", "clock"]
-
     // ── Geometry ──
-    implicitHeight: launcherVisible ? Theme.Tokens.scaled(520)
-        : calendarExpanded ? Theme.Tokens.scaled(650)
-        : dashboardVisible ? Theme.Tokens.scaled(226)
+    readonly property real launcherHeight: screen ? Math.min(screen.height - Theme.Tokens.scaled(24), Theme.Tokens.scaled(Theme.Tokens.islandLauncherHeight)) : Theme.Tokens.scaled(Theme.Tokens.islandLauncherHeight)
+    readonly property real calendarHeight: screen ? Math.min(screen.height - Theme.Tokens.scaled(24), Theme.Tokens.scaled(650)) : Theme.Tokens.scaled(650)
+    implicitHeight: launcherVisible ? root.launcherHeight
+        : calendarExpanded ? root.calendarHeight
+        : dashboardVisible ? Math.min(screen ? screen.height - Theme.Tokens.scaled(Theme.Tokens.heightToolbar + 24) : Theme.Tokens.scaled(520), dashboardContent.implicitHeight + Theme.Tokens.scaled(32))
         : visualExpanded ? Theme.Tokens.scaled(76)
-        : Theme.Tokens.scaled(38)
+        : Theme.Tokens.scaled(Theme.Tokens.islandIdleHeight)
 
-    readonly property real pillW: Theme.Tokens.scaled(150)
-    readonly property real expandW: screen ? Math.min(screen.width * 0.42, Theme.Tokens.scaled(450)) : Theme.Tokens.scaled(450)
+    readonly property real pillW: Theme.Tokens.scaled(Theme.Tokens.islandIdleWidth)
+    readonly property real expandW: screen ? Math.min(screen.width - Theme.Tokens.scaled(24), Theme.Tokens.scaled(Theme.Tokens.islandDashboardMaxWidth)) : Theme.Tokens.scaled(Theme.Tokens.islandDashboardMaxWidth)
 
-    Behavior on implicitHeight { enabled: !root.reducedMotion; NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
+    Behavior on implicitHeight { enabled: !root.reducedMotion; NumberAnimation { duration: Theme.Tokens.islandExpandDuration; easing.type: Easing.OutCubic } }
 
     focus: launcherVisible || islandPinned || root.engagement.critical.active || root.engagement.osd.active || root.calendarExpanded || root.hoverEngaged
-    activeFocusOnTab: launcherVisible || islandPinned
+    activeFocusOnTab: true
+    Keys.onReturnPressed: function(event) {
+        if (root.launcherVisible || root.calendarExpanded) return;
+        if (root.islandState === "idle") root.openInlineCalendar();
+        else if (!root.dashboardVisible) root.openPanelFromIsland();
+        event.accepted = true;
+    }
+    Keys.onSpacePressed: function(event) {
+        if (root.launcherVisible || root.calendarExpanded) return;
+        if (root.islandState === "idle") root.openInlineCalendar();
+        else if (!root.dashboardVisible) root.openPanelFromIsland();
+        event.accepted = true;
+    }
     Keys.onEscapePressed: function(event) {
         if (root.launcherVisible) { root.closeLauncher(); event.accepted = true; return; }
-        if (root.calendarExpanded) { root.calendarExpanded = false; inlineCalendar.close(); event.accepted = true; return; }
+        if (root.calendarExpanded) { root.closeInlineCalendar(); event.accepted = true; return; }
         if (root.islandPinned) { root.pinRelease(); event.accepted = true; return; }
         if (root.engagement.critical.active) { return; }
         if (root.hoverEngaged) {
             // Engagement is transient — release the hover-driven source so
             // the island goes idle, but don't disturb routine OSD.
             engagement = HoverEngagement.clearSourceHover(engagement);
+            activityController.dismissDashboard();
             root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
             pointerGraceTimer.stop();
             root.maybeRetireAfterPinRelease();
@@ -195,34 +210,20 @@ Item {
 
     // ── Queue ──
     function enqueue(kind, label, icon, value, maximum, priority, timeout) {
-        var key = kind + "::" + label;
-        var now = Date.now();
-        if (lastEventKeys[key] && (now - lastEventKeys[key]) < 300) return;
-        lastEventKeys[key] = now;
-        queue = queue.filter(function(e) { return e.kind !== kind; });
-        queue.unshift({ kind: kind, label: label, icon: icon, value: value, maximum: maximum, priority: priority, timeout: timeout, timestamp: now });
-        queue.sort(function(a, b) { return b.priority - a.priority; });
-        // Critical interruptions (battery-warning, network-warning, recording,
-        // timer) temporarily replace any pin and remember it for restore.
-        // Routine OSD (volume, brightness, mute, …) only updates the
-        // transient osd slot and never disturbs the pin.
-        if (HoverEngagement.CRITICAL_KINDS.indexOf(kind) >= 0) {
-            engagement = HoverEngagement.enterCritical(engagement, kind);
-        } else if (HoverEngagement.OSD_KINDS.indexOf(kind) >= 0) {
-            engagement = HoverEngagement.enterOsd(engagement, kind, timeout);
-        }
-        processQueue();
-    }
-
-    function processQueue() {
-        if (queue.length === 0) {
-            if (currentKind !== "idle") { hideTimer.interval = 500; hideTimer.restart(); }
-            return;
-        }
-        var top = queue[0];
-        if (top.priority < currentPriority && top.kind !== currentKind && currentKind !== "idle") return;
-        queue.shift();
-        display(top);
+        activityController.submitActivity({
+            id: kind + "::" + label + "::" + Date.now(),
+            kind: kind,
+            severity: HoverEngagement.CRITICAL_KINDS.indexOf(kind) >= 0 ? "critical" : "info",
+            priority: priority,
+            title: label,
+            detail: activityDetail,
+            value: value,
+            maximum: maximum,
+            timeoutMs: timeout,
+            targetPanel: panelForActivityKind(kind) ? panelForActivityKind(kind).panel : "",
+            targetSection: panelForActivityKind(kind) ? panelForActivityKind(kind).section : "",
+            monitor: ""
+        });
     }
 
     function shouldExpand(kind) {
@@ -231,18 +232,19 @@ Item {
 
     function display(entry) {
         if (root.panelOpen) return;
+        currentActivityId = entry.id || "";
         currentKind = entry.kind;
         currentPriority = entry.priority;
         currentStarted = Date.now();
         islandState = entry.kind;
-        activityLabel = entry.label;
-        activityIcon = entry.icon;
+        activityLabel = entry.title || entry.label || entry.kind;
+        activityIcon = entry.icon || iconForState(entry.kind);
         activityValue = Math.max(0, entry.value);
         activityMaximum = Math.max(1, entry.maximum);
         expanded = shouldExpand(entry.kind);
         rendered = true;
         hideTimer.stop();
-        hideTimer.interval = entry.timeout;
+        hideTimer.interval = entry.timeoutMs || entry.timeout || 2000;
         hideTimer.restart();
     }
 
@@ -252,6 +254,8 @@ Item {
         currentKind = "idle";
         currentPriority = 0;
         currentStarted = 0;
+        var finishedId = currentActivityId;
+        currentActivityId = "";
         // Clear any OSD/critical engagement so the island can re-engage from
         // a clean baseline. Pin/critical restore happens via HoverEngagement.
         if (engagement.critical.active) {
@@ -262,7 +266,7 @@ Item {
         }
         root.restoreEngagementContext();
         root.seedGuards();
-        processQueue();
+        activityController.finishActivity(finishedId);
     }
 
     function restoreEngagementContext() {
@@ -274,66 +278,6 @@ Item {
         }
         islandState = "idle";
         hoverExpanded = false;
-    }
-
-    // ── Manual context mode ──
-    // Users scrolls wheel on island -> lock to that context for 10s -> auto-return.
-    property int manualModeTimeout: 10000
-
-    function cycleContextUp() {
-        if (root.islandState === "idle" || root.manualMode) {
-            var list = contextPriorityList;
-            var current = manualMode ? manualContext : "clock";
-            var idx = list.indexOf(current);
-            var next = list[(idx - 1 + list.length) % list.length];
-            enterManualMode(next);
-        }
-    }
-
-    function cycleContextDown() {
-        if (root.islandState === "idle" || root.manualMode) {
-            var list = contextPriorityList;
-            var current = manualMode ? manualContext : "clock";
-            var idx = list.indexOf(current);
-            var next = list[(idx + 1) % list.length];
-            enterManualMode(next);
-        }
-    }
-
-    function enterManualMode(context) {
-        manualMode = true;
-        manualContext = context;
-        manualModeTimer.restart();
-        // Show the selected context inline
-        if (context !== "clock") {
-            islandState = context;
-        } else {
-            islandState = "idle";
-        }
-    }
-
-    function exitManualMode() {
-        manualMode = false;
-        manualContext = "idle";
-        manualModeTimer.stop();
-        islandState = "idle";
-    }
-
-    Timer {
-        id: manualModeTimer
-        interval: manualModeTimeout
-        repeat: false
-        onTriggered: exitManualMode()
-    }
-
-    // ── Auto context: highest-priority available context for idle display ──
-    function autoContext() {
-        // Priority order: recording > timer > notification > media > focused-app > updates > network > battery > clock
-        // Check in priority order which is actually "active"
-        // For now, detect from existing state:
-        if (currentKind !== "idle" && currentKind !== "clock") return currentKind;
-        if (activeApp !== "" && hyprland && hyprland.activeWindow) return "focused-app";
-        return "clock";
     }
 
     // ── Panel routing ──
@@ -369,6 +313,7 @@ Item {
             case "notification-preview": return { panel: "notifications", section: "" };
             case "sync":             return { panel: "sync", section: "" };
             case "provider-health":  return { panel: "quick-settings", section: "system" };
+            case "updates":          return { panel: "updater", section: "" };
             case "network":        return { panel: "quick-settings", section: "network" };
             case "battery":        return { panel: "quick-settings", section: "battery" };
             default:               return null;
@@ -378,14 +323,38 @@ Item {
     function openPanelFromIsland() {
         if (root.launcherVisible) return;
         if (root.islandState === "idle") {
-            root.calendarExpanded = !root.calendarExpanded;
-            if (root.calendarExpanded) inlineCalendar.open();
-            else inlineCalendar.close();
+            // The clock is the central entry point for the system controls.
+            // Keep Calendar available through its explicit panel/API routes,
+            // but make a normal time click open the same unified Control
+            // Centre used by the top-bar connectivity controls.
+            shellRoot.coordinator.toggle(
+                "quick-settings",
+                root.screen && root.screen.name ? root.screen.name : "",
+                root.islandGeometry()
+            );
             return;
         }
         var target = root.panelForIslandState();
+        if (target && target.panel === "updater") {
+            root.runSystemUpdate();
+            return;
+        }
         if (target && target.panel)
             shellRoot.coordinator.toggle(target.panel, root.screen && root.screen.name ? root.screen.name : "", root.islandGeometry(), target.section);
+    }
+
+    function closeInlineCalendar() {
+        if (!root.calendarExpanded) return;
+        root.calendarExpanded = false;
+        inlineCalendar.close();
+        activityController.closeLayer();
+    }
+
+    function openInlineCalendar() {
+        if (root.launcherVisible) root.closeLauncher();
+        root.calendarExpanded = true;
+        activityController.openLayer("calendar", root.screen && root.screen.name ? root.screen.name : "");
+        inlineCalendar.open();
     }
 
     Connections {
@@ -409,25 +378,87 @@ Item {
     // dashboard in the island. Each source's hover state is tracked
     // independently so the user can move the pointer between chips without
     // losing the island context.
-    function sourceHoverChanged(sourceKind, hovered) {
+    function sourceGeometry(sourceItem) {
+        if (!sourceItem || typeof sourceItem.mapToItem !== "function") return root.islandGeometry();
+        var point = sourceItem.mapToItem(null, 0, 0);
+        return Qt.rect(point.x, point.y, sourceItem.width || 0, sourceItem.height || 0);
+    }
+
+    function sourceHoverChanged(sourceKind, hovered, sourceItem) {
         if (HoverEngagement.SOURCE_KINDS.indexOf(sourceKind) < 0) return;
-        var next = HoverEngagement.recordSourceHover(engagement, sourceKind, hovered);
-        if (next === engagement) return;
-        engagement = next;
-        // Cancel any pending transit close: the engagement is live.
-        root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
-        pointerGraceTimer.stop();
-        if (hovered) {
-            root.adoptHoveredSource(sourceKind);
-        } else {
-            root.armTransitTimer();
+        var target = root.panelForDashboardKind(sourceKind);
+        activityController.sourceHoverChanged(
+            root.screen && root.screen.name ? root.screen.name : "",
+            sourceKind, hovered, root.sourceGeometry(sourceItem),
+            target ? target.panel : "", target ? target.section : "");
+    }
+
+    function panelForDashboardKind(kind) {
+        switch (kind) {
+            case "health": return { panel: "quick-settings", section: "system" };
+            case "connectivity": return { panel: "quick-settings", section: "network" };
+            case "audio-power": return { panel: "quick-settings", section: "volume" };
+            case "notification-preview": return { panel: "notifications", section: "" };
+            case "updates": return { panel: "updater", section: "" };
+            case "sync": return { panel: "sync", section: "" };
+            case "provider-health": return { panel: "quick-settings", section: "system" };
+            default: return null;
+        }
+    }
+
+    function panelForActivityKind(kind) {
+        switch (kind) {
+            case "media": return { panel: "media", section: "" };
+            case "notification": return { panel: "notifications", section: "" };
+            case "file-transfer": return { panel: "sync", section: "" };
+            case "timer": return { panel: "calendar", section: "" };
+            case "volume":
+            case "output-mute":
+            case "input-mute": return { panel: "quick-settings", section: "volume" };
+            case "brightness": return { panel: "quick-settings", section: "" };
+            case "battery-warning": return { panel: "quick-settings", section: "battery" };
+            case "network-warning": return { panel: "quick-settings", section: "network" };
+            default: return null;
+        }
+    }
+
+    Connections {
+        target: activityController
+        function onDashboardActivated(monitor, kind) {
+            if (!root.screen || monitor !== root.screen.name) return;
+            engagement = HoverEngagement.recordSourceHover(engagement, kind, true);
+            root.adoptHoveredSource(kind);
+        }
+        function onDashboardDismissed(monitor) {
+            if (!root.screen || monitor !== root.screen.name) return;
+            engagement = HoverEngagement.clearSourceHover(engagement);
+            if (!engagement.pin.active && !engagement.critical.active && !engagement.osd.active) {
+                root.islandState = "idle";
+                root.hoverExpanded = false;
+            }
+        }
+        function onActivityReady(monitor, activity) {
+            if (!root.screen || monitor !== root.screen.name) return;
+            if (root.islandPinned && HoverEngagement.CRITICAL_KINDS.indexOf(activity.kind) < 0) {
+                root.dashboardStatusText = activity.title;
+                root.dashboardStatusValue = activity.value;
+                root.dashboardStatusMaximum = activity.maximum;
+                root.dashboardStatusVisible = true;
+                dashboardStatusTimer.interval = activity.timeoutMs;
+                dashboardStatusTimer.restart();
+                return;
+            }
+            if (HoverEngagement.CRITICAL_KINDS.indexOf(activity.kind) >= 0)
+                engagement = HoverEngagement.enterCritical(engagement, activity.kind);
+            else
+                engagement = HoverEngagement.enterOsd(engagement, activity.kind, activity.timeoutMs);
+            root.display(activity);
         }
     }
 
     function adoptHoveredSource(sourceKind) {
         if (engagement.pin.active) return;          // pin wins
         if (engagement.critical.active) return;      // critical wins
-        if (manualMode) return;                      // manual context wins
         if (root.islandState === sourceKind) {
             hoverExpanded = true;
             return;
@@ -490,7 +521,16 @@ Item {
             inlineCalendar.open();
             return;
         }
+        var wasPinned = engagement.pin.active && engagement.pin.kind === target;
         engagement = HoverEngagement.togglePin(engagement, target);
+        if (wasPinned) activityController.unpin();
+        else {
+            var panelTarget = root.panelForDashboardKind(target);
+            activityController.pin(activityController.routeFor(
+                root.screen && root.screen.name ? root.screen.name : "", target,
+                root.islandGeometry(), panelTarget ? panelTarget.panel : "",
+                panelTarget ? panelTarget.section : ""));
+        }
         root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
         pointerGraceTimer.stop();
         if (engagement.pin.active) {
@@ -504,6 +544,7 @@ Item {
     function pinRelease() {
         if (!engagement.pin.active) return;
         engagement = HoverEngagement.releasePin(engagement);
+        activityController.unpin();
         root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
         pointerGraceTimer.stop();
         root.maybeRetireAfterPinRelease();
@@ -623,16 +664,33 @@ Item {
     Connections { target: brightness; function onHasSyncedChanged() { root.seedGuards(); } }
 
     Timer { id: hideTimer; interval: 2000; repeat: false; onTriggered: root.deactivate() }
+    Timer {
+        id: dashboardStatusTimer
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            root.dashboardStatusVisible = false;
+            activityController.finishActivity(activityController.activeActivity ? activityController.activeActivity.id : "");
+        }
+    }
     Timer { interval: 1000; repeat: true; running: true; onTriggered: { root.now = new Date(); if (root.timerActive && root.timerRemainingSeconds > 0) { root.timerRemainingSeconds--; root.activityLabel = "Timer " + root.formatTime(root.timerRemainingSeconds); if (root.timerRemainingSeconds <= 0) { root.timerActive = false; root.deactivate(); } } } }
     Timer { id: startupGuardTimer; interval: 5000; repeat: false; running: true; onTriggered: { root.seedGuards(); root.suppressStartupEvents = false; } }
+    Process {
+        id: updateProcess
+        command: ["sh", "-lc", "exec \"$HOME/.config/hypr/scripts/system-update.sh\""]
+    }
+    function runSystemUpdate() {
+        if (updateProcess.running) return;
+        updateProcess.running = true;
+    }
 
     // ── Inline calendar ──
     Item {
         id: inlineCalendarHost
         visible: root.calendarExpanded
         z: 20
-        width: Theme.Tokens.scaled(520)
-        height: Theme.Tokens.scaled(650)
+        width: Math.min(parent.width - Theme.Tokens.scaled(24), Theme.Tokens.scaled(Theme.Tokens.islandCalendarWidth))
+        height: root.calendarHeight
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: parent.top
         CalendarSurface.CalendarWidget {
@@ -678,8 +736,11 @@ Item {
         id: islandCard
         anchors.centerIn: parent
         visible: !root.calendarExpanded
-        width: root.launcherVisible ? Theme.Tokens.scaled(620)
-            : root.dashboardVisible || root.visualExpanded ? root.expandW
+        width: root.launcherVisible ? Math.min(parent.width - Theme.Tokens.scaled(24), Theme.Tokens.scaled(Theme.Tokens.islandLauncherWidth))
+            : root.dashboardVisible ? root.expandW
+            : root.expanded ? Math.min(root.expandW, Theme.Tokens.scaled(Theme.Tokens.islandActivityMaxWidth))
+            : root.islandState !== "idle" ? Math.min(Theme.Tokens.scaled(Theme.Tokens.islandCompactMaxWidth), Math.max(Theme.Tokens.scaled(Theme.Tokens.islandCompactMinWidth), islandContent.implicitWidth + Theme.Tokens.scaled(18)))
+            : root.visualExpanded ? root.expandW
             : Math.max(root.pillW, islandContent.implicitWidth + Theme.Tokens.scaled(18))
         height: parent.height
         radius: root.launcherVisible || root.visualExpanded ? Theme.Tokens.radiusXl : Theme.Tokens.radiusPill
@@ -690,8 +751,8 @@ Item {
         Accessible.name: root.islandPinned
             ? root.labelForState(root.islandState) + ", pinned. Activate to unpin"
             : root.labelForState(root.islandState) + ". Activate to pin"
-        Behavior on width { enabled: !root.reducedMotion; NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
-        Behavior on radius { enabled: !root.reducedMotion; NumberAnimation { duration: 250; easing.type: Easing.InOutCubic } }
+        Behavior on width { enabled: !root.reducedMotion; NumberAnimation { duration: Theme.Tokens.islandExpandDuration; easing.type: Easing.OutCubic } }
+        Behavior on radius { enabled: !root.reducedMotion; NumberAnimation { duration: Theme.Tokens.islandExpandDuration; easing.type: Easing.OutCubic } }
 
         // Main content
         RowLayout {
@@ -790,6 +851,7 @@ Item {
         }
 
         ColumnLayout {
+            id: dashboardContent
             visible: root.dashboardVisible && !root.launcherVisible
             anchors.fill: parent
             anchors.margins: Theme.Tokens.scaled(16)
@@ -800,40 +862,40 @@ Item {
                 Text { text: root.iconForState(root.islandState); color: Theme.Tokens.tonalPrimary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconSm }
                 Text { text: root.islandState === "workspace" ? "WORKSPACE" : root.islandState === "health" ? "SYSTEM" : root.islandState === "connectivity" ? "CONNECTIVITY" : root.islandState === "notification-preview" ? "NOTIFICATIONS" : root.islandState === "updates" ? "UPDATES" : root.islandState === "sync" ? "SYNC" : root.islandState === "provider-health" ? "PROVIDER HEALTH" : "AUDIO & POWER"; color: Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelLarge; font.bold: true }
                 Item { Layout.fillWidth: true }
+                IslandSurface.IslandHeaderActions {
+                    pinned: root.islandPinned
+                    canOpen: root.openPanelForState() !== null
+                    onPinClicked: root.pinToggle()
+                    onOpenClicked: root.openPanelFromIsland()
+                    onCloseClicked: {
+                        if (root.islandPinned) root.pinRelease();
+                        engagement = HoverEngagement.clearSourceHover(engagement);
+                        activityController.dismissDashboard();
+                    }
+                }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.Tokens.outlineSubtle }
+
+            RowLayout {
+                visible: root.dashboardStatusVisible
+                Layout.fillWidth: true
+                spacing: Theme.Tokens.spacingSm
                 Text {
-                    visible: root.islandPinned
-                    text: "\uF08D  Pinned"
+                    text: root.dashboardStatusText
+                    color: Theme.Tokens.textSecondary
+                    font.family: Theme.Tokens.typographyFontFamily
+                    font.pixelSize: Theme.Tokens.typographyLabelSmall
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                }
+                Text {
+                    visible: root.dashboardStatusMaximum > 1
+                    text: Math.round(root.dashboardStatusValue / root.dashboardStatusMaximum * 100) + "%"
                     color: Theme.Tokens.tonalPrimary
                     font.family: Theme.Tokens.typographyFontFamily
                     font.pixelSize: Theme.Tokens.typographyLabelSmall
                 }
-                // Distinct "Open" action: expands the island to the real
-                // panel/surface registered for this state. Pin/unpin is
-                // handled by tapping the island body itself.
-                FocusScope {
-                    id: dashboardOpenButton
-                    activeFocusOnTab: true
-                    Accessible.role: Accessible.Button
-                    Accessible.name: root.openButtonAccessibleName()
-                    implicitWidth: openLabel.implicitWidth + Theme.Tokens.scaled(14)
-                    implicitHeight: Theme.Tokens.scaled(22)
-                    visible: root.openPanelForState() !== null
-                    Rectangle { anchors.fill: parent; radius: Theme.Tokens.scaled(11); color: dashboardOpenButton.activeFocus ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.85) : "transparent"; border.color: dashboardOpenButton.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: dashboardOpenButton.activeFocus ? 1 : 0 }
-                    Text {
-                        id: openLabel
-                        anchors.centerIn: parent
-                        text: "Open ›"
-                        color: Theme.Tokens.textSecondary
-                        font.family: Theme.Tokens.typographyFontFamily
-                        font.pixelSize: Theme.Tokens.typographyLabelSmall
-                    }
-                    TapHandler { onTapped: root.openPanelFromIsland() }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    Keys.onReturnPressed: root.openPanelFromIsland()
-                    Keys.onSpacePressed: root.openPanelFromIsland()
-                }
             }
-            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.Tokens.outlineSubtle }
 
             ColumnLayout {
                 visible: root.islandState === "workspace"
@@ -932,14 +994,16 @@ Item {
                 if (prevInside === hovered) return;
                 engagement = HoverEngagement.recordIslandHover(engagement, hovered);
                 if (hovered) {
+                    activityController.holdDashboard();
                     // The user is now over the island body — cancel any
                     // pending close and adopt the active context.
                     root.activeTransitToken = { generation: engagement.generation, deadline: 0 };
                     pointerGraceTimer.stop();
-                    if (root.islandState === "idle" && !engagement.pin.active && !engagement.critical.active && !manualMode) {
+                    if (root.islandState === "idle" && !engagement.pin.active && !engagement.critical.active) {
                         hoverExpanded = true;
                     }
                 } else {
+                    activityController.leaveDashboard();
                     if (HoverEngagement.isAnySourceHovered(engagement)) {
                         // Pointer moved to a different source chip — that
                         // source's release handler will re-arm the timer.
@@ -954,29 +1018,15 @@ Item {
             }
         }
 
-        // Click toggles a pin on the current context. The "Open" action is
-        // exposed separately via the dashboard's "Open ›" affordance and
-        // remains bound to the panel-coordinator.
+        // Compact activation is unambiguous: the clock opens the inline
+        // calendar; activities route to their full panel. Dashboard pinning
+        // is available only through the visible Pin control above.
         TapHandler {
-            enabled: !root.launcherVisible
-            onTapped: root.pinToggle()
-        }
-
-        // Wheel: cycle contexts when idle and hovered
-        WheelHandler {
-            onWheel: function(e) {
-                if (root.islandState === "idle" && root.engagement.islandHovered) {
-                    if (e.angleDelta.y > 0) root.cycleContextUp();
-                    else root.cycleContextDown();
-                    e.accepted = true;
-                }
+            enabled: !root.launcherVisible && !root.dashboardVisible
+            onTapped: {
+                if (root.islandState === "idle") root.openInlineCalendar();
+                else root.openPanelFromIsland();
             }
-        }
-
-        // Middle-click: return to auto mode
-        TapHandler {
-            acceptedButtons: Qt.MiddleButton
-            onTapped: root.exitManualMode()
         }
     }
 
@@ -1016,8 +1066,7 @@ Item {
 
     function labelForState(state) {
         if (state === "idle") {
-            var context = root.activeApp !== "" ? " · " + root.activeApp : "";
-            return Qt.formatDate(root.now, "ddd d") + " · " + Qt.formatTime(root.now, "HH:mm") + context;
+            return Qt.formatDate(root.now, "ddd d") + " · " + Qt.formatTime(root.now, "HH:mm");
         }
         if (state === "focused-app") return root.activeApp !== "" ? root.activeApp : "No focused app";
         if (state === "updates") return root.updates && root.updates.checked ? (root.updates.count > 0 ? root.updates.count + " updates" : "System up to date") : "Checking updates";
@@ -1033,15 +1082,13 @@ Item {
         var parts = [];
         var dateStr = Qt.formatDate(root.now, "ddd, d MMM");
         parts.push(dateStr);
-        if (manualMode) {
-            parts.push("Manual · middle-click to reset");
-        } else if (activeApp !== "") {
+        if (activeApp !== "") {
             parts.push(activeApp);
             if (activeWin !== "" && activeWin !== activeApp) parts.push(activeWin);
         } else if (activeWin !== "") {
             parts.push(activeWin);
         }
-        parts.push("scroll to cycle");
+        parts.push("Enter opens calendar");
         return parts.join("  ·  ");
     }
 
@@ -1049,12 +1096,12 @@ Item {
     function openLauncher() {
         if (root.launcherOpen) return;
         if (root.calendarExpanded) {
-            inlineCalendar.close();
-            root.calendarExpanded = false;
+            root.closeInlineCalendar();
         }
         root.launcherWasVisible = false;
         root.launcherClosing = false;
         root.launcherOpen = true;
+        activityController.openLayer("launcher", root.screen && root.screen.name ? root.screen.name : "");
         Qt.callLater(function() { root.forceActiveFocus(); });
     }
 
@@ -1062,6 +1109,7 @@ Item {
         root.launcherWasVisible = false;
         root.launcherClosing = false;
         root.launcherOpen = false;
+        activityController.closeLayer();
     }
 
     function closeLauncher() {

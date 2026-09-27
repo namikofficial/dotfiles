@@ -147,4 +147,9 @@
 - Resize pane: `Ctrl-Space H/J/K/L`
 - Zoom pane: `Ctrl-Space z`
 - Help hint: `Ctrl-Space ?`
+- Project cockpit: `Ctrl-Space p`
+- Action palette: `Ctrl-Space a`
+- Diagnostics popup: `Ctrl-Space D`
+- Lazygit popup: `Ctrl-Space g`
+- Scratch terminal: `Ctrl-Space t`
 - Install/update plugins: `Ctrl-Space I`

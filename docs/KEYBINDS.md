@@ -47,7 +47,6 @@ flowchart LR
 | `Super + Ctrl + Shift + I` | Execute command | `android-studio` |
 | `Super + Ctrl + I` | Execute command | `~/.config/hypr/scripts/android-dev.sh menu` |
 | `Super + Alt + I` | Execute command | `~/.config/hypr/scripts/android-dev.sh logcat` |
-| `Super + Alt + S` | Execute command | `~/.config/hypr/scripts/open-ai-workbench.sh` |
 | `Super + G` | Execute command | `~/.config/hypr/scripts/layout-switcher.sh cycle` |
 | `Super + Alt + G` | Execute command | `~/.config/hypr/scripts/layout-switcher.sh toggle` |
 | `Super + P` | Execute command | `~/.config/hypr/scripts/monitor-control.sh menu` |
@@ -219,6 +218,12 @@ flowchart LR
 | `Prefix + -` / `Prefix + \|` | Split horizontal / vertical |
 | `Prefix + h/j/k/l` | Focus pane left/down/up/right |
 | `Prefix + H/J/K/L` | Resize pane |
+| `Prefix + p` | Project cockpit (session, editor, Git, logs, checks) |
+| `Prefix + a` | Searchable tmux action palette |
+| `Prefix + D` | Project/system diagnostics popup |
+| `Prefix + s` | Session picker |
+| `Prefix + t` | Scratch terminal popup |
+| `Prefix + g` | Lazygit popup |
 | `Prefix + [` | Enter copy mode (vi) |
 | `copy-mode: v` then `y` | Select and copy to clipboard (`wl-copy`) |
 | `Prefix + r` | Reload `~/.tmux.conf` |

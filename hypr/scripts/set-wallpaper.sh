@@ -127,17 +127,20 @@ ensure_theme_sync() {
   skip_wayle_palette="${2:-0}"
   "$HOME/.config/hypr/scripts/sync-lock-wallpaper.sh" "$wall" || true
   if [ "$skip_wayle_palette" = "1" ]; then
-    NOXFLOW_SKIP_WAYLE_PALETTE=1 "$HOME/.config/hypr/scripts/theme-sync.sh" "$wall" || true
+    NOXFLOW_SKIP_WAYLE_PALETTE=1 "$HOME/.config/hypr/scripts/theme-sync.sh" "$wall"
   else
-    "$HOME/.config/hypr/scripts/theme-sync.sh" "$wall" || true
+    "$HOME/.config/hypr/scripts/theme-sync.sh" "$wall"
   fi
 }
 
 write_wall_cache() {
   wall="$1"
   skip_wayle_palette="${2:-0}"
-  printf '%s' "$wall" >"$HOME/.cache/current-wallpaper"
+  # Publish the current-wallpaper pointer only after the canonical theme
+  # compiler has accepted the candidate. A failed compile must not announce a
+  # successful wallpaper/theme transaction.
   ensure_theme_sync "$wall" "$skip_wayle_palette"
+  printf '%s' "$wall" >"$HOME/.cache/current-wallpaper"
   emit_event info "Wallpaper applied" "$wall"
 }
 

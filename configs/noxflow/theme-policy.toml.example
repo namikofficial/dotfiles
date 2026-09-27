@@ -1,0 +1,79 @@
+# NoxFlow theme policy — controls how wallpaper colors are interpreted and applied.
+# Copy to ~/.config/noxflow/theme-policy.toml to take effect.
+# All values shown are the defaults (same as absent file).
+
+[theme]
+# How to determine the overall scheme.
+# "auto" — infer from wallpaper brightness and colorfulness (default)
+# "dark" — always produce a dark theme
+# "light" — always produce a light theme
+# "oled" — dark theme with true-black (#000000) background
+mode = "auto"
+
+# Wallpaper personality — how aggressively the UI reacts to the wallpaper.
+# "auto" — infer from image analysis (default)
+# "dark"      — subdued surfaces, strong accent separation, medium transparency
+# "neon"      — high chroma, vivid accents, high transparency, large accent footprint
+# "pastel"    — soft chroma, warm neutrals, high transparency, small accent footprint
+# "bright"    — medium-high chroma, slightly elevated surfaces
+# "minimal"   — low chroma, restrained saturation, intentional single accent
+# "muted"     — low chroma throughout, subdued UI, medium transparency
+# "vibrant"   — high chroma, strong saturation, medium transparency
+personality = "auto"
+
+# Global contrast multiplier applied to all WCAG contrast checks.
+# 1.0 = standard WCAG (default); > 1.0 = harder contrast requirements; < 1.0 = relaxed.
+contrast = 1.0
+
+# How much to boost chroma (saturation) of wallpaper-derived accent colors.
+# 1.0 = natural (default); 2.0 = double saturation; 0.5 = half.
+chroma_boost = 1.0
+
+# Hue rotation applied to all accent colors (positive = warmer, negative = cooler).
+# Range: -1.0 (very cool) to 1.0 (very warm). 0.0 = no rotation.
+warmth = 0.0
+
+[surface]
+# How much the wallpaper's hue bleeds into neutral surface colors.
+# 0.0 = pure achromatic surfaces; 0.20 = strong wallpaper tint. Default: 0.10.
+tint = 0.10
+
+# Multiplier on the lightness step between surface levels.
+# 1.0 = standard steps; 2.0 = more visible depth; 0.5 = flatter surfaces.
+depth = 1.0
+
+[effects]
+# Blur radius for transparent/surface effects.
+# "auto" — infer from personality (default)
+# "none" | "subtle" (8) | "medium" (16) | "strong" (28)
+blur = "auto"
+
+# Surface opacity (how transparent UI surfaces are over the wallpaper).
+# "auto" — infer from entropy and personality (default)
+# "subtle" (0.80) | "medium" (0.72) | "strong" (0.64)
+opacity = "auto"
+
+# How much the primary accent color bleeds into borders and shadows.
+# 0.0 = no glow; 0.5 = maximum accent glow. Default: 0.12.
+border_glow = 0.12
+
+[accent]
+# How to derive accent hues from the wallpaper.
+# "wallpaper" — extract hues directly from wallpaper colors (default)
+# "complementary" — force a hue complementary to the dominant wallpaper hue
+# "monochrome" — produce a single neutral-accented scheme
+strategy = "wallpaper"
+
+# Override specific accent roles. Empty string = auto from wallpaper.
+# Accepts 6-digit hex with leading #, e.g. primary_override = "#5299d4"
+primary_override = ""
+secondary_override = ""
+tertiary_override = ""
+
+[overrides]
+# Any schema color key can be forced to a specific hex value.
+# The compiler still computes the full palette but replaces these values.
+# Uncomment and edit any lines you want to override:
+# background = "#0f0f0f"
+# primary = "#5299d4"
+# surface2 = "#2a2a3a"

@@ -219,6 +219,12 @@ alias ..="cd .."
 alias ...="cd ../.."
 alias ....="cd ../../.."
 
+# Explicit AI router functions. Functions preserve all arguments (`--yolo`,
+# prompts, sessions, and profiles); normal codex/opencode commands are unchanged.
+ai-opencode() { "${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/setup/ai-session.sh" opencode "$@"; }
+ai-codex() { "${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/setup/ai-session.sh" codex "$@"; }
+alias ai-route='ai-session.sh --explain'
+
 # Quick edits
 alias zrc="vim ~/.zshrc"
 alias zalias="vim $DOTFILES_HOME/aliases.zsh"
@@ -248,14 +254,6 @@ alias gbage="$SCRIPTS_BIN/git-branch-age"
 alias gpropen="$SCRIPTS_BIN/git-pr-open"
 alias wtprune="$SCRIPTS_BIN/prune-worktrees"
 alias chlog="$SCRIPTS_BIN/changelog-since"
-
-# Local AI git helpers (use llama-swap on :8080, qwen3-4b by default)
-alias gai='kage ai'                          # kage ai menu
-alias gaicm='kage ai commit-msg'             # generate commit message, copy to clipboard
-alias gaicmc='kage ai commit-msg --commit'   # generate AND commit immediately
-alias gairv='kage ai review'                 # review last commit
-alias gaiex='kage ai explain'                # explain clipboard contents pedagogically
-alias gaicmf='kage ai commit-msg --type feat'  # hint type
 
 # Enhanced gcm: interactive or with argument
 gcm() {

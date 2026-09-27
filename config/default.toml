@@ -33,7 +33,7 @@ reduced_motion = false              # Respect reduced-motion preference
 
 [providers]
 audio = true                        # PipeWire/WirePlumber audio provider
-network = true                      # NetworkManager provider
+network = true                      # iwd/systemd-networkd provider
 bluetooth = true                    # BlueZ provider
 battery = true                      # UPower battery provider
 media = true                        # MPRIS media player provider
@@ -56,7 +56,7 @@ suspend = 1800                      # Suspend timeout (seconds)
 hybrid_sleep = true                 # Use hybrid sleep
 
 [network]
-wifi_backend = "NetworkManager"     # Wi-Fi backend
+wifi_backend = "iwd"                # Wi-Fi backend (systemd-networkd + resolved)
 vpn_autoconnect = false             # Auto-connect VPN on network change
 metered_connection = "detect"       # metered, unmetered, detect
 dns = "system"                      # DNS resolver: system, cloudflare, google, custom

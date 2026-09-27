@@ -116,6 +116,7 @@ brightnessctl
 playerctl
 pavucontrol
 iwd
+bluez-utils
 blueman
 polkit-gnome
 xdg-desktop-portal

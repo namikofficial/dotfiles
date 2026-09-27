@@ -75,9 +75,9 @@ Item {
 
     // ── Layout constants ──
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
-    readonly property int outerMargin: Theme.Tokens.scaled(8)
-    readonly property int groupGap: Theme.Tokens.scaled(10)
-    readonly property int innerGap: Theme.Tokens.scaled(5)
+    readonly property int outerMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+    readonly property int groupGap: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+    readonly property int innerGap: Theme.Tokens.scaled(Theme.Tokens.spacingSm)
     readonly property int capsulePadH: Theme.Tokens.scaled(12)
     readonly property int capsulePadV: Theme.Tokens.scaled(9)
 
@@ -88,9 +88,10 @@ Item {
     readonly property rect notificationChipGeometry: chipRect(notifPill)
     readonly property rect statusClusterGeometry: chipRect(rightZone)
     readonly property rect healthGeometry: chipRect(healthCapsule)
-    readonly property rect networkGeometry: chipRect(connectivityCapsule)
-    readonly property rect volumeGeometry: chipRect(audioPowerCapsule)
-    readonly property rect batteryGeometry: chipRect(audioPowerCapsule)
+    readonly property rect networkGeometry: chipRect(connectivityCapsule.networkActionItem)
+    readonly property rect bluetoothGeometry: chipRect(connectivityCapsule.bluetoothActionItem)
+    readonly property rect volumeGeometry: chipRect(audioPowerCapsule.audioActionItem)
+    readonly property rect batteryGeometry: chipRect(audioPowerCapsule.powerActionItem)
     readonly property rect syncGeometry: chipRect(syncPill)
 
     function registerMorphChips() {
@@ -101,6 +102,7 @@ Item {
         reg.registerTrigger("notifications", monitorName, notificationChipGeometry, Theme.Tokens.radiusPill);
         reg.registerTrigger("quick-settings", monitorName, volumeGeometry, Theme.Tokens.radiusPill);
         reg.registerTrigger("quick-settings", monitorName, networkGeometry, Theme.Tokens.radiusPill, "network");
+        reg.registerTrigger("quick-settings", monitorName, bluetoothGeometry, Theme.Tokens.radiusPill, "bluetooth");
         reg.registerTrigger("quick-settings", monitorName, volumeGeometry, Theme.Tokens.radiusPill, "volume");
         reg.registerTrigger("quick-settings", monitorName, batteryGeometry, Theme.Tokens.radiusPill, "battery");
         reg.registerTrigger("sync", monitorName, syncGeometry, Theme.Tokens.radiusPill);
@@ -264,17 +266,19 @@ Item {
             // Health capsule: CPU + RAM + Temp in one pill
             HealthCapsule {
                 id: healthCapsule
+                visible: true
                 systemModel: root.systemModel
                 Layout.alignment: Qt.AlignVCenter
                 onOpenSystem: root.toggleQuickSettingsFromBar(healthCapsule, "system")
                 onHoveredChanged: {
                     if (!root.islandHost) return;
-                    root.islandHost.sourceHoverChanged("health", hovered);
+                    root.islandHost.sourceHoverChanged("health", hovered, healthCapsule);
                 }
             }
 
             FocusScope {
                 id: leftUpdatePill
+                visible: false
                 property bool ho: false
                 Layout.alignment: Qt.AlignVCenter
                 implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), leftUpdateRow.implicitWidth + root.capsulePadH * 2)
@@ -290,7 +294,7 @@ Item {
                     Text { text: root.updateLaunchState === "failed" ? "\uF071" : !root.updates.checked ? "\uF021" : root.updates.count > 0 ? "\uF019" : "\uF00C"; color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : root.updates.count > 0 ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }
                     Text { visible: !root.updates.checked || root.updates.count > 0 || root.updateLaunchState === "failed"; text: root.updateLaunchState === "failed" ? "!" : !root.updates.checked ? "…" : String(root.updates.count); color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: true }
                 }
-                HoverHandler { onHoveredChanged: { leftUpdatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered); } }
+                HoverHandler { onHoveredChanged: { leftUpdatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered, leftUpdatePill); } }
                 TapHandler { onTapped: root.runSystemUpdate() }
                 TapHandler { acceptedButtons: Qt.RightButton; onTapped: root.updates.refresh() }
             }
@@ -311,10 +315,11 @@ Item {
                 network: root.network
                 bluetooth: root.bluetooth
                 Layout.alignment: Qt.AlignVCenter
-                onOpenNetwork: root.toggleQuickSettingsFromBar(connectivityCapsule, "network")
+                onOpenNetwork: root.toggleQuickSettingsFromBar(connectivityCapsule.networkActionItem, "network")
+                onOpenBluetooth: root.toggleQuickSettingsFromBar(connectivityCapsule.bluetoothActionItem, "bluetooth")
                 onHoveredChanged: {
                     if (!root.islandHost) return;
-                    root.islandHost.sourceHoverChanged("connectivity", hovered);
+                    root.islandHost.sourceHoverChanged("connectivity", hovered, connectivityCapsule);
                 }
             }
 
@@ -326,10 +331,10 @@ Item {
                 Layout.alignment: Qt.AlignVCenter
                 onToggleMute: root.toggleMute()
                 onAdjustVolume: function(delta) { root.adjustVolume(delta); }
-                onOpenPower: root.toggleQuickSettingsFromBar(audioPowerCapsule, "battery")
+                onOpenPower: root.toggleQuickSettingsFromBar(audioPowerCapsule.powerActionItem, "battery")
                 onHoveredChanged: {
                     if (!root.islandHost) return;
-                    root.islandHost.sourceHoverChanged("audio-power", hovered);
+                    root.islandHost.sourceHoverChanged("audio-power", hovered, audioPowerCapsule);
                 }
             }
 
@@ -356,20 +361,20 @@ Item {
                     spacing: root.innerGap
                     Text {
                         text: root.notificationModel && root.notificationModel.dnd ? "\uF1F6" : root.showNotificationBadge ? "\uF0F3" : "\uF0A2"
-                        color: root.notificationModel && root.notificationModel.dnd ? Theme.Tokens.stateWarning : root.showNotificationBadge ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted
+                        color: root.notificationModel && root.notificationModel.dnd ? Theme.Tokens.stateWarning : root.showNotificationBadge ? Theme.Tokens.tonalPrimary : Theme.Tokens.tonalSecondary
                         font.family: "Symbols Nerd Font Mono"
                         font.pixelSize: Theme.Tokens.iconSm
                     }
                     Text {
                         visible: root.showNotificationBadge
                         text: root.notificationModel && root.notificationModel.notifications ? String(root.notificationModel.notifications.length) : ""
-                        color: Theme.Tokens.stateInfo
+                        color: Theme.Tokens.tonalPrimary
                         font.pixelSize: Theme.Tokens.typographyLabelSmall
                         font.family: Theme.Tokens.typographyFontFamily
                         font.bold: true
                     }
                 }
-                HoverHandler { onHoveredChanged: { notifPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("notification-preview", hovered); } }
+                HoverHandler { onHoveredChanged: { notifPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("notification-preview", hovered, notifPill); } }
                 TapHandler { onTapped: root.toggleNotificationsFromBar() }
                 Keys.onReturnPressed: root.toggleNotificationsFromBar()
                 Keys.onSpacePressed: root.toggleNotificationsFromBar()
@@ -380,7 +385,7 @@ Item {
                 id: syncPill
                 property bool ho: false
                 property bool pr: false
-                visible: syncActive() || syncWarning()
+                visible: false
                 Layout.alignment: Qt.AlignVCenter
                 implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), syncRow.implicitWidth + root.capsulePadH * 2)
                 implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
@@ -423,7 +428,7 @@ Item {
                         }
                     }
                 }
-                HoverHandler { onHoveredChanged: { syncPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("sync", hovered); } }
+                HoverHandler { onHoveredChanged: { syncPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("sync", hovered, syncPill); } }
                 TapHandler {
                     onPressedChanged: syncPill.pr = pressed
                     onTapped: {
@@ -439,7 +444,10 @@ Item {
             FocusScope {
                 id: updatePill
                 property bool ho: false
-                visible: false
+                // Keep updates discoverable in the right-side status cluster.
+                // The legacy left-side slot remains disabled to avoid showing
+                // duplicate controls while this pill owns update actions.
+                visible: true
                 Layout.alignment: Qt.AlignVCenter
                 implicitWidth: Math.max(Theme.Tokens.scaled(58), updateRow.implicitWidth + Theme.Tokens.scaled(18))
                 implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
@@ -501,7 +509,7 @@ Item {
                         font.bold: updates.count > 0 || root.updateLaunchState === "failed"
                     }
                 }
-                HoverHandler { onHoveredChanged: { updatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered); } }
+                HoverHandler { onHoveredChanged: { updatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered, updatePill); } }
                 TapHandler { onTapped: root.runSystemUpdate() }
                 TapHandler { acceptedButtons: Qt.RightButton; onTapped: updates.refresh() }
                 Keys.onReturnPressed: root.runSystemUpdate()
@@ -520,13 +528,14 @@ Item {
 
             // Provider health dot
             Rectangle {
+                id: providerHealthDot
                 visible: root.providerDegraded
                 width: Theme.Tokens.scaled(8)
                 height: Theme.Tokens.scaled(8)
                 radius: Theme.Tokens.scaled(4)
                 color: Theme.Tokens.stateWarning
                 Layout.alignment: Qt.AlignVCenter
-                HoverHandler { onHoveredChanged: { if (root.islandHost) root.islandHost.sourceHoverChanged("provider-health", hovered); } }
+                HoverHandler { onHoveredChanged: { if (root.islandHost) root.islandHost.sourceHoverChanged("provider-health", hovered, providerHealthDot); } }
             }
         }
     }
@@ -607,7 +616,7 @@ Item {
                 color: Theme.Tokens.stateDanger
             }
 
-            HoverHandler { onHoveredChanged: { wsb.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("workspace", hovered); } }
+            HoverHandler { onHoveredChanged: { wsb.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("workspace", hovered, wsb); } }
             TapHandler {
                 onPressedChanged: wsb.pr = pressed
                 onTapped: {

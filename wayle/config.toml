@@ -243,64 +243,6 @@ icon-bg-color = "auto"
 label-color = "fg-default"
 left-click = "$HOME/.config/hypr/scripts/quick-actions.sh"
 
-[[modules.custom]]
-id = "work-project"
-command = "$HOME/.config/hypr/scripts/workbench-wayle-status project"
-mode = "poll"
-interval-ms = 5000
-format = "{{ text }}"
-icon-show = false
-label-show = true
-label-max-length = 20
-button-bg-color = "bg-surface-elevated"
-icon-bg-color = "auto"
-label-color = "fg-default"
-left-click = "$HOME/.config/hypr/scripts/kage-project-rofi.sh"
-right-click = "$HOME/.config/hypr/scripts/workbench-project-switcher"
-
-[[modules.custom]]
-id = "work-git"
-command = "$HOME/.config/hypr/scripts/workbench-wayle-status git"
-mode = "poll"
-interval-ms = 5000
-format = "{{ text }}"
-icon-show = false
-label-show = true
-label-max-length = 24
-button-bg-color = "bg-surface-elevated"
-icon-bg-color = "auto"
-label-color = "fg-muted"
-left-click = "$HOME/.config/hypr/scripts/kage-project-rofi.sh"
-
-[[modules.custom]]
-id = "work-task"
-command = "$HOME/.config/hypr/scripts/workbench-wayle-status work"
-mode = "poll"
-interval-ms = 5000
-format = "{{ text }}"
-icon-show = false
-label-show = true
-label-max-length = 28
-button-bg-color = "bg-surface-elevated"
-icon-bg-color = "auto"
-label-color = "fg-default"
-left-click = "$HOME/.config/hypr/scripts/open-ai-workbench.sh work"
-
-[[modules.custom]]
-id = "work-ai"
-command = "$HOME/.config/hypr/scripts/workbench-wayle-status ai"
-mode = "poll"
-interval-ms = 5000
-format = "{{ text }}"
-icon-show = false
-label-show = true
-label-max-length = 14
-button-bg-color = "bg-surface-elevated"
-icon-bg-color = "auto"
-label-color = "fg-muted"
-left-click = "$HOME/.config/hypr/scripts/scratchpad-manager.sh launch ai"
-right-click = "$HOME/.config/hypr/scripts/open-ai-workbench.sh ask"
-
 [modules.battery]
 left-click = "dropdown:battery"
 icon-bg-color = "auto"

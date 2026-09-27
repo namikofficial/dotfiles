@@ -34,6 +34,8 @@ Item {
     property bool dndBusy: false
     property string wifiActionState: ""
     property string bluetoothActionState: ""
+    property string bluetoothPasskey: ""
+    property string expandedSection: ""
     property string audioActionState: ""
     property bool wifiConnectDialogVisible: false
     property string wifiConnectSsid: ""
@@ -111,6 +113,31 @@ Item {
         else if (kind === "bluetooth") root.bluetoothActionState = message;
         else root.audioActionState = message;
         actionStateTimer.restart();
+    }
+
+    function pairBluetooth(deviceId) {
+        if (!root.noxd.connected || !deviceId) return;
+        root.bluetoothActionState = "Pairing…";
+        root.noxd.runAction({ bluetooth_pair: { device_id: String(deviceId) } });
+    }
+
+    function respondBluetoothPairing(accepted) {
+        var request = bluetooth.pairingRequest;
+        if (!request || !request.requestId || !root.noxd.connected) return;
+        root.noxd.runAction({ bluetooth_pairing_response: {
+            request_id: request.requestId,
+            accepted: accepted,
+            passkey: root.bluetoothPasskey !== "" ? root.bluetoothPasskey : null
+        }});
+        if (!accepted) bluetooth.clearPairingRequest();
+        root.bluetoothPasskey = "";
+    }
+
+    function cancelBluetoothPairing() {
+        var request = bluetooth.pairingRequest;
+        if (request && request.requestId && root.noxd.connected)
+            root.noxd.runAction({ bluetooth_cancel_pairing: { request_id: request.requestId } });
+        bluetooth.clearPairingRequest();
     }
     function openWifiConnect(networkInfo) {
         root.wifiConnectSsid = String(networkInfo.ssid || "").trim();
@@ -205,6 +232,20 @@ Item {
         if (network && network.data && Array.isArray(network.data.available_wifi))
             return network.data.available_wifi;
         return network && Array.isArray(network.availableWifi) ? network.availableWifi : [];
+    }
+    function bluetoothDeviceSubtitle(device) {
+        var state = device.connected ? "Connected" : device.paired ? "Saved" : "Nearby";
+        var details = [];
+        if (device.battery !== undefined && device.battery !== null)
+            details.push(String(device.battery) + "%");
+        if (device.rssi !== undefined && device.rssi !== null)
+            details.push(String(device.rssi) + " dBm");
+        return state + (details.length > 0 ? " · " + details.join(" · ") : "");
+    }
+    function bluetoothCountLabel() {
+        var count = bluetooth && Array.isArray(bluetooth.devices) ? bluetooth.devices.length : 0;
+        if (count === 0) return "No nearby or saved devices";
+        return count + (count === 1 ? " device" : " devices") + " nearby or saved";
     }
 
     property bool focusEnabled: false
@@ -358,8 +399,13 @@ Item {
     Connections {
         target: lifecycle
         function onOpened() {
-            var tabs = { network: 2, bluetooth: 3, volume: 1, audio: 1, battery: 0, power: 0, system: 4 };
-            if (root.initialSection !== "" && tabs[root.initialSection] !== undefined) root.activeTab = tabs[root.initialSection];
+            // The sheet is intentionally single-surface now. Keep the old
+            // activeTab field as a compatibility seam for callers, but route
+            // every deep link into the unified content and remember which
+            // section should be expanded first.
+            var sectionTabs = { network: 2, volume: 1, audio: 1, system: 4, input: 5, power: 6, battery: 0 };
+            root.activeTab = sectionTabs[root.initialSection] !== undefined ? sectionTabs[root.initialSection] : 0;
+            root.expandedSection = root.initialSection === "bluetooth" ? "bluetooth" : "";
             dndCheck.command = ["dunstctl", "get-paused"]; dndCheck.running = true;
         }
     }
@@ -387,9 +433,26 @@ Item {
     }
 
     Connections {
+        target: bluetooth
+        function onDiscoveringChanged() {
+            if (bluetooth.discovering) bluetooth.pairingError = "";
+        }
+        function onPoweredChanged() {
+            if (bluetooth.powered) bluetooth.pairingError = "";
+        }
+    }
+
+    Connections {
         target: noxd
         function onEventReceived(event) {
-            if (!event || event.provider !== "network" || !event.data) return;
+            if (!event || !event.data) return;
+            if (event.provider === "bluetooth" && event.event_type === "action_failed") {
+                root.bluetoothActionState = "";
+                root.bluetooth.pairingError = String(event.data.message || "Bluetooth action failed. Try again.");
+                root.markAction("bluetooth", "Bluetooth action failed");
+                return;
+            }
+            if (event.provider !== "network") return;
             var action = String(event.data.action || "");
             var ssid = String(event.data.ssid || "");
             if (root.wifiConnectionPending && event.event_type === "action_failed" && action === "connect" && ssid === root.wifiConnectSsid) {
@@ -460,6 +523,7 @@ Item {
             // ── Tab bar ──
             Flickable {
                 id: tabScroller
+                visible: false
                 Layout.fillWidth: true
                 height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
                 clip: true
@@ -535,10 +599,165 @@ Item {
                         Components.ControlTile {
                             icon: "◈"
                             label: bluetooth.displayState
-                            subtitle: root.bluetoothActionState || (bluetooth.devices.length + " paired/seen devices")
+                            subtitle: root.bluetoothActionState || root.bluetoothCountLabel()
                             active: bluetooth.adapterPresent
                             statusColor: bluetooth.powered ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted
-                            onClicked: root.activeTab = 3
+                            onClicked: root.expandedSection = "bluetooth"
+                        }
+
+                        // Bluetooth details are progressively disclosed from
+                        // the summary row so the normal sheet stays calm,
+                        // while the pairing flow remains fully native.
+                        ColumnLayout {
+                            visible: root.expandedSection === "bluetooth"
+                            Layout.fillWidth: true
+                            spacing: Theme.Tokens.spacingSm
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Components.Toggle {
+                                    accessibleName: "Bluetooth power"
+                                    enabled: bluetooth.adapterPresent && root.noxd.connected
+                                    checked: bluetooth.powered
+                                    onToggled: function(value) {
+                                        bluetooth.pairingError = "";
+                                        root.noxd.runAction({ bluetooth_set_powered: { powered: value } });
+                                        root.markAction("bluetooth", value ? "Turning Bluetooth on…" : "Turning Bluetooth off…");
+                                    }
+                                }
+                                Text {
+                                    text: bluetooth.powered ? "Nearby and saved devices" : "Turn on to find devices"
+                                    color: Theme.Tokens.textSecondary
+                                    font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                    Layout.fillWidth: true
+                                }
+                                Components.TextButton {
+                                    text: bluetooth.discovering ? "Stop scan" : "Scan"
+                                    enabled: bluetooth.powered && root.noxd.connected
+                                    onClicked: {
+                                        bluetooth.pairingError = "";
+                                        root.noxd.runAction({ bluetooth_set_discovering: { discovering: !bluetooth.discovering } });
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                visible: bluetooth.pairingRequest !== null
+                                Layout.fillWidth: true
+                                implicitHeight: pairingPrompt.implicitHeight + Theme.Tokens.spacingLg * 2
+                                radius: Theme.Tokens.radiusMd
+                                color: Theme.Tokens.tonalPrimaryContainer
+                                border.color: Theme.Tokens.tonalPrimary
+                                border.width: 1
+                                ColumnLayout {
+                                    id: pairingPrompt
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: Theme.Tokens.spacingMd
+                                    spacing: Theme.Tokens.spacingSm
+                                    Text {
+                                        text: "Pair " + (bluetooth.pairingRequest ? bluetooth.pairingRequest.deviceName : "device")
+                                        color: Theme.Tokens.tonalOnPrimaryContainer
+                                        font.pixelSize: Theme.Tokens.typographyBodyMedium
+                                        font.bold: true
+                                        Layout.fillWidth: true
+                                    }
+                                    Text {
+                                        visible: bluetooth.pairingRequest && bluetooth.pairingRequest.passkey !== null
+                                        text: bluetooth.pairingRequest && bluetooth.pairingRequest.method === "confirmation"
+                                            ? "Confirm code " + String(bluetooth.pairingRequest.passkey)
+                                            : "Enter the passkey shown by the device"
+                                        color: Theme.Tokens.tonalOnPrimaryContainer
+                                        font.pixelSize: Theme.Tokens.typographyBodySmall
+                                        Layout.fillWidth: true
+                                    }
+                                    Components.TextField {
+                                        visible: bluetooth.pairingRequest && (bluetooth.pairingRequest.method === "pin" || bluetooth.pairingRequest.method === "passkey")
+                                        label: "Passkey"
+                                        placeholderText: "Enter passkey"
+                                        text: root.bluetoothPasskey
+                                        onTextChanged: root.bluetoothPasskey = text
+                                        Layout.fillWidth: true
+                                    }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Item { Layout.fillWidth: true }
+                                        Components.TextButton { text: "Cancel"; onClicked: root.cancelBluetoothPairing() }
+                                        Components.TextButton { text: "Pair"; onClicked: root.respondBluetoothPairing(true) }
+                                    }
+                                }
+                            }
+
+                            Repeater {
+                                model: bluetooth.devices
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight: Theme.Tokens.scaled(48)
+                                    radius: Theme.Tokens.radiusSm
+                                    color: modelData.connected ? Theme.Tokens.tonalSecondaryContainer : Theme.Tokens.surfaceSurfaceContainer
+                                    border.color: modelData.connected ? Theme.Tokens.tonalSecondary : Theme.Tokens.outlineSubtle
+                                    border.width: 1
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: Theme.Tokens.spacingSm
+                                        Text { text: modelData.device_type === "audio" ? "◉" : "◈"; color: modelData.connected ? Theme.Tokens.tonalSecondary : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.iconSm }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 0
+                                            Text { text: modelData.name || modelData.id || "Bluetooth device"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodySmall; elide: Text.ElideRight; Layout.fillWidth: true }
+                                            Text { text: root.bluetoothDeviceSubtitle(modelData); color: modelData.connected ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
+                                        }
+                                        Components.TextButton {
+                                            text: modelData.connected ? "Disconnect" : modelData.paired ? "Connect" : "Pair"
+                                            enabled: root.noxd.connected
+                                            onClicked: {
+                                                if (modelData.connected) {
+                                                    root.noxd.runAction({ bluetooth_disconnect: { device_id: modelData.id || "" } });
+                                                    root.markAction("bluetooth", "Disconnecting…");
+                                                } else if (modelData.paired) {
+                                                    root.noxd.runAction({ bluetooth_connect: { device_id: modelData.id || "" } });
+                                                    root.markAction("bluetooth", "Connecting…");
+                                                } else {
+                                                    root.pairBluetooth(modelData.id || "");
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                visible: bluetooth.powered && !bluetooth.discovering && bluetooth.devices.length === 0
+                                text: "No devices yet. Put your Pixel Buds in pairing mode, then press Scan."
+                                color: Theme.Tokens.textMuted
+                                font.pixelSize: Theme.Tokens.typographyBodySmall
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
+                            RowLayout {
+                                visible: bluetooth.pairingState === "completed" && bluetooth.devices.some(function(device) { return device.connected && device.device_type === "audio"; })
+                                Layout.fillWidth: true
+                                Text { text: "Audio device connected"; color: Theme.Tokens.stateSuccess; font.pixelSize: Theme.Tokens.typographyLabelSmall; Layout.fillWidth: true }
+                                Components.TextButton {
+                                    text: "Use for audio"
+                                    onClicked: {
+                                        var device = bluetooth.devices.filter(function(item) { return item.connected && item.device_type === "audio"; })[0];
+                                        if (device && root.noxd.connected) root.noxd.runAction({ audio_set_default: { target: "output", selector: device.name || device.id } });
+                                    }
+                                }
+                            }
+
+                            Text {
+                                visible: bluetooth.pairingError !== ""
+                                text: bluetooth.pairingError
+                                color: Theme.Tokens.stateDanger
+                                font.pixelSize: Theme.Tokens.typographyBodySmall
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
                         }
 
                         Components.ControlTile {
