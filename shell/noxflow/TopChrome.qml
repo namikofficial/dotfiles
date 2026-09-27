@@ -23,6 +23,7 @@ PanelWindow {
     required property var updates
     required property var calModel
     required property var launcherComponent
+    required property var activityController
 
     screen: root.screen
     anchors.top: true; anchors.left: true; anchors.right: true
@@ -69,6 +70,7 @@ PanelWindow {
         transfer: root.transfer; syncthing: root.syncthing; updates: root.updates
         calModel: root.calModel
         launcherComponent: root.launcherComponent
+        activityController: root.activityController
         z: 10
     }
 
@@ -85,6 +87,12 @@ PanelWindow {
         }
     }
 
-    Component.onCompleted: shellRoot.registerIslandHost(root.screen, island)
-    Component.onDestruction: shellRoot.unregisterIslandHost(root.screen)
+    Component.onCompleted: {
+        shellRoot.registerIslandHost(root.screen, island);
+        root.activityController.registerHost(root.screen, island);
+    }
+    Component.onDestruction: {
+        shellRoot.unregisterIslandHost(root.screen);
+        root.activityController.unregisterHost(root.screen);
+    }
 }

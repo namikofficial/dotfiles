@@ -47,6 +47,7 @@ ShellRoot {
     InstanceTracker { id: calTracker }
     InstanceTracker { id: rwTracker }
     InstanceTracker { id: mediaTracker }
+    ActivityController { id: activityControllerInstance }
     Core.PanelController { id: panelController; triggerRegistry: morphRegistry }
     property alias coordinator: panelController
     property alias surfaceCoordinator: surfaceCoordinatorInstance
@@ -408,6 +409,7 @@ ShellRoot {
             systemModel: systemModelInstance; transfer: transferModel; syncthing: syncthingModel
             brightness: brightnessModel; updates: updateModel
             calModel: calendarModel; launcherComponent: launcherDefinition
+            activityController: activityControllerInstance
         }
     }
 }

@@ -57,8 +57,8 @@ button:hover {
 }
 
 #shutdown {
-  background-color: rgba(239,32,48, 0.3);
-  border-color: #ef2030;
+  background-color: rgba(241,35,50, 0.3);
+  border-color: #f12332;
   background-image: url("/usr/share/wlogout/icons/shutdown.png");
 }
 
@@ -68,20 +68,20 @@ button:hover {
 
 /* Generated palette overrides. */
 window {
-  background-color: rgba(4,3,4, 0.90);
+  background-color: rgba(2,4,2, 0.90);
 }
 
 button {
   color: #f2f2f2;
-  background-color: rgba(45,22,0, 0.94);
-  border-color: rgba(199,90,81, 0.66);
+  background-color: rgba(25,30,25, 0.94);
+  border-color: rgba(47,143,158, 0.66);
 }
 
 button:hover,
 button:focus,
 button:active {
-  background-color: rgba(21,5,0, 0.98);
-  border-color: #f50012;
+  background-color: rgba(7,11,7, 0.98);
+  border-color: #0097b5;
 }
 
 #firmware {

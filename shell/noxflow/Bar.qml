@@ -272,7 +272,7 @@ Item {
                 onOpenSystem: root.toggleQuickSettingsFromBar(healthCapsule, "system")
                 onHoveredChanged: {
                     if (!root.islandHost) return;
-                    root.islandHost.sourceHoverChanged("health", hovered);
+                    root.islandHost.sourceHoverChanged("health", hovered, healthCapsule);
                 }
             }
 
@@ -294,7 +294,7 @@ Item {
                     Text { text: root.updateLaunchState === "failed" ? "\uF071" : !root.updates.checked ? "\uF021" : root.updates.count > 0 ? "\uF019" : "\uF00C"; color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : root.updates.count > 0 ? Theme.Tokens.stateInfo : Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }
                     Text { visible: !root.updates.checked || root.updates.count > 0 || root.updateLaunchState === "failed"; text: root.updateLaunchState === "failed" ? "!" : !root.updates.checked ? "…" : String(root.updates.count); color: root.updateLaunchState === "failed" ? Theme.Tokens.stateDanger : Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; font.bold: true }
                 }
-                HoverHandler { onHoveredChanged: { leftUpdatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered); } }
+                HoverHandler { onHoveredChanged: { leftUpdatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered, leftUpdatePill); } }
                 TapHandler { onTapped: root.runSystemUpdate() }
                 TapHandler { acceptedButtons: Qt.RightButton; onTapped: root.updates.refresh() }
             }
@@ -319,7 +319,7 @@ Item {
                 onOpenBluetooth: root.toggleQuickSettingsFromBar(connectivityCapsule.bluetoothActionItem, "bluetooth")
                 onHoveredChanged: {
                     if (!root.islandHost) return;
-                    root.islandHost.sourceHoverChanged("connectivity", hovered);
+                    root.islandHost.sourceHoverChanged("connectivity", hovered, connectivityCapsule);
                 }
             }
 
@@ -334,7 +334,7 @@ Item {
                 onOpenPower: root.toggleQuickSettingsFromBar(audioPowerCapsule.powerActionItem, "battery")
                 onHoveredChanged: {
                     if (!root.islandHost) return;
-                    root.islandHost.sourceHoverChanged("audio-power", hovered);
+                    root.islandHost.sourceHoverChanged("audio-power", hovered, audioPowerCapsule);
                 }
             }
 
@@ -374,7 +374,7 @@ Item {
                         font.bold: true
                     }
                 }
-                HoverHandler { onHoveredChanged: { notifPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("notification-preview", hovered); } }
+                HoverHandler { onHoveredChanged: { notifPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("notification-preview", hovered, notifPill); } }
                 TapHandler { onTapped: root.toggleNotificationsFromBar() }
                 Keys.onReturnPressed: root.toggleNotificationsFromBar()
                 Keys.onSpacePressed: root.toggleNotificationsFromBar()
@@ -428,7 +428,7 @@ Item {
                         }
                     }
                 }
-                HoverHandler { onHoveredChanged: { syncPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("sync", hovered); } }
+                HoverHandler { onHoveredChanged: { syncPill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("sync", hovered, syncPill); } }
                 TapHandler {
                     onPressedChanged: syncPill.pr = pressed
                     onTapped: {
@@ -509,7 +509,7 @@ Item {
                         font.bold: updates.count > 0 || root.updateLaunchState === "failed"
                     }
                 }
-                HoverHandler { onHoveredChanged: { updatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered); } }
+                HoverHandler { onHoveredChanged: { updatePill.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("updates", hovered, updatePill); } }
                 TapHandler { onTapped: root.runSystemUpdate() }
                 TapHandler { acceptedButtons: Qt.RightButton; onTapped: updates.refresh() }
                 Keys.onReturnPressed: root.runSystemUpdate()
@@ -528,13 +528,14 @@ Item {
 
             // Provider health dot
             Rectangle {
+                id: providerHealthDot
                 visible: root.providerDegraded
                 width: Theme.Tokens.scaled(8)
                 height: Theme.Tokens.scaled(8)
                 radius: Theme.Tokens.scaled(4)
                 color: Theme.Tokens.stateWarning
                 Layout.alignment: Qt.AlignVCenter
-                HoverHandler { onHoveredChanged: { if (root.islandHost) root.islandHost.sourceHoverChanged("provider-health", hovered); } }
+                HoverHandler { onHoveredChanged: { if (root.islandHost) root.islandHost.sourceHoverChanged("provider-health", hovered, providerHealthDot); } }
             }
         }
     }
@@ -615,7 +616,7 @@ Item {
                 color: Theme.Tokens.stateDanger
             }
 
-            HoverHandler { onHoveredChanged: { wsb.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("workspace", hovered); } }
+            HoverHandler { onHoveredChanged: { wsb.ho = hovered; if (root.islandHost) root.islandHost.sourceHoverChanged("workspace", hovered, wsb); } }
             TapHandler {
                 onPressedChanged: wsb.pr = pressed
                 onTapped: {

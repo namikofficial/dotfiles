@@ -186,6 +186,24 @@ QtObject {
     readonly property int durationLong: 350
     readonly property int durationEmphasized: 500
 
+    // Island geometry and interaction timings are shared by the host,
+    // controller, and extracted island presentation components.
+    readonly property int islandIdleWidth: 150
+    readonly property int islandIdleHeight: 38
+    readonly property int islandCompactMinWidth: 180
+    readonly property int islandCompactMaxWidth: 280
+    readonly property int islandActivityMinWidth: 360
+    readonly property int islandActivityMaxWidth: 450
+    readonly property int islandDashboardMaxWidth: 460
+    readonly property int islandLauncherWidth: 620
+    readonly property int islandLauncherHeight: 520
+    readonly property int islandCalendarWidth: 520
+    readonly property int islandHoverDwell: 140
+    readonly property int islandTransitGrace: 450
+    readonly property int islandExpandDuration: 205
+    readonly property int islandSwitchDuration: 175
+    readonly property int islandCollapseDuration: 145
+
     // easing
     readonly property string easingStandard: "cubic-bezier(0.2, 0.0, 0.0, 1.0)"
     readonly property string easingEmphasized: "cubic-bezier(0.2, 0.0, 0.0, 1.0)"

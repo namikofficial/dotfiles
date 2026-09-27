@@ -41,7 +41,7 @@
 // loaded directly by node-based tests (SystemSnapshot.js and
 // WorkspacePresentation.js follow the same convention).
 
-var TRANSIT_GRACE_MS = 900;
+var TRANSIT_GRACE_MS = 450;
 var DEFAULT_OSD_TIMEOUT_MS = 2000;
 
 var SOURCE_KINDS = [

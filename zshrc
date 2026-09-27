@@ -226,6 +226,9 @@ _ls_unified() {
     return 0
   fi
 }
+# Avoid stale aliases breaking function definitions when re-sourcing zshrc.
+unalias la lt lS 2>/dev/null
+
 la() { _ls_unified all "$@"; }
 lt() { _ls_unified time "$@"; }
 lS() { _ls_unified size "$@"; }
@@ -351,7 +354,11 @@ if [ -s "$NVM_DIR/nvm.sh" ] || [ -r /usr/share/nvm/init-nvm.sh ]; then
 fi
 
 # Ensure common user bin paths are present (without duplicates).
-for user_bin in "$HOME/.local/bin" "$HOME/.cargo/bin" "$HOME/bin"; do
+for user_bin in \
+  "$HOME/.local/bin" \
+  "$HOME/.cargo/bin" \
+  "$HOME/.minimax-code/bin" \
+  "$HOME/bin"; do
   [ -d "$user_bin" ] && path=("$user_bin" $path)
 done
 
@@ -896,3 +903,4 @@ export PATH="$HOME/go/bin:$PATH"
 export OPENCODE_EXPERIMENTAL_LSP_TOOL=true
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
+
