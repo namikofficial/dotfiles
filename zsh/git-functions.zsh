@@ -105,10 +105,9 @@ alias ll="ls -lh"
 alias la="ls -lah"
 alias l="ls -1"
 alias mkdir="mkdir -p"
-alias cp="cp -i"
-alias rm="rm -i"
-alias mv="mv -i"
-alias grep="grep --color=auto"
+# cp/mv/rm/grep are owned by aliases.zsh, which is sourced after this file.
+# Do not redefine them here: the `-i` variants hang non-interactive shells and a
+# `grep --color=auto` alias here silently clobbers the `grep` -> `rg` mapping.
 
 # Kubernetes aliases (if kubectl installed)
 if command -v kubectl >/dev/null; then

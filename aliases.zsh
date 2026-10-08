@@ -198,9 +198,10 @@ fi
 if command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
   alias python="python3"
 fi
-alias cp='cp -i'
-alias mv='mv -i'
-alias rm='rm -I'
+# cp/mv/rm are deliberately left non-interactive. The `-i`/`-I` prompts block
+# non-interactive consumers of this file (agent/tool shells source ~/.zshrc and
+# hang waiting on a prompt that nobody can answer). Use `-i` explicitly when you
+# want the confirmation.
 
 # Atuin helpers
 alias hs="atuin search"

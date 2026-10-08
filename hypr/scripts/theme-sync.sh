@@ -299,8 +299,13 @@ surf_float="$(jq -r '.colors.surfaceFloating // .surface_alt' "$palette_json")"
 # Tertiary / neutral
 tertiary="$(jq -r '.colors.tertiary // .accent2' "$palette_json")"
 neutral="$(jq -r '.colors.neutral // .muted' "$palette_json")"
-success_container="$(jq -r '.colors.successContainer // .surface2' "$palette_json")"
-danger_container="$(jq -r '.colors.errorContainer // .surface2' "$palette_json")"
+# `container` colors must resolve to a real hex value. The palette exposes the
+# container roles under `.colors` (and the legacy flat keys at the top level),
+# so a missing role must fall back through both spellings. Falling through to a
+# key that is itself absent makes `jq -r` emit the literal string "null", which
+# lands in the OpenCode theme as an unparseable color.
+success_container="$(jq -r '.colors.successContainer // .colors.surface2 // .surface_alt' "$palette_json")"
+danger_container="$(jq -r '.colors.errorContainer // .colors.surface2 // .surface_alt' "$palette_json")"
 info="$(jq -r '.colors.info // .accent2' "$palette_json")"
 bright_black="$(jq -r '.colors.terminal.brightBlack // .muted' "$palette_json")"
 bright_red="$(jq -r '.colors.terminal.brightRed // .colors.error // .danger' "$palette_json")"
