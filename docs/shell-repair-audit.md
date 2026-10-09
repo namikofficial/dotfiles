@@ -1,5 +1,9 @@
 # Shell repair audit
 
+> **Historical record.** This is a point-in-time audit from 2026-07-29 against
+> Quickshell 0.3.0. It describes the machine as it was, including which
+> processes were running. Do not read it as current state — for that, run
+> `./hypr/scripts/shell-diagnostics`.
 Audit run: 2026-07-29, live Hyprland session on `eDP-1` (1920x1080, scale 1.0), Quickshell 0.3.0.
 
 The reference video named in the task was not present at `/mnt/data/shareExample.mp4` in this workspace, so the behavioural comparison below uses the requested interaction contract and the live shell reproduction.

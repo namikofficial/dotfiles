@@ -80,7 +80,7 @@ Item {
                         RowLayout {
                             anchors.fill: parent; anchors.margins: Theme.Tokens.spacingMd
                             spacing: Theme.Tokens.spacingMd
-                            Text { text: "\uF0EA"; color: Theme.Tokens.tonalPrimary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconSm }
+                            Text { text: "\uF0EA"; color: Theme.Tokens.tonalPrimary; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconSm }
                             ColumnLayout { Layout.fillWidth: true; spacing: 2
                                 Text { text: root.preview(modelData.text); color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text { text: root.timeLabel(modelData.timestamp); color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
@@ -114,10 +114,15 @@ Item {
 
     // ── Copy to clipboard via wl-copy (detached, no shell session) ──
     // Avoid duplicate process races by checking running state before each copy.
-    property Process copyProcess: Process {
-        running: false
-        onExited: { copyRunning = false; }
+    property Components.Command copyProcess: Components.Command {
+        label: "Copy clipboard entry"
+        onExited: function(code) {
+            copyRunning = false;
+            // Surface a wl-copy failure instead of only clearing the spinner.
+            if (code !== 0) copyError = root.copyProcess.failureText();
+        }
     }
+    property string copyError: ""
     property bool copyRunning: false
 
     function copyEntry(entry) {
@@ -129,8 +134,7 @@ Item {
         // wl-copy reads the entry from stdin; the text is passed as a
         // string arg to sh -c to avoid injection.
         copyRunning = true;
-        copyProcess.command = ["sh", "-c", "printf %s \"$1\" | wl-copy --type text/plain", "clipboard-panel", String(entry.text)];
-        copyProcess.running = true;
+        copyProcess.run(["sh", "-c", "printf %s \"$1\" | wl-copy --type text/plain", "clipboard-panel", String(entry.text)]);
         // Clipboard copy is fully shell-local: wl-copy owns the actual write
         // and the daemon does not own a clipboard provider. There is no typed
         // `clipboard_copy` action in the IPC contract, so do not send one.

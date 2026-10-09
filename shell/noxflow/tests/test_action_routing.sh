@@ -78,8 +78,26 @@ fi
 
 # Notifications must still dismiss in-shell on the "dismiss" action id; that
 # is the only implemented shell-local notification action today.
-if ! grep -Fq 'dismissNotification' "$NOTIFICATIONS"; then
-    printf 'missing dismissNotification call in %s\n' "$NOTIFICATIONS" >&2
+#
+# It used to be `notifModel.dismissNotification(...)`, which only edited the
+# shell's own list and never told the sending application. Now that Quickshell
+# owns the bus (decision 5), dismissal must go through NotificationBridge so the
+# sender gets its CloseNotification, and the bridge removes the entry locally.
+if ! grep -Fq 'bridge.dismiss' "$NOTIFICATIONS"; then
+    printf 'missing bridge.dismiss call in %s\n' "$NOTIFICATIONS" >&2
+    exit 1
+fi
+if grep -Fq 'notifModel.dismissNotification' "$NOTIFICATIONS"; then
+    printf 'forbidden: %s must dismiss through the bridge, not the model directly\n' \
+        "$NOTIFICATIONS" >&2
+    exit 1
+fi
+# And the bridge itself must call the server's dismiss before dropping locally,
+# otherwise the sending application is left waiting on a notification the shell
+# has already forgotten.
+BRIDGE="$ROOT/shell/noxflow/services/NotificationBridge.qml"
+if ! grep -Fq 'entry.dismiss()' "$BRIDGE"; then
+    printf 'missing server-side dismiss in %s\n' "$BRIDGE" >&2
     exit 1
 fi
 

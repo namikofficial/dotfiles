@@ -16,6 +16,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import "../../theme" as Theme
+import "../../config" as Config
 import "../../components" as Components
 
 PanelWindow {
@@ -31,8 +32,13 @@ PanelWindow {
     }
 
     anchors.top: true; anchors.bottom: true; anchors.left: true; anchors.right: true
-    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    exclusiveZone: 0; aboveWindows: true; color: "transparent"
     visible: lifecycle.active
+    // Request the keyboard seat on open rather than on click; see the long
+    // explanation in core/MorphSurface.qml.
+    WlrLayershell.keyboardFocus: lifecycle.active
+        ? WlrKeyboardFocus.Exclusive
+        : WlrKeyboardFocus.None
 
     // ── Focus + Escape ──
     FocusScope {
@@ -59,7 +65,10 @@ PanelWindow {
     property string lastStatusKind: ""       // "" | "saved" | "rejected" | "external" | "reconnect" | "unavailable"
     property string lastStatusKey: ""
     property string lastStatusMessage: ""
-    property int lastStatusAt: 0
+    // `double`: QML's int is 32-bit and Date.now() overflows it, so a
+    // millisecond timestamp stored in an int wraps and every elapsed-time
+    // comparison below becomes wrong.
+    property double lastStatusAt: 0
     property bool hydrationInFlight: false
     property bool hydrationLoaded: false
     property string hydrationError: ""
@@ -87,24 +96,10 @@ PanelWindow {
         lastStatusMessage = "";
     }
 
+    // The mapping lives in config/Appearance.qml so shell.qml can apply the
+    // same persisted values at boot. This panel is no longer the only owner.
     function applyAppearanceFromMap(map) {
-        if (!map) return;
-        if (map["appearance.profile"] !== undefined) {
-            var profile = String(map["appearance.profile"]);
-            if (Theme.Tokens.currentProfile !== profile) Theme.Tokens.applyProfile(profile);
-        }
-        if (map["appearance.density"] !== undefined) {
-            var density = String(map["appearance.density"]);
-            if (Theme.Tokens.activeDensity !== density) Theme.Tokens.activeDensity = density;
-        }
-        if (map["shell.reduced_motion"] !== undefined) {
-            var reduced = !!map["shell.reduced_motion"];
-            if (Theme.Tokens.reducedMotion !== reduced) Theme.Tokens.reducedMotion = reduced;
-        }
-        if (map["appearance.radius"] !== undefined) {
-            var radius = Number(map["appearance.radius"]);
-            if (!isNaN(radius)) Theme.Tokens.applyRadius(radius);
-        }
+        return Config.Appearance.applyFromMap(map);
     }
 
     // Daemon writes a setting through the canonical API. Result carries the
@@ -155,30 +150,11 @@ PanelWindow {
     }
 
     function capturePrevious(key) {
-        switch (key) {
-            case "appearance.profile": return String(Theme.Tokens.currentProfile);
-            case "appearance.density": return String(Theme.Tokens.activeDensity);
-            case "shell.reduced_motion": return !!Theme.Tokens.reducedMotion;
-            case "appearance.radius": return Number(Theme.Tokens.appearanceRadius);
-            default: return undefined;
-        }
+        return Config.Appearance.currentValue(key);
     }
 
     function revertLocalValue(key, value) {
-        switch (key) {
-            case "appearance.profile":
-                if (Theme.Tokens.currentProfile !== value) Theme.Tokens.applyProfile(String(value));
-                break;
-            case "appearance.density":
-                if (Theme.Tokens.activeDensity !== value) Theme.Tokens.activeDensity = String(value);
-                break;
-            case "shell.reduced_motion":
-                if (Theme.Tokens.reducedMotion !== value) Theme.Tokens.reducedMotion = !!value;
-                break;
-            case "appearance.radius":
-                Theme.Tokens.applyRadius(Number(value));
-                break;
-        }
+        Config.Appearance.revert(key, value);
     }
 
     function hydrateFromDaemon() {
@@ -264,24 +240,31 @@ PanelWindow {
     // the restart banner is a "verified supported operation".
     property int maintenanceBusy: 0
     property var maintenanceStatus: ({})
+    // Set by the Restart daemon button: the panel must survive long enough to
+    // show the exit-code banner, then close itself.
+    property bool closeAfterMaintenance: false
     function maintenanceRun(command, label) {
         if (maintenanceBusy > 0) return;
+        // The plan asks this runner to keep the panel open until the result
+        // banner shows, so "Restart daemon" must not close the panel on click;
+        // it closes from the exit handler once the outcome is known.
+        maintenanceProc.label = label;
+        if (!maintenanceProc.run(command)) return;
         maintenanceBusy += 1;
-        var proc = maintenanceProc;
-        proc.command = command;
-        proc.label = label;
-        proc.running = true;
     }
-    property Process maintenanceProc: Process {
-        id: maintenanceProc
-        property string label: ""
-        command: []; running: false
-        onExited: function(exitCode, exitStatus) {
+    property Components.Command maintenanceProc: Components.Command {
+        label: "maintenance command"
+        onExited: function(exitCode) {
             var lbl = root.maintenanceProc.label || "command";
             if (exitCode === 0) {
                 reportStatus("saved", "", lbl + ": ok");
             } else {
-                reportStatus("rejected", "", lbl + " failed (exit " + exitCode + ")");
+                reportStatus("rejected", "", root.maintenanceProc.failureText());
+            }
+            // Only now, with the outcome known, may the panel close.
+            if (root.closeAfterMaintenance) {
+                root.closeAfterMaintenance = false;
+                lifecycle.requestClose("restartDaemon");
             }
             root.maintenanceBusy = Math.max(0, root.maintenanceBusy - 1);
         }
@@ -497,20 +480,12 @@ PanelWindow {
                         font.pixelSize: Theme.Tokens.typographyTitleMedium; font.bold: true
                     }
 
-                    RowLayout {
-                        Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
-                        Text {
-                            text: "Density"; color: Theme.Tokens.textPrimary
-                            font.pixelSize: Theme.Tokens.typographyBodyMedium; Layout.fillWidth: true
-                        }
-                        Text {
-                            text: {
-                                var labels = { compact: "Compact", comfortable: "Comfortable", spacious: "Spacious" };
-                                return labels[Theme.Tokens.activeDensity] || Theme.Tokens.activeDensity;
-                            }
-                            color: Theme.Tokens.textSecondary
-                            font.pixelSize: Theme.Tokens.typographyBodySmall
-                            Layout.preferredWidth: Theme.Tokens.scaled(96)
+                    Components.SettingRow {
+                        Layout.fillWidth: true
+                        label: "Density"
+                        valueText: {
+                            var labels = { compact: "Compact", comfortable: "Comfortable", spacious: "Spacious" };
+                            return labels[Theme.Tokens.activeDensity] || Theme.Tokens.activeDensity;
                         }
                         Repeater {
                             model: ["compact", "comfortable", "spacious"]
@@ -528,18 +503,11 @@ PanelWindow {
                         }
                     }
 
-                    RowLayout {
-                        Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
-                        Text {
-                            text: "Reduced motion"; color: Theme.Tokens.textPrimary
-                            font.pixelSize: Theme.Tokens.typographyBodyMedium; Layout.fillWidth: true
-                        }
-                        Text {
-                            text: Theme.Tokens.reducedMotion ? "On" : "Off"
-                            color: Theme.Tokens.textSecondary
-                            font.pixelSize: Theme.Tokens.typographyBodySmall
-                            Layout.preferredWidth: Theme.Tokens.scaled(48)
-                        }
+                    Components.SettingRow {
+                        Layout.fillWidth: true
+                        label: "Reduced motion"
+                        valueText: Theme.Tokens.reducedMotion ? "On" : "Off"
+                        valueWidth: Theme.Tokens.scaled(48)
                         Components.Toggle {
                             accessibleName: "Reduced motion"
                             checked: Theme.Tokens.reducedMotion
@@ -551,21 +519,14 @@ PanelWindow {
                         }
                     }
 
-                    RowLayout {
-                        Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd
-                        Text {
-                            text: "Corner radius"; color: Theme.Tokens.textPrimary
-                            font.pixelSize: Theme.Tokens.typographyBodyMedium
-                        }
-                        Text {
-                            // Label must reflect the EFFECTIVE radius, not a
-                            // hard-coded constant. appearanceRadius is updated
-                            // by applyRadius() so this binding is always honest.
-                            text: Theme.Tokens.appearanceRadius + "px"
-                            color: Theme.Tokens.textSecondary
-                            font.pixelSize: Theme.Tokens.typographyBodySmall
-                            Layout.preferredWidth: Theme.Tokens.scaled(40)
-                        }
+                    Components.SettingRow {
+                        Layout.fillWidth: true
+                        label: "Corner radius"
+                        // Must reflect the EFFECTIVE radius, not a hard-coded
+                        // constant. appearanceRadius is updated by applyRadius()
+                        // so this binding is always honest.
+                        valueText: Theme.Tokens.appearanceRadius + "px"
+                        valueWidth: Theme.Tokens.scaled(40)
                         Repeater {
                             model: [4, 8, 14, 20, 28]
                             delegate: Components.TextButton {
@@ -615,8 +576,8 @@ PanelWindow {
                             text: "Restart Daemon"
                             enabled: root.maintenanceBusy === 0
                             onClicked: {
+                                root.closeAfterMaintenance = true;
                                 root.maintenanceRun(["systemctl", "--user", "restart", "noxd"], "Restart daemon");
-                                lifecycle.requestClose("restartDaemon");
                             }
                         }
                     }

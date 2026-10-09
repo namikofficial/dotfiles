@@ -48,7 +48,7 @@ case "$action" in
     choice="$(
       cat <<EOF | rofi -dmenu -i -no-show-icons -p 'Context' -theme "$HOME/.config/rofi/actions.rasi"
 git commit current project
-open noxcrm backend
+open noxorigin repo
 switch to dev mode
 restart portals
 recover desktop
@@ -63,8 +63,8 @@ EOF
       "git commit current project")
         exec kitty --title "git commit" -e /usr/bin/zsh -lic "cd '$root' && git status --short && git add -A && git commit"
         ;;
-      "open noxcrm backend")
-        exec xdg-open "$HOME/Documents/code/noxorigin/workspace/backend"
+      "open noxorigin repo")
+        exec xdg-open "$HOME/Documents/code/noxorigin/noxorigin"
         ;;
       "switch to dev mode")
         exec "$HOME/.config/hypr/scripts/settingsctl" profile apply performance

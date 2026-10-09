@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$script_dir/../hypr/scripts/workbench-runtime-env.sh"
+source "$script_dir/../hypr/scripts/lib/workbench-env.sh"
 
 registry_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-registry-v1.json"
 status_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ai-workbench/project-status-v1.json"

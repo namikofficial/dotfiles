@@ -52,4 +52,17 @@ force_link "$ROOT_DIR/configs/opencode/opencode-quota/quota-toast.json" "$HOME/.
 force_link "$HOME/.cache/hypr/theme-colors-rofi.rasi" "$HOME/.config/rofi/theme-colors-rofi.rasi"
 force_copy "$ROOT_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
 
+# ~/.local/bin/noxctl was a 3.4 MB *copy* of the cargo build output, so it
+# silently drifted: the copy was rebuilt on a different day than target/release
+# and neither the gate nor any check noticed. Link it instead.
+#
+# Skipped when the binary has not been built yet — a dangling symlink is worse
+# than a stale copy, and `cargo build --release -p noxctl` fixes it.
+if [[ -x "$ROOT_DIR/target/release/noxctl" ]]; then
+  force_link "$ROOT_DIR/target/release/noxctl" "$HOME/.local/bin/noxctl"
+else
+  echo "skip ~/.local/bin/noxctl: target/release/noxctl not built" >&2
+  echo "  fix: cargo build --release --manifest-path cli/noxctl/Cargo.toml" >&2
+fi
+
 echo "Normalization complete."

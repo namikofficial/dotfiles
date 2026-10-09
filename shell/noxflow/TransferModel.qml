@@ -25,8 +25,8 @@ ProviderModel {
     function applySnapshot(snapshot) {
         if (!Utils.applyBase(this, snapshot, providerName)) return false;
         var next = snapshot.data;
-        devices = Array.isArray(next.devices) ? next.devices : [];
-        sessions = Array.isArray(next.sessions) ? next.sessions : [];
+        devices = Utils.asArray(next.devices);
+        sessions = Utils.asArray(next.sessions);
         return true;
     }
 
@@ -34,12 +34,12 @@ ProviderModel {
     // a notification for new incoming requests.
     function applyEvent(event) {
         if (!event || event.provider !== providerName) return false;
-        if (event.event_type === "discovery" && event.data && Array.isArray(event.data.devices)) {
+        if (event.event_type === "discovery" && event.data) {
             devices = event.data.devices;
             return true;
         }
         if (event.event_type === "sessions" && event.data) {
-            if (Array.isArray(event.data.sessions)) {
+            if (event.data.sessions !== undefined) {
                 sessions = event.data.sessions;
             }
             // Surface new incoming requests; prune notified ids for sessions

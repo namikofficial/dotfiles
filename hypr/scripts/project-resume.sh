@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 . "$SCRIPT_DIR/lib/common.sh"
 # shellcheck disable=SC1091
-. "$SCRIPT_DIR/workbench-runtime-env.sh"
+. "$SCRIPT_DIR/lib/workbench-env.sh"
 
 mode="launch"
 start_ai=0

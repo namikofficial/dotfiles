@@ -67,17 +67,9 @@ var CRITICAL_KINDS = [
 
 // "Activity" / OSD kinds are routine transients — volume slider, brightness
 // nudges, mic mute toggles, file transfer, etc. They never replace a pin.
-var OSD_KINDS = [
-    "volume",
-    "brightness",
-    "output-mute",
-    "input-mute",
-    "media",
-    "file-transfer",
-    "ai-completion",
-    "build-result",
-    "notification"
-];
+// This list was never read: OSD engagement is decided by the caller passing a
+// timeout, not by membership in a table. Kept out rather than left as a
+// second, diverging source of truth for which kinds are "routine".
 
 function clone(value) {
     if (value === null || typeof value !== "object") return value;

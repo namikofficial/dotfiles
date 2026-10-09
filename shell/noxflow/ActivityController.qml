@@ -9,6 +9,12 @@ QtObject {
     readonly property int transitGraceMs: 450
     property var state: Arbitration.newState()
     property var hosts: ({})
+
+    // Dedupe window for OSD spam: an identical activity within 300 ms is
+    // dropped. The key map is bounded — without a cap it grew for the life of
+    // the shell, one entry per distinct kind/title pair ever seen.
+    readonly property int dedupeWindowMs: 300
+    readonly property int maxDedupeKeys: 64
     property var pendingRoute: null
     property var lastEventKeys: ({})
 
@@ -101,9 +107,16 @@ QtObject {
         var normalized = Arbitration.normalizeActivity(activity, focusedMonitor());
         var key = normalized.kind + "::" + normalized.title;
         var now = Date.now();
-        if (lastEventKeys[key] && now - lastEventKeys[key] < 300) return false;
+        if (lastEventKeys[key] && now - lastEventKeys[key] < dedupeWindowMs) return false;
         var keys = {};
-        for (var old in lastEventKeys) keys[old] = lastEventKeys[old];
+        // Rebuild oldest-first so the most recent entries survive eviction.
+        var previous = Object.keys(lastEventKeys).sort(function (a, b) {
+            return lastEventKeys[a] - lastEventKeys[b];
+        });
+        var keep = Math.max(0, maxDedupeKeys - 1);
+        for (var i = Math.max(0, previous.length - keep); i < previous.length; i++) {
+            keys[previous[i]] = lastEventKeys[previous[i]];
+        }
         keys[key] = now;
         lastEventKeys = keys;
         var previousId = state.activity ? state.activity.id : "";

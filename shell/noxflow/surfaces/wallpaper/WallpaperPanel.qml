@@ -99,7 +99,7 @@ Item {
                             anchors.fill: parent
                             color: "transparent"
                             visible: thumb.status !== Image.Ready
-                            Text { anchors.centerIn: parent; text: "\uF03E"; color: Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconMd }
+                            Text { anchors.centerIn: parent; text: "\uF03E"; color: Theme.Tokens.textMuted; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconMd }
                         }
 
                         // Name overlay

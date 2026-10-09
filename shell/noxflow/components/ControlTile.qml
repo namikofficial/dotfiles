@@ -24,7 +24,16 @@ Rectangle {
 
     // Two lines of copy plus vertical padding need more than the old 52px
     // tile; the previous height made subtitles collide with the next row.
-    height: Theme.Tokens.scaled(68)
+    //
+    // implicitHeight, not height: every tile sits directly in a ColumnLayout,
+    // and a layout assigns `height` to its children — overwriting a manually
+    // set height with the item's implicitHeight, which for a bare Rectangle is
+    // 0. The tile collapsed, the RowLayout had no room, and the label and icon
+    // were painted on top of each other with the card background nowhere to be
+    // seen.
+    implicitHeight: Theme.Tokens.scaled(68)
+    // The layout also owns width, so fill it rather than defaulting to 0.
+    Layout.fillWidth: true
     radius: Theme.Tokens.radiusMd
     color: root.pressed ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHighest, 0.86) : root.hovered ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.76) : Theme.Tokens.glass(Theme.Tokens.surfaceSurface, Theme.Tokens.glassCardAlpha)
     border.color: Theme.Tokens.glass(Theme.Tokens.outlineSubtle, Theme.Tokens.glassBorderAlpha)
@@ -39,6 +48,11 @@ Rectangle {
         Text {
             text: root.icon
             color: root.statusColor
+            // The icon font is not optional here. Without it the Text renders in
+            // the app's monospace face, which has none of the Nerd Font private
+            // use codepoints every icon in this shell is written in — the glyph
+            // simply came out blank, with no error and no tofu box.
+            font.family: Theme.Tokens.iconFont
             font.pixelSize: Theme.Tokens.iconMd
         }
         ColumnLayout {

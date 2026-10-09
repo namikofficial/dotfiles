@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import "../../theme" as Theme
+import "../../config" as Config
 import "../../components" as Components
 
 PanelWindow {
@@ -20,16 +21,21 @@ PanelWindow {
         NumberAnimation { duration: lifecycle.animDuration; easing.type: lifecycle.easingType }
     }
 
+    // `program` entries resolve through config/Apps.qml, so a binary that is
+    // not installed disables the segment with a tooltip instead of failing
+    // silently. `action` entries go to the daemon.
     property var slots: [
         { icon: "♫", label: "Music", action: "media_play_pause", actionParams: {} },
         { icon: "⌁", label: "Network", action: "network_refresh", actionParams: {} },
         { icon: "◈", label: "Bluetooth", action: "bluetooth_set_powered", actionParams: { powered: true } },
-        { icon: "⚡", label: "Terminal", action: "launch", actionParams: { command: "kitty" } },
-        { icon: "◉", label: "Files", action: "launch", actionParams: { command: "thunar" } },
-        { icon: "◆", label: "Browser", action: "launch", actionParams: { command: "firefox" } },
+        { icon: "⚡", label: "Terminal", program: "terminal" },
+        { icon: "◉", label: "Files", program: "files" },
+        { icon: "◆", label: "Browser", program: "browser" },
         { icon: "☰", label: "Launcher", action: "toggle_launcher", actionParams: {} },
         { icon: "✕", label: "Close", action: "close_wheel", actionParams: {} }
     ]
+
+    property string slotNotice: ""
 
     property int hoveredSlot: -1
     readonly property real outerR: Math.min(width, height) / 2 - Theme.Tokens.scaled(20)
@@ -41,13 +47,19 @@ PanelWindow {
     readonly property real cy: height / 2
 
     implicitWidth: Theme.Tokens.scaled(420); implicitHeight: Theme.Tokens.scaled(420)
-    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    exclusiveZone: 0; aboveWindows: true; color: "transparent"
     visible: lifecycle.active
+    // Request the keyboard seat on open rather than on click; see the long
+    // explanation in core/MorphSurface.qml.
+    WlrLayershell.keyboardFocus: lifecycle.active
+        ? WlrKeyboardFocus.Exclusive
+        : WlrKeyboardFocus.None
 
     Connections {
         target: lifecycle
         function onOpened() {
             hoveredSlot = -1;
+            slotNotice = "";
             wheelCanvas.requestPaint();
         }
     }
@@ -104,6 +116,22 @@ PanelWindow {
 
     Text { anchors.centerIn:parent; text:root.hoveredSlot>=0?root.slots[root.hoveredSlot].label||"":"⏎"; color:root.hoveredSlot>=0?Theme.Tokens.tonalPrimary:Theme.Tokens.textMuted; font.pixelSize:root.hoveredSlot>=0?Theme.Tokens.typographyTitleMedium:Theme.Tokens.iconLg; font.bold:root.hoveredSlot>=0; opacity:root.openProgress; z:10 }
 
+    // Shown when a program-backed slot was activated but its binary is not
+    // installed. Without this the press produced no feedback at all.
+    Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+        width: parent.width - Theme.Tokens.scaled(48)
+        text: root.slotNotice
+        visible: root.slotNotice !== "" && root.openProgress > 0
+        color: Theme.Tokens.stateDanger
+        font.pixelSize: Theme.Tokens.typographyLabelSmall
+        wrapMode: Text.WordWrap
+        horizontalAlignment: Text.AlignHCenter
+        z: 11
+    }
+
     MouseArea { anchors.fill:parent; hoverEnabled:true
         onPositionChanged:function(mouse){var dx=mouse.x-root.cx;var dy=mouse.y-root.cy;var dist=Math.sqrt(dx*dx+dy*dy);if(dist<root.innerR||dist>root.outerR){root.hoveredSlot=-1;return;}var angle=Math.atan2(dy,dx)+Math.PI/2;if(angle<0)angle+=2*Math.PI;root.hoveredSlot=Math.floor(angle/(2*Math.PI/root.slotCount));}
         onExited:root.hoveredSlot=-1
@@ -120,7 +148,21 @@ PanelWindow {
     function navigateSlot(delta){if(root.hoveredSlot<0)root.hoveredSlot=0;else root.hoveredSlot=(root.hoveredSlot+delta+root.slotCount)%root.slotCount;}
 
     function activateSlot(index){
-        if(index<0||index>=slots.length)return;var slot=slots[index];if(!slot||!slot.action)return;
+        if(index<0||index>=slots.length)return;var slot=slots[index];if(!slot)return;
+        // A program-backed slot whose binary is missing must not fire: report
+        // why in the centre label and keep the wheel open.
+        if(slot.program){
+            if(!Config.Apps.isAvailable(slot.program)){
+                root.slotNotice=Config.Apps.unavailableReason(slot.program);
+                hoveredSlot=index;
+                return;
+            }
+            var launched=Config.Apps.invoke(slot.program,slot.args||[]);
+            if(!launched.ok){root.slotNotice=launched.reason;hoveredSlot=index;return;}
+            root.slotNotice="";
+            lifecycle.requestClose("launch");return;
+        }
+        if(!slot.action)return;
         switch(slot.action){case"close_wheel":lifecycle.requestClose("closeWheel");break;
             case"toggle_launcher":
                 // Shell-local: the launcher is a shell surface and the
@@ -128,7 +170,6 @@ PanelWindow {
                 lifecycle.requestClose("toggleLauncher");
                 if (shellRoot && typeof shellRoot.toggleLauncher === "function") shellRoot.toggleLauncher();
                 break;
-            case"launch":if(slot.actionParams&&slot.actionParams.command)Quickshell.exec(slot.actionParams.command);lifecycle.requestClose("launch");break;
             default:if(root.noxd&&root.noxd.connected){var action={};action[slot.action]=slot.actionParams||{};root.noxd.runAction(action);}lifecycle.requestClose("action");break;}
     }
 

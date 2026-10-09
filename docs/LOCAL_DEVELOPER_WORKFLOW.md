@@ -111,13 +111,15 @@ While the graphical observer is running, nested source changes are detected thro
 Dependency, build and index directories are pruned, bursts are debounced, and the watcher asks Workbench for one
 project-scoped status refresh. It does not execute Git or Docker itself.
 
-Nox Billings helpers:
+NoxOrigin helpers (`nox-help` lists them all):
 
 ```sh
-nox-billings
-nox-billings-edit
-nox-billings-emulator
-nox-billings-up        # tmux-based dev stack (API/web/mobile); pass --open for Kitty windows
+nox                    # cd into ~/Documents/code/noxorigin/noxorigin
+nox-docs / nox-web     # cd into noxorigin-docs / noxorigin-website
+nox-edit               # open the monorepo in VS Code
+nox-up                 # just up (pass -o/--open, -t/--tunnel, -a/--android)
+nox-just RECIPE        # any noxorigin just recipe from anywhere
+nox-env-edit staging   # decrypt-on-open SOPS env in VS Code
 ```
 
 trackMe helpers:

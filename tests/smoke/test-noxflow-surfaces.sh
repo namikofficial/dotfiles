@@ -145,13 +145,24 @@ echo ""
 # ── Log check: new QML errors ──
 echo "--- Journal log check (since test start) ---"
 
-ERROR_COUNT=$(journalctl --user -u noxflow-shell --since "@$TEST_START" --no-pager 2>/dev/null | grep -ci 'error\|WARN.*ReferenceError\|WARN.*is not defined' || true)
+# Match real QML faults, not incidental strings. The old pattern
+# `grep -ci 'error\|...'` matched any line containing "error", including the
+# benign `QDBusError: ... The name org.freedesktop.Notifications was not
+# provided by any .service files` warning that Quickshell emits whenever the
+# notification portal is absent — so the gate failed on a healthy shell.
+# QML faults are logged by Quickshell as `file.qml:NN:M: <message>`, so anchor
+# on the severity token the logger emits rather than free text.
+LOG_LINES="$(journalctl --user -u noxflow-shell --since "@$TEST_START" --no-pager 2>/dev/null || true)"
+
+ERROR_RE='ReferenceError|TypeError|SyntaxError|is not a function|is not defined|Unable to assign|cannot read property|QML .*: (Error|.*Error:)'
+
+ERROR_COUNT="$(grep -Ec "$ERROR_RE" <<<"$LOG_LINES" || true)"
 
 if [ "$ERROR_COUNT" -eq 0 ]; then
   log_pass "No new QML errors or warnings in journal"
 else
   log_fail "$ERROR_COUNT new QML error/warning lines in journal:"
-  journalctl --user -u noxflow-shell --since "@$TEST_START" --no-pager 2>/dev/null | grep -i 'error\|WARN.*ReferenceError\|WARN.*is not defined' | head -20
+  grep -E "$ERROR_RE" <<<"$LOG_LINES" | head -20
 fi
 
 echo ""

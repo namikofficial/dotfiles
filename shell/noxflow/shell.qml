@@ -13,6 +13,8 @@ import "surfaces/dashboard" as DashboardSurface
 import "surfaces/settings" as SettingsSurface
 import "surfaces/share" as ShareSurface
 import "surfaces/wallpaper" as WallpaperSurface
+import "services" as Services
+import "config" as Config
 import "components" as Components
 import "core" as Core
 
@@ -24,22 +26,62 @@ ShellRoot {
     HyprlandModel { id: hyprlandModel }
     AudioModel { id: audioModel }
     BrightnessModel { id: brightnessModel }
-    BatteryModel { id: batteryModel }
     PowerModel { id: powerModel }
-    NetworkModel { id: networkModel }
+    // noxd: the Wi-Fi connect flow lives in the model and issues the actions.
+    NetworkModel { id: networkModel; noxd: daemonClient }
     BluetoothModel { id: bluetoothModel }
     MediaModel { id: mediaModel }
-    NotificationModel { id: notificationModel }
+    // Named notifStore, not notificationModel: the id used to be
+    // `notificationModel`, which silently shadowed the identically named
+    // TopChrome/Bar property. `notificationModel: notificationModel` then
+    // resolved the right-hand side to the property itself, so the bar
+    // received `undefined` and the notification badge was structurally
+    // incapable of ever showing a count.
+    NotificationModel { id: notifStore }
+
+    // Decision 5: Quickshell owns org.freedesktop.Notifications. Instantiating
+    // the server is what claims the bus name — referencing it as a singleton
+    // leaves trackedNotifications undefined and no owner at all.
+    Services.NotificationBridge {
+        id: notificationBridge
+        model: notifStore
+    }
+    property alias notificationBridge: notificationBridge
     CalendarModel { id: calendarModel; Component.onCompleted: start() }
     ClipboardModel { id: clipboardModel }
     TransferModel { id: transferModel; noxd: daemonClient }
     SyncthingModel { id: syncthingModel; Component.onCompleted: start() }
     WallpaperModel { id: wallpaperModel }
     MorphRegistry { id: morphRegistry }
+    // Touch the external-program registry at startup so its probe runs even
+    // when no view has been created yet; otherwise the first radial or
+    // launcher use races the probe and disables entries that do exist.
+    Component.onCompleted: {
+        if (!Config.Apps.probed) Config.Apps.probe();
+    }
     WeatherModel { id: weatherModel; Component.onCompleted: start() }
     SystemModel { id: systemModelInstance; Component.onCompleted: start() }
     UpdateModel { id: updateModel; Component.onCompleted: start() }
     CaptureSurface.QuickSnipSettings { id: quickSnipSettings; Component.onCompleted: load() }
+
+    // One AI client for every surface. Configured from noxd settings rather
+    // than a hardcoded constant or per-surface env lookup.
+    // Named aiClientInstance, not aiClient: with the id named `aiClient`, the
+    // binding `aiClient: aiClient` on Launcher and Capture resolved the
+    // right-hand side to those components' own `aiClient` property, so both
+    // received null and every AI action in the launcher and in Capture's panel
+    // was silently dead. An id is not reachable as `shellRoot.aiClient`, so
+    // renaming the id is the fix; qualifying the reference is not.
+    Services.AiClient {
+        id: aiClientInstance
+        noxd: daemonClient
+        Component.onCompleted: {
+            // The daemon may not have finished its handshake yet; retry once
+            // the subscription completes so the endpoint is authoritative.
+            refreshSettings()
+        }
+    }
+    property alias ai: aiClientInstance
 
     // ── Per-screen instance trackers ──
     InstanceTracker { id: ccTracker }
@@ -50,7 +92,6 @@ ShellRoot {
     ActivityController { id: activityControllerInstance }
     Core.PanelController { id: panelController; triggerRegistry: morphRegistry }
     property alias coordinator: panelController
-    property alias surfaceCoordinator: surfaceCoordinatorInstance
     property alias triggerRegistry: morphRegistry
     // TopChrome is instantiated once per monitor. Keep a small registry so
     // global IPC/keybind requests expand the island on the active monitor
@@ -84,31 +125,39 @@ ShellRoot {
         id: launcherDefinition
         LauncherSurface.Launcher {
             noxd: daemonClient; hyprland: hyprlandModel; clipboardModel: clipboardModel
+            aiClient: aiClientInstance
             onRequestCaptureAfterClose: shellRoot.openCapture()
         }
-    }
-
-    // ── Surface Coordinator ──
-    Components.SurfaceCoordinator {
-        id: surfaceCoordinatorInstance
     }
 
     // ── Daemon snapshot dispatch ──
     Connections {
         target: daemonClient
+        function onConnectionStateUpdated(state) {
+            // Appearance and AI configuration both come from the daemon, so
+            // refresh them once it is actually subscribed (phase 1.12, dec. 4).
+            if (state === "subscribed") {
+                applyPersistedAppearance();
+                aiClientInstance.refreshSettings();
+            }
+        }
         function onSnapshotReceived(snapshots) {
+            // Only providers noxd actually registers reach this handler: the
+            // subscription allowlist in Protocol.js mirrors
+            // core/noxd/src/providers/. "notifications", "calendar" and
+            // "clipboard" were removed because EventBus::subscribe accepts
+            // unknown provider names silently — they looked subscribed while
+            // delivering nothing, so the bar pill and the notification centre
+            // rendered permanently empty state.
             for (var provider in snapshots) {
                 var snapshot = snapshots[provider];
                 if (provider === "hyprland") hyprlandModel.applySnapshot(snapshot);
                 else if (provider === "audio") audioModel.applySnapshot(snapshot);
                 else if (provider === "brightness") brightnessModel.applySnapshot(snapshot);
-                else if (provider === "power") { batteryModel.applySnapshot(snapshot); powerModel.applySnapshot(snapshot); }
+                else if (provider === "power") powerModel.applySnapshot(snapshot)
                 else if (provider === "network") networkModel.applySnapshot(snapshot);
                 else if (provider === "bluetooth") bluetoothModel.applySnapshot(snapshot);
                 else if (provider === "media") mediaModel.applySnapshot(snapshot);
-                else if (provider === "notifications") notificationModel.applySnapshot(snapshot);
-                else if (provider === "calendar") calendarModel.applySnapshot(snapshot);
-                else if (provider === "clipboard") clipboardModel.applySnapshot(snapshot);
                 else if (provider === "transfer") transferModel.applySnapshot(snapshot);
             }
         }
@@ -141,8 +190,9 @@ ShellRoot {
                 ControlCenter.ControlCentre {
                     screen: morphSurface.screen
                     noxd: daemonClient; audio: audioModel; brightness: brightnessModel
-                    network: networkModel; bluetooth: bluetoothModel; battery: batteryModel
+                    network: networkModel; bluetooth: bluetoothModel; battery: powerModel
                     power: powerModel; hyprland: hyprlandModel; systemModel: systemModelInstance
+                    notificationModel: notifStore
                 }
             }
             Component {
@@ -151,7 +201,7 @@ ShellRoot {
             }
             Component {
                 id: notificationComponent
-                NotificationSurfaces.NotificationCentre { screen: morphSurface.screen; noxd: daemonClient; notifModel: notificationModel; morphRegistry: morphRegistry }
+                NotificationSurfaces.NotificationCentre { screen: morphSurface.screen; noxd: daemonClient; notifModel: notifStore; morphRegistry: morphRegistry; bridge: notificationBridge }
             }
             Component {
                 id: mediaComponent
@@ -186,7 +236,6 @@ ShellRoot {
                 panelController.registerPanel("wallpaper", this);
                 panelController.registerPanel("quick-share", this);
                 panelController.registerPanel("sync", this);
-                surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
             }
             Connections {
                 target: morphSurface
@@ -205,7 +254,6 @@ ShellRoot {
                 panelController.unregisterPanel("wallpaper", this);
                 panelController.unregisterPanel("quick-share", this);
                 panelController.unregisterPanel("sync", this);
-                surfaceCoordinatorInstance.unregister(this);
             }
         }
     }
@@ -216,6 +264,30 @@ ShellRoot {
             if (host && typeof host.closeInlineCalendar === "function") host.closeInlineCalendar();
         }
     }
+
+    // Pull appearance from the daemon and apply it at boot. Before this, a
+    // theme survived only as long as the Settings panel stayed open.
+    property bool appearanceApplied: false
+    function applyPersistedAppearance() {
+        if (!daemonClient || !daemonClient.connected) return false;
+        daemonClient.getSettings(function(result) {
+            var data = result && result.data && result.data.settings;
+            if (!data) {
+                console.warn("shell: daemon returned no settings for appearance hydration");
+                return;
+            }
+            var applied = Config.Appearance.applyFromMap(data);
+            appearanceApplied = true;
+            if (applied.length > 0)
+                console.info("shell: applied persisted appearance:", applied.join(", "));
+            else
+                console.info("shell: persisted appearance already active");
+        }, function(code, message) {
+            console.warn("shell: could not read persisted appearance from daemon:", code, message);
+        });
+        return true;
+    }
+
     function toggleControlCentre() { closeInlineCalendars(); panelController.toggle("quick-settings"); }
     function openControl()   { closeInlineCalendars(); panelController.open("quick-settings"); }
     function openControlSection(section) { closeInlineCalendars(); panelController.open("quick-settings", "", null, section); }
@@ -260,11 +332,9 @@ ShellRoot {
             noxd: daemonClient
             Component.onCompleted: {
                 rwTracker.add(modelData, this);
-                surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typePanel);
             }
             Component.onDestruction: {
                 rwTracker.remove(modelData);
-                surfaceCoordinatorInstance.unregister(this);
             }
         }
     }
@@ -276,14 +346,14 @@ ShellRoot {
     DashboardSurface.Dashboard {
         id: dashboard
         noxd: daemonClient; hyprland: hyprlandModel
-        audio: audioModel; battery: batteryModel; network: networkModel
+        audio: audioModel; battery: powerModel; network: networkModel
         calModel: calendarModel
         weatherModel: weatherModel
         systemModel: systemModelInstance
         screen: Quickshell.activeScreen || null
         onRequestCaptureAfterClose: shellRoot.openCapture()
-        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
-        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
+        Component.onCompleted: panelController.registerModal(this)
+        Component.onDestruction: panelController.unregisterModal(this)
     }
     function toggleDashboard() { dashboard.toggle(); }
     function openDashboard()   { dashboard.open(); }
@@ -294,32 +364,58 @@ ShellRoot {
         id: settingsPanel
         noxd: daemonClient
         screen: Quickshell.activeScreen || null
-        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
-        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
+        Component.onCompleted: panelController.registerModal(this)
+        Component.onDestruction: panelController.unregisterModal(this)
     }
     function toggleSettings() { settingsPanel.toggle(); }
     function openSettings()   { settingsPanel.open(); }
     function closeSettings()  { settingsPanel.close(); }
 
     // ── DND / Night Light (IPC convenience) ──
-    property Process dndToggle: Process { command: ["dunstctl", "toggle"]; running: false }
-    property Process nightLightToggle: Process { command: ["sh", "-c", "if command -v hyprsunset >/dev/null 2>&1; then hyprctl hyprsunset identity 2>/dev/null || hyprsunset -t 4500; fi"]; running: false }
-    function toggleDnd() { dndToggle.running = true; }
+    // DND is a property on notifStore, not a command. It used to shell out to
+    // `dunstctl toggle`; with dunst retired that would have been a silently
+    // failing no-op, and the bar pill, the control centre and the notification
+    // centre would each have disagreed about whether DND was on.
+    property Components.Command nightLightToggle: Components.Command {
+        label: "Night light"
+        // No `2>/dev/null || …` chain here any more: Command records the exit
+        // code, so a missing hyprsunset is observable instead of silent.
+        command: ["sh", "-c", "if command -v hyprsunset >/dev/null 2>&1; then hyprctl hyprsunset identity || hyprsunset -t 4500; fi"]
+    }
+    function toggleDnd() { notifStore.toggleDnd(); }
     function toggleNightLight() { nightLightToggle.running = true; }
 
     // ── Capture overlay (modal, singleton) ──
     CaptureSurface.Capture {
         id: capture
         noxd: daemonClient
+        aiClient: aiClientInstance
         screen: Quickshell.activeScreen || null
         onFullScreenCaptureRequested: dest => {
-            captureFullScreen.command = ["sh", "-c", "mkdir -p \"$(dirname '" + dest.replace(/'/g, "'\\''") + "')\" && grim \"" + dest.replace(/'/g, "'\\''") + "\" && notify-send 'Screenshot saved' \"" + dest.replace(/'/g, "'\\''") + "\" -t 3000 || notify-send 'Screenshot failed' 'grim returned an error' -u critical"];
-            captureFullScreen.running = true;
+            // JSON.stringify does the shell quoting here. The previous version
+            // interpolated the path into a nested "$(dirname '...')" inside a
+            // QML string, which is where the quoting bugs came from.
+            var dir = dest.substring(0, dest.lastIndexOf("/"));
+            captureFullScreen.runShell(
+                "mkdir -p " + JSON.stringify(dir)
+                + " && grim " + JSON.stringify(dest)
+                + " && notify-send 'Screenshot saved' " + JSON.stringify(dest) + " -t 3000");
+            captureFullScreen.exited.connect(function(code) {
+                if (code === 0) return;
+                // The shell has no notify-send banner of its own, so the exit
+                // code and stderr go to the journal instead of being dropped.
+                console.warn("screenshot failed:", captureFullScreen.failureText());
+            });
         }
-        Component.onCompleted: surfaceCoordinatorInstance.register(this, surfaceCoordinatorInstance.typeModal)
-        Component.onDestruction: surfaceCoordinatorInstance.unregister(this)
+        Component.onCompleted: panelController.registerModal(this)
+        Component.onDestruction: panelController.unregisterModal(this)
     }
-    property Process captureFullScreen: Process { running: false }
+    property Components.Command captureFullScreen: Components.Command {
+        label: "Screenshot"
+        // The grim failure notification moved into onExited above: one place
+        // reports the real exit code instead of the shell string building a
+        // second, always-identical "grim returned an error" message.
+    }
     function toggleCapture() {
         if (capture.visible) { capture.close(); return; }
         panelController.closeAll();
@@ -376,7 +472,7 @@ ShellRoot {
         function closeSettings()  { shellRoot.closeSettings(); }
         function toggleDnd()      { shellRoot.toggleDnd(); }
         function toggleNightLight() { shellRoot.toggleNightLight(); }
-        function handleEscape()     { return shellRoot.surfaceCoordinator ? shellRoot.surfaceCoordinator.handleEscape() : false; }
+        function handleEscape()     { return shellRoot.coordinator ? shellRoot.coordinator.handleEscape() : false; }
         function toggleQuickSettingsPanel() { return shellRoot.toggleControlCentre(); }
         function openQuickSettingsPanel()   { return shellRoot.openControl(); }
         function toggleBluetoothPanel() { return shellRoot.toggleBluetoothPanel(); }
@@ -404,8 +500,8 @@ ShellRoot {
             required property var modelData
             screen: modelData
             noxd: daemonClient; hyprland: hyprlandModel; audio: audioModel
-            battery: batteryModel; network: networkModel; bluetooth: bluetoothModel
-            media: mediaModel; notificationModel: notificationModel
+            battery: powerModel; network: networkModel; bluetooth: bluetoothModel
+            media: mediaModel; notificationModel: notifStore
             systemModel: systemModelInstance; transfer: transferModel; syncthing: syncthingModel
             brightness: brightnessModel; updates: updateModel
             calModel: calendarModel; launcherComponent: launcherDefinition

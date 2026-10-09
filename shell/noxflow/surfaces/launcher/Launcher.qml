@@ -7,6 +7,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import Quickshell.Widgets
 import "../../theme" as Theme
+import "../../config" as Config
 import "../../components" as Components
 
 Item {
@@ -14,6 +15,9 @@ Item {
     required property var noxd
     required property var hyprland
     property var clipboardModel: null
+    // Shared AI client owned by shell.qml. Configured from noxd settings; this
+    // surface no longer reads NOXFLOW_AI_* or holds its own XHR.
+    property var aiClient: null
 
     Components.SurfaceLifecycle { id: lifecycle }
     property alias openProgress: lifecycle.openProgress
@@ -25,18 +29,15 @@ Item {
     // for window focus — the daemon's hyprland provider publishes state but
     // does not own focus dispatch, and the noxd Action enum has no
     // `window_focus` variant. Dispatch directly via hyprctl.
-    property Process windowFocusProcess: Process {
-        running: false
-        command: []
+    property Components.Command windowFocusProcess: Components.Command {
+        label: "Focus window"
     }
     function focusWindowByAddress(address) {
         var addr = String(address || "").trim();
         if (!addr) return;
         // hyprctl rejects malformed addresses; only accept hex digits.
         if (!/^0x[0-9a-fA-F]+$/.test(addr)) return;
-        windowFocusProcess.running = false;
-        windowFocusProcess.command = ["hyprctl", "dispatch", "focuswindow", "address:" + addr];
-        windowFocusProcess.running = true;
+        windowFocusProcess.run(["hyprctl", "dispatch", "focuswindow", "address:" + addr]);
     }
 
     readonly property var modes: ["Apps","Windows","Commands","Calc","Ask AI","Clipboard"]
@@ -46,36 +47,24 @@ Item {
     property int selectedIndex: 0
     property bool launchBusy: false
     property string launchError: ""
-    property string launchStderr: ""
     property string launchTarget: ""
-    property Process launchProcess: Process {
-        command: []; running: false
-        stderr: SplitParser { splitMarker: ""; onRead: function(data) { root.launchStderr += data } }
+    property Components.Command launchProcess: Components.Command {
+        label: "Launch"
         onStarted: { root.launchBusy = true; root.launchError = "" }
-        onExited: function(exitCode, exitStatus) {
+        onExited: function(exitCode) {
             root.launchBusy = false
             if (exitCode === 0) {
                 lifecycle.requestClose("action")
                 return
             }
-            var detail = root.launchStderr.trim()
-            root.launchError = "Could not launch " + root.launchTarget + " (exit " + exitCode + ")" + (detail ? ": " + detail : "")
+            // stderr is kept by Command, so the banner names the real cause.
+            root.launchError = root.launchProcess.failureText();
             searchField.forceActiveFocus()
         }
     }
 
-    // AI
-    property string aiQuery: ""
-    property string aiResponse: ""
-    property bool aiLoading: false
-    property int aiStatus: 0
-    property string aiErrorDetail: ""
-    readonly property string aiEndpoint: Quickshell.env("NOXFLOW_AI_ENDPOINT") || "http://127.0.0.1:8080/v1/chat/completions"
-    readonly property string aiModel: Quickshell.env("NOXFLOW_AI_MODEL") || "qwen3-4b-local"
-    readonly property int aiTimeoutMs: 30000
+    // AI state lives in the shared AiClient; see the adapter below.
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
-    // Generation counter invalidates stale timers and callbacks on reset/mode-change/close/short-query
-    property int aiGeneration: 0
 
     readonly property var nerdMap: ({
         "firefox":"\uF269","chromium":"\uF268","google-chrome":"\uF268","kitty":"\uF120",
@@ -87,7 +76,7 @@ Item {
         "vlc":"\uF001","mpv":"\uF001","konsole":"\uF120","gnome-terminal":"\uF120",
         "gedit":"\uF15C","evince":"\uF02D","zathura":"\uF02D","okular":"\uF02D",
         "virt-manager":"\uF108","gparted":"\uF0A0","gnome-disks":"\uF0A0",
-        "gnome-control-center":"\uF013","obs-studio":"\uF030"
+        "obs-studio":"\uF030"
     })
     readonly property string defaultIcon: "\u25A3"
     readonly property var emptyLabels: ["No applications found","No open windows","No matching commands","","Ask anything\u2026","No clipboard history"]
@@ -213,7 +202,7 @@ Item {
                         RowLayout { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm; spacing: Theme.Tokens.spacingMd
                             Item { Layout.preferredWidth: Theme.Tokens.scaled(28); Layout.preferredHeight: Theme.Tokens.scaled(28)
                                 IconImage { id: appIcon; anchors.fill: parent; source: root.openProgress > 0.5 ? root.iconSource(modelData) : ""; visible: source !== "" && status !== Image.Error }
-                                Text { anchors.fill: parent; text: modelData.icon || root.defaultIcon; visible: !appIcon.visible; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd; font.family: "Symbols Nerd Font Mono"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                Text { anchors.fill: parent; text: modelData.icon || root.defaultIcon; visible: !appIcon.visible; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd; font.family: Theme.Tokens.iconFont; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                             }
                             ColumnLayout { Layout.fillWidth: true; spacing: 0
                                 Text { text: modelData.title || modelData.name || "Unknown"; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; elide: Text.ElideRight; Layout.fillWidth: true }
@@ -230,34 +219,49 @@ Item {
     }
 
     // ── AI ──
-    property var aiXhr: null; property string pendingAiQuery: ""
-    Timer { id: aiTimer; repeat: false; interval: 400; onTriggered: root.executeAiQuery(root.pendingAiQuery) }
-    Timer { id: aiTimeout; repeat: false; interval: root.aiTimeoutMs; onTriggered: root.handleAiTimeout() }
-    function handleAiTimeout() { if (!aiLoading) return; var gen = aiGeneration; if (aiXhr) { aiXhr.abort(); aiXhr = null } aiLoading = false; aiStatus = 3; aiResponse = "AI request timed out" }
-    function triggerAiQuery() { var q = searchText.trim(); if (q.length < 3) { if (aiStatus !== 0) resetAi(); return } aiGeneration++; if (aiXhr) { aiXhr.abort(); aiXhr = null } pendingAiQuery = q; aiTimer.restart() }
-    function executeAiQuery(query) { var execGen = aiGeneration; aiLoading = true; aiStatus = 1; aiResponse = ""; aiErrorDetail = ""; var xhr = new XMLHttpRequest(); aiXhr = xhr; xhr.open("POST", aiEndpoint, true); xhr.setRequestHeader("Content-Type", "application/json"); xhr.timeout = aiTimeoutMs; xhr.ontimeout = function() { if (execGen !== aiGeneration) return; aiXhr = null; aiLoading = false; aiStatus = 3; aiResponse = "AI timed out" }; xhr.onreadystatechange = function() { if (xhr.readyState !== XMLHttpRequest.DONE) return; if (execGen !== aiGeneration) return; aiTimeout.stop(); aiXhr = null; aiLoading = false; if (xhr.status === 200) { try { var j = JSON.parse(xhr.responseText); aiResponse = j.choices?.[0]?.message?.content || "No response"; aiStatus = 2 } catch(e) { aiResponse = "Failed to parse AI response"; aiStatus = 3 } } else if (xhr.status === 0) { aiResponse = "AI endpoint unreachable"; aiErrorDetail = "Ensure llama.cpp is running at " + aiEndpoint; aiStatus = 3 } else { aiResponse = "AI request failed (HTTP " + xhr.status + ")"; aiStatus = 3 } }; aiTimeout.start(); xhr.send(JSON.stringify({ model: aiModel, messages: [{ role: "system", content: "You are a helpful assistant. Answer concisely." }, { role: "user", content: query }], temperature: 0.7, max_tokens: 512, stream: false })) }
-    function resetAi() { aiGeneration++; aiQuery = ""; aiResponse = ""; aiLoading = false; aiStatus = 0; aiErrorDetail = ""; aiTimeout.stop(); aiTimer.stop(); pendingAiQuery = ""; if (aiXhr) { aiXhr.abort(); aiXhr = null } }
+    // Thin adapter over the shared services/AiClient.qml. The client owns the
+    // endpoint, model, debounce, generation guard and timeout; this surface
+    // only mirrors its state into the UI bindings that already exist.
+    readonly property bool aiAvailable: !!aiClient
+    readonly property string aiEndpoint: aiClient ? aiClient.endpoint : ""
+    readonly property string aiModel: aiClient ? aiClient.model : ""
+
+    property string aiQuery: ""
+    readonly property string aiResponse: aiClient ? aiClient.response : ""
+    readonly property bool aiLoading: aiClient ? aiClient.loading : false
+    readonly property int aiStatus: aiClient ? aiClient.status : 0
+    readonly property string aiErrorDetail: aiClient ? aiClient.errorDetail : ""
+
+    function triggerAiQuery() {
+        aiQuery = searchText;
+        if (aiClient) aiClient.query(searchText);
+    }
+    function resetAi() {
+        aiQuery = "";
+        if (aiClient) aiClient.reset();
+    }
 
     // ── App scanning ──
     property var appCache: []; property bool scanStarted: false; property bool scanBusy: false
-    property string scanError: ""; property string desktopBuffer: ""; property string scannerStderr: ""
+    property string scanError: ""
     // Retry button visible when last scan failed and we have defaults showing
     property bool scanFailed: false
-    property Process desktopScanner: Process { id: desktopScanner; running: false
-        stdout: SplitParser { splitMarker: ""; onRead: function(data) { root.desktopBuffer += data } }
-        stderr: SplitParser { splitMarker: ""; onRead: function(data) { root.scannerStderr += data } }
+    property Components.Command desktopScanner: Components.Command {
+        label: "Application discovery"
         onStarted: { root.scanBusy = true; root.scanError = "" }
-        onExited: function(exitCode, exitStatus) {
+        onExited: function(exitCode) {
             root.scanBusy = false
-            if (exitCode === 0 && root.desktopBuffer) { root.parseDesktopFiles(root.desktopBuffer); root.scanFailed = false; }
-            else if (exitCode !== 0) { root.scanError = "Application discovery failed" + (root.scannerStderr.trim() ? ": " + root.scannerStderr.trim() : ""); root.scanFailed = true; }
-            else { root.scanError = "No applications were discovered"; root.scanFailed = true; }
-            root.desktopBuffer = ""
-            root.scannerStderr = ""
+            if (exitCode === 0 && root.desktopScanner.output) { root.parseDesktopFiles(root.desktopScanner.output); root.scanFailed = false; }
+            else if (exitCode !== 0) { root.scanError = root.desktopScanner.failureText(); root.scanFailed = true; }
+            else { root.scanError = "No applications were discovered"; root.scanFailed = true; }""
             root.filterResults()
         }
     }
-    function scanDesktopFiles() { if (desktopScanner.running) return; scanStarted = true; scanFailed = false; desktopBuffer = ""; scannerStderr = ""; desktopScanner.command = [Quickshell.env("HOME") + "/.config/hypr/scripts/launcher.sh", "--list-json"]; desktopScanner.running = true }
+    function scanDesktopFiles() {
+        if (desktopScanner.running) return;
+        scanStarted = true; scanFailed = false;
+        desktopScanner.run([Quickshell.env("HOME") + "/.config/hypr/scripts/launcher.sh", "--list-json"]);
+    }
     function retryScan() { if (desktopScanner.running) return; scanStarted = false; scanError = ""; scanDesktopFiles() }
     function iconSource(item) {
         var iconName = item && item.iconName ? String(item.iconName).trim() : "";
@@ -269,7 +273,11 @@ Item {
         } catch (e) { return ""; }
     }
     function parseDesktopFiles(data) { if (!data) return; try { var records = data.trim().split("\n"); var apps = []; for (var i = 0; i < records.length; i++) { var r = JSON.parse(records[i]); var id = r.desktopId; var title = r.name; if (!id || !title) continue; var basename = id.replace(/\.desktop$/, "").toLowerCase(); apps.push({ title:title, iconName:r.icon || basename, icon:root.nerdMap[basename] || root.defaultIcon, subtitle:id, action:"launch", actionParams:{desktopId:id} }) } if (apps.length === 0) throw new Error("empty application list"); appCache = apps; scanError = "" } catch (e) { appCache = buildDefaultApps(); scanError = "Application discovery returned invalid data" } }
-    function buildDefaultApps() { return [{ title:"Dolphin", iconName:"org.kde.dolphin", icon:"\uF07C", subtitle:"File manager", action:"launch", actionParams:{command:"dolphin"} }, { title:"Firefox", iconName:"firefox", icon:"\uF269", subtitle:"Browser", action:"launch", actionParams:{command:"firefox"} }, { title:"Kitty", iconName:"kitty", icon:"\uF120", subtitle:"Terminal", action:"launch", actionParams:{command:"kitty"} }, { title:"Code", iconName:"code", icon:"\uF121", subtitle:"VS Code", action:"launch", actionParams:{command:"code"} }, { title:"Settings", iconName:"gnome-settings", icon:"\uF013", subtitle:"Settings", action:"launch", actionParams:{command:"gnome-control-center"} }, { title:"Obsidian", iconName:"obsidian", icon:"\uF044", subtitle:"Notes", action:"launch", actionParams:{command:"obsidian"} }] }
+    // Fallback list used only when .desktop discovery fails. Every entry is a
+    // shell action: `launchProgram` resolves through config/Apps.qml so a
+    // missing binary reports why instead of failing silently. Settings is a
+    // shell surface, not gnome-control-center (not installed).
+    function buildDefaultApps() { return [{ title:"Dolphin", iconName:"org.kde.dolphin", icon:"\uF07C", subtitle:"File manager", action:"launchProgram", actionParams:{program:"files"} }, { title:"Firefox", iconName:"firefox", icon:"\uF269", subtitle:"Browser", action:"launchProgram", actionParams:{program:"browser"} }, { title:"Kitty", iconName:"kitty", icon:"\uF120", subtitle:"Terminal", action:"launchProgram", actionParams:{program:"terminal"} }, { title:"Code", iconName:"code", icon:"\uF121", subtitle:"VS Code", action:"launchProgram", actionParams:{program:"editor"} }, { title:"Settings", iconName:"preferences-system", icon:"\uF013", subtitle:"Settings", action:"open_settings", actionParams:{} }, { title:"Obsidian", iconName:"obsidian", icon:"\uF044", subtitle:"Notes", action:"launchProgram", actionParams:{program:"notes"} }] }
 
     // ── Filtering ──
     function matchScore(item, query) {
@@ -326,7 +334,7 @@ Item {
     }
     function buildAppResults() { return appCache.length > 0 ? appCache : buildDefaultApps() }
     function buildWindowResults() { try { if (!hyprland || !hyprland.windows) return []; var out = []; var wins = hyprland.windows; for (var i = 0; i < wins.length; i++) { var w = wins[i]; if (!w) continue; var wsLabel = ""; if (w.workspace) wsLabel = "ws " + (w.workspace.name || w.workspace.id || ""); out.push({ title:w.title||"Untitled", icon:"\uF2D2", subtitle:wsLabel, action:"focus_window", actionParams:{address:w.address||""} }) } return out } catch(e) { return [] } }
-    function buildCommandResults() { return [{ title:"Lock", icon:"\uF023", subtitle:"Lock the screen", action:"lock", actionParams:{} }, { title:"Suspend", icon:"\uF186", subtitle:"Suspend to RAM", action:"suspend", actionParams:{} }, { title:"Reboot", icon:"\uF01E", subtitle:"Reboot the system", action:"reboot", actionParams:{} }, { title:"Power Off", icon:"\uF011", subtitle:"Shut down", action:"power_off", actionParams:{} }, { title:"Dolphin", icon:"\uF07C", subtitle:"Open file manager", action:"launch", actionParams:{command:"dolphin"} }, { title:"Screenshot", icon:"\uF030", subtitle:"Take a screenshot", action:"screenshot", actionParams:{} }, { title:"Reload shell", icon:"\uF021", subtitle:"Reload NoxFlow shell", action:"reload_shell", actionParams:{} }] }
+    function buildCommandResults() { return [{ title:"Lock", icon:"\uF023", subtitle:"Lock the screen", action:"lock", actionParams:{} }, { title:"Suspend", icon:"\uF186", subtitle:"Suspend to RAM", action:"suspend", actionParams:{} }, { title:"Reboot", icon:"\uF01E", subtitle:"Reboot the system", action:"reboot", actionParams:{} }, { title:"Power Off", icon:"\uF011", subtitle:"Shut down", action:"power_off", actionParams:{} }, { title:"Dolphin", icon:"\uF07C", subtitle:"Open file manager", action:"launchProgram", actionParams:{program:"files"} }, { title:"Screenshot", icon:"\uF030", subtitle:"Take a screenshot", action:"screenshot", actionParams:{} }, { title:"Reload shell", icon:"\uF021", subtitle:"Restart NoxFlow shell", action:"reload_shell", actionParams:{} }] }
 
     // Safe calculator with proper input validation.
     // Returns { valid: bool, display: string, value: number|string }.
@@ -440,12 +448,27 @@ Item {
         case "launch":
             if (!item.actionParams) return
             launchTarget = item.title || "application"
-            launchStderr = ""
             launchError = ""
-            if (item.actionParams.desktopId) launchProcess.command = ["gtk-launch", item.actionParams.desktopId]
-            else if (item.actionParams.command) launchProcess.command = [item.actionParams.command]
-            else return
-            launchProcess.running = true
+            var argv;
+            if (item.actionParams.desktopId) argv = ["gtk-launch", item.actionParams.desktopId];
+            else if (item.actionParams.command) argv = [item.actionParams.command];
+            if (argv) launchProcess.run(argv); else return;
+            break
+        case "launchProgram":
+            // Registry-backed launch: availability was probed at startup, so a
+            // missing binary reports the reason instead of failing silently.
+            if (!item.actionParams || !item.actionParams.program) return
+            launchTarget = item.title || "application"
+            launchError = ""
+            var launched = Config.Apps.invoke(item.actionParams.program, item.actionParams.args || [])
+            if (launched.ok) lifecycle.requestClose("action")
+            else { launchError = launched.reason }
+            break
+        case "open_settings":
+            // NoxFlow's own settings panel — not gnome-control-center, which
+            // is not installed on this workstation.
+            lifecycle.requestClose("openSettings")
+            if (shellRoot && typeof shellRoot.openSettings === "function") shellRoot.openSettings()
             break
         case "focus_window":
             // Shell-local: dispatch via hyprctl. No typed daemon action exists.
@@ -463,9 +486,8 @@ Item {
         case "screenshot": lifecycle.requestClose("screenshot"); break
         case "reload_shell":
             launchTarget = "NoxFlow"
-            launchStderr = ""
-            launchProcess.command = ["systemctl", "--user", "restart", "noxflow-shell.service"]
-            launchProcess.running = true
+            launchProcess.label = "Restart shell";
+            launchProcess.run(["systemctl", "--user", "restart", "noxflow-shell.service"]);
             break
         default:
             if (root.noxd && root.noxd.connected) { var a = {}; a[item.action] = item.actionParams || {}; root.noxd.runAction(a) }

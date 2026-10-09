@@ -7,6 +7,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "ModelUtils.js" as Utils
+import "components" as Components
 
 QtObject {
     id: root
@@ -100,9 +101,8 @@ QtObject {
         }
     }
 
-    property Process ensureDirProcess: Process {
-        id: ensureDirProcess
-        running: false
+    property Components.Command ensureDirProcess: Components.Command {
+        label: "Clipboard storage"
         command: ["mkdir", "-p", root.storageDir]
     }
 

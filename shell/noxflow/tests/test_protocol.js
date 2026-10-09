@@ -28,18 +28,31 @@ assert(!valid({version: 2, id: "1", result: {type: "pong"}}));
 assert(!valid({version: 1, id: "1", result: {}, error: {code: "bad"}}));
 assert(!valid({version: 1, provider: "audio", data: {}}));
 
-// ── Provider allowlist: transfer MUST be present ──
+// ── Provider allowlist: every entry must be a real daemon provider ──
 // Root cause of NF-01: Protocol.providers did not include "transfer", so the
 // real daemon publish path was filtered out before the shell's onEventReceived
 // could route the event into TransferModel.
+//
+// The mirror-image failure is what phase 2 removed: "notifications" was
+// subscribed, but noxd registers no notifications provider. EventBus::subscribe
+// does not validate names, so the subscription looked healthy and the bar pill
+// rendered permanently empty. The allowlist must therefore list exactly the
+// providers under core/noxd/src/providers/ — nothing more.
 assert(context.isAllowedProvider, "Protocol.js must export isAllowedProvider");
 assert(context.providers, "Protocol.js must export providers");
-const expected = ["hyprland", "audio", "brightness", "power", "network", "bluetooth", "media", "notifications", "transfer"];
+const expected = ["hyprland", "audio", "brightness", "power", "network", "bluetooth", "media", "transfer"];
 for (const provider of expected) {
   assert(context.isAllowedProvider(provider),
     `expected ${provider} to be an allowed provider event`);
   assert(context.providers.indexOf(provider) >= 0,
     `expected ${provider} to appear in Protocol.providers`);
+}
+
+// Providers the daemon does not implement. Subscribing to one is silently
+// accepted and never delivers an event.
+for (const phantom of ["notifications", "calendar", "clipboard", "settings"]) {
+  assert(!context.isAllowedProvider(phantom),
+    `${phantom} has no noxd provider and must not be in the allowlist`);
 }
 
 // ── Provider allowlist: settings MUST remain excluded ──

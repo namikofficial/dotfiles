@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
@@ -15,7 +16,8 @@ Item {
     // when devices reorder or are removed between user selection and file picker.
     property string selectedDeviceId: ""
     property bool picking: false
-    property string pickBuffer: ""
+    // Shown when a send was attempted but could not proceed.
+    property string pickError: ""
     implicitHeight: contentColumn.implicitHeight
 
     Connections {
@@ -57,44 +59,45 @@ Item {
         if (picking || !root.selectedDeviceId)
             return
         picking = true
-        pickBuffer = ""
-        pickProc.running = true
+        fileDialog.open()
     }
 
-    property Process pickProc: Process {
-        running: false
-        command: ["sh", "-c", "XDG_CURRENT_DESKTOP=hyprland GTK_USE_PORTAL=1 zenity --file-selection --multiple --separator='\\n' 2>/dev/null || echo __CANCELLED__"]
-
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: function (data) {
-                root.pickBuffer += String(data || "") + "\n"
-            }
-        }
-
-        onExited: {
+    // Qt's own file picker. The previous implementation shelled out to
+    // `zenity --file-selection`, which is not installed on this workstation,
+    // so "Send files…" never opened anything and reported nothing.
+    FileDialog {
+        id: fileDialog
+        title: "Choose files to send"
+        fileMode: FileDialog.OpenFiles
+        nameFilters: ["All files (*)"]
+        onAccepted: {
             root.picking = false
-            var text = root.pickBuffer.trim()
-            root.pickBuffer = ""
-            if (!text || text === "__CANCELLED__")
-                return
-            var paths = text.split("\n").filter(function (path) {
-                return path.trim() !== ""
-            })
-            if (!paths.length || !root.selectedDeviceId)
-                return
-            // Verify the captured device ID is still present and eligible.
-            // If devices reordered or the peer disappeared, this prevents sending
-            // to a different device than the one the user explicitly selected.
-            var deviceStillPresent = root.transfer.devices.some(function(d) {
-                return d.id === root.selectedDeviceId
+            root.pickError = ""
+            if (!root.selectedDeviceId) return
+            // Verify the captured device ID is still present: the peer may have
+            // left while the picker was open, and sending then would target a
+            // different device than the one the user selected.
+            var deviceStillPresent = root.transfer.devices.some(function (device) {
+                return device.id === root.selectedDeviceId
             })
             if (!deviceStillPresent) {
-                console.warn("quick-share: selected device", root.selectedDeviceId, "no longer present after picker; discarding")
+                console.warn("quick-share: selected device", root.selectedDeviceId,
+                             "no longer present after picker; discarding")
                 root.selectedDeviceId = ""
+                root.pickError = "The selected device is no longer available"
                 return
             }
+            var paths = [];
+            for (var i = 0; i < selectedFiles.length; i++) {
+                var path = String(selectedFiles[i]).replace("file://", "")
+                if (path.trim() !== "") paths.push(path)
+            }
+            if (paths.length === 0) return
             root.transfer.send(root.selectedDeviceId, paths)
+        }
+        onRejected: {
+            root.picking = false
+            root.pickError = ""
         }
     }
 
@@ -203,17 +206,11 @@ Item {
                             }
                         }
 
-                        Rectangle {
+                        Components.Slider {
                             Layout.fillWidth: true
-                            height: 5
-                            radius: 3
-                            color: Theme.Tokens.outlineSubtle
-                            Rectangle {
-                                width: parent.width * root.progress(modelData)
-                                height: parent.height
-                                radius: 3
-                                color: Theme.Tokens.tonalPrimary
-                            }
+                            readOnly: true
+                            accessibleName: "Transfer to " + modelData.peer_alias
+                            value: root.progress(modelData)
                         }
 
                         Text {
@@ -251,7 +248,7 @@ Item {
                         Text {
                             text: "\uF109"
                             color: Theme.Tokens.tonalPrimary
-                            font.family: "Symbols Nerd Font Mono"
+                            font.family: Theme.Tokens.iconFont
                         }
 
                         ColumnLayout {
@@ -295,6 +292,15 @@ Item {
                 text: root.picking ? "Choosing files…" : "Send files…"
                 enabled: !!root.selectedDeviceId && !root.picking
                 onClicked: root.sendFiles()
+            }
+
+            Text {
+                visible: root.pickError !== ""
+                text: root.pickError
+                color: Theme.Tokens.stateDanger
+                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
             }
 
             Text {

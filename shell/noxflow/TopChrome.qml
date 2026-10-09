@@ -1,6 +1,8 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import "bar" as Bar
+import "island" as Island
 import "theme" as Theme
 
 // The only top chrome layer. Bar and NoxIsland are ordinary child items so
@@ -46,7 +48,7 @@ PanelWindow {
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
 
-    Bar {
+    Bar.Bar {
         id: bar
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         height: Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
@@ -59,7 +61,7 @@ PanelWindow {
         islandHost: island
     }
 
-    NoxIsland {
+    Island.IslandHost {
         id: island
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         screen: root.screen
@@ -67,7 +69,7 @@ PanelWindow {
         hyprland: root.hyprland
         battery: root.battery; network: root.network; bluetooth: root.bluetooth
         media: root.media; notificationModel: root.notificationModel; systemModel: root.systemModel
-        transfer: root.transfer; syncthing: root.syncthing; updates: root.updates
+        updates: root.updates
         calModel: root.calModel
         launcherComponent: root.launcherComponent
         activityController: root.activityController

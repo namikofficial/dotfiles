@@ -159,6 +159,16 @@ QtObject {
 
     // typography
     readonly property string typographyFontFamily: "Inter"
+    // Nerd Font carries the glyphs the shell's icons and labels rely on. It
+    // was hardcoded as the literal "Symbols Nerd Font Mono" in 14 places, so
+    // changing the icon font meant finding all of them by hand.
+    //
+    // The name must match an installed family. "Symbols Nerd Font Mono" is not
+    // installed on this machine, so every icon silently fell back to Noto Sans
+    // Mono, which has no Nerd Font codepoints — the island clock rendered as an
+    // oversized stray glyph on top of its own label. The only Nerd Font family
+    // installed here is JetBrainsMono Nerd Font.
+    readonly property string iconFont: "JetBrainsMono Nerd Font"
     readonly property int typographyDisplayLarge: 36
     readonly property int typographyDisplayMedium: 28
     readonly property int typographyHeadlineLarge: 24
@@ -242,6 +252,14 @@ QtObject {
     readonly property int heightControl: 44
     readonly property int heightField: 48
     readonly property int heightChip: 32
+    // Switch metrics. The track is deliberately shorter than heightControl:
+    // heightControl is the touch target, the track is the painted pill.
+    readonly property int heightSwitchTrack: 32
+    readonly property int widthSwitchTrack: 56
+    readonly property int sizeSwitchKnob: 24
+    // Horizontal slider metrics (QuickTab brightness/volume, MediaPanel, …).
+    readonly property int heightSliderTrack: 6
+    readonly property int sizeSliderKnob: 18
     // Keep the persistent bar thin; panels use their own control metrics.
     readonly property int heightToolbar: 44
 

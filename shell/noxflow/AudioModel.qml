@@ -32,9 +32,9 @@ ProviderModel {
         inputVolume = Utils.numberOr(next.input_volume, 0);
         outputMuted = next.output_muted === true;
         inputMuted = next.input_muted === true;
-        outputs = Array.isArray(next.outputs) ? next.outputs : [];
-        inputs = Array.isArray(next.inputs) ? next.inputs : [];
-        streams = Array.isArray(next.streams) ? next.streams : [];
+        outputs = Utils.asArray(next.outputs);
+        inputs = Utils.asArray(next.inputs);
+        streams = Utils.asArray(next.streams);
         defaultOutput = next.default_output && typeof next.default_output === "object" ? next.default_output : null;
         defaultInput = next.default_input && typeof next.default_input === "object" ? next.default_input : null;
         maxVolume = Utils.numberOr(next.max_volume, 100);

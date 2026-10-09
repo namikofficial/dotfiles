@@ -1,20 +1,36 @@
 import QtQml
 import Quickshell
+import "SurfaceStack.js" as Stack
 
-// One owner for all major interactive surfaces. Individual surfaces retain
-// their existing implementations, but cannot be open concurrently.
+// PanelController — the single owner for every interactive surface.
 //
-// This is the REQUEST layer of the shell state machine. It owns:
+// It is the REQUEST layer of the shell state machine. It owns:
 //   - semantic requested state (what the user asked for)
 //   - per-screen targeting (which monitor owns the trigger chip)
 //   - retargeting on rapid toggles (never queues; always retargets)
+//   - the modal stack and Escape routing
 //
 // The EXECUTION layer is MorphSurface (per-screen PanelWindow) which owns the
 // mounted/visible/interactive/transitioning phases and the geometry morph.
 // PanelController only records intent and asks the right MorphSurface to act.
+//
+// ── Why SurfaceCoordinator is gone ──
+// It used to be a second, independent coordinator that tracked modals and
+// panels purely so Escape had something to route to. Two registries describing
+// the same surfaces could not see each other, which is how the rules below came
+// to contradict each other: PanelController closed every other panel when one
+// opened, while SurfaceCoordinator's own contract said panels "may coexist with
+// each other and with modals", and Escape went wherever that second list
+// happened to point. One list, one rule: at most one panel, modals stack, and
+// Escape always closes the topmost thing.
 QtObject {
     id: root
-    enum State { Hidden, Opening, Open, Switching, Closing }
+
+    // Hidden/Open is all any caller can observe. Opening, Switching and Closing
+    // used to exist but were assigned and overwritten inside a single
+    // synchronous call, so nothing could ever read them: the real transition is
+    // owned by MorphSurface, which reports back through panelClosed().
+    enum State { Hidden, Open }
     property int state: PanelController.State.Hidden
     property string activePanel: ""
     property string previousPanel: ""
@@ -22,9 +38,52 @@ QtObject {
     property rect originRect: Qt.rect(0, 0, 0, 0)
     property var triggerRegistry: null
     property bool isInteractive: false
-    property bool isAnimating: false
     property var panels: ({})
     signal panelChanged(string panel, string previous)
+
+    // ── Modal stack ──
+    // Exclusive full-screen overlays (Dashboard, Overview, Launcher, Capture,
+    // Settings). Ordered oldest-first; the last entry is on top. Modals are not
+    // in `panels`: a modal is not a side panel and must not be closed by
+    // `open()` sweeping the panel registry.
+    property var modals: []
+
+    function registerModal(surface) { modals = Stack.push(modals, surface); }
+
+    function unregisterModal(surface) { modals = Stack.remove(modals, surface); }
+
+    function topmostModal() { return Stack.topmost(modals, isDestroyed); }
+
+    function isTopmostModal(surface) {
+        return topmostModal() === surface;
+    }
+
+    /// Close the current modal, then open the given one. Opening a modal
+    /// dismisses the active panel too: a full-screen overlay on top of an open
+    /// panel is never what the user meant.
+    function openModal(surface) {
+        var current = topmostModal();
+        if (current && current !== surface && typeof current.close === "function") current.close();
+        if (activePanel) close(activePanel);
+        if (surface && typeof surface.open === "function") surface.open();
+    }
+
+    /// Escape closes the topmost modal, or the active panel if there is none.
+    /// Returns true when something actually handled it, so a caller can decide
+    /// whether the key press is still unconsumed.
+    function handleEscape() {
+        var target = Stack.escapeTarget(modals, activePanel, isDestroyed);
+        if (target.type === "modal") {
+            if (target.surface && typeof target.surface.close === "function") {
+                target.surface.close();
+                return true;
+            }
+            // A modal that cannot close itself must not swallow the key.
+            return false;
+        }
+        if (target.type === "panel") return close(target.surface);
+        return false;
+    }
 
     // ── Semantic state model (design contract §2) ──
     readonly property string stateIdle: "idle"
@@ -39,10 +98,11 @@ QtObject {
 
     // The semantic state the user requested. Maps to a registered panel name
     // via panelForState(). "idle" means no expanded surface.
+    //
+    // There is deliberately no separate "visual" state: the controller records
+    // intent and MorphSurface owns the animation, so a second copy of this
+    // property could only ever lag behind this one and never be read.
     property string requestedState: stateIdle
-    // The semantic state currently being displayed (may lag requestedState
-    // during a transition).
-    property string visualState: stateIdle
 
     // Panels that map to semantic states. Quick-share is a left-side panel
     // that may coexist with a right-side island state; it is registered
@@ -121,8 +181,7 @@ QtObject {
             previousPanel = name;
             activePanel = "";
             isInteractive = false;
-            isAnimating = false;
-            setRequested(stateIdle);
+            requestedState = stateIdle;
             state = PanelController.State.Hidden;
             panelChanged("", name);
         }
@@ -177,11 +236,6 @@ QtObject {
         }
     }
 
-    function setRequested(stateName) {
-        root.requestedState = stateName;
-        root.visualState = stateName;
-    }
-
     function open(name, monitorName, sourceRect, initialSection) {
         targetMonitor = monitorName || (Quickshell.activeScreen ? Quickshell.activeScreen.name : "");
         // Drop any destroyed entries left behind by a prior monitor disconnect.
@@ -206,15 +260,14 @@ QtObject {
         var old = activePanel;
         previousPanel = old;
         originRect = sourceRect || (registered ? Qt.rect(registered.globalX, registered.globalY, registered.globalWidth, registered.globalHeight) : Qt.rect(0, 0, 0, 0));
-        state = old ? PanelController.State.Switching : PanelController.State.Opening;
-        isAnimating = true;
+        // One panel at a time: every other panel is told to close before this
+        // one is opened, so no two can ever be visible together.
         for (var key in panels) if (key !== name) closeSurface(key);
         activePanel = name;
-        setRequested(stateForPanel(name));
+        requestedState = stateForPanel(name);
         if (typeof target.openPanel === "function") target.openPanel(name, originRect, initialSection || "");
         else if (typeof target.open === "function") target.open();
         isInteractive = true;
-        isAnimating = false;
         state = PanelController.State.Open;
         panelChanged(name, old);
         return true;
@@ -251,8 +304,7 @@ QtObject {
         previousPanel = requested;
         activePanel = "";
         isInteractive = false;
-        isAnimating = false;
-        setRequested(stateIdle);
+        requestedState = stateIdle;
         state = PanelController.State.Hidden;
         panelChanged("", requested);
         return true;
@@ -263,8 +315,7 @@ QtObject {
         activePanel = "";
         previousPanel = "";
         isInteractive = false;
-        isAnimating = false;
-        setRequested(stateIdle);
+        requestedState = stateIdle;
         state = PanelController.State.Hidden;
     }
 
@@ -284,8 +335,7 @@ QtObject {
         previousPanel = name;
         activePanel = "";
         isInteractive = false;
-        isAnimating = false;
-        setRequested(stateIdle);
+        requestedState = stateIdle;
         state = PanelController.State.Hidden;
         panelChanged("", name);
     }

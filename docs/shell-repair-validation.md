@@ -1,5 +1,8 @@
 # Shell repair validation
 
+> **Historical record.** This is a point-in-time validation run from 2026-07-29
+> against Quickshell 0.3.0. It reports what was running then. For current
+> state, run `./hypr/scripts/shell-diagnostics`.
 Run on 2026-07-29 in the live Hyprland session:
 
 - Hyprland 0.56.0, Quickshell 0.3.0.

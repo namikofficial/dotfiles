@@ -1,5 +1,5 @@
 // NotificationItem — single notification card with Rivendell-style
-// falling-knight physics (FrameAnimation spring-damper).
+// falling-knight physics (spring-damper frame loop).
 // Pop-in from 200px offset + 45° rotation → springs to rest.
 // Fling-to-dismiss with gravity on swipe.
 // Stolen from: zacoons/rivendell-hyprdots (physics engine) + DMS + Tide.
@@ -17,8 +17,16 @@ FocusScope {
     signal dismissed(var notification)
     signal actionInvoked(var notification, string actionId)
 
+    // The content margin is named so the card can measure itself without
+    // referring to the layout's *height*.
+    readonly property int contentMargin: Theme.Tokens.scaled(Theme.Tokens.spacingMd)
+
     implicitWidth: parent ? parent.width : Theme.Tokens.scaled(360)
-    implicitHeight: layout.height + Theme.Tokens.scaled(Theme.Tokens.spacingSm * 2)
+    // layout.implicitHeight, not layout.height: the layout is
+    // `anchors.fill: parent`, so its height is this card's height — reading it
+    // here is a circular binding that resolves to 0, which collapsed every card
+    // to a few pixels and stacked the whole list on top of one point.
+    implicitHeight: layout.implicitHeight + contentMargin * 2
 
     activeFocusOnTab: true
 
@@ -26,7 +34,7 @@ FocusScope {
     Accessible.name: notification.summary + " " + notification.body
     Accessible.description: "Notification from " + notification.app_name
 
-    // ── Physics state (Rivendell-style FrameAnimation spring-damper) ──
+    // ── Physics state (Rivendell-style spring-damper frame loop) ──
     enum AnimState { Returning, Inert, Flinging, Dismissing }
 
     property int animState: NotificationItem.Returning
@@ -53,12 +61,24 @@ FocusScope {
     property bool dragging: false
 
     // ── Per-frame physics loop ──
-    FrameAnimation {
+    //
+    // Driven by a plain Qt Timer, not Quickshell's `FrameAnimation`: that type
+    // does not exist in Quickshell 0.3.2 — it is absent from the core module's
+    // exported types entirely — so the component using it could not be
+    // instantiated at all, and the notification centre rendered its header and
+    // its "Active (2)" tab count over an empty body.
+    //
+    // A fixed `interval` also removes a delta-unit trap: the previous version
+    // clamped a millisecond delta against 0.05 and then divided by 1000, which
+    // made every step ~1000x too short and left each card parked at its
+    // -200px, 45-degree spawn offset — permanently offscreen, never settling.
+    Timer {
         id: physicsLoop
+        interval: 16
+        repeat: true
         running: root.animState !== NotificationItem.Inert
-        onTriggered: function(delta) {
-            var dt = Math.min(delta, 0.05); // cap to 50ms to avoid explosion
-            var frameTime = dt / 1000.0;      // convert ms → seconds
+        onTriggered: {
+            var frameTime = physicsLoop.interval / 1000.0; // seconds
 
             switch (root.animState) {
             case NotificationItem.Returning:
@@ -115,7 +135,7 @@ FocusScope {
                 root.velocityX += 20000 * frameTime;
                 root.physicsX += root.velocityX * frameTime;
                 if (Math.abs(root.physicsX) > 800) {
-                    physicsLoop.running = false;
+                    root.animState = NotificationItem.Inert;
                     root.dismissed(root.notification);
                 }
                 break;
@@ -169,7 +189,7 @@ FocusScope {
         root.animState = NotificationItem.Returning;
         root.physicsY = -200;
         root.physicsRot = 45;
-        physicsLoop.running = true;
+        // physicsLoop.running is bound to animState; no manual start needed.
     }
 
     // ── Render with physics transform ──
@@ -207,7 +227,7 @@ FocusScope {
         ColumnLayout {
             id: layout
             anchors.fill: parent
-            anchors.margins: Theme.Tokens.spacingMd
+            anchors.margins: root.contentMargin
             spacing: Theme.Tokens.spacingSm
 
             // Header: app icon + name + close

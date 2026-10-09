@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import "Protocol.js" as Protocol
 import "Fallbacks.js" as Fallbacks
+import "SnapshotMerge.js" as Merge
 
 QtObject {
     id: root
@@ -76,6 +77,64 @@ QtObject {
     property Timer reconnectTimer: Timer {
         repeat: false
         onTriggered: root.connectNow()
+    }
+
+    // ── Heartbeat ──
+    // noxd silently drops a subscriber whose 256-slot event queue fills, and a
+    // half-open socket looks connected forever: the shell keeps rendering the
+    // last snapshot it saw and nothing reports the stall. A `ping` every
+    // heartbeatIntervalMs and a reconnect on a missed pong turns that silent
+    // freeze into a visible reconnect.
+    readonly property int heartbeatIntervalMs: 15000
+    /// Missed pongs before the link is declared dead. Two, so one dropped
+    /// frame or a busy event loop does not cause a reconnect storm.
+    readonly property int heartbeatMissLimit: 2
+
+    // `double`, not `int`: QML's int is 32-bit and Date.now() (~1.79e12)
+    // overflows it, so the idle check saw ~1.8e9 seconds and tore the socket
+    // down on the first tick.
+    property double lastPongAt: 0
+    property int heartbeatMisses: 0
+    property bool heartbeatActive: false
+
+    property Timer heartbeatTimer: Timer {
+        interval: root.heartbeatIntervalMs
+        repeat: true
+        running: root.heartbeatActive
+        onTriggered: root.sendHeartbeat()
+    }
+
+    function startHeartbeat() {
+        if (root.heartbeatActive) return;
+        root.lastPongAt = Date.now();
+        root.heartbeatMisses = 0;
+        root.heartbeatActive = true;
+        root.heartbeatTimer.restart();
+    }
+
+    function stopHeartbeat() {
+        root.heartbeatActive = false;
+        root.heartbeatTimer.stop();
+    }
+
+    function sendHeartbeat() {
+        if (!root.socket.connected) return;
+        var idle = Date.now() - root.lastPongAt;
+        if (idle > root.heartbeatIntervalMs * root.heartbeatMissLimit) {
+            console.warn("noxd heartbeat missed", Math.round(idle / 1000) + "s; reconnecting");
+            // Force the socket down so the normal disconnect path runs: it
+            // cancels pending requests, clears the subscription id and
+            // schedules the backoff reconnect.
+            root.stopHeartbeat();
+            root.socket.connected = false;
+            return;
+        }
+        root.sendRequest("ping", undefined, root.noteHeartbeatPong, root.noteHeartbeatPong);
+    }
+
+    function noteHeartbeatPong() {
+        root.lastPongAt = Date.now();
+        root.heartbeatMisses = 0;
     }
 
     // ── Socket ──
@@ -154,6 +213,7 @@ QtObject {
             sendRequest("get_version", undefined, handleVersion, handleVersionError);
         } else {
             console.warn("noxd socket disconnected", socketPath);
+            root.stopHeartbeat();
             phase = "disconnected";
             connectionStateUpdated("disconnected");
             subscriptionId = "";
@@ -262,6 +322,16 @@ QtObject {
     }
 
     function canRetry(method, metadata) {
+        // `subscribe` must never be replayed on the same connection. The daemon
+        // treats a second subscribe as a second registration, so the shell
+        // would receive two copies of every event from that point on — audio
+        // callbacks, network transitions and power updates all applied twice,
+        // with no error anywhere to explain it. Declining the retry routes into
+        // handleSubscription's error callback, which fails the protocol and
+        // drops the socket; the normal reconnect path then subscribes exactly
+        // once on a fresh connection.
+        if (method === "subscribe") return false;
+
         // Never retry actions whose outcome depends on a human or device
         // handshake. Replaying one after a socket reconnect can create a
         // second pairing prompt or answer an already-expired agent request.
@@ -376,7 +446,7 @@ QtObject {
         failedAction = { action: actionKey, error: "fallback", timestamp: Date.now() };
 
         try {
-            fallback(actionParams);
+            fallback(actionParams, runDetached);
             if (callback) callback({ type: "action_accepted", data: { action: params.action } });
             return true;
         } catch (err) {
@@ -385,6 +455,14 @@ QtObject {
             if (errorCallback) errorCallback("fallback_failed", String(err));
             return true; // we tried, don't also send to daemon
         }
+    }
+
+    // Launcher used by Fallbacks.js. A .pragma library file cannot reach
+    // Quickshell itself, so the exec primitive is injected from here.
+    function runDetached(cmd, args) {
+        var argv = [cmd];
+        if (args && args.length) argv = argv.concat(args);
+        Quickshell.execDetached(argv);
     }
 
     // ── Protocol handshake ──
@@ -415,7 +493,9 @@ QtObject {
         // fan-out avoids sending envelopes into a void — when a future
         // surface needs them, add "settings" to Protocol.providers and
         // route the resulting eventReceived in shell.qml.
-        publishSnapshots(state.providers);
+        // The initial state is a complete snapshot of every provider, so it
+        // replaces provider state rather than merging into an empty cache.
+        publishSnapshots(state.providers, true);
         phase = "subscribing";
         connectionStateUpdated("subscribing");
         sendRequest("subscribe", { providers: [], event_types: [] }, handleSubscription, function(error, msg) {
@@ -432,9 +512,10 @@ QtObject {
         }
         streamId = subscription.stream_id;
         subscriptionId = subscription.subscription_id;
-        publishSnapshots(subscription.snapshots);
+        publishSnapshots(subscription.snapshots, true);
         phase = "subscribed";
         connectionStateUpdated("subscribed");
+        root.startHeartbeat();
         console.info("noxd IPC subscribed", streamId, subscriptionId);
     }
 
@@ -473,34 +554,56 @@ QtObject {
         }
         receivedEvents += 1;
         eventDescription = event.provider + ":" + event.event_type + " (#" + event.sequence + ")";
-        var snapshot = { provider: event.provider, status: "available", data: event.data };
 
-        updateHealth(snapshot);
+        // An event carries data only — EventEnvelope has no status field — so it
+        // must not assert the provider is healthy. Forcing "available" here
+        // flipped a provider that noxd had marked error/unavailable back to
+        // green on every event it emitted, so the bar and `noxctl status`
+        // disagreed with the daemon. A provider we have never heard of counts
+        // as available, because receiving data from it is that evidence.
+        var known = snapshotCache[event.provider];
+        var snapshot = {
+            provider: event.provider,
+            status: Merge.statusAfterEvent(known),
+            data: event.data
+        };
+
         eventReceived(event);
         var updates = {};
         updates[event.provider] = snapshot;
-        publishSnapshots(updates);
+        publishSnapshots(updates, false);
     }
 
     // ── Snapshot dispatching ──
-    function publishSnapshots(snapshots) {
+    /// Dispatch provider snapshots to the models.
+    ///
+    /// `replaceProviderState` distinguishes the two callers:
+    ///
+    ///   * A **subscription** snapshot is the provider's complete state as of
+    ///     right now. Merging it into the cache resurrected keys the provider
+    ///     had dropped — a network snapshot that no longer lists an SSID kept
+    ///     the old one, and a provider that emptied a list kept it populated
+    ///     forever. It replaces.
+    ///   * An **event** carries a partial update for one provider, so it merges
+    ///     into the cached state.
+    function publishSnapshots(snapshots, replaceProviderState) {
+        var nextCache = {};
+        for (var cached in snapshotCache) nextCache[cached] = snapshotCache[cached];
+
         var mergedSnapshots = {};
         for (var provider in snapshots) {
             var snapshot = snapshots[provider];
             if (!Protocol.providerSnapshot(snapshot)) continue;
-            var previous = snapshotCache[provider];
-            var merged = snapshot;
-            if (previous && previous.status === "available" && snapshot.status === "available"
-                    && previous.data && snapshot.data) {
-                var data = {};
-                for (var key in previous.data) data[key] = previous.data[key];
-                for (var changedKey in snapshot.data) data[changedKey] = snapshot.data[changedKey];
-                merged = { provider: snapshot.provider, status: snapshot.status, data: data };
-            }
-            snapshotCache[provider] = merged;
+            var previous = nextCache[provider];
+            var merged = Merge.apply(previous, snapshot, replaceProviderState);
+            nextCache[provider] = merged;
             mergedSnapshots[provider] = merged;
             updateHealth(merged);
         }
+        // Reassign rather than mutating in place: a plain JS object gains no
+        // change notification, so `snapshotCache[provider] = ...` left every
+        // reader looking at a stale map.
+        snapshotCache = nextCache;
         root.snapshotReceived(mergedSnapshots);
     }
 

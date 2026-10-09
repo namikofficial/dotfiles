@@ -570,6 +570,98 @@ mod tests {
         }
     }
 
+    /// Every payload shape the QML actually sends must decode.
+    ///
+    /// `shell/noxflow/tests/test_action_contract.js` checks that each action
+    /// *name* exists. This checks the *shape*: a mistyped or missing field
+    /// (`brightness_set` carrying `value` instead of `percentage`, say) makes
+    /// serde reject the whole request, so the button does nothing and the name
+    /// check still passes.
+    ///
+    /// The values below are the literal shapes found at the `runAction({...})`
+    /// call sites, with runtime expressions replaced by a representative value.
+    #[test]
+    fn qml_payload_shapes_decode() {
+        let payloads = [
+            r#"{"audio_toggle_mute":{"target":"output"}}"#,
+            r#"{"audio_toggle_mute":{"target":"input"}}"#,
+            r#"{"audio_adjust_volume":{"target":"output","delta":5}}"#,
+            r#"{"audio_set_volume":{"target":"output","volume":40}}"#,
+            r#"{"audio_set_volume":{"target":"input","volume":100}}"#,
+            r#"{"audio_set_default":{"target":"output","selector":"Built-in Audio Analog Stereo"}}"#,
+            r#"{"audio_set_default":{"target":"input","selector":"Built-in Audio Analog Stereo"}}"#,
+            // The bar sends `percentage`; the plan's item 1.7 rewrote the OCR
+            // path, but a rename here would silently break the brightness OSD.
+            r#"{"brightness_set":{"percentage":50}}"#,
+            r#"{"brightness_adjust":{"delta":-5}}"#,
+            r#"{"network_wifi_set_enabled":{"enabled":true}}"#,
+            r#"{"network_vpn_set_enabled":{"uuid":"vpn-1","enabled":true}}"#,
+            r#"{"network_forget":{"ssid":"Airtel_shub_5G"}}"#,
+            r#"{"network_refresh":{}}"#,
+            r#"{"power_profile_set":{"profile":"performance"}}"#,
+            r#"{"lock":{}}"#,
+            r#"{"suspend":{}}"#,
+            r#"{"reboot":{}}"#,
+            r#"{"power_off":{}}"#,
+            r#"{"media_next":{}}"#,
+            r#"{"media_previous":{}}"#,
+            r#"{"media_play_pause":{}}"#,
+            r#"{"refresh_providers":{}}"#,
+            r#"{"bluetooth_connect":{"device_id":"AA:BB:CC:DD:EE:FF"}}"#,
+            r#"{"bluetooth_disconnect":{"device_id":"AA:BB:CC:DD:EE:FF"}}"#,
+            r#"{"bluetooth_pair":{"device_id":"AA:BB:CC:DD:EE:FF"}}"#,
+            r#"{"bluetooth_set_powered":{"powered":true}}"#,
+            r#"{"bluetooth_set_discovering":{"discovering":false}}"#,
+            r#"{"bluetooth_cancel_pairing":{"request_id":"pair-1"}}"#,
+            r#"{"bluetooth_pairing_response":{"request_id":"pair-1","accepted":true}}"#,
+            r#"{"transfer_discover":{}}"#,
+            r#"{"transfer_send":{"peer_id":"peer-1","paths":["/tmp/a"]}}"#,
+            r#"{"transfer_accept":{"session_id":"s-1"}}"#,
+            r#"{"transfer_decline":{"session_id":"s-1"}}"#,
+            r#"{"transfer_cancel":{"session_id":"s-1"}}"#,
+        ];
+
+        for body in payloads {
+            let payload = format!(
+                r#"{{"version":1,"id":"shape","method":"run_action","params":{{"action":{body}}}}}"#
+            );
+            decode_request(&payload).unwrap_or_else(|e| panic!("{body} must decode: {e:?}"));
+        }
+    }
+
+    /// The unit-variant actions the bar sends must decode in both forms.
+    ///
+    /// A live probe showed noxd accepts `{"media_next":{}}` and the bare string
+    /// `"media_next"` equally; an audit had claimed the object form was
+    /// rejected. Both are pinned here so that claim cannot come back.
+    #[test]
+    fn unit_variant_actions_decode_in_both_forms() {
+        for name in [
+            "lock",
+            "suspend",
+            "reboot",
+            "power_off",
+            "media_next",
+            "media_previous",
+            "media_play_pause",
+            "refresh_providers",
+            "network_refresh",
+            "transfer_discover",
+        ] {
+            let object = format!(
+                r#"{{"version":1,"id":"unit","method":"run_action","params":{{"action":{{"{name}":{{}}}}}}}}"#
+            );
+            decode_request(&object)
+                .unwrap_or_else(|e| panic!("object form of {name} must decode: {e:?}"));
+
+            let string = format!(
+                r#"{{"version":1,"id":"unit","method":"run_action","params":{{"action":"{name}"}}}}"#
+            );
+            decode_request(&string)
+                .unwrap_or_else(|e| panic!("string form of {name} must decode: {e:?}"));
+        }
+    }
+
     #[test]
     fn shell_local_action_names_are_not_action_variants() {
         // Guard rail for NF-02: every QML runAction payload must be either a
@@ -589,9 +681,8 @@ mod tests {
                 r#"{{"version":1,"id":"nf02-{name}","method":"run_action","params":{{"action":{{"{name}":{{}}}}}}}}"#,
                 name = action_name,
             );
-            let err = decode_request(&payload).expect_err(&format!(
-                "{action_name} must not decode as a typed Action"
-            ));
+            let err = decode_request(&payload)
+                .expect_err(&format!("{action_name} must not decode as a typed Action"));
             assert!(
                 matches!(err, DecodeError::InvalidRequest(_)),
                 "expected InvalidRequest for unsupported action {action_name}, got {err:?}"

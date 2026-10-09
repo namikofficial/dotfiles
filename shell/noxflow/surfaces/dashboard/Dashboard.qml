@@ -33,11 +33,16 @@ PanelWindow {
         NumberAnimation { duration: lifecycle.animDuration; easing.type: lifecycle.easingType }
     }
 
-    property Process dashProcess: Process { command: []; running: false }
+    property Components.Command dashProcess: Components.Command { label: "Restart shell" }
 
     anchors.top: true; anchors.bottom: true; anchors.left: true; anchors.right: true
-    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    exclusiveZone: 0; aboveWindows: true; color: "transparent"
     visible: lifecycle.active
+    // Request the keyboard seat on open rather than on click; see the long
+    // explanation in core/MorphSurface.qml.
+    WlrLayershell.keyboardFocus: lifecycle.active
+        ? WlrKeyboardFocus.Exclusive
+        : WlrKeyboardFocus.None
 
     Connections {
         target: lifecycle
@@ -347,14 +352,12 @@ PanelWindow {
                                     font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true
                                 }
                             }
-                            Rectangle {
-                                Layout.fillWidth: true; height: 4; radius: 2
-                                color: Theme.Tokens.outlineSubtle
-                                Rectangle {
-                                    width: parent.width * Math.min(1, (root.systemTelemetryReadable ? systemModel.cpuUsage : 0) / 100)
-                                    height: parent.height; radius: parent.radius
-                                    color: (systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
-                                }
+                            Components.Slider {
+                                Layout.fillWidth: true
+                                readOnly: true
+                                accessibleName: "CPU usage"
+                                value: (root.systemTelemetryReadable ? systemModel.cpuUsage : 0) / 100
+                                fillColor: (systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
                             }
                             Text {
                                 text: root.systemTelemetryReadable && systemModel.cpuTempAvailable ? systemModel.cpuTemp + "°C" : "Temperature unavailable"
@@ -389,14 +392,12 @@ PanelWindow {
                                     font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true
                                 }
                             }
-                            Rectangle {
-                                Layout.fillWidth: true; height: 4; radius: 2
-                                color: Theme.Tokens.outlineSubtle
-                                Rectangle {
-                                    width: parent.width * Math.min(1, (root.systemTelemetryReadable && systemModel.gpuAvailable ? systemModel.gpuUsage : 0) / 100)
-                                    height: parent.height; radius: parent.radius
-                                    color: Theme.Tokens.tonalSecondary
-                                }
+                            Components.Slider {
+                                Layout.fillWidth: true
+                                readOnly: true
+                                accessibleName: "GPU usage"
+                                value: (root.systemTelemetryReadable && systemModel.gpuAvailable ? systemModel.gpuUsage : 0) / 100
+                                fillColor: Theme.Tokens.tonalSecondary
                             }
                             Text {
                                 text: root.systemTelemetryReadable && systemModel.gpuAvailable && systemModel.gpuMemTotal > 0
@@ -431,14 +432,12 @@ PanelWindow {
                                     font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true
                                 }
                             }
-                            Rectangle {
-                                Layout.fillWidth: true; height: 4; radius: 2
-                                color: Theme.Tokens.outlineSubtle
-                                Rectangle {
-                                    width: parent.width * Math.min(1, (root.systemTelemetryReadable ? systemModel.memPercent : 0) / 100)
-                                    height: parent.height; radius: parent.radius
-                                    color: (systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalTertiary
-                                }
+                            Components.Slider {
+                                Layout.fillWidth: true
+                                readOnly: true
+                                accessibleName: "Memory usage"
+                                value: (root.systemTelemetryReadable ? systemModel.memPercent : 0) / 100
+                                fillColor: (systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalTertiary
                             }
                             Text {
                                 text: root.systemTelemetryReadable
@@ -553,8 +552,10 @@ PanelWindow {
                         Components.TextButton {
                             text: "Reload shell"
                             onClicked: {
-                                root.dashProcess.command = ["systemctl", "--user", "reload", "noxflow-shell"]
-                                root.dashProcess.running = true
+                                // The unit has no ExecReload (probed), so
+                                // "reload" failed silently. Restart is the
+                                // only command that actually reapplies config.
+                                root.dashProcess.run(["systemctl", "--user", "restart", "noxflow-shell.service"])
                                 lifecycle.requestClose("reloadShell")
                             }
                         }
@@ -567,9 +568,11 @@ PanelWindow {
                         Components.TextButton {
                             text: "Settings"
                             onClicked: {
-                                root.dashProcess.command = ["gnome-control-center"]
-                                root.dashProcess.running = true
+                                // Open NoxFlow's own settings panel.
+                                // gnome-control-center is not installed here.
                                 lifecycle.requestClose("systemSettings")
+                                if (shellRoot && typeof shellRoot.openSettings === "function")
+                                    shellRoot.openSettings();
                             }
                         }
                     }

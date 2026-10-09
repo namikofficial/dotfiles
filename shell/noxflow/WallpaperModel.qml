@@ -6,6 +6,7 @@ import QtQml
 import Quickshell
 import Quickshell.Io
 import "ModelUtils.js" as Utils
+import "components" as Components
 
 QtObject {
     id: root
@@ -23,18 +24,14 @@ QtObject {
         return home + "/Pictures/wallpaper/handpicked/1080p:" + home + "/Pictures/wallpaper/handpicked/4k";
     }
 
-    property Process scanProc: Process {
-        running: false
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: function(data) { root._onScanData(data); }
-        }
+    property Components.Command scanProc: Components.Command {
+        label: "Wallpaper scan"
+        onExited: function(code) { root._onScanData(code === 0 ? root.scanProc.output : "") }
     }
-    property Process currentProc: Process {
-        running: false
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: function(data) { root._onCurrentData(data); }
+    property Components.Command currentProc: Components.Command {
+        label: "Current wallpaper"
+        onExited: function(code) {
+            if (code === 0) root.current = root.currentProc.output.trim();
         }
     }
 
@@ -53,12 +50,12 @@ QtObject {
             walls = [];
             return;
         }
-        scanProc.command = ["sh", "-c",
+        scanProc.runShell(
             "find " + expr.join(" ") +
-            " -maxdepth 1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) 2>/dev/null | sort -u"];
-        scanProc.running = true;
+            " -maxdepth 1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) 2>/dev/null | sort -u");
     }
 
+    /// Whole-output variant of the old line-by-line SplitParser handler.
     function _onScanData(data) {
         scanning = false;
         if (!data) {
@@ -78,32 +75,31 @@ QtObject {
     // ── Current wallpaper ──
     function readCurrent() {
         var home = Quickshell.env("HOME");
-        currentProc.command = ["sh", "-c", "cat " + JSON.stringify(home) + "/.cache/current-wallpaper 2>/dev/null || true"];
-        currentProc.running = true;
-    }
-
-    function _onCurrentData(data) {
-        current = (data || "").trim();
+        // No `|| true` and no 2>/dev/null: Command records the exit code, so a
+        // missing cache file is visible instead of looking like an empty answer.
+        currentProc.run(["cat", home + "/.cache/current-wallpaper"]);
     }
 
     // ── Apply ──
     // Delegates to the existing set-wallpaper.sh (handles hyprpaper + matugen
     // + notifications). No fake success: the exit code propagates.
-    property Process applyProc: Process { running: false }
-    property Process themePassProc: Process { running: false }
+    property Components.Command applyProc: Components.Command { label: "Apply wallpaper" }
+    property Components.Command themePassProc: Components.Command { label: "Theme pass" }
 
     function apply(path) {
         if (!path) return;
         var home = Quickshell.env("HOME");
-        applyProc.command = ["sh", "-c", home + "/.config/hypr/scripts/set-wallpaper.sh " + JSON.stringify(path) + " 2>&1"];
-        applyProc.running = true;
+        // 2>&1 merged stdout/stderr: the banner should show the script's own
+        // explanation, not a bare exit code.
+        applyProc.run(["sh", "-c", home + "/.config/hypr/scripts/set-wallpaper.sh " + JSON.stringify(path) + " 2>&1"]);
         readCurrent();
     }
 
     function runThemePass() {
         var home = Quickshell.env("HOME");
-        themePassProc.command = ["sh", "-c", home + "/.config/hypr/scripts/theme-pass.sh >/dev/null 2>&1 &"];
-        themePassProc.running = true;
+        // Fire and forget: theme-pass is a background job, not a command whose
+        // result the UI reports.
+        themePassProc.run(["sh", "-c", home + "/.config/hypr/scripts/theme-pass.sh >/dev/null 2>&1 &"]);
     }
 
     Component.onCompleted: {

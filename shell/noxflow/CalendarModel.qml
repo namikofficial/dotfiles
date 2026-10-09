@@ -7,6 +7,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "ModelUtils.js" as Utils
+import "components" as Components
 
 QtObject {
     id: root
@@ -115,10 +116,9 @@ QtObject {
     }
 
     // ── Sync process ──
-    property Process syncProcess: Process {
-        id: syncProcess
-        running: false
-        onExited: function(code, status) {
+    property Components.Command syncProcess: Components.Command {
+        label: "Calendar sync"
+        onExited: function(code) {
             root.syncing = false;
             root.syncStatus = "idle";
             if (code === 0) {
@@ -129,7 +129,7 @@ QtObject {
                 // Reassigning path triggers FileView's reload.
                 root.reloadCache();
             } else {
-                root.lastError = "Sync failed (exit " + code + ")";
+                root.lastError = root.syncProcess.failureText();
                 root.lastSyncSuccess = false;
                 root.syncStatus = "error";
                 root.cacheStatus = "error";
@@ -236,8 +236,7 @@ QtObject {
         root.syncing = true;
         root.syncStatus = "syncing";
         root.lastError = "";
-        syncProcess.command = ["python3", root.syncScript, "--cache", root.cachePath, "--look-ahead", "30"];
-        syncProcess.running = true;
+        syncProcess.run(["python3", root.syncScript, "--cache", root.cachePath, "--look-ahead", "30"]);
     }
 
     // ── Weekday labels ──

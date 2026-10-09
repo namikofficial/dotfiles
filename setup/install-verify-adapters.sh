@@ -8,9 +8,9 @@ APPLY=0
 
 projects=(
   "$CODE_ROOT/trackMe"
-  "$CODE_ROOT/noxorigin/nox-billings"
+  "$CODE_ROOT/noxorigin/noxorigin"
+  "$CODE_ROOT/noxorigin/noxorigin-docs"
   "$CODE_ROOT/noxorigin/noxorigin-website"
-  "$CODE_ROOT/noxorigin/workspace"
   "$CODE_ROOT/noxplay"
   "$CODE_ROOT/noxplate"
   "$CODE_ROOT/noxflow-dojo"

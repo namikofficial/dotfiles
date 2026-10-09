@@ -6,10 +6,8 @@ RESTIC_PASSWORD_FILE="$HOME/.config/nox-backup/restic-password"
 # project:environment:ssh-host. Hosts should use backup-only SSH keys and a
 # forced command that permits only client-db-backup-dump for the listed target.
 BACKUP_TARGETS=(
-  'nox-billings:staging:nox-backup-billings-staging'
-  'nox-billings:production:nox-backup-billings-production'
-  'noxcrm:staging:nox-backup-crm-staging'
-  'noxcrm:production:nox-backup-crm-production'
+  'noxorigin:staging:nox-backup-noxorigin-staging'
+  'noxorigin:production:nox-backup-noxorigin-production'
   'trackme:staging:nox-backup-trackme-staging'
   'trackme:production:nox-backup-trackme-production'
 )

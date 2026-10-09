@@ -32,6 +32,20 @@ PanelWindow {
     property rect originRect: Qt.rect(0, 0, 0, 0)
     property string initialSection: ""
     property bool active: activePanel !== "" || pendingPanel !== ""
+
+    // ── Layer geometry: animation state, not derived values ──
+    //
+    // These four used to be *bound* to `targetTopMargin`, `targetRightMargin`,
+    // `targetSurfaceWidth` and `targetHeight`. The morph phases assign them
+    // imperatively, and the first assignment destroys a QML binding for good —
+    // so from the first open onward the layer stopped following the geometry
+    // table or a monitor resize. That is the wrong failure mode to have, since
+    // the values they were bound to are exactly the ones a resize changes.
+    //
+    // They are now plain values that each carry a `Behavior on` (see below), so
+    // assigning one is an explicit animation target that runs for the morph
+    // duration. The morph already assigns all four on every path, so nothing
+    // relies on the old binding.
     property real topMargin: targetTopMargin
     property real rightMargin: targetRightMargin
     property real surfaceWidth: targetSurfaceWidth
@@ -42,17 +56,17 @@ PanelWindow {
     // panel transition use the same coordinate space as the bar triggers.
     readonly property real targetRightMargin: 0
     readonly property real targetBottomMargin: Theme.Tokens.scaled(Theme.Tokens.spacingLg)
-    readonly property real targetWidth: activePanel === "calendar" ? Theme.Tokens.scaled(520) : activePanel === "sync" ? Theme.Tokens.scaled(520) : activePanel === "quick-share" ? Theme.Tokens.scaled(460) : activePanel === "launcher" ? Theme.Tokens.scaled(620) : Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth)
+    // One geometry table. This used to be three separate definitions —
+    // `targetWidth`/`targetHeight` here, and the width and height chains inside
+    // `targetGeometryFor()` — and they had drifted: `targetHeight` sized the
+    // launcher at 520 while `targetGeometryFor()` let it fall through to the
+    // 720 default, and only the latter knew about `sync` and `quick-share`. The
+    // frame binding therefore animated toward one size while the morph moved
+    // the window toward another. Every size now comes from panelSize().
+    readonly property var targetSize: panelSize(activePanel)
+    readonly property real targetWidth: targetSize.width
     readonly property real targetSurfaceWidth: screen ? screen.width : Theme.Tokens.scaled(1920)
-    readonly property real targetHeight: {
-        var available = screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700);
-        if (activePanel === "media") return Theme.Tokens.scaled(230);
-        if (activePanel === "calendar") return Theme.Tokens.scaled(650);
-        if (activePanel === "launcher") return Theme.Tokens.scaled(520);
-        if (activePanel === "quick-settings") return Math.min(Theme.Tokens.scaled(640), available);
-        if (activePanel === "notifications") return Math.min(Theme.Tokens.scaled(760), available);
-        return Math.min(Theme.Tokens.scaled(720), available);
-    }
+    readonly property real targetHeight: targetSize.height
     readonly property int morphDuration: Config.Motion.panelOpen
     property bool switching: pendingPanel !== ""
 
@@ -61,11 +75,23 @@ PanelWindow {
     property int morphPhase: MorphSurface.Phase.Settled
     readonly property bool transitioning: morphPhase !== MorphSurface.Phase.Settled
     // Visual frame geometry (animates between chip and panel).
+    //
+    // Animation state for the same reason as the layer geometry above, and
+    // especially because these were bound *to each other* (`frameTop: topMargin`,
+    // `frameHeight: surfaceHeight`). That made the frame a follower as well as a
+    // target, so the morph and the binding raced: setting `activePanel` re-fired
+    // `targetWidth` and dragged the frame to the full panel width for an instant
+    // before Phase 1 pulled it back to chip size.
     property real frameTop: topMargin
     property real frameRight: rightMargin
     property real frameWidth: targetWidth
     property real frameHeight: surfaceHeight
     property real frameRadius: Theme.Tokens.radiusXl
+    // The frame-collapse window and the layer-shrink window must be assigned
+    // per close, never mutated once: `Timer.restart()` reuses whatever
+    // `interval` the previous close left behind.
+    readonly property int collapseInterval: morphDuration
+    readonly property int collapseNoOriginInterval: Config.Motion.contentExit
     // Content choreography.
     property real compactOpacity: 1.0
     property real expandedOpacity: 0.0
@@ -75,9 +101,6 @@ PanelWindow {
     property string compactIcon: ""
     property string compactLabel: ""
     property color compactAccent: Theme.Tokens.textPrimary
-    // Retained window height while collapsing (layer surface stays big until
-    // the visual frame has collapsed).
-    property bool retainWindow: false
     // True while a close animation is in flight. Guards closePanel() against
     // double-close and rapid re-open races (stuck-panel bug): a new openPanel()
     // always cancels a pending close.
@@ -90,8 +113,19 @@ PanelWindow {
     anchors.top: true; anchors.right: true
     margins.top: topMargin; margins.right: rightMargin
     implicitWidth: surfaceWidth; implicitHeight: surfaceHeight
-    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    exclusiveZone: 0; aboveWindows: true; color: "transparent"
     visible: root.active
+    // Keyboard focus follows visibility instead of merely being permitted.
+    // `focusable: true` only tells the compositor that this surface *may* take
+    // the seat; Hyprland still hands it over on pointer click, which meant a
+    // panel's Escape handler stayed dead until the user clicked inside it.
+    // Every loaded panel mounts a FocusScope carrying Keys.onEscapePressed, so
+    // requesting the seat here makes that handler live from the first frame of
+    // the open, and releases it as soon as the surface goes inactive.
+    focusable: true
+    WlrLayershell.keyboardFocus: root.active
+        ? WlrKeyboardFocus.Exclusive
+        : WlrKeyboardFocus.None
     // The host layer spans the monitor for stable morph geometry, but only
     // the visible frame should own pointer input. Without this mask the
     // transparent layer can either swallow clicks outside the panel or leave
@@ -138,7 +172,7 @@ PanelWindow {
                 Text {
                     text: root.compactIcon
                     color: root.compactAccent
-                    font.family: "Symbols Nerd Font Mono"
+                    font.family: Theme.Tokens.iconFont
                     font.pixelSize: Theme.Tokens.scaled(Theme.Tokens.iconSm)
                 }
                 Text {
@@ -170,6 +204,7 @@ PanelWindow {
                     item.initialSection = root.initialSection;
                 if (item && typeof item.open === "function") item.open();
                 contentReadyTimer.restart();
+                applyContentFocus();
             }
         }
 
@@ -212,19 +247,21 @@ PanelWindow {
             root.expandedOpacity = 1.0;
             root.expandedTranslate = 0.0;
             root.morphPhase = MorphSurface.Phase.Settled;
+            applyContentFocus();
         }
     }
 
-    // Close sequence: after the frame has collapsed, shrink the layer surface
-    // and unmount content.
+    // Close sequence: the frame has finished collapsing by now, so shrink the
+    // layer surface and unmount content. The interval is set explicitly on
+    // every close path (see closePanel) because restart() would otherwise reuse
+    // the previous close's value.
     Timer {
         id: collapseTimer
-        interval: Math.max(1, Math.round(root.morphDuration * 0.9))
+        interval: root.collapseInterval
         repeat: false
         onTriggered: {
             var closedPanel = root.activePanel;
             root.closing = false;
-            root.retainWindow = false;
             root.activePanel = "";
             root.pendingPanel = "";
             root.morphPhase = MorphSurface.Phase.Settled;
@@ -235,6 +272,27 @@ PanelWindow {
     }
 
     function componentFor(name) { return root.panelComponents ? (root.panelComponents[name] || null) : null; }
+
+    /// Move Qt's *active* focus into the freshly mounted panel.
+    ///
+    /// Measured on Hyprland 0.56 / Quickshell 0.3.2: asking for the keyboard
+    /// seat (WlrLayershell.keyboardFocus, below) is not enough on its own. A
+    /// panel's `FocusScope` does report `focus: true`, but `activeFocus` stayed
+    /// false and `window.activeFocusItem` stayed `QQuickRootItem`, which is the
+    /// state in which a `Keys.onEscapePressed` handler never runs. Calling
+    /// forceActiveFocus() after the Loader mounts the item moves the active
+    /// focus item out of the root and into the panel tree.
+    ///
+    /// NOT verified here: whether the compositor then delivers keystrokes to
+    /// the surface. The only key-injection path available on this setup
+    /// (hyprctl eval "hl.dsp.send_shortcut(...)") reports success but delivers
+    /// nothing observable — verified by injecting into a focused kitty window
+    /// and seeing no character appear — so end-to-end delivery still needs a
+    /// human pressing Escape.
+    function applyContentFocus() {
+        if (content && content.item && typeof content.item.forceActiveFocus === "function")
+            content.item.forceActiveFocus();
+    }
 
     // Origin chip visuals for each panel (mirrors the bar chip).
     function panelOriginInfo(name) {
@@ -264,19 +322,37 @@ PanelWindow {
         return targetGeometryFor(name);
     }
 
+    /// The one size table for every panel.
+    ///
+    /// Panels whose height must never exceed the monitor either shrink to fit
+    /// the available space (quick-settings, notifications) or are short enough
+    /// to always fit (media, calendar, launcher, sync, quick-share).
+    function panelSize(name) {
+        var available = screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700);
+
+        var width = Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth);
+        if (name === "calendar" || name === "sync") width = Theme.Tokens.scaled(520);
+        else if (name === "quick-share") width = Theme.Tokens.scaled(460);
+        else if (name === "launcher") width = Theme.Tokens.scaled(620);
+
+        var height = Math.min(Theme.Tokens.scaled(720), available);
+        if (name === "media") height = Theme.Tokens.scaled(230);
+        else if (name === "calendar") height = Theme.Tokens.scaled(650);
+        else if (name === "launcher") height = Theme.Tokens.scaled(520);
+        else if (name === "sync") height = Theme.Tokens.scaled(680);
+        else if (name === "quick-share") height = Theme.Tokens.scaled(560);
+        else if (name === "quick-settings") height = Math.min(Theme.Tokens.scaled(640), available);
+        else if (name === "notifications") height = Math.min(Theme.Tokens.scaled(760), available);
+
+        return { width: width, height: height };
+    }
+
     // Destination geometry for the expanded panel. Keep this separate from
     // geometryFor(), whose origin override is intentionally the clicked bar
     // chip. Mixing the two leaves the loaded panel clipped to chip size.
     function targetGeometryFor(name) {
-        var width = name === "calendar" ? Theme.Tokens.scaled(520) : name === "sync" ? Theme.Tokens.scaled(520) : name === "quick-share" ? Theme.Tokens.scaled(460) : name === "launcher" ? Theme.Tokens.scaled(620) : Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth);
-        var height = Math.min(Theme.Tokens.scaled(720), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700));
-        if (name === "media") height = Theme.Tokens.scaled(230);
-        else if (name === "calendar") height = Theme.Tokens.scaled(650);
-        else if (name === "sync") height = Theme.Tokens.scaled(680);
-        else if (name === "quick-share") height = Theme.Tokens.scaled(560);
-        else if (name === "quick-settings") height = Math.min(Theme.Tokens.scaled(640), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(640));
-        else if (name === "notifications") height = Math.min(Theme.Tokens.scaled(760), screen ? screen.height - targetTopMargin - targetBottomMargin : Theme.Tokens.scaled(700));
-        return { top: targetTopMargin, right: targetRightMargin, width: width, height: height };
+        var size = panelSize(name);
+        return { top: targetTopMargin, right: targetRightMargin, width: size.width, height: size.height };
     }
 
     // Open a panel with the full phased morph.
@@ -409,13 +485,16 @@ PanelWindow {
         if (hasOrigin) {
             frameTop = g.top; frameRight = g.right; frameWidth = g.width; frameHeight = g.height;
             frameRadius = Theme.Tokens.radiusPill;
-            // Retain the layer window size until the frame finishes collapsing.
-            root.retainWindow = true;
+            // The layer window keeps its current size because nothing assigns
+            // surfaceHeight here — that *is* the retention, so the frame is not
+            // clipped mid-collapse. Wait exactly as long as the frame's own
+            // width/height Behaviors run, then shrink the window underneath it.
+            collapseTimer.interval = root.collapseInterval;
             collapseTimer.restart();
         } else {
             // No origin: fade out and unmount.
             topMargin = g.top; rightMargin = g.right; surfaceWidth = targetSurfaceWidth; surfaceHeight = g.height;
-            collapseTimer.interval = Math.max(1, Math.round(Config.Motion.contentExit));
+            collapseTimer.interval = root.collapseNoOriginInterval;
             collapseTimer.restart();
         }
         return true;
@@ -423,4 +502,5 @@ PanelWindow {
 
     function open() { if (activePanel) openPanel(activePanel, originRect); }
     function close() { closePanel(); }
+
 }
