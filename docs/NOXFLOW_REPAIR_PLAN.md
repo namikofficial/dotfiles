@@ -719,8 +719,14 @@ and then 47 false positives, because QML uses `Local.Foo` and not `Foo.qml`.
 So the gap is structural, not a missed cleanup. Meeting −1,500 against `HEAD`
 now means cutting a further **~2,530 QML code lines — about 20% of the shell's
 QML code** — from a shell that passes every gate. That is a decision about
-which features to remove, not a refactor, and it is not this plan's to take
-unilaterally. Recorded, and not claimed as met.
+which features to remove, not a refactor.
+
+**This was put to the user and decided: keep the features, record the target as
+unmet with the real numbers.** Deleting a fifth of a working shell to satisfy a
+line-count target is the worse trade, so no feature was cut for this. The
+criterion therefore stays NOT MET and is visible in this document rather than
+restated as satisfied. If the target is ever revived, it needs a named list of
+features to remove, not a diff.
 
 **2. `island/IslandHost.qml` over the 350-line cap — RESOLVED.** It reached
 382 lines during the Phase 1 re-verification (the plan had recorded a stale
@@ -917,7 +923,7 @@ So the per-instance count to assert is "1 on an untouched shell", not "0".
 - Acceptance: `tokei shell/noxflow` QML drops by at least 1,500 lines, the
   gate is green, and there are no new journal warnings.
   **NOT MET, and this plan no longer claims it was.** Measured against the
-  pre-repair tree (`git archive HEAD~1 shell/noxflow | tokei`), QML **code**
+  pre-repair tree (`git archive 095e7fd shell/noxflow | tokei`), QML **code**
   lines went 11,742 → **12,770** — up 1,028, not down 1,500. Raw lines 13,944 →
   16,664 and files 81 → 111; whole `shell/noxflow` code 14,191 → 16,131. The
   dead code was removed and the oversized files were split, but the split cost
