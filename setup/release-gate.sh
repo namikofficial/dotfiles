@@ -160,6 +160,10 @@ check "QML syntax" check_qml
 check "NoxFlow config loads" bash setup/check-noxflow-load.sh
 check "NoxFlow shell test suites" check_shell_tests
 check "external program registry" bash setup/check-noxflow-binaries.sh
+# The plan quotes line counts and an acceptance verdict. Prose goes stale;
+# this asserts those quotes against the tree, so a stale figure is caught
+# rather than read as current.
+check "repair plan matches the tree" bash setup/check-noxflow-plan.sh
 check "required shell runtime" check_required_runtime
 check "optional QML modules" check_optional_runtime
 check "systemd unit validity" check_units

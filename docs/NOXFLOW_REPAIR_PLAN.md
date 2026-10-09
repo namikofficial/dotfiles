@@ -738,8 +738,18 @@ smoke, no `ReferenceError`/`TypeError`/`is not a function` in the journal of the
 instance the smoke ran against, and the volume OSD re-measured on screen at 50%
 with icon, label and bar — that path runs through the moved producer.
 
-Both numbers above are re-measurable: `git archive HEAD shell/noxflow | tar -x
--C /tmp && tokei /tmp/shell/noxflow`, and `wc -l shell/noxflow/island/*.qml`.
+Both numbers above are re-measurable — and are now *asserted* by
+`setup/check-noxflow-plan.sh`, which runs in `setup/release-gate.sh`. It
+compares this table and the recorded file sizes against `tokei` and `wc`, fails
+if the header overclaims, and fails if the phase gate regresses to
+`journalctl -b`. Each assertion was negative-tested by corrupting the plan and
+confirming the check fails.
+
+That guard exists because of a specific failure: while correcting the table in
+0.5, the Phase 2 acceptance block below kept quoting the superseded figures
+(12,876 / 16,792 / 117 files). Both had been true when written, only one was
+true when read, and the stale copy is the one a reader lands on. Numbers in a
+status document need a checker, not good intentions.
 
 ---
 ---
