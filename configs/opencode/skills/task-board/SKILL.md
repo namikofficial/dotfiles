@@ -1,13 +1,22 @@
 ---
 name: task-board
-description: Maintain a TASKS.md-style task board that scopes concrete, verifiable work for an agent.
+description: Scope concrete, verifiable work against the repository's active plan.
 compatibility: opencode
 ---
 ## What I do
+- Read the repository's active plan and pick the next unfinished item
 - Define a task template with goal, in/out scope, acceptance criteria, verification, and notes
-- Queue 1–2 active tasks aligned to the project plan (PLAN.md, ROADMAP, or equivalent)
-- Archive completed tasks with merge date and closing commit hash
-- Keep the board honest: no fake "done" markers, no orphan scope
+- Run the item's acceptance check and record the real result
+- Keep the plan honest: no fake "done" markers, no orphan scope
+
+## The active plan
+This repository has exactly one: `docs/NOXFLOW_REPAIR_PLAN.md`.
+
+`PLAN.md`, `PLAN_v2.md`, `theplan.md`, `OPENCODE_TASK.md` and the old `TASKS.md`
+are in `docs/archive/` as history only. Several of their claims were checked
+and found false, so they must not be used as current guidance. See
+`docs/archive/README.md`.
 
 ## When to use me
-Use this when you want a writable task document for the agent to pull from, or when you need to add or refresh the active queue in an existing TASKS.md.
+Use this when work needs scoping for an agent against the active plan, or when
+the active queue needs refreshing.

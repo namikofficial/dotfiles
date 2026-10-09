@@ -8,66 +8,94 @@
 # alias myvpn='~/scripts/connect-vpn'
 
 # Local project shortcuts.
-alias noxcrm='cd /home/namik/Documents/code/noxorigin/workspace'
-alias nox-billings='cd /home/namik/Documents/code/noxorigin/nox-billings'
-alias nox-tickets='cd /home/namik/Documents/code/noxorigin/nox-tickets'
-alias noxorigin='cd /home/namik/Documents/code/noxorigin'
 alias wellvantage='cd ~/Documents/code/WellVantage'
 alias trackme='cd /home/namik/Documents/code/trackMe'
 alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
 
+# ── NoxOrigin ───────────────────────────────────────────────────────────────
+# ~/Documents/code/noxorigin holds three repos: noxorigin (product monorepo),
+# noxorigin-docs (Docusaurus) and noxorigin-website (Next.js).
 NOXORIGIN_HOME="${NOXORIGIN_HOME:-$HOME/Documents/code/noxorigin}"
+NOX_REPO="$NOXORIGIN_HOME/noxorigin"
+NOX_DOCS_REPO="$NOXORIGIN_HOME/noxorigin-docs"
+NOX_WEB_REPO="$NOXORIGIN_HOME/noxorigin-website"
 NOX_DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
 NOX_SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-$NOX_DOTFILES_HOME/private/scripts/noxorigin/sops/age/keys.txt}"
 
-nox-ensure-root() {
-  if [[ ! -d "$NOXORIGIN_HOME" ]]; then
-    print -u2 "NoxOrigin workspace not found: $NOXORIGIN_HOME"
-    return 1
-  fi
-}
+# sops only looks in ~/.config/sops/age/keys.txt by default; point it at the
+# private-submodule key so `sops`, `just secrets-check` and VS Code launched
+# from a terminal can all decrypt without per-command flags.
+if [[ -z "${SOPS_AGE_KEY_FILE:-}" && -r "$NOX_SOPS_AGE_KEY_FILE" ]]; then
+  export SOPS_AGE_KEY_FILE="$NOX_SOPS_AGE_KEY_FILE"
+fi
+
+alias nox-root='cd "$NOXORIGIN_HOME"'
+alias noxorigin='cd "$NOX_REPO"'
+alias nox='cd "$NOX_REPO"'
+alias nox-docs='cd "$NOX_DOCS_REPO"'
+alias nox-web='cd "$NOX_WEB_REPO"'
+
+nox-edit() { code "$NOX_REPO" "$@"; }
+nox-docs-edit() { code "$NOX_DOCS_REPO" "$@"; }
+nox-web-edit() { code "$NOX_WEB_REPO" "$@"; }
+
+# Run a recipe from the noxorigin justfile from any directory.
+nox-just() { just --justfile "$NOX_REPO/justfile" "$@"; }
+nox-up() { nox-just up "$@"; }
+nox-down() { nox-just down "$@"; }
+nox-status() { nox-just status "$@"; }
+nox-logs() { nox-just logs "$@"; }
 
 nox-env-file() {
-  local environment="${1:-}"
-  case "$environment" in
-    staging|production) ;;
+  case "${1:-}" in
+    staging|production|redis) printf '%s/deploy/env/%s.env.sops\n' "$NOX_REPO" "$1" ;;
+    android-signing) printf '%s/deploy/secrets/android-signing.env.sops\n' "$NOX_REPO" ;;
     *)
-      print -u2 "Usage: nox-env-edit staging|production"
+      print -u2 "Usage: ${funcstack[2]:-nox-env-file} staging|production|redis|android-signing"
       return 2
       ;;
   esac
-  printf '%s/workspace/infra/env/%s.env.sops\n' "$NOXORIGIN_HOME" "$environment"
 }
 
+# Open an encrypted env in VS Code; the SOPS extension decrypts it in memory
+# and re-encrypts on save.
 nox-env-edit() {
-  nox-ensure-root || return
   local env_file
-  env_file="$(nox-env-file "$1")" || return
+  env_file="$(nox-env-file "$@")" || return
   [[ -f "$env_file" ]] || { print -u2 "Encrypted environment file not found: $env_file"; return 1; }
   code "$env_file"
 }
 
-nox-billings-env-edit() {
-  local environment="${1:-}"
-  case "$environment" in
-    staging|production) ;;
-    *) print -u2 "Usage: nox-billings-env-edit staging|production"; return 2 ;;
-  esac
-  local env_file="$NOXORIGIN_HOME/nox-billings/deploy/server/env.${environment}.env.sops"
+# Terminal alternative: `sops edit` in $EDITOR. The .env.sops suffix is not a
+# format sops recognises, so the dotenv type must be explicit.
+nox-env-sops() {
+  local env_file
+  env_file="$(nox-env-file "$@")" || return
   [[ -f "$env_file" ]] || { print -u2 "Encrypted environment file not found: $env_file"; return 1; }
-  code "$env_file"
+  [[ -r "$NOX_SOPS_AGE_KEY_FILE" ]] || { print -u2 "SOPS age key is not readable: $NOX_SOPS_AGE_KEY_FILE"; return 1; }
+  (cd "$NOX_REPO" && SOPS_AGE_KEY_FILE="$NOX_SOPS_AGE_KEY_FILE" \
+    sops edit --input-type dotenv --output-type dotenv "$env_file")
 }
 
-nox-tickets-env-edit() {
-  local environment="${1:-}"
-  case "$environment" in
-    staging|production) ;;
-    *) print -u2 "Usage: nox-tickets-env-edit staging|production"; return 2 ;;
-  esac
-  local env_file="$NOXORIGIN_HOME/nox-tickets/deploy/server/env.${environment}.env.sops"
-  [[ -f "$env_file" ]] || { print -u2 "Encrypted environment file not found: $env_file"; return 1; }
-  code "$env_file"
+# Validate every tracked *.env.sops without printing values.
+nox-env-validate() {
+  [[ -r "$NOX_SOPS_AGE_KEY_FILE" ]] || { print -u2 "SOPS age key is not readable: $NOX_SOPS_AGE_KEY_FILE"; return 1; }
+  (cd "$NOX_REPO" && SOPS_AGE_KEY_FILE="$NOX_SOPS_AGE_KEY_FILE" just secrets-check)
+}
+
+nox-help() {
+  print 'NoxOrigin shortcuts:'
+  print '  nox / noxorigin        cd into the noxorigin monorepo'
+  print '  nox-docs / nox-web     cd into noxorigin-docs / noxorigin-website'
+  print '  nox-root               cd into ~/Documents/code/noxorigin'
+  print '  nox-edit, nox-docs-edit, nox-web-edit   Open a repo in VS Code'
+  print '  nox-just RECIPE        Run a noxorigin just recipe from anywhere'
+  print '  nox-up / nox-down / nox-status / nox-logs SVC   Dev stack wrappers'
+  print '  nox-env-edit NAME      Edit encrypted env in VS Code (staging|production|redis|android-signing)'
+  print '  nox-env-sops NAME      Edit encrypted env with sops in $EDITOR'
+  print '  nox-env-validate       Validate all encrypted envs (just secrets-check)'
+  print 'trackMe: trackme, trackme-edit, trackme-env-edit NAME, trackme-up, trackme-log'
 }
 
 # ── trackMe ─────────────────────────────────────────────────────────────────
@@ -93,77 +121,6 @@ trackme-log() {
 
 trackme-up() {
   just --justfile /home/namik/Documents/code/trackMe/justfile up "$@"
-}
-
-nox-env-validate() {
-  nox-ensure-root || return
-  local environment="${1:-}"
-  case "$environment" in
-    staging|production) ;;
-    *)
-      print -u2 "Usage: nox-env-validate staging|production"
-      return 2
-      ;;
-  esac
-  [[ -r "$NOX_SOPS_AGE_KEY_FILE" ]] || {
-    print -u2 "SOPS age key is not readable: $NOX_SOPS_AGE_KEY_FILE"
-    return 1
-  }
-  SOPS_AGE_KEY_FILE="$NOX_SOPS_AGE_KEY_FILE" \
-    "$NOXORIGIN_HOME/workspace/infra/scripts/validate-sops-env.sh"
-}
-
-nox-infra-edit() {
-  nox-ensure-root || return
-  code "$NOXORIGIN_HOME/workspace/infra" "$@"
-}
-
-nox-help() {
-  print 'NoxOrigin shortcuts:'
-  print '  noxorigin              Open the umbrella workspace'
-  print '  noxcrm                 Enter the NoxCRM workspace'
-  print '  nox-billings           Enter the Nox-Billings workspace'
-  print '  trackme                Enter the trackMe workspace'
-  print '  nox-env-edit staging   Edit encrypted staging environment in VS Code'
-  print '  nox-env-edit production Edit encrypted production environment in VS Code'
-  print '  nox-billings-env-edit NAME Edit Nox-Billings encrypted environment'
-  print '  nox-tickets-env-edit NAME Edit Nox-Tickets encrypted environment'
-  print '  trackme-env-edit NAME  Edit trackMe backend environment'
-  print '  nox-env-validate NAME  Validate encrypted deployment environment'
-  print '  nox-infra-edit         Open workspace infrastructure'
-  print '  nox-billings-up        Start nox-billings dev stack in tmux (pass --open for Kitty windows)'
-}
-
-noxcrm-edit() {
-  code /home/namik/Documents/code/noxorigin/workspace "$@"
-}
-
-nox-billings-edit() {
-  code /home/namik/Documents/code/noxorigin/nox-billings "$@"
-}
-
-nox-tickets-edit() {
-  code /home/namik/Documents/code/noxorigin/nox-tickets "$@"
-}
-
-noxorigin-edit() {
-  code /home/namik/Documents/code/noxorigin "$@"
-}
-
-noxcrm-log() {
-  :
-}
-
-nox-billings-log() {
-  :
-}
-
-nox-billings-emulator() {
-  "${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}/hypr/scripts/android-dev.sh" start Noxflow_API_36 "$@"
-}
-
-nox-billings-up() {
-  just --justfile /home/namik/Documents/code/noxorigin/nox-billings/justfile up "$@"
 }
 
 # Use Kitty's SSH kitten to auto-bootstrap remote terminal capabilities.

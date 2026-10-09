@@ -1,75 +1,67 @@
 # Editing SOPS secrets in VS Code
 
-The `signageos.signageos-vscode-sops` extension can decrypt supported SOPS files
-in memory and re-encrypt them when they are saved. No `SOPS_AGE_KEY_FILE`
-export or command-line flags are needed after the dotfiles setup is installed.
-The managed settings associate `*.env.sops` with the `dotenv` language; without
-that association VS Code opens the ciphertext as ordinary text and you will see
-`ENC[...]` instead of the decrypted editor.
+The `signageos.signageos-vscode-sops` extension decrypts SOPS files in memory
+when they are opened and re-encrypts them on save. The file on disk always
+stays encrypted.
+
+Three settings in `code/vscode-user-settings.json` make this work, and
+`setup/check-stale-references.sh` fails if any of them is removed:
+
+- `sops.enabled` and `sops.binPath`: turn the extension on.
+- `sops.defaults.ageKeyFile`: the private age key in the private scripts
+  submodule. VS Code is usually launched from the desktop, so it never sees a
+  shell `SOPS_AGE_KEY_FILE`.
+- `files.associations` `"*.env.sops": "dotenv"`: `.env.sops` is not a format
+  sops recognises. Without this, the file opens as ciphertext (`ENC[...]`).
 
 ## One-time setup
-
-From the dotfiles repository:
 
 ```bash
 ./setup/install-vscode-sops.sh
 ```
 
-The installer installs both the SOPS and dotenv extensions. It preserves the existing VS Code user settings in a timestamped
-backup and links VS Code to `code/vscode-user-settings.json`. The managed
-settings point SOPS at the private age key in the private scripts submodule.
+This links VS Code to `code/vscode-user-settings.json` (backing up any
+existing file) and installs the SOPS and dotenv extensions. Reload any open
+VS Code window afterwards.
 
-The age private key is never stored in this public dotfiles repository. Its
-permissions are set to owner-readable only.
+## Encrypted files in the noxorigin repo
 
-## Normal workflow
+`~/Documents/code/noxorigin/noxorigin` (rules in its `.sops.yaml`):
 
-Open an encrypted environment file normally:
+| Name              | Path                                     |
+| ----------------- | ---------------------------------------- |
+| `staging`         | `deploy/env/staging.env.sops`            |
+| `production`      | `deploy/env/production.env.sops`         |
+| `redis`           | `deploy/env/redis.env.sops`              |
+| `android-signing` | `deploy/secrets/android-signing.env.sops` |
 
-```bash
-code /home/namik/Documents/code/noxorigin/workspace/infra/env/staging.env.sops
-```
+## Shell helpers
 
-After installation, reload the VS Code window if it was already open. The
-status bar should identify the file as `dotenv`. Edit `NOX_RESEND_API_KEY`, save
-the file, and close it. VS Code shows the
-decrypted dotenv contents while editing; the file on disk remains encrypted.
-Repeat for `production.env.sops` when the production secret is also being
-rotated.
-
-If you still see `ENC[...]`, check that both extensions are installed and that
-the file language is `dotenv`. Do not manually decrypt the file into the
-workspace.
-
-Validate without printing the secret:
-
-```bash
-cd /home/namik/Documents/code/noxorigin/workspace/infra
-./scripts/validate-sops-env.sh
-```
-
-From any directory, the local shell helpers avoid path and key-file flags:
+Defined in `aliases.local.zsh`. They work from any directory.
 
 ```zsh
-nox-env-edit staging
-nox-env-edit production
-nox-billings-env-edit staging
-nox-tickets-env-edit staging
-nox-env-validate staging
-nox-env-validate production
-nox-help
+nox-env-edit staging        # open in VS Code, decrypted
+nox-env-sops production     # edit with `sops edit` in $EDITOR instead
+nox-env-validate            # runs `just secrets-check`; prints no values
 ```
 
-The validator checks all encrypted deployment environments and reports only
-file names and placeholder status; it does not print secret values.
-
-Commit only the encrypted files:
+`aliases.local.zsh` also exports `SOPS_AGE_KEY_FILE` for interactive shells,
+so plain `sops` works too. Because of the `.env.sops` suffix, pass the type
+explicitly:
 
 ```bash
-git add env/staging.env.sops env/production.env.sops
-git commit -m "fix(infra): rotate Resend deployment secret"
-git push origin prod-sync
+sops edit --input-type dotenv --output-type dotenv deploy/env/staging.env.sops
 ```
 
-The deployment workflow decrypts the selected encrypted environment on the
-server during deployment. Never create or commit a plaintext `.env` file.
+## Troubleshooting
+
+If a file still shows `ENC[...]`:
+
+1. The status bar language should say `dotenv`. If it doesn't, the file
+   association is missing.
+2. `code --list-extensions` should list both `signageos.signageos-vscode-sops`
+   and `mikestead.dotenv`.
+3. Run `nox-env-validate`. If the CLI can't decrypt either, the problem is the
+   key or the recipients, not VS Code.
+
+Never write a decrypted copy into the repository. Commit only `*.env.sops`.

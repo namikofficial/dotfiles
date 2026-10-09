@@ -267,7 +267,8 @@ read_color() {
 
 # Read a nested key like "colors.surfaceCanvas" or "accent.hover".
 read_nested() {
-  top="$1"; sub="$2"
+  top="$1"
+  sub="$2"
   jq -r --arg t "$top" --arg s "$sub" '.[$t][$s]' "$palette_json"
 }
 

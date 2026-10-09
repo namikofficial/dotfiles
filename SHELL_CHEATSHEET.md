@@ -126,8 +126,8 @@
 - Reload tmux config from `~/Documents/code/dotfiles/tmux/tmux.conf`: `tr`
 - Kill session: `tk work`
 - Kill tmux server: `tka`
-- Start the four-pane project layout: `project-profile dev nox-billings`
-- Open Nox Billings on the Android emulator: `nox-billings-emulator`
+- Start the four-pane project layout: `project-profile dev noxorigin`
+- Start the NoxOrigin dev stack (add `-a` for Android): `nox-up`
 - Start all trackMe dev servers (backend + web + mobile): `trackme-up`
 - Open trackMe in editor: `trackme-edit`
 

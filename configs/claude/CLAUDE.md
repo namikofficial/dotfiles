@@ -71,6 +71,6 @@ checksums, `git diff --check`, or anything whose output you must quote verbatim.
 - `~/Documents/code/dotfiles` — workstation config; read its `AGENTS.md` and the
   nearest nested `AGENTS.md` before editing. Checks: `./setup/check-shell.sh --all`,
   `./setup/check-dotfiles.sh --all`, `cargo check --workspace`.
-- `~/Documents/code/noxorigin` — `workspace` (NoxCRM), `nox-billings`, `nox-tickets`.
+- `~/Documents/code/noxorigin` — `noxorigin` (product monorepo, `justfile`), `noxorigin-docs`, `noxorigin-website`.
 - `~/Documents/code/trackMe`, `~/Documents/code/WellVantage`.
 - Many projects drive tasks through `just`; check for a `justfile` before inventing commands.

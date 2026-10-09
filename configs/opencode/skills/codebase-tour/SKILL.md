@@ -66,31 +66,36 @@ Pre-empt the things a new dev will ask:
 ## Example output (terse)
 
 ```
-# Project: ai (workbench)
+# Project: dotfiles (NoxFlow workstation)
 
 ## Identity
-Local-first AI engineering workbench. TypeScript monorepo (Fastify + Vite +
-SQLite/Qdrant + MCP). Slice 26 in progress (dev-agent).
+Personal workstation dotfiles. Rust workspace (`noxd` daemon + `noxctl` CLI)
+plus a Quickshell/QML desktop shell called NoxFlow. Arch + Hyprland.
 
 ## Layout
-apps/         — web (Vite), api (Fastify), worker
-packages/     — 19: agent-protocol, ask-engine, dev-agent, retrieval-engine, ...
-mcp/          — safe MCP server
-cli/          — `ai` command
-tests/        — 49 test files
-runtime/      — ai.db (7MB), exports, logs
+core/         — Rust workspace: noxd daemon, noxflow-ipc, config, state
+cli/noxctl/   — `noxctl`, the daemon control CLI
+shell/noxflow/— the Quickshell/QML shell (bar/, island/, surfaces/, theme/)
+hypr/         — Hyprland config, keybindings, helper scripts
+setup/        — bootstrap, health checks, the release gate
+configs/      — canonical app configs (opencode/, agents, MCP)
+docs/         — documentation; docs/archive/ is history, not instructions
+systemd/      — user units (noxflow-shell, noxflow-fallback, noxd)
+tests/smoke/  — live surface smoke test
 
 ## Key entry points
-- PLAN.md                 — 1746-line architecture plan
-- apps/api/src/server.ts  — Fastify API (3507 lines)
-- packages/dev-agent/     — slice 26 work
-- runtime/ai.db           — SQLite, source of truth
+- AGENTS.md                     — repo invariants; read before editing
+- docs/NOXFLOW_REPAIR_PLAN.md   — THE plan; section 0.5 is the progress log
+- shell/noxflow/shell.qml       — shell entry point, wires every surface
+- core/noxd/src/main.rs         — the daemon
+- setup/release-gate.sh         — the gate every change must pass
 
 ## Common questions
-- Auth? — Not yet (slice 26 ships with approval, not auth)
-- Schema? — runtime/ai.db, migrations in packages/db/src/migrations/
-- Tests? — `pnpm test` (node --test)
-- Add a route? — apps/api/src/server.ts (single file, ~3500 lines)
+- Plans? — docs/NOXFLOW_REPAIR_PLAN.md only. Everything in docs/archive/ is
+  historical and some of it was checked and found false.
+- Shell tests? — node shell/noxflow/tests/run-all.js
+- Did my change break the shell? — ./setup/check-noxflow-load.sh
+- Full check? — ./setup/release-gate.sh
 ```
 
 ## Tone
