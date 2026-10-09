@@ -80,22 +80,34 @@ else
 fi
 
 # ── 3. The pre-repair baseline row, when HEAD~1 exists ───────────────────────
-base_row="$(grep -E '^\| pre-repair \(`?HEAD~1' "$PLAN" | head -1 || true)"
+base_row="$(grep -E '^\| pre-repair \(`[0-9a-f]+`\)' "$PLAN" | head -1 || true)"
 if [ -z "$base_row" ]; then
-  bad "no '| pre-repair' row in the 0.5 table"
-elif ! git rev-parse --verify --quiet HEAD~1 >/dev/null; then
-  ok "pre-repair row present; skipped (no HEAD~1)"
+  bad "no '| pre-repair (<commit>) |' row in the 0.5 table"
 else
+  # Pinned to an explicit commit, never HEAD~1: relative refs move as soon as
+  # anything else is committed, which silently re-reads the repair commit as
+  # the baseline. The first version of this check used HEAD~1 and failed the
+  # moment a second commit landed.
+  # Capture only what is inside the backticks: a loose [0-9a-f] match finds
+  # "e" inside "pre-repair" long before it reaches the hash.
+  base_commit="$(sed -E 's/^\| pre-repair \(`([0-9a-f]+)`\).*/\1/' <<<"$base_row")"
+  if ! git rev-parse --verify --quiet "${base_commit}^{commit}" >/dev/null; then
+    bad "the plan pins the pre-repair baseline to $base_commit, which is not a commit here"
+    base_commit=""
+  fi
+fi
+
+if [ -n "${base_commit:-}" ]; then
   # The baseline row is not bolded; take its last (code) field.
   claimed_code="$(awk -F'|' '{ gsub(/[ *,]/, "", $5); print $5 }' <<<"$base_row")"
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
-  git archive HEAD~1 shell/noxflow 2>/dev/null | tar -x -C "$tmp"
+  git archive "$base_commit" shell/noxflow 2>/dev/null | tar -x -C "$tmp"
   real_code="$(tokei "$tmp/shell/noxflow" 2>/dev/null | awk '$1 == "QML" { print $4; exit }')"
   if [ "$claimed_code" = "$real_code" ]; then
-    ok "pre-repair baseline matches HEAD~1 ($real_code)"
+    ok "pre-repair baseline matches $base_commit ($real_code)"
   else
-    bad "pre-repair baseline: the plan says $claimed_code, HEAD~1 says ${real_code:-<none>}"
+    bad "pre-repair baseline: the plan says $claimed_code, $base_commit says ${real_code:-<none>}"
   fi
 fi
 

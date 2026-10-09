@@ -693,11 +693,15 @@ other is recorded rather than quietly reinterpreted.
 
 **1. Phase 2's line-count target is unmet.** Its acceptance required QML code to
 *drop* by ≥1,500 lines. Measured with the same `tokei` build against the
-pre-repair tree, which is `HEAD~1` now that this work is committed:
+pre-repair tree, pinned to `095e7fd` — the commit before this work landed.
+It is named rather than written as `HEAD~1`, because `HEAD~1` moves as soon as
+anything else is committed: `setup/check-noxflow-plan.sh` caught exactly that,
+reading the repair commit back as the baseline the moment a second commit
+landed.
 
 | | files | raw | code |
 | --- | --- | --- | --- |
-| pre-repair (`HEAD~1`) | 81 | 13,944 | 11,742 |
+| pre-repair (`095e7fd`) | 81 | 13,944 | 11,742 |
 | *superseded*: before the split of `IslandHost` and the dead-file removal | 117 | 16,792 | 12,876 |
 | now (committed) | **111** | **16,664** | **12,770** |
 
