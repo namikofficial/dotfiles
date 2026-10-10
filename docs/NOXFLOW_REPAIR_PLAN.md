@@ -1165,5 +1165,13 @@ text-input + 1 clipboard).
 
 ### Still open
 
-1. nvim: SchemaStore for json/yaml, neotest (vitest/jest/rust), optional dap;
-   remove the orphaned `~/.local/share/nvim/mason`.
+1. JavaScript debugging in nvim needs vscode-js-debug installed (not in
+   pacman/AUR lists yet); Rust and C/C++ debugging work through lldb-dap.
+
+nvim, done 2026-10-10:
+- SchemaStore validates JSON and YAML (checked on a wrong tsconfig and
+  workflow).
+- neotest runs vitest, Playwright and cargo (a real noxorigin vitest test
+  passed through it).
+- nvim-dap + dap-ui use VS Code F-keys.
+- The orphaned 721 MB `~/.local/share/nvim/mason` was removed.

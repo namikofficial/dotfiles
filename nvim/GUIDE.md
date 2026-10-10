@@ -69,6 +69,41 @@ any picker: `H` toggles hidden files, `I` toggles ignored files.
 Formatting on save uses the project's own tool: Biome in noxorigin, Prettier
 where a project has it, rustfmt, shfmt, taplo.
 
+JSON and YAML files get schemas automatically (package.json, tsconfig,
+GitHub workflows, docker-compose, biome.json, …): completion with
+`Ctrl-Space`, and wrong keys or values are underlined like any other error.
+
+## Tests (`Space T` …)
+
+Works with vitest and Playwright (noxorigin, trackMe) and cargo tests.
+
+| Keys | Action |
+| --- | --- |
+| `Space T t` | Run the test under the cursor |
+| `Space T f` | Run every test in this file |
+| `Space T a` | Run the whole project's tests |
+| `Space T l` | Re-run the last test |
+| `Space T s` | Test tree (click/Enter to run one) |
+| `Space T o` | Output of the test under the cursor |
+| `]t` / `[t` | Next / previous failed test |
+
+Results appear next to each test: ✓ passed, ✗ failed.
+
+## Debugging (VS Code keys)
+
+| Keys | Action |
+| --- | --- |
+| `F9` | Toggle breakpoint (red dot in the gutter) |
+| `F5` | Start / continue |
+| `F10` / `F11` / `Shift-F11` | Step over / into / out |
+| `Shift-F5` | Stop |
+| `Space d u` | Show/hide the debug panels (variables, stack, watches) |
+| `Space d e` | Evaluate the expression under the cursor |
+| `Space T d` | Debug the test under the cursor |
+
+Rust and C/C++ debug through `lldb-dap`. JavaScript debugging needs
+vscode-js-debug, which is not installed yet.
+
 ## Encrypted env files (SOPS)
 
 Open any `*.env.sops` normally (`Ctrl-p`, type the name). It opens

@@ -14,6 +14,9 @@ return {
     dependencies = {
       "saghen/blink.cmp",
       "mrcjkb/rustaceanvim",
+      -- Schemas for package.json, tsconfig, GitHub workflows, compose files,
+      -- biome.json, … : completion and validation in JSON and YAML.
+      "b0o/SchemaStore.nvim",
     },
     config = function()
       local capabilities = require("blink.cmp").get_lsp_capabilities()
@@ -50,6 +53,9 @@ return {
         jsonls = {
           cmd = { node_tools .. "vscode-json-language-server", "--stdio" },
           init_options = { provideFormatter = false },
+          settings = {
+            json = { schemas = require("schemastore").json.schemas(), validate = { enable = true } },
+          },
         },
         lua_ls = {
           settings = {
@@ -93,6 +99,10 @@ return {
             yaml = {
               keyOrdering = false,
               format = { enable = false },
+              -- SchemaStore.nvim supplies the catalogue; disable the server's
+              -- own download so the two do not fight.
+              schemaStore = { enable = false, url = "" },
+              schemas = require("schemastore").yaml.schemas(),
             },
           },
         },

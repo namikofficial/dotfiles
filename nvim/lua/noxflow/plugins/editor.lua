@@ -97,6 +97,8 @@ return {
         { "<leader>t", group = "terminal" },
         { "<leader>b", group = "buffers" },
         { "<leader>w", group = "windows" },
+        { "<leader>T", group = "test" },
+        { "<leader>d", group = "debug" },
         { "<leader>?", desc = "Keys for this buffer" },
         { "<leader>H", desc = "Guide (how to use this setup)" },
       },
