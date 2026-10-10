@@ -197,6 +197,22 @@ QtObject {
     readonly property int durationMedium: 200
     readonly property int durationLong: 350
     readonly property int durationEmphasized: 500
+    // ── The motion table ──
+    // Every animation timing in the shell is defined here, once. Motion.qml
+    // derives named durations from these; surfaces never hold literals.
+    // Reduced motion and the speed setting are applied in exactly one place
+    // (duration() below, plus Motion.qml's speed factor).
+    readonly property int motionMicro: 110
+    readonly property int motionHover: 140
+    readonly property int motionSurface: 185
+    readonly property int motionPanelOpen: 205
+    readonly property int motionPanelSwitch: 175
+    readonly property int motionPanelClose: 145
+    readonly property int motionContentEnter: 125
+    readonly property int motionContentExit: 95
+    readonly property int motionOsdEnter: 145
+    readonly property int motionOsdExit: 150
+    readonly property int motionThemeTransition: 380
 
     // Island geometry and interaction timings are shared by the host,
     // controller, and extracted island presentation components.
@@ -213,9 +229,11 @@ QtObject {
     readonly property int islandCalendarWidth: 520
     readonly property int islandHoverDwell: 140
     readonly property int islandTransitGrace: 450
-    readonly property int islandExpandDuration: 205
-    readonly property int islandSwitchDuration: 175
-    readonly property int islandCollapseDuration: 145
+    // Island morphs share the panel timings (they were separate copies of
+    // the same three numbers).
+    readonly property int islandExpandDuration: motionPanelOpen
+    readonly property int islandSwitchDuration: motionPanelSwitch
+    readonly property int islandCollapseDuration: motionPanelClose
 
     // easing
     readonly property string easingStandard: "cubic-bezier(0.2, 0.0, 0.0, 1.0)"
@@ -422,22 +440,22 @@ QtObject {
 
     // Keep the visible chrome and border transitions coherent. Other semantic
     // roles update through the same singleton in the same event turn.
-    Behavior on tonalBackground { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on tonalPrimary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on tonalSecondary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on tonalTertiary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on tonalNeutral { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurfaceCanvas { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurfaceBase { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurface1 { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurface2 { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurface3 { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurfaceFloating { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurfaceContainerHigh { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on outlineDefault { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on accentPrimary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on accentSecondary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on accentTertiary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on tonalBackground { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on tonalPrimary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on tonalSecondary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on tonalTertiary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on tonalNeutral { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceCanvas { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceBase { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurface1 { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurface2 { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurface3 { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceFloating { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceContainerHigh { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on outlineDefault { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on accentPrimary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on accentSecondary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on accentTertiary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
 
     /// Apply a named theme profile, updating all color properties.
     function applyProfile(name) {

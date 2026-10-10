@@ -4,6 +4,7 @@
 //   * Control borders (outlineDefault) meet WCAG 3:1 non-text contrast on
 //     surfaceContainerHigh, statically and after runtime/profile theming.
 //   * Reduced motion has one source: Tokens.reducedMotion.
+//   * Animation timings live in one table (Tokens' motion block).
 "use strict";
 const assert = require("assert");
 const fs = require("fs");
@@ -38,5 +39,12 @@ const motion = fs.readFileSync(path.join(root, "config/Motion.qml"), "utf8");
 const shellConfig = fs.readFileSync(path.join(root, "config/ShellConfig.qml"), "utf8");
 assert.ok(/Theme\.Tokens\.reducedMotion/.test(motion), "Motion reads Tokens.reducedMotion");
 assert.ok(!/reduceMotion/.test(shellConfig), "ShellConfig no longer has its own reduceMotion");
+
+// One motion table: timings are numbers only in Tokens' motion block.
+assert.ok(!/scaled\(\s*\d/.test(motion) && !/Math\.round\(\s*\d+\s*\*/.test(motion),
+  "Motion.qml derives durations from Tokens, it holds no timing literals");
+assert.ok(!/duration\(\s*\d+\s*\)/.test(tokens), "Tokens animations use named motion tokens, not literals");
+const lifecycle = fs.readFileSync(path.join(root, "components/SurfaceLifecycle.qml"), "utf8");
+assert.ok(/Tokens\.motionSurface/.test(lifecycle), "SurfaceLifecycle uses the motion table");
 
 console.log(`ok - design tokens (${sizes.size} type sizes, outline ${ratio.toFixed(2)}:1)`);

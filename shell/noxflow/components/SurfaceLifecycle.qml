@@ -33,7 +33,7 @@ QtObject {
     readonly property bool interactive: state === SurfaceLifecycle.State.Open
     readonly property bool transitioning: completionTimer.running
     property string closeReason: ""
-    readonly property int animDuration: Theme.Tokens.duration(185)
+    readonly property int animDuration: Theme.Tokens.duration(Theme.Tokens.motionSurface)
 
     // The type of easing the surface's Behavior should use
     readonly property int easingType: state === SurfaceLifecycle.State.Opening

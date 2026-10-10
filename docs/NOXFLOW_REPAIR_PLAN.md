@@ -703,7 +703,7 @@ landed.
 | --- | --- | --- | --- |
 | pre-repair (`095e7fd`) | 81 | 13,944 | 11,742 |
 | *superseded*: before the split of `IslandHost` and the dead-file removal | 117 | 16,792 | 12,876 |
-| now (committed) | **111** | **16,768** | **12,816** |
+| now (committed) | **111** | **16,790** | **12,828** |
 
 Whole `shell/noxflow` code: 14,191 → 16,131.
 
@@ -1158,11 +1158,12 @@ text-input + 1 clipboard).
 - **tmux:** orphan plugin clones (`catppuccin/tmux`, `tmux-sessionist`)
   removed.
 - **SDDM:** fonts installed system-wide by `configure-sddm.sh`; theme current.
+- **One motion table:** every timing is a `motion*` token in `Tokens.qml`;
+  `Motion.qml` only names them and applies speed. Island timings alias the
+  panel ones (they were duplicate copies); theme transitions and
+  `SurfaceLifecycle` use named tokens. Reduced motion is one rule.
 
 ### Still open
 
-1. Motion durations still live in two tables: `Motion.qml` (panel/OSD) and
-   Tokens (`duration()` and island timings). Both now honour the same
-   reduced-motion flag; merging the numbers is cosmetic.
-2. nvim: SchemaStore for json/yaml, neotest (vitest/jest/rust), optional dap;
+1. nvim: SchemaStore for json/yaml, neotest (vitest/jest/rust), optional dap;
    remove the orphaned `~/.local/share/nvim/mason`.
