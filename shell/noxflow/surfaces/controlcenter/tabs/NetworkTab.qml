@@ -71,7 +71,7 @@ Flickable {
         RowLayout {
             Layout.fillWidth: true
             Text { text: "Available Networks"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelLarge; Layout.fillWidth: true }
-            Components.IconButton { iconText: host.state.wifiScanPending ? "…" : "↻"; accessibleName: "Rescan Wi‑Fi networks"; enabled: !host.state.wifiScanPending && host.noxd.connected; onClicked: { host.state.wifiScanPending = true; host.state.wifiError = ""; host.noxd.runAction({ network_refresh: {} }); host.state.markAction("wifi", "Scanning for networks…"); } }
+            Components.IconButton { iconText: host.network.wifiScanPending ? "…" : "↻"; accessibleName: "Rescan Wi‑Fi networks"; enabled: !host.network.wifiScanPending && host.noxd.connected; onClicked: host.network.requestWifiScan() }
         }
         Text {
             visible: host.state.wifiError !== ""
@@ -127,7 +127,7 @@ Flickable {
                         Layout.fillWidth: true
                         spacing: 0
                         Text { text: modelData.ssid || "Hidden SSID"; elide: Text.ElideRight; Layout.fillWidth: true; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: modelData.connected === true }
-                        Text { text: (modelData.security === "open" ? "Open host.network" : "Password required") + (modelData.saved ? " · Saved" : ""); color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
+                        Text { text: (modelData.security === "open" ? "Open network" : "Password required") + (modelData.saved ? " · Saved" : ""); color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall }
                     }
                     Text { text: modelData.strength !== undefined ? Math.round(modelData.strength) + "%" : "—"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelSmall }
                     Components.TextButton {

@@ -24,8 +24,9 @@ Local.BarStatusPill {
 
     onTapped: root.activated()
 
-    property bool hover: false
-    onHoverChanged: function(hovered) { root.hover = hovered; root.hoverChangedToIsland(hovered) }
+    // Forwards BarStatusPill's hoverChanged(bool) signal. Do not declare a
+    // `hover` property here: its generated change signal shadows the base one.
+    onHoverChanged: function(hovered) { root.hoverChangedToIsland(hovered) }
 
     readonly property string glyph: dnd ? "" : count > 0 ? "" : ""
     readonly property color glyphColor: dnd

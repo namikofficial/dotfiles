@@ -28,6 +28,9 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: Theme.Tokens.durationShort; easing.type: Easing.OutCubic } }
     Behavior on scale { NumberAnimation { duration: Theme.Tokens.durationShort; easing.type: Easing.OutCubic } }
     onVisibleChanged: {
+        // The model clears the password when a connect flow opens; mirror it so
+        // a previous attempt's text never reappears in the field.
+        wifiPasswordField.text = host.network.wifiConnectPassword;
         if (visible && host.state.wifiConnectSecurity !== "open")
             Qt.callLater(function() { wifiPasswordField.forceActiveFocus(); });
     }
@@ -78,7 +81,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: Theme.Tokens.scaled(3)
                     Text { text: host.state.wifiConnectSsid; color: Theme.Tokens.tonalOnPrimaryContainer; font.pixelSize: Theme.Tokens.typographyTitleMedium; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
-                    Text { text: (host.state.wifiConnectSaved ? "Saved profile" : host.state.wifiConnectSecurity === "open" ? "Open host.network" : "Password protected") + (host.state.wifiConnectSecurity ? " · " + host.state.wifiConnectSecurity : ""); color: Theme.Tokens.tonalOnPrimaryContainer; font.pixelSize: Theme.Tokens.typographyBodySmall }
+                    Text { text: (host.state.wifiConnectSaved ? "Saved profile" : host.state.wifiConnectSecurity === "open" ? "Open network" : "Password protected") + (host.state.wifiConnectSecurity ? " · " + host.state.wifiConnectSecurity : ""); color: Theme.Tokens.tonalOnPrimaryContainer; font.pixelSize: Theme.Tokens.typographyBodySmall }
                     Text { text: host.state.wifiConnectionState === "connected" ? "Connected" : host.state.wifiConnectionState === "connecting" ? "Connecting…" : "Ready to connect"; color: Theme.Tokens.tonalOnPrimaryContainer; font.pixelSize: Theme.Tokens.typographyLabelSmall }
                 }
             }
@@ -100,11 +103,10 @@ Rectangle {
             placeholderText: "Wi‑Fi password"
             password: true
             showPasswordToggle: true
-            passwordVisible: host.state.wifiPasswordVisible
-            onPasswordVisibilityToggled: function(visible) { host.state.wifiPasswordVisible = visible }
+            passwordVisible: host.network.wifiPasswordVisible
+            onPasswordVisibilityToggled: function(visible) { host.network.wifiPasswordVisible = visible }
             hasError: host.state.wifiError !== ""
-            text: host.state.wifiConnectPassword
-            onTextChanged: host.state.wifiConnectPassword = text
+            onTextChanged: host.network.wifiConnectPassword = text
             onAccepted: host.state.submitWifiConnect()
             Layout.fillWidth: true
         }

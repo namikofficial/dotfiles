@@ -34,8 +34,9 @@ Local.BarStatusPill {
     onTapped: root.runUpdate()
     onSecondaryTapped: root.refreshRequested()
 
-    property bool hover: false
-    onHoverChanged: function(hovered) { root.hover = hovered; root.hoverChangedToIsland(hovered) }
+    // Forwards BarStatusPill's hoverChanged(bool) signal. Do not declare a
+    // `hover` property here: its generated change signal shadows the base one.
+    onHoverChanged: function(hovered) { root.hoverChangedToIsland(hovered) }
 
     readonly property string label: {
         if (launchState === "failed") return "UP !";

@@ -57,8 +57,8 @@ button:hover {
 }
 
 #shutdown {
-  background-color: rgba(239,32,48, 0.3);
-  border-color: #ef2030;
+  background-color: rgba(237,28,47, 0.3);
+  border-color: #ed1c2f;
   background-image: url("/usr/share/wlogout/icons/shutdown.png");
 }
 
@@ -68,20 +68,21 @@ button:hover {
 
 /* Generated palette overrides. */
 window {
-  background-color: rgba(3,4,2, 0.90);
+  background-color: rgba(5,2,3, 0.90);
+  background-image: linear-gradient(rgba(5,2,3, 0.80), rgba(5,2,3, 0.80)), url("/home/namik/Pictures/wallpaper/handpicked/1080p/23.  wallhaven-vp5z15.jpg"); background-size: cover; background-position: center;
 }
 
 button {
   color: #f2f2f2;
-  background-color: rgba(45,23,0, 0.94);
-  border-color: rgba(202,146,81, 0.66);
+  background-color: rgba(47,18,3, 0.94);
+  border-color: rgba(192,97,61, 0.66);
 }
 
 button:hover,
 button:focus,
 button:active {
-  background-color: rgba(22,5,0, 0.98);
-  border-color: #e98200;
+  background-color: rgba(23,3,0, 0.98);
+  border-color: #eb2600;
 }
 
 #firmware {

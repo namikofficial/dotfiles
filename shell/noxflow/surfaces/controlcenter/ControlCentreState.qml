@@ -48,15 +48,15 @@ QtObject {
     readonly property bool wifiConnectDialogVisible: network.wifiConnectDialogVisible
     readonly property string wifiConnectSsid: network.wifiConnectSsid
     readonly property string wifiConnectSecurity: network.wifiConnectSecurity
-    property string wifiConnectPassword: network.wifiConnectPassword
+    readonly property string wifiConnectPassword: network.wifiConnectPassword
     readonly property bool wifiConnectSaved: network.wifiConnectSaved
-    property bool wifiPasswordVisible: network.wifiPasswordVisible
+    readonly property bool wifiPasswordVisible: network.wifiPasswordVisible
     readonly property string wifiFlowStage: network.wifiFlowStage
     property string wifiBackgroundAttemptSsid: network.wifiBackgroundAttemptSsid
     property string wifiBackgroundStatus: network.wifiBackgroundStatus
     readonly property int wifiAttemptSerial: network.wifiAttemptSerial
     readonly property int wifiActiveAttempt: network.wifiActiveAttempt
-    property bool wifiScanPending: false
+    readonly property bool wifiScanPending: network.wifiScanPending
     readonly property bool wifiConnectionPending: network.wifiConnectionPending
     readonly property string wifiError: network.wifiError
     readonly property string wifiConnectionState: network.wifiConnectionState

@@ -51,6 +51,8 @@ Item {
         notificationModel: root.notificationModel
     }
     readonly property var state: viewState
+    // MorphSurface writes the deep-link section here before opening the panel.
+    property alias initialSection: viewState.initialSection
 
 
 
@@ -73,10 +75,7 @@ Item {
 
     Connections {
         target: network
-        function onAvailableWifiChanged() {
-            state.wifiScanPending = false;
-        }
-        // The connect flow resolves itself inside NetworkModel now, so this
+        // The connect and scan flows resolve inside NetworkModel, so this
         // connection only carries the model's transient status into the panel.
         function onWifiStatus(kind, message) {
             state.markAction(kind, message);
@@ -109,9 +108,7 @@ Item {
             if (event.event_type === "action_failed" && action === "connect") {
                 network.onConnectFailed(ssid, event.data.message);
             } else if (event.event_type === "action_failed" && action === "refresh") {
-                state.wifiScanPending = false;
-                state.wifiError = String(event.data.message || "Wi‑Fi scan failed. Try again.");
-                state.markAction("wifi", "Scan failed");
+                network.onScanFailed(event.data.message);
             }
         }
     }

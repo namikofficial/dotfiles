@@ -248,4 +248,25 @@ ProviderModel {
         wifiBackgroundStatus = "";
         wifiBackgroundAttemptSsid = "";
     }
+
+    // ── Scan lifecycle ──
+    //
+    // The panel asks for a scan and the model owns the flags that describe it,
+    // so no surface writes wifiError or wifiScanPending directly.
+    onAvailableWifiChanged: wifiScanPending = false
+
+    function requestWifiScan() {
+        if (!noxd || !noxd.connected) return;
+        wifiScanPending = true;
+        wifiError = "";
+        noxd.runAction({ network_refresh: {} });
+        wifiStatus("wifi", "Scanning for networks…");
+    }
+
+    /// The daemon rejected a scan request.
+    function onScanFailed(message) {
+        wifiScanPending = false;
+        wifiError = String(message || "Wi‑Fi scan failed. Try again.");
+        wifiStatus("wifi", "Scan failed");
+    }
 }
