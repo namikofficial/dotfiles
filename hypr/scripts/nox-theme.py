@@ -610,6 +610,29 @@ def build_tonal_palette(
         )
     colors["brightWhite"] = colors["onBackground"]
 
+    # ── Hue-correct ANSI blue / cyan / magenta ──
+    # Terminal programs assume slot 4 is blue, 6 cyan, 5 magenta (ls dirs,
+    # git, diffs, prompts, syntax). Mapping UI roles straight into those slots
+    # made "blue" the wallpaper's orange accent on warm wallpapers. Stay
+    # wallpaper-faithful: reuse a wallpaper accent whose hue is within 20° of
+    # the standard one, otherwise build that hue with the wallpaper accent's
+    # own lightness and chroma, then apply the usual surface-contrast guard.
+    ansi_anchors = {"Blue": 255.0, "Cyan": 200.0, "Magenta": 320.0}
+    accent_roles = [colors[r] for r in ("primary", "secondary", "tertiary")]
+    aL, aC, _aH = colors["primary"]
+    for name, anchor in ansi_anchors.items():
+        nearest = min(accent_roles, key=lambda c: hue_dist(c[2], anchor))
+        if hue_dist(nearest[2], anchor) <= 20.0:
+            L, C, H = nearest
+        else:
+            L, C, H = aL, max(0.08, min(0.20, aC)), anchor
+        colors[f"ansi{name}"] = _ensure_surface_contrast(L, C, H, surface_colors, accent_direction)
+        bL, bC, bH = colors[f"ansi{name}"]
+        bright_L = min(0.97, bL + 0.07) if accent_direction > 0 else max(0.03, bL - 0.07)
+        colors[f"ansiBright{name}"] = _ensure_surface_contrast(
+            bright_L, min(0.38, bC * 1.08), bH, surface_colors, accent_direction,
+        )
+
     # ── Accent interaction states ──
     pL, pC, pH = colors["primary"]
     colors["accentPrimary"] = colors["primary"]
@@ -829,16 +852,16 @@ def compile_theme(path: Path, policy_override: Optional[dict] = None) -> dict:
                 "red": raw["danger"],
                 "green": raw["success"],
                 "yellow": raw["warning"],
-                "blue": raw["primary"],
-                "cyan": raw["secondary"],
-                "magenta": raw["tertiary"],
+                "blue": raw["ansiBlue"],
+                "cyan": raw["ansiCyan"],
+                "magenta": raw["ansiMagenta"],
                 "brightBlack": raw["brightBlack"],
                 "brightRed": raw["brightDanger"],
                 "brightGreen": raw["brightSuccess"],
                 "brightYellow": raw["brightWarning"],
-                "brightBlue": raw["brightPrimary"],
-                "brightCyan": raw["brightSecondary"],
-                "brightMagenta": raw["brightTertiary"],
+                "brightBlue": raw["ansiBrightBlue"],
+                "brightCyan": raw["ansiBrightCyan"],
+                "brightMagenta": raw["ansiBrightMagenta"],
                 "brightWhite": raw["brightWhite"],
             },
         },

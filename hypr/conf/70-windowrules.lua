@@ -1,6 +1,17 @@
 local ctx = assert(NOX_HYPR, "NOX_HYPR context missing")
 local rule = ctx.rule
 
+-- Layer rules
+-- NoxFlow panels are translucent "glass"; without blur, text behind them
+-- bleeds through and hurts legibility. ignore_alpha skips fully transparent
+-- regions (the layer surface is full-screen) so only the panels blur.
+hl.layer_rule({
+  name = "noxflow-glass-blur",
+  match = { namespace = "^(quickshell)$" },
+  blur = true,
+  ignore_alpha = 0.25,
+})
+
 -- Window rules
 rule({
   name = "suppress-maximize-events",
@@ -20,7 +31,6 @@ rule({
   float = true,
   size = "76% 82%",
   center = true,
-  rounding = 20,
   animation = "popin 92%",
 })
 
@@ -30,7 +40,6 @@ rule({
   float = true,
   size = "54% 58%",
   center = true,
-  rounding = 18,
   animation = "popin 90%",
 })
 
@@ -124,7 +133,6 @@ rule({
   float = true,
   size = "80% 45%",
   move = { "10%", 70 },
-  rounding = 18,
   animation = "popin",
 })
 
@@ -133,7 +141,6 @@ rule({
   match = { title = "^(Spatial Scratchpad|Scratch Hub)$" },
   float = true,
   center = true,
-  rounding = 18,
   animation = "popin 88%",
 })
 
@@ -144,7 +151,6 @@ rule({
   float = true,
   size = "64% 36%",
   move = "0% 0%",
-  rounding = 18,
   animation = "popin",
 })
 
@@ -155,7 +161,6 @@ rule({
   float = true,
   size = "30% 100%",
   move = "0% 0%",
-  rounding = 18,
   animation = "popin",
 })
 
@@ -166,7 +171,6 @@ rule({
   float = true,
   size = "32% 36%",
   move = "0% 36%",
-  rounding = 18,
   animation = "popin",
 })
 
@@ -177,7 +181,6 @@ rule({
   float = true,
   size = "32% 36%",
   move = "32% 36%",
-  rounding = 18,
   animation = "popin",
 })
 
@@ -188,7 +191,6 @@ rule({
   float = true,
   size = "36% 72%",
   move = "64% 0%",
-  rounding = 18,
   animation = "popin",
 })
 
@@ -199,7 +201,6 @@ rule({
   float = true,
   size = "100% 28%",
   move = "0% 72%",
-  rounding = 18,
   animation = "popin",
 })
 
@@ -210,7 +211,6 @@ rule({
   float = true,
   size = "60% 68%",
   move = "4% 4%",
-  rounding = 18,
   animation = "popin",
 })
 
@@ -221,7 +221,6 @@ rule({
   float = true,
   size = "34% 92%",
   move = "65% 4%",
-  rounding = 18,
   animation = "slide",
 })
 

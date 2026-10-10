@@ -210,6 +210,10 @@ def palette_css(css: str) -> str:
         "__NOX_ACCENT__": palette.get("accent", "#7dd3fc"),
         "__NOX_ACCENT_SOFT__": palette.get("accent_soft", "#60a5fa"),
         "__NOX_SUCCESS__": palette.get("success", "#59ffa1"),
+        "__NOX_SECONDARY__": palette.get("accent2", "#60a5fa"),
+        "__NOX_TERTIARY__": (palette.get("colors") or {}).get("tertiary", "#a78bfa"),
+        "__NOX_WARNING__": palette.get("warn", "#fbbf24"),
+        "__NOX_DANGER__": palette.get("danger", "#fb7185"),
     }
     for token, value in colors.items():
         css = css.replace(token, str(value))

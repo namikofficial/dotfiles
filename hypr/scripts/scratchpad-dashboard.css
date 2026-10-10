@@ -78,12 +78,13 @@
   font-size: 14px;
 }
 
-.card-scene { background: linear-gradient(135deg, rgba(45, 212, 191, 0.16), rgba(59, 130, 246, 0.12), rgba(15,23,42,0.72)); }
-.card-terminal { background: linear-gradient(135deg, rgba(45, 212, 191, 0.20), rgba(15,23,42,0.62)); }
-.card-ai { background: linear-gradient(135deg, rgba(96, 165, 250, 0.22), rgba(15,23,42,0.62)); }
-.card-logs { background: linear-gradient(135deg, rgba(251, 191, 36, 0.20), rgba(15,23,42,0.62)); }
-.card-notes { background: linear-gradient(135deg, rgba(251, 113, 133, 0.18), rgba(15,23,42,0.62)); }
-.card-db { background: linear-gradient(135deg, rgba(167, 139, 250, 0.18), rgba(15,23,42,0.62)); }
-.card-music { background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(15,23,42,0.62)); }
-.card-browser { background: linear-gradient(135deg, rgba(148, 163, 184, 0.20), rgba(15,23,42,0.62)); }
-.card-obsidian { background: linear-gradient(135deg, rgba(244, 114, 182, 0.18), rgba(15,23,42,0.62)); }
+/* Card tints are wallpaper palette roles (were fixed teal/blue/pink on slate). */
+.card-scene { background: linear-gradient(135deg, alpha(__NOX_ACCENT__, 0.16), alpha(__NOX_SECONDARY__, 0.10), alpha(__NOX_SURFACE__, 0.72)); }
+.card-terminal { background: linear-gradient(135deg, alpha(__NOX_SECONDARY__, 0.20), alpha(__NOX_SURFACE__, 0.62)); }
+.card-ai { background: linear-gradient(135deg, alpha(__NOX_TERTIARY__, 0.22), alpha(__NOX_SURFACE__, 0.62)); }
+.card-logs { background: linear-gradient(135deg, alpha(__NOX_WARNING__, 0.20), alpha(__NOX_SURFACE__, 0.62)); }
+.card-notes { background: linear-gradient(135deg, alpha(__NOX_DANGER__, 0.18), alpha(__NOX_SURFACE__, 0.62)); }
+.card-db { background: linear-gradient(135deg, alpha(__NOX_TERTIARY__, 0.16), alpha(__NOX_ACCENT__, 0.08), alpha(__NOX_SURFACE__, 0.62)); }
+.card-music { background: linear-gradient(135deg, alpha(__NOX_SUCCESS__, 0.18), alpha(__NOX_SURFACE__, 0.62)); }
+.card-browser { background: linear-gradient(135deg, alpha(__NOX_MUTED__, 0.18), alpha(__NOX_SURFACE__, 0.62)); }
+.card-obsidian { background: linear-gradient(135deg, alpha(__NOX_ACCENT__, 0.20), alpha(__NOX_SURFACE__, 0.62)); }

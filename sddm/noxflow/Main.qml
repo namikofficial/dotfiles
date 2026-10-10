@@ -22,6 +22,10 @@ Rectangle {
     property color textMuted: Palette.muted
     property color okColor: Palette.success
     property color badColor: Palette.danger
+    property color secondary: Palette.secondary || Palette.accentSoft
+    // Every overlay/glow is a palette role at an alpha, so the login screen
+    // follows the wallpaper (these used to be fixed cyan/pink/blue).
+    function tint(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
     property string statusMessage: textConstants.prompt
     property color statusColor: textMuted
     property bool compactLayout: width < 1080 || height < 780
@@ -72,9 +76,9 @@ Rectangle {
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#6b05070c" }
-            GradientStop { position: 0.55; color: "#92090d16" }
-            GradientStop { position: 1.0; color: "#da0b0f18" }
+            GradientStop { position: 0.0; color: root.tint(root.panelBg, 0.42) }
+            GradientStop { position: 0.55; color: root.tint(root.panelBg, 0.57) }
+            GradientStop { position: 1.0; color: root.tint(root.panelBg, 0.85) }
         }
     }
 
@@ -86,8 +90,8 @@ Rectangle {
         radius: width
         opacity: 0.24
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#3300e5ff" }
-            GradientStop { position: 0.55; color: "#1400e5ff" }
+            GradientStop { position: 0.0; color: root.tint(root.accent, 0.20) }
+            GradientStop { position: 0.55; color: root.tint(root.accent, 0.08) }
             GradientStop { position: 1.0; color: "#00000000" }
         }
     }
@@ -100,15 +104,15 @@ Rectangle {
         radius: width
         opacity: 0.2
         gradient: Gradient {
-            GradientStop { position: 0.0; color: "#44ff3cac" }
-            GradientStop { position: 0.45; color: "#18ff3cac" }
+            GradientStop { position: 0.0; color: root.tint(root.secondary, 0.27) }
+            GradientStop { position: 0.45; color: root.tint(root.secondary, 0.09) }
             GradientStop { position: 1.0; color: "#00000000" }
         }
     }
 
     Rectangle {
         anchors.fill: parent
-        color: "#6f0b1020"
+        color: root.tint(root.panelBg, 0.44)
     }
 
     Rectangle {
@@ -117,8 +121,8 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         height: topBarFlow.implicitHeight + topInset * 2
-        color: "#b7121724"
-        border.color: "#223d5df7"
+        color: root.tint(root.panelBgAlt, 0.72)
+        border.color: root.tint(root.accent, 0.13)
         border.width: 1
         y: -18
         opacity: 0.0
@@ -275,8 +279,8 @@ Rectangle {
                 clip: true
 
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#c0181d2d" }
-                    GradientStop { position: 1.0; color: "#aa101625" }
+                    GradientStop { position: 0.0; color: root.tint(root.panelBgAlt, 0.75) }
+                    GradientStop { position: 1.0; color: root.tint(root.panelBgAlt, 0.67) }
                 }
 
                 property int heroPad: compactLayout ? 24 : 28
@@ -300,9 +304,9 @@ Rectangle {
                         width: 86
                         height: 28
                         radius: 14
-                        color: "#1f7aa2f7"
+                        color: root.tint(root.accent, 0.12)
                         border.width: 1
-                        border.color: "#337aa2f7"
+                        border.color: root.tint(root.accent, 0.20)
 
                         Text {
                             anchors.centerIn: parent
@@ -343,7 +347,7 @@ Rectangle {
                     Rectangle {
                         width: parent.width
                         height: 1
-                        color: "#22ffffff"
+                        color: root.tint(root.textPrimary, 0.13)
                     }
 
                     Text {
@@ -367,8 +371,8 @@ Rectangle {
                 clip: true
 
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#d01b2234" }
-                    GradientStop { position: 1.0; color: "#c0121726" }
+                    GradientStop { position: 0.0; color: root.tint(root.panelBgAlt, 0.82) }
+                    GradientStop { position: 1.0; color: root.tint(root.panelBgAlt, 0.75) }
                 }
 
                 property int authPad: compactLayout ? 24 : 28
@@ -464,7 +468,7 @@ Rectangle {
                     Rectangle {
                         width: parent.width
                         height: 1
-                        color: "#22ffffff"
+                        color: root.tint(root.textPrimary, 0.13)
                     }
 
                     Text {

@@ -89,11 +89,21 @@ prepare_runtime_css() {
     -e "s/rgba(255, 117, 127, 0.42)/rgba(${danger_rgb}, 0.42)/g" \
     "$dst"
 
+  # The background is the current wallpaper under a palette-tinted scrim, so
+  # the menu follows the wallpaper like everything else (the bundled abstract
+  # SVGs were fixed blue art). Falls back to the plain tint without one.
+  wall="$(cat "$HOME/.cache/current-wallpaper" 2>/dev/null || true)"
+  wall_css=""
+  if [ -n "$wall" ] && [ -f "$wall" ]; then
+    wall_css="background-image: linear-gradient(rgba(${bg_rgb}, 0.80), rgba(${bg_rgb}, 0.80)), url(\"$wall\"); background-size: cover; background-position: center;"
+  fi
+
   cat >>"$dst" <<EOF2
 
 /* Generated palette overrides. */
 window {
   background-color: rgba(${bg_rgb}, 0.90);
+  $wall_css
 }
 
 button {

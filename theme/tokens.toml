@@ -47,7 +47,9 @@ on_secondary = "#152019"
 on_surface_variant = "#CBBEC0"
 
 [outline]
-default = "#6E5D69"
+# >= 3:1 against surface_container_high (WCAG non-text contrast for control
+# borders). The runtime wallpaper palette is lifted to the same floor in Tokens.qml.
+default = "#8A7A86"
 subtle = "#4A3D49"
 strong = "#B9A4A2"
 focus = "#E0B39A"
@@ -93,10 +95,16 @@ high = 6
 overlay = 12
 
 [typography]
-font_family = "Inter"
-display_large = 36
+# UI text: Onest; headings: Bricolage Grotesque. The NoxOrigin app's own type
+# system, installed by setup/install-ui-fonts.sh.
+font_family = "Onest"
+display_family = "Bricolage Grotesque"
+# Seven sizes, one per role: display 28, headline 20, panel title 18,
+# title/body-large 16, body 14, label 12, caption 11. The *_large variants of
+# display and headline were near-unused extra steps; they alias their role.
+display_large = 28
 display_medium = 28
-headline_large = 24
+headline_large = 20
 headline_medium = 20
 title_large = 18
 title_medium = 16

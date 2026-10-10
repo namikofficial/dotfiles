@@ -1,19 +1,5 @@
 {
-  "workbench.colorCustomizations": {
-    "editor.background": "#151218",
-    "editor.foreground": "#f5eee9",
-    "activityBar.background": "#151218",
-    "activityBar.foreground": "#f5eee9",
-    "statusBar.background": "#c7957b",
-    "statusBar.foreground": "#151218",
-    "sideBar.background": "#151218",
-    "sideBar.foreground": "#f5eee9",
-    "titleBar.activeBackground": "#151218",
-    "titleBar.activeForeground": "#f5eee9",
-    "tab.activeBackground": "#151218",
-    "tab.activeForeground": "#f5eee9",
-    "tab.inactiveForeground": "#afa2a1"
-  },
+  "workbench.colorTheme": "NoxFlow Dynamic",
   "git.confirmSync": false,
   "editor.formatOnSave": true,
   "yaml.disableSchemaDetection": [

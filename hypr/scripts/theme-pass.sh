@@ -26,7 +26,7 @@ if command -v gsettings >/dev/null 2>&1; then
   gsettings set org.gnome.desktop.interface gtk-theme "Adwaita-dark" >/dev/null 2>&1 || true
   gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark" >/dev/null 2>&1 || true
   gsettings set org.gnome.desktop.interface cursor-theme "Bibata-Modern-Ice" >/dev/null 2>&1 || true
-  gsettings set org.gnome.desktop.interface font-name "Noto Sans 11" >/dev/null 2>&1 || true
+  gsettings set org.gnome.desktop.interface font-name "Onest 11" >/dev/null 2>&1 || true
   gsettings set org.gnome.desktop.interface monospace-font-name "JetBrainsMono Nerd Font 11" >/dev/null 2>&1 || true
 fi
 

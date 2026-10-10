@@ -10,3 +10,4 @@ var accent = "#00e5ff"
 var accentSoft = "#2b8fa8"
 var danger = "#ff3c78"
 var success = "#59ffa1"
+var secondary = accentSoft

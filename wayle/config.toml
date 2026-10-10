@@ -8,7 +8,7 @@
 imports = []
 
 [general]
-font-sans = "Inter"
+font-sans = "Onest"
 font-mono = "JetBrains Mono"
 tearing-mode = false
 
