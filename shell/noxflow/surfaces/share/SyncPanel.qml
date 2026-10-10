@@ -89,6 +89,7 @@ Item {
                             text: "Sync"
                             color: Theme.Tokens.textPrimary
                             font.pixelSize: Theme.Tokens.typographyTitleLarge
+                            font.family: Theme.Tokens.typographyDisplayFamily
                             font.bold: true
                         }
                         Text {

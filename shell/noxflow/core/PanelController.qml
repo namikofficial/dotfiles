@@ -52,27 +52,54 @@ QtObject {
 
     function unregisterModal(surface) { modals = Stack.remove(modals, surface); }
 
-    function topmostModal() { return Stack.topmost(modals, isDestroyed); }
+    // Every modal stays registered for the shell's lifetime, so registration is
+    // not "on screen". A hidden modal must be skipped like a destroyed one:
+    // otherwise the last-registered (hidden) modal is always "topmost", Escape
+    // closes nothing, and the open panel underneath never gets the key.
+    function isInactiveModal(surface) {
+        if (!surface) return true;
+        try { return surface.visible !== true; } catch (error) { return true; }
+    }
+
+    function topmostModal() { return Stack.topmost(modals, isInactiveModal); }
 
     function isTopmostModal(surface) {
         return topmostModal() === surface;
     }
 
-    /// Close the current modal, then open the given one. Opening a modal
-    /// dismisses the active panel too: a full-screen overlay on top of an open
-    /// panel is never what the user meant.
+    function closeModals(except) {
+        for (var i = 0; i < modals.length; i++) {
+            var m = modals[i];
+            if (m === except || isInactiveModal(m)) continue;
+            if (typeof m.close === "function") m.close();
+        }
+    }
+
+    /// Open the given modal alone: every other visible modal and the active
+    /// panel close first, so overlays never stack.
     function openModal(surface) {
-        var current = topmostModal();
-        if (current && current !== surface && typeof current.close === "function") current.close();
+        if (!surface) return;
+        closeModals(surface);
         if (activePanel) close(activePanel);
-        if (surface && typeof surface.open === "function") surface.open();
+        modals = Stack.push(modals, surface); // most recently opened is on top
+        if (typeof surface.open === "function") surface.open();
+    }
+
+    function toggleModal(surface) {
+        if (!surface) return;
+        if (isInactiveModal(surface)) { openModal(surface); return; }
+        // Still visible: open, or mid-close animation. The surface's own
+        // toggle closes the former and reopens the latter; close() alone
+        // would drop a press made during the 185 ms close.
+        if (typeof surface.toggle === "function") surface.toggle();
+        else surface.close();
     }
 
     /// Escape closes the topmost modal, or the active panel if there is none.
     /// Returns true when something actually handled it, so a caller can decide
     /// whether the key press is still unconsumed.
     function handleEscape() {
-        var target = Stack.escapeTarget(modals, activePanel, isDestroyed);
+        var target = Stack.escapeTarget(modals, activePanel, isInactiveModal);
         if (target.type === "modal") {
             if (target.surface && typeof target.surface.close === "function") {
                 target.surface.close();
@@ -263,6 +290,8 @@ QtObject {
         // One panel at a time: every other panel is told to close before this
         // one is opened, so no two can ever be visible together.
         for (var key in panels) if (key !== name) closeSurface(key);
+        // A panel opened over a full-screen modal would sit underneath it.
+        closeModals(null);
         activePanel = name;
         requestedState = stateForPanel(name);
         if (typeof target.openPanel === "function") target.openPanel(name, originRect, initialSection || "");
@@ -311,6 +340,7 @@ QtObject {
     }
 
     function closeAll() {
+        closeModals(null);
         for (var key in panels) closeSurface(key);
         activePanel = "";
         previousPanel = "";

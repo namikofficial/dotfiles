@@ -56,11 +56,23 @@ QtObject {
     signal started()
     signal exited(int exitCode)
 
+    // `running` is synchronised by hand in both directions. It used to be a
+    // binding (`proc.running: root.running`), but a Process clears its own
+    // `running` when the program exits, which broke the binding and left
+    // `root.running` true forever: run() then refused every later call and
+    // SystemModel polled exactly once per shell lifetime.
+    onRunningChanged: {
+        if (proc.running !== root.running) proc.running = root.running;
+        // A start that fails without ever reporting running (bad argv,
+        // missing binary) would otherwise leave this stuck at true again.
+        if (root.running) Qt.callLater(function() { if (root.running && !proc.running) root.running = false; });
+    }
+
     property Process process: Process {
         id: proc
-        running: root.running
         command: root.command
         stdinEnabled: root.stdinEnabled
+        onRunningChanged: if (root.running !== proc.running) root.running = proc.running
 
         stdout: SplitParser {
             splitMarker: ""
@@ -75,6 +87,9 @@ QtObject {
 
         onExited: function(exitCode) {
             root.lastExitCode = exitCode;
+            // Clear before notifying, so an onExited handler can start the
+            // next run immediately.
+            root.running = false;
             root.exited(exitCode);
         }
     }

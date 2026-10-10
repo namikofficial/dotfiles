@@ -42,7 +42,7 @@ Item {
 
             // Header
             RowLayout { Layout.fillWidth: true
-                Text { text: root.showHistory ? "History" : "Notifications"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true; Layout.fillWidth: true }
+                Text { text: root.showHistory ? "History" : "Notifications"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.family: Theme.Tokens.typographyDisplayFamily; font.bold: true; Layout.fillWidth: true }
                 Components.TextButton { text: "Clear"; accessibleName: root.showHistory ? "Clear notification history" : "Clear notifications"
                     visible: (!root.showHistory && notifModel.notifications.length > 0) || (root.showHistory && notifModel.history.length > 0)
                     onClicked: root.showHistory ? notifModel.clearHistory() : root.bridge.closeAll() }

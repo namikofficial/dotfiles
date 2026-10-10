@@ -41,6 +41,11 @@ FocusScope {
         input.forceActiveFocus()
     }
 
+    function releaseInput() {
+        input.focus = false
+        root.focus = false
+    }
+
     onActiveFocusChanged: {
         if (activeFocus && !input.activeFocus) input.forceActiveFocus()
     }

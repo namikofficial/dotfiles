@@ -1,9 +1,12 @@
 pragma Singleton
 import QtQml
 import "." as Config
+import "../theme" as Theme
 
 QtObject {
-    readonly property real factor: Config.ShellConfig.reduceMotion ? 0.15 : Config.ShellConfig.animationSpeed
+    // One reduced-motion source: Tokens.reducedMotion, which the Settings
+    // toggle drives. ShellConfig used to hardcode its own `false` here.
+    readonly property real factor: Theme.Tokens.reducedMotion ? 0.15 : Config.ShellConfig.animationSpeed
     readonly property int micro: Math.max(1, Math.round(110 * factor))
     readonly property int hover: Math.max(1, Math.round(140 * factor))
     // Keep transitions expressive while staying inside a responsive frame
@@ -16,5 +19,5 @@ QtObject {
     readonly property int contentExit: Math.max(1, Math.round(95 * factor))
     readonly property int osdEnter: Math.max(1, Math.round(145 * factor))
     readonly property int osdExit: Math.max(1, Math.round(150 * factor))
-    readonly property bool geometry: !Config.ShellConfig.reduceMotion
+    readonly property bool geometry: !Theme.Tokens.reducedMotion
 }

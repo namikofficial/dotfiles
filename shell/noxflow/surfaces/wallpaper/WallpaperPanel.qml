@@ -50,7 +50,7 @@ Item {
 
                 // Header
                 RowLayout { Layout.fillWidth: true
-                    Text { text: "Wallpaper & Theme"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true; Layout.fillWidth: true }
+                    Text { text: "Wallpaper & Theme"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.family: Theme.Tokens.typographyDisplayFamily; font.bold: true; Layout.fillWidth: true }
                     Components.IconButton { iconText: "\uF021"; accessibleName: "Rescan wallpapers"; onClicked: wallModel.scan() }
                     Components.IconButton { iconText: "\uF00D"; accessibleName: "Close"; onClicked: lifecycle.requestClose("closeButton") }
                 }

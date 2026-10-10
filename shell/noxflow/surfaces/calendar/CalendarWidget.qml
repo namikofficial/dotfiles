@@ -64,7 +64,7 @@ Item {
                 Text {
                     text: calModel.monthName(calModel.month) + " " + calModel.year
                     color: Theme.Tokens.textPrimary
-                    font.family: Theme.Tokens.typographyFontFamily
+                    font.family: Theme.Tokens.typographyDisplayFamily
                     font.pixelSize: Theme.Tokens.typographyTitleLarge
                     font.bold: true
                     Layout.fillWidth: true
@@ -208,7 +208,7 @@ Item {
                                     property bool isExpanded: false
 
                                     Layout.fillWidth: true
-                                    height: isExpanded
+                                    Layout.preferredHeight: isExpanded
                                         ? Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip) + 24, Theme.Tokens.scaled(80))
                                         : Theme.Tokens.scaled(Theme.Tokens.heightChip)
                                     radius: Theme.Tokens.radiusSm

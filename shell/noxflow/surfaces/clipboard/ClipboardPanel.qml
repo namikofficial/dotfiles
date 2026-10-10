@@ -45,7 +45,7 @@ Item {
 
                 // Header
                 RowLayout { Layout.fillWidth: true
-                    Text { text: "Clipboard"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true; Layout.fillWidth: true }
+                    Text { text: "Clipboard"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.family: Theme.Tokens.typographyDisplayFamily; font.bold: true; Layout.fillWidth: true }
                     Components.TextButton { text: "Clear"; accessibleName: "Clear clipboard history"
                         visible: clipModel.count > 0
                         onClicked: clipModel.clearAll() }

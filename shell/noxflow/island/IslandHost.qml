@@ -304,7 +304,7 @@ Item {
     Local.IslandLayers {
         id: layers
         host: root
-        anchors.fill: parent
+        anchors.fill: parent; z: 1 // above the card (the launcher's background), which is declared later
         screen: root.screen
         noxd: root.noxd
         calModel: root.calModel

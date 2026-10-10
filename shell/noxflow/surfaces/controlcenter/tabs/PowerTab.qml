@@ -68,7 +68,7 @@ Flickable {
             delegate: Rectangle {
                 required property string modelData
                 Layout.fillWidth: true
-                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+                Layout.preferredHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
                 radius: Theme.Tokens.radiusPill
                 color: host.power.activeProfile === modelData ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceVariant
                 border.color: host.power.activeProfile === modelData ? Theme.Tokens.tonalPrimary : "transparent"

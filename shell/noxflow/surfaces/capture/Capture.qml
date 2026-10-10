@@ -252,6 +252,7 @@ PanelWindow {
                 Text {
                     text: "OCR Result"; color: Theme.Tokens.textPrimary
                     font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true
+                    font.family: Theme.Tokens.typographyDisplayFamily
                     Layout.fillWidth: true
                 }
                 Rectangle {

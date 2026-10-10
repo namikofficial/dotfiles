@@ -49,7 +49,7 @@ Flickable {
         Rectangle {
             Layout.fillWidth: true
             visible: host.network.connectedSsid !== ""
-            height: Theme.Tokens.scaled(58)
+            Layout.preferredHeight: Theme.Tokens.scaled(58)
             radius: Theme.Tokens.radiusMd
             color: Theme.Tokens.tonalPrimaryContainer
             border.color: Theme.Tokens.tonalPrimary
@@ -84,7 +84,7 @@ Flickable {
         Rectangle {
             visible: host.state.wifiBackgroundStatus !== ""
             Layout.fillWidth: true
-            height: Theme.Tokens.scaled(44)
+            Layout.preferredHeight: Theme.Tokens.scaled(44)
             radius: Theme.Tokens.radiusMd
             color: host.state.wifiBackgroundStatus.indexOf("Connected") === 0 ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
             border.color: host.state.wifiBackgroundStatus.indexOf("Connected") === 0 ? Theme.Tokens.tonalPrimary : Theme.Tokens.outlineSubtle
@@ -99,7 +99,7 @@ Flickable {
         Item {
             visible: host.state.wifiList().length === 0
             Layout.fillWidth: true
-            height: Theme.Tokens.scaled(96)
+            Layout.preferredHeight: Theme.Tokens.scaled(96)
             Text {
                 anchors.centerIn: parent
                 text: host.state.wifiScanPending ? "Scanning for nearby networks…" : host.network.available ? "No networks found. Press Rescan to search." : "Network provider unavailable"

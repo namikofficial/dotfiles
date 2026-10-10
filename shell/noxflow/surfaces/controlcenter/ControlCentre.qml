@@ -147,7 +147,7 @@ Item {
                 Text {
                     text: "Control Centre"
                     color: Theme.Tokens.textPrimary
-                    font.family: Theme.Tokens.typographyFontFamily
+                    font.family: Theme.Tokens.typographyDisplayFamily
                     font.pixelSize: Theme.Tokens.typographyTitleLarge
                     font.bold: true
                     Layout.fillWidth: true

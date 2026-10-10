@@ -95,6 +95,10 @@ Item {
             // TextInput receives the first typed character without a click.
             Qt.callLater(function() { searchField.focusInput(); });
         }
+        // Drop text focus as soon as the close starts: the layer surface loses
+        // the keyboard seat when it hides, and a still-focused TextInput makes
+        // Qt log "QWaylandTextInputv3::disableSurface ... is focused".
+        function onClosing(reason) { searchField.releaseInput(); }
         function onClosed() {
             root.resetAi()
             if (lifecycle.closeReason === "screenshot") root.requestCaptureAfterClose()
@@ -201,7 +205,13 @@ Item {
                         Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: cur ? Theme.Tokens.tonalPrimaryContainer : ho ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
                         RowLayout { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm; spacing: Theme.Tokens.spacingMd
                             Item { Layout.preferredWidth: Theme.Tokens.scaled(28); Layout.preferredHeight: Theme.Tokens.scaled(28)
-                                IconImage { id: appIcon; anchors.fill: parent; source: root.openProgress > 0.5 ? root.iconSource(modelData) : ""; visible: source !== "" && status !== Image.Error }
+                                // Plain Image with a bounded sourceSize: IconImage rasterised theme SVGs
+                                // at their intrinsic size while its width was still 0 (the
+                                // qt.svg.draw "buffer too big" spam), and counted a blank
+                                // loading icon as visible, hiding the glyph fallback.
+                                Image { id: appIcon; anchors.fill: parent; asynchronous: true; fillMode: Image.PreserveAspectFit; smooth: true; mipmap: true
+                                    sourceSize: Qt.size(Theme.Tokens.scaled(56), Theme.Tokens.scaled(56))
+                                    source: root.openProgress > 0.5 ? root.iconSource(modelData) : ""; visible: status === Image.Ready }
                                 Text { anchors.fill: parent; text: modelData.icon || root.defaultIcon; visible: !appIcon.visible; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd; font.family: Theme.Tokens.iconFont; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                             }
                             ColumnLayout { Layout.fillWidth: true; spacing: 0
@@ -264,6 +274,10 @@ Item {
     }
     function retryScan() { if (desktopScanner.running) return; scanStarted = false; scanError = ""; scanDesktopFiles() }
     function iconSource(item) {
+        // launcher.sh resolves most icons to files; load those directly. The
+        // image://icon provider below rasterises SVGs at an unbounded size
+        // (qt.svg.draw warnings), so it is only the fallback.
+        if (item && item.iconPath) return "file://" + item.iconPath;
         var iconName = item && item.iconName ? String(item.iconName).trim() : "";
         if (iconName === "") return "";
         if (iconName.charAt(0) === "/") return "file://" + iconName;
@@ -272,7 +286,7 @@ Item {
             return Quickshell.iconPath(iconName) || "";
         } catch (e) { return ""; }
     }
-    function parseDesktopFiles(data) { if (!data) return; try { var records = data.trim().split("\n"); var apps = []; for (var i = 0; i < records.length; i++) { var r = JSON.parse(records[i]); var id = r.desktopId; var title = r.name; if (!id || !title) continue; var basename = id.replace(/\.desktop$/, "").toLowerCase(); apps.push({ title:title, iconName:r.icon || basename, icon:root.nerdMap[basename] || root.defaultIcon, subtitle:id, action:"launch", actionParams:{desktopId:id} }) } if (apps.length === 0) throw new Error("empty application list"); appCache = apps; scanError = "" } catch (e) { appCache = buildDefaultApps(); scanError = "Application discovery returned invalid data" } }
+    function parseDesktopFiles(data) { if (!data) return; try { var records = data.trim().split("\n"); var apps = []; for (var i = 0; i < records.length; i++) { var r = JSON.parse(records[i]); var id = r.desktopId; var title = r.name; if (!id || !title) continue; var basename = id.replace(/\.desktop$/, "").toLowerCase(); apps.push({ title:title, iconName:r.icon || basename, iconPath:r.iconPath || "", icon:root.nerdMap[basename] || root.defaultIcon, subtitle:id, action:"launch", actionParams:{desktopId:id} }) } if (apps.length === 0) throw new Error("empty application list"); appCache = apps; scanError = "" } catch (e) { appCache = buildDefaultApps(); scanError = "Application discovery returned invalid data" } }
     // Fallback list used only when .desktop discovery fails. Every entry is a
     // shell action: `launchProgram` resolves through config/Apps.qml so a
     // missing binary reports why instead of failing silently. Settings is a

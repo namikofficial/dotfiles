@@ -46,7 +46,7 @@ Rectangle {
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 0
-                Text { text: "Wi‑Fi connection"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true }
+                Text { text: "Wi‑Fi connection"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.family: Theme.Tokens.typographyDisplayFamily; font.bold: true }
                 Text { text: host.state.wifiFlowStage === "connecting" ? "Establishing a secure link" : host.state.wifiFlowStage === "failed" ? "Connection needs attention" : "Choose how to connect"; color: Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyBodySmall }
             }
             Components.IconButton {
@@ -58,7 +58,7 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            height: Theme.Tokens.scaled(112)
+            Layout.preferredHeight: Theme.Tokens.scaled(112)
             radius: Theme.Tokens.radiusLg
             color: Theme.Tokens.tonalPrimaryContainer
             border.color: Theme.Tokens.tonalPrimary
@@ -120,7 +120,7 @@ Rectangle {
         Rectangle {
             visible: host.state.wifiConnectionState === "connecting"
             Layout.fillWidth: true
-            height: Theme.Tokens.scaled(54)
+            Layout.preferredHeight: Theme.Tokens.scaled(54)
             radius: Theme.Tokens.radiusMd
             color: Theme.Tokens.surfaceSurfaceContainer
             border.color: Theme.Tokens.outlineSubtle

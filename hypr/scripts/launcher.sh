@@ -306,6 +306,30 @@ emit_rows_frequent() {
 
 # Machine-readable discovery contract for the QML launcher. One JSON object per
 # line keeps records delimiter-safe while remaining streamable for large menus.
+# Icon files in lookup priority order: the user's icon theme first, then
+# hicolor, then pixmaps. One pass over a few directories instead of a search
+# per app. NoxFlow loads these paths directly: Quickshell's image://icon
+# provider rasterises themed SVGs at an unbounded size (qt.svg.draw "buffer
+# too big") even when the Image sets sourceSize.
+icon_index() {
+  local theme dir
+  theme="$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")"
+  for dir in \
+    "/usr/share/icons/${theme:-Papirus-Dark}/48x48/apps" \
+    "/usr/share/icons/Papirus/48x48/apps" \
+    "$HOME/.local/share/icons/hicolor/scalable/apps" \
+    "$HOME/.local/share/icons/hicolor/256x256/apps" \
+    "/usr/share/icons/hicolor/scalable/apps" \
+    "/usr/share/icons/hicolor/256x256/apps" \
+    "/usr/share/icons/hicolor/128x128/apps" \
+    "/usr/share/icons/hicolor/64x64/apps" \
+    "/usr/share/icons/hicolor/48x48/apps" \
+    "/usr/share/pixmaps"; do
+    [ -d "$dir" ] || continue
+    find -L "$dir" -maxdepth 1 -type f \( -name '*.svg' -o -name '*.png' \) -printf '%f\t%p\n' 2>/dev/null
+  done
+}
+
 emit_json_apps() {
   ensure_data_cache || return 1
   awk -F '\t' '
@@ -316,10 +340,24 @@ emit_json_apps() {
       gsub(/\n/, "\\n", value)
       return value
     }
-    NF >= 2 {
-      printf "{\"name\":\"%s\",\"desktopId\":\"%s\",\"icon\":\"%s\"}\n", esc($1), esc($2), esc($3)
+    FNR == NR {
+      name = $1
+      sub(/\.(svg|png)$/, "", name)
+      if (!(name in icon_path)) icon_path[name] = $2
+      next
     }
-  ' "$CACHE_FILE"
+    NF >= 2 {
+      # Prefer the icon theme over a vendor absolute path (consistent look;
+      # e.g. Android Studio ships an SVG whose filters Qt cannot render).
+      path = ""
+      id = $2
+      sub(/\.desktop$/, "", id)
+      if ($3 in icon_path) path = icon_path[$3]
+      else if (id in icon_path) path = icon_path[id]
+      else if ($3 ~ /^\//) path = $3
+      printf "{\"name\":\"%s\",\"desktopId\":\"%s\",\"icon\":\"%s\",\"iconPath\":\"%s\"}\n", esc($1), esc($2), esc($3), esc(path)
+    }
+  ' <(icon_index) "$CACHE_FILE"
 }
 
 desktop_file_for_id() {

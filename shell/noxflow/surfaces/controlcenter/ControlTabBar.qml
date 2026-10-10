@@ -17,7 +17,7 @@ Flickable {
     id: tabScroller
     visible: false
     Layout.fillWidth: true
-    height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+    Layout.preferredHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
     clip: true
     contentWidth: tabRow.implicitWidth
     interactive: contentWidth > width

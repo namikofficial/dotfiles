@@ -355,8 +355,8 @@ ShellRoot {
         Component.onCompleted: panelController.registerModal(this)
         Component.onDestruction: panelController.unregisterModal(this)
     }
-    function toggleDashboard() { dashboard.toggle(); }
-    function openDashboard()   { dashboard.open(); }
+    function toggleDashboard() { panelController.toggleModal(dashboard); }
+    function openDashboard()   { panelController.openModal(dashboard); }
     function closeDashboard()  { dashboard.close(); }
 
     // ── Settings Panel (modal, singleton) ──
@@ -367,8 +367,8 @@ ShellRoot {
         Component.onCompleted: panelController.registerModal(this)
         Component.onDestruction: panelController.unregisterModal(this)
     }
-    function toggleSettings() { settingsPanel.toggle(); }
-    function openSettings()   { settingsPanel.open(); }
+    function toggleSettings() { panelController.toggleModal(settingsPanel); }
+    function openSettings()   { panelController.openModal(settingsPanel); }
     function closeSettings()  { settingsPanel.close(); }
 
     // ── DND / Night Light (IPC convenience) ──
@@ -416,12 +416,8 @@ ShellRoot {
         // reports the real exit code instead of the shell string building a
         // second, always-identical "grim returned an error" message.
     }
-    function toggleCapture() {
-        if (capture.visible) { capture.close(); return; }
-        panelController.closeAll();
-        capture.open();
-    }
-    function openCapture()   { panelController.closeAll(); capture.open(); }
+    function toggleCapture() { panelController.toggleModal(capture); }
+    function openCapture()   { panelController.openModal(capture); }
     function closeCapture()  { capture.close(); }
 
     // Launcher is mounted in the same per-monitor morph host as every other
@@ -489,7 +485,7 @@ ShellRoot {
          function closeSyncPanel() { return shellRoot.closeSyncPanel(); }
         function toggleWallpaperPanel() { return shellRoot.toggleWallpaperPanel(); }
         function openWallpaperPanel()   { return shellRoot.openWallpaperPanel(); }
-        function closePanel()       { return shellRoot.coordinator.close(); }
+        function closePanel()       { shellRoot.closeLauncher(); shellRoot.coordinator.closeAll(); return true; }
         function panelState()       { return { activePanel: shellRoot.coordinator.activePanel, state: shellRoot.coordinator.state }; }
     }
 

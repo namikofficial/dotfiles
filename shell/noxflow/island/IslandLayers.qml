@@ -65,10 +65,18 @@ Item {
     }
 
     // ── Launcher ──
+    // Sized to the island card (IslandCard.qml uses the same width formula),
+    // not to this layer: the layer spans the whole bar window, so `fill`
+    // spread the launcher's field, tabs and list across the full screen
+    // width while the card behind it sat empty in the middle.
     Loader {
         id: launcherLoader
-        anchors.fill: parent
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
         anchors.margins: Theme.Tokens.spacingLg
+        width: Math.min(parent.width - Theme.Tokens.scaled(24), Theme.Tokens.scaled(Theme.Tokens.islandLauncherWidth))
+            - 2 * Theme.Tokens.spacingLg
         z: 5
         active: root.launcherVisible
         visible: root.launcherVisible

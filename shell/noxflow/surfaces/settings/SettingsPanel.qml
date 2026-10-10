@@ -292,7 +292,7 @@ PanelWindow {
                     text: "Settings"
                     color: Theme.Tokens.textPrimary
                     font.pixelSize: Theme.Tokens.typographyHeadlineMedium
-                    font.family: Theme.Tokens.typographyFontFamily
+                    font.family: Theme.Tokens.typographyDisplayFamily
                     font.bold: true; Layout.fillWidth: true
                 }
                 Components.IconButton {

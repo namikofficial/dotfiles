@@ -210,8 +210,11 @@ QtObject {
         if (snapshotProcess.running) return;
         snapshotApplied = false;
         processError = "";
-        // run() resets running first, so the command is guaranteed to restart
-        // rather than being dropped as a no-op re-assignment.
+        // Not run(): that would replace the bound command (which tracks
+        // gpuSection()) with a one-off copy. Clear the buffers so this
+        // snapshot is not parsed together with the previous one.
+        snapshotProcess.output = "";
+        snapshotProcess.errorOutput = "";
         snapshotProcess.running = true;
     }
 

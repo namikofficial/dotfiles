@@ -34,7 +34,7 @@ FocusScope {
                 Text { text: root.audio.outputMuted ? "\uF026" : "\uF028"; color: root.audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.textSecondary; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconXs }
                 Text { visible: !root.audio.outputMuted; text: String(root.audio.outputVolumePercent); color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium }
             }
-            TapHandler { onTapped: { audioAction.forceActiveFocus(); root.toggleMute(); } }
+            TapHandler { onTapped: root.toggleMute() }
             WheelHandler { onWheel: function(event) { root.adjustVolume(event.angleDelta.y > 0 ? 5 : -5); event.accepted = true; } }
             Keys.onReturnPressed: root.toggleMute()
             Keys.onSpacePressed: root.toggleMute()
@@ -56,7 +56,7 @@ FocusScope {
                 Text { text: root.charging ? "\uF1E6" : root.battery.critical ? "\uF244" : "\uF240"; color: root.battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconXs }
                 Text { text: Math.round(root.battery.percentage); color: root.battery.critical ? Theme.Tokens.stateDanger : Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium }
             }
-            TapHandler { onTapped: { powerAction.forceActiveFocus(); root.openPower(); } }
+            TapHandler { onTapped: root.openPower() }
             Keys.onReturnPressed: root.openPower()
             Keys.onSpacePressed: root.openPower()
         }

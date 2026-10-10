@@ -30,7 +30,11 @@ PanelWindow {
     screen: root.screen
     anchors.top: true; anchors.left: true; anchors.right: true
     exclusiveZone: Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
-    implicitHeight: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightToolbar), island.implicitHeight)
+    // Bar pills are vertically centred in the toolbar; offset the island by the
+    // same amount so the idle pill shares their baseline instead of hugging
+    // the screen edge.
+    readonly property real islandTopMargin: Theme.Tokens.scaled((Theme.Tokens.heightToolbar - Theme.Tokens.islandIdleHeight) / 2)
+    implicitHeight: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightToolbar), island.implicitHeight + islandTopMargin)
     color: "transparent"
     aboveWindows: true
     // Keep transparent pixels click-through. The bar remains interactive
@@ -64,6 +68,7 @@ PanelWindow {
     Island.IslandHost {
         id: island
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+        anchors.topMargin: root.islandTopMargin
         screen: root.screen
         noxd: root.noxd; audio: root.audio; brightness: root.brightness
         hyprland: root.hyprland

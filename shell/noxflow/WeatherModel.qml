@@ -231,7 +231,7 @@ QtObject {
                 var dayCondition = day.hourly && day.hourly[0] && day.hourly[0].weatherDesc
                                   ? day.hourly[0].weatherDesc[0].value : "";
                 fc.push({
-                    day: date.toLocaleDateString(Qt.locale(), Locale.ShortFormat),
+                    day: Qt.formatDate(date, "ddd d"),
                     condition: dayCondition,
                     icon: mapConditionToIcon(dayCondition, dayIsDay),
                     tempHigh: parseFloat(day.maxtempC) || 0,

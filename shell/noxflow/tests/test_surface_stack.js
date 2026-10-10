@@ -126,4 +126,21 @@ const alive = () => false;
     "Escape reports nothing left to close once the stack empties");
 }
 
+// Modals stay registered for the shell's lifetime. PanelController passes a
+// predicate that treats a hidden modal like a destroyed one; without that, the
+// last-registered hidden modal was always "topmost" and Escape never reached
+// the open panel.
+{
+  const hidden = { name: "settings", visible: false };
+  const shown = { name: "dashboard", visible: true };
+  const inactive = (s) => !s || s.visible !== true;
+  let stack = push(push([], shown), hidden);
+  assert.strictEqual(topmost(stack, inactive), shown,
+    "a registered but hidden modal is never on top");
+  shown.visible = false;
+  const target = escapeTarget(stack, "quick-settings", inactive);
+  assert.strictEqual(target.type, "panel",
+    "with every modal hidden, Escape closes the active panel");
+}
+
 console.log("ok - surface stack and escape routing");

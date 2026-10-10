@@ -16,6 +16,11 @@ KillSignal=SIGTERM
 NoNewPrivileges=no
 PrivateTmp=yes
 SyslogIdentifier=noxflow-shell
+# Silence exactly one Qt-internal category. QtWayland's text-input-v3 logs
+# "disableSurface ... is focused" whenever keyboard focus moves between the
+# shell's layer surfaces (launcher open/close); it is not a shell fault and
+# releasing focus early did not stop it. Every other category still logs.
+Environment=QT_LOGGING_RULES=qt.qpa.wayland.textinput.warning=false
 Restart=on-failure
 RestartSec=3
 StandardOutput=journal

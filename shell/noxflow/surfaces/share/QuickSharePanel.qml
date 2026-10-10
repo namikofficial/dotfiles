@@ -55,6 +55,7 @@ Item {
                         text: "Quick Share"
                         color: Theme.Tokens.textPrimary
                         font.pixelSize: Theme.Tokens.typographyTitleLarge
+                        font.family: Theme.Tokens.typographyDisplayFamily
                         font.bold: true
                         Layout.fillWidth: true
                     }

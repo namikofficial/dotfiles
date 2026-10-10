@@ -703,7 +703,7 @@ landed.
 | --- | --- | --- | --- |
 | pre-repair (`095e7fd`) | 81 | 13,944 | 11,742 |
 | *superseded*: before the split of `IslandHost` and the dead-file removal | 117 | 16,792 | 12,876 |
-| now (committed) | **111** | **16,664** | **12,770** |
+| now (committed) | **111** | **16,768** | **12,816** |
 
 Whole `shell/noxflow` code: 14,191 → 16,131.
 
@@ -1066,3 +1066,103 @@ shell/noxflow/
 - `setup/client-backup-remote.conf.example` noxorigin entries are unverified
   against the server layout (`/home/apps/noxorigin/{staging,production}/.env`,
   host PostgreSQL).
+
+---
+
+## 5. Polish pass (2026-10-10): desktop, nvim, tmux
+
+Found by screenshotting the live desktop rather than reading code. Each fix
+was checked by restarting the shell and re-screenshotting.
+
+### Fixed
+
+| Defect (observed) | Root cause | Fix |
+| --- | --- | --- |
+| Dashboard/bar telemetry frozen ("Stale · 9961s old", CPU 0%, temperature stuck) | `components/Command.qml` bound `Process.running` to `root.running`. A Process clears `running` on exit, which broke the binding, so **every one of the 39 `Command` users ran exactly once** (telemetry, night light, Syncthing actions, clipboard dir, …) | Hand-synced `running`, cleared before `exited()`. `SystemModel.pollAll` clears buffers. Guard: `tests/test_command_runner.js` |
+| Panels stacked on the dashboard; `noxctl close` left it open | `PanelController.closeAll/open` never touched modals; `toggleDashboard` bypassed `openModal` | `closeModals`, `toggleModal`; every modal goes through the controller; `closePanel` IPC closes launcher + modals + panels |
+| Escape never reached an open panel | `topmostModal()` returned the last *registered* modal, and modals stay registered for life, even when hidden | Hidden modals are skipped (`isInactiveModal`). Guard in `test_surface_stack.js` |
+| Launcher field/tabs/list spread across the full screen width; card empty | Launcher `Loader` filled the 1920 px island layer | Sized to the card's width formula (`IslandLayers.qml`) |
+| Launcher looked washed out | Island card declared after the layers, so painted over the launcher | `IslandLayers` `z: 1` |
+| 27 `qt.svg.draw` warnings per launcher open; icons missing | `IconImage` rasterised SVGs at intrinsic size before layout; blank icons counted as visible | Bounded `Image` with `sourceSize`, visible only when `Ready` (27 → 8 per open) |
+| Dashboard tiles overlapping and cut off; forecast dates clipped; calendar header run together | `height:` on children of `ColumnLayout`/`RowLayout` (Layouts ignore it); both columns `fillWidth` | `Layout.preferredHeight`; fixed calendar column; `AlignTop`; "Sat 10" labels; Nerd Font icons instead of emoji |
+| Glass panels unreadable over text | No blur for the `quickshell` layer namespace | `hl.layer_rule` blur in `hypr/conf/70-windowrules.lua` |
+| Island pill taller and higher than the other bar pills | `islandIdleHeight` 38 vs `heightChip` 32; island anchored at y=0 | Same token; `TopChrome.islandTopMargin` centres it in the toolbar |
+| SSID cut to "Airtel_shu…"; stuck orange focus ring on Bluetooth | Hard 10-char slice; taps called `forceActiveFocus()` | Width-based elide; taps no longer take keyboard focus (Tab still shows the ring) |
+| Clipboard warning on every start | State file never created | Written after `mkdir` succeeds |
+| nvim ignored the wallpaper palette | Adapter expected `dofile()` to return a table; the generator only sets `vim.g.noxflow_*` | Adapter reads `vim.g`, mtime-cached |
+| nvim: no format-on-save in noxorigin, no LSP keys, no QML | Prettier-only gate; no `LspAttach` | Biome (project-local LSP + conform), `qmlls`, `<leader>c{a,r,d,i,l}`, diagnostics UI, terminal-mode `C-hjkl`, parsers |
+| tmux status lost CPU/battery after any theme pass; `prefix F` conflict; cheatsheet commands missing | Generated theme overwrote `status-left/right`; tmux-fzf and thumbs both on F; `tms/tk/tka/tns` undefined, `tr` = coreutils | Generated file is colours-only (`@theme_*`), layout reads them; live reload from theme-sync; fzf on `C-f`; helpers added |
+
+Startup journal for a fresh instance: **0 warnings** (was 93 svg + 75
+text-input + 1 clipboard).
+
+### Done in pass 2 (2026-10-10)
+
+- **Thermals:** cause measured, not guessed. The active settings profile
+  pinned `performance`, so cores idled at ~2 GHz and the package hit
+  76–92 °C. `balanced` measured 67–68 °C at the same load; persisted with
+  `settingsctl set power.default_profile '"balanced"'`. The dGPU staying
+  awake is deliberate (`system/etc/modprobe.d/nvidia-hybrid.conf`: the 610
+  open driver hangs with dynamic PM) and was left alone.
+- **Layouts:** `height:` on Layout children fixed in the control centre,
+  Wi-Fi flow, power tab, tab bar and calendar. `tests/test_layout_heights.js`
+  now fails on any new occurrence.
+- **Power profile:** one labelled segmented control (Saver / Balanced /
+  Performance) replaces unreadable emoji pills and the debug-looking
+  "Confirmed profile … Cycle" row.
+- **Fonts:** Onest (UI) and Bricolage Grotesque (headings), the NoxOrigin
+  app's own type system, installed by `setup/install-ui-fonts.sh` (pinned
+  google/fonts commit and SHA-256). `fontconfig/fonts.conf` makes
+  `sans-serif` resolve to Onest desktop-wide; GTK, gsettings, Wayle and SDDM
+  were switched too. SDDM needs `sudo setup/configure-sddm.sh` to get the
+  fonts system-wide.
+- **Wallpaper-driven theming completed:**
+  - `nox-theme.py` now emits hue-correct ANSI blue/cyan/magenta (blue was
+    the orange accent on warm wallpapers); kitty and nvim use them.
+  - SDDM `Main.qml` overlays are palette roles (were fixed cyan/pink), and
+    the up-to-date theme is installed.
+  - wlogout uses the current wallpaper under a palette scrim.
+  - Scratchpad cards are palette roles.
+  - VS Code selects the generated "NoxFlow Dynamic" theme; its
+    `package.json` was never expanding `uiTheme`.
+  - Window rounding is one value (14) instead of 14/18/20.
+- **nvim:**
+  - Dotfiles and gitignored files are visible in the explorer.
+  - Editor tabs (bufferline) and VS Code keys (`Ctrl-p`, `Ctrl-/`,
+    `Alt-Up/Down`).
+  - Learning aids: `Space ?`, `Space s k`, `Space H` (opens `nvim/GUIDE.md`),
+    and a dashboard.
+  - `*.env.sops` files open decrypted in memory and re-encrypt on save,
+    with refusals for every plaintext-leak and overwrite path a reviewer
+    reproduced.
+
+### Done in pass 3 (2026-10-10)
+
+- **Warning noise: 0 per start and per launcher/dashboard/quick-settings
+  open** (was 169 per start).
+  - The last 8 `qt.svg.draw` were Android Studio's vendor SVG, whose
+    filters Qt cannot render. `launcher.sh --list-json` now resolves icon
+    files in one pass and prefers the icon theme over vendor paths, so the
+    launcher no longer depends on the `image://icon` provider.
+  - `QWaylandTextInputv3` focus-hand-off messages are silenced by one
+    `QT_LOGGING_RULES` entry in `noxflow-shell.service`; every other
+    category still logs.
+- **Design tokens:**
+  - The type scale has 7 sizes (36 and 24 folded into their roles).
+  - `outlineDefault` meets 3:1 non-text contrast statically (3.45:1), and
+    `ensureContrast()` lifts the wallpaper outline to the same floor at
+    runtime.
+  - `Motion.qml` reads `Tokens.reducedMotion`; the dead
+    `ShellConfig.reduceMotion` is gone.
+  - Guard: `tests/test_design_tokens.js`.
+- **tmux:** orphan plugin clones (`catppuccin/tmux`, `tmux-sessionist`)
+  removed.
+- **SDDM:** fonts installed system-wide by `configure-sddm.sh`; theme current.
+
+### Still open
+
+1. Motion durations still live in two tables: `Motion.qml` (panel/OSD) and
+   Tokens (`duration()` and island timings). Both now honour the same
+   reduced-motion flag; merging the numbers is cosmetic.
+2. nvim: SchemaStore for json/yaml, neotest (vitest/jest/rust), optional dap;
+   remove the orphaned `~/.local/share/nvim/mason`.

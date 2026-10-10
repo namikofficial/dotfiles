@@ -93,7 +93,7 @@ QtObject {
     property color textOnSurfaceVariant: "#CBBEC0"
 
     // ── Outline (writable) ──
-    property color outlineDefault: "#6E5D69"
+    property color outlineDefault: "#8A7A86"
     property color outlineSubtle: "#4A3D49"
     property color outlineStrong: "#B9A4A2"
     property color outlineFocus: "#E0B39A"
@@ -158,7 +158,9 @@ QtObject {
     readonly property int elevationOverlay: 12
 
     // typography
-    readonly property string typographyFontFamily: "Inter"
+    readonly property string typographyFontFamily: "Onest"
+    // Headings and display numerals (greeting, panel titles, island clock).
+    readonly property string typographyDisplayFamily: "Bricolage Grotesque"
     // Nerd Font carries the glyphs the shell's icons and labels rely on. It
     // was hardcoded as the literal "Symbols Nerd Font Mono" in 14 places, so
     // changing the icon font meant finding all of them by hand.
@@ -169,9 +171,9 @@ QtObject {
     // oversized stray glyph on top of its own label. The only Nerd Font family
     // installed here is JetBrainsMono Nerd Font.
     readonly property string iconFont: "JetBrainsMono Nerd Font"
-    readonly property int typographyDisplayLarge: 36
+    readonly property int typographyDisplayLarge: 28
     readonly property int typographyDisplayMedium: 28
-    readonly property int typographyHeadlineLarge: 24
+    readonly property int typographyHeadlineLarge: 20
     readonly property int typographyHeadlineMedium: 20
     readonly property int typographyTitleLarge: 18
     readonly property int typographyTitleMedium: 16
@@ -199,7 +201,8 @@ QtObject {
     // Island geometry and interaction timings are shared by the host,
     // controller, and extracted island presentation components.
     readonly property int islandIdleWidth: 150
-    readonly property int islandIdleHeight: 38
+    // Same height as every other bar pill (heightChip), so the bar shares one baseline.
+    readonly property int islandIdleHeight: heightChip
     readonly property int islandCompactMinWidth: 180
     readonly property int islandCompactMaxWidth: 280
     readonly property int islandActivityMinWidth: 360
@@ -282,6 +285,29 @@ QtObject {
     }
     function glass(value, alpha) { return withAlpha(value, alpha === undefined ? glassPanelAlpha : alpha); }
 
+    // WCAG relative luminance / contrast, used to keep control borders
+    // visible whatever the wallpaper produces.
+    function luminance(c) {
+        function ch(v) { return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+        return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
+    }
+    function contrastRatio(a, b) {
+        var la = luminance(a), lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+    // Move `fg` toward `toward` until it reaches `ratio` on `bg`. The hue
+    // stays the palette's; only lightness is lifted.
+    function ensureContrast(fg, bg, ratio, toward) {
+        // Qt.tint with transparent converts a string or color to a color on
+        // every Qt 6 release (Qt.color() is newer).
+        fg = Qt.tint(fg, "transparent"); bg = Qt.tint(bg, "transparent"); toward = Qt.tint(toward, "transparent");
+        for (var t = 0; t <= 1.0001; t += 0.05) {
+            var c = Qt.rgba(fg.r + (toward.r - fg.r) * t, fg.g + (toward.g - fg.g) * t, fg.b + (toward.b - fg.b) * t, 1);
+            if (contrastRatio(c, bg) >= ratio) return c;
+        }
+        return toward;
+    }
+
     function runtimeColor(colors, name, fallback) {
         var value = colors && colors[name] ? colors[name] : fallback;
         return value || fallback;
@@ -340,7 +366,9 @@ QtObject {
             textOnSurfaceVariant = runtimeColor(colors, "onSurfaceVariant", textOnSurfaceVariant);
 
             // Outline / border
-            outlineDefault = runtimeColor(colors, "outline", outlineDefault);
+            // The wallpaper "outline" is a surface tone (near-invisible as a
+            // control border); lift it to the 3:1 non-text contrast floor.
+            outlineDefault = ensureContrast(runtimeColor(colors, "outline", outlineDefault), surfaceSurfaceContainerHigh, 3.0, textPrimary);
             outlineSubtle = runtimeColor(colors, "outlineSubtle", outlineSubtle);
             outlineStrong = runtimeColor(colors, "outlineStrong", outlineStrong);
             outlineFocus = runtimeColor(colors, "primary", outlineFocus);
@@ -464,7 +492,7 @@ QtObject {
         textOnSurfaceVariant       = p.text.onSurfaceVariant;
 
         // outline
-        outlineDefault             = p.outline.default;
+        outlineDefault             = ensureContrast(p.outline.default, surfaceSurfaceContainerHigh, 3.0, textPrimary);
         outlineSubtle              = p.outline.subtle;
         outlineStrong              = p.outline.strong;
         outlineFocus               = p.outline.focus;

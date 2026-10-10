@@ -132,69 +132,49 @@ Flickable {
 
         Components.Divider { Layout.fillWidth: true }
 
-        // Battery mode drawer
-        RowLayout {
+        // Power profile: one segmented control. Picking a segment is the
+        // action; the old separate "Confirmed profile … Cycle" row repeated it.
+        ColumnLayout {
             Layout.fillWidth: true
-            spacing: Theme.Tokens.spacingMd
+            spacing: Theme.Tokens.spacingSm
             visible: host.power.profilesAvailable
-            Text { text: "🔋"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
-            Text {
-                text: "Power profile"
-                color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium
+            RowLayout {
+                spacing: Theme.Tokens.spacingSm
+                Text { text: "\u{F0079}"; font.family: Theme.Tokens.iconFont; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
+                Text { text: "Power profile"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium }
+            }
+            RowLayout {
                 Layout.fillWidth: true
-            }
-            Repeater {
-                model: ["power-saver", "balanced", "performance"]
-                delegate: Rectangle {
-                    required property string modelData
-                    height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
-                    implicitWidth: Theme.Tokens.scaled(70)
-                    radius: Theme.Tokens.radiusPill
-                    color: host.power.activeProfile === modelData ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceVariant
-                    border.color: host.power.activeProfile === modelData ? Theme.Tokens.tonalPrimary : "transparent"
-                    border.width: host.power.activeProfile === modelData ? 1 : 0
-                    Text {
-                        anchors.centerIn: parent
-                        text: modelData === "power-saver" ? "🪫" : modelData === "balanced" ? "🔋" : "⚡"
-                        color: host.power.activeProfile === modelData ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
-                        font.pixelSize: Theme.Tokens.typographyLabelSmall
-                    }
-                    TapHandler { onTapped: { if (host.noxd.connected) host.noxd.runAction({ power_profile_set: { profile: modelData } }) } }
-                }
-            }
-        }
-
-        Components.Divider { Layout.fillWidth: true }
-
-        // Power profile cycle
-        RowLayout {
-            Layout.fillWidth: true
-            visible: host.power.profilesAvailable
-            Text { text: "⚡"; color: Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd }
-            Text {
-                text: "Confirmed profile: " + (host.power.activeProfile || "Unknown")
-                color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium
-                Layout.fillWidth: true
-            }
-            Rectangle {
-                height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
-                implicitWidth: Theme.Tokens.scaled(80)
-                radius: Theme.Tokens.radiusPill
-                color: Theme.Tokens.surfaceSurfaceVariant
-                Text {
-                    anchors.centerIn: parent
-                    text: "Cycle"
-                    color: Theme.Tokens.textSecondary
-                    font.pixelSize: Theme.Tokens.typographyLabelSmall
-                }
-                TapHandler {
-                    onTapped: {
-                        if (host.noxd.connected) {
-                            var profiles = host.state.profileNames();
-                            var idx = profiles.indexOf(host.power.activeProfile);
-                            var next = profiles[(idx + 1) % profiles.length];
-                            host.noxd.runAction({ power_profile_set: { profile: next } });
+                spacing: Theme.Tokens.spacingXs
+                Repeater {
+                    model: [
+                        { id: "power-saver", label: "Saver", icon: "\u{F032A}" },
+                        { id: "balanced", label: "Balanced", icon: "\u{F05D1}" },
+                        { id: "performance", label: "Performance", icon: "\u{F04C5}" }
+                    ]
+                    delegate: Rectangle {
+                        id: segment
+                        required property var modelData
+                        readonly property bool active: host.power.activeProfile === modelData.id
+                        property bool hovered: false
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Theme.Tokens.scaled(Theme.Tokens.heightControl)
+                        radius: Theme.Tokens.radiusMd
+                        color: active ? Theme.Tokens.tonalPrimaryContainer
+                            : hovered ? Theme.Tokens.surfaceSurfaceContainerHigh : Theme.Tokens.surfaceSurfaceContainer
+                        border.color: active ? Theme.Tokens.tonalPrimary : "transparent"
+                        border.width: active ? 1 : 0
+                        Accessible.role: Accessible.RadioButton
+                        Accessible.name: modelData.label + " power profile"
+                        Accessible.checked: active
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: Theme.Tokens.spacingXs
+                            Text { text: segment.modelData.icon; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconSm; color: segment.active ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary }
+                            Text { text: segment.modelData.label; font.pixelSize: Theme.Tokens.typographyLabelMedium; font.bold: segment.active; color: segment.active ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary }
                         }
+                        HoverHandler { onHoveredChanged: segment.hovered = hovered; cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: { if (host.noxd.connected && !segment.active) host.noxd.runAction({ power_profile_set: { profile: segment.modelData.id } }) } }
                     }
                 }
             }
