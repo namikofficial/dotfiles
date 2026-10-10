@@ -6,12 +6,45 @@ return {
     ---@type snacks.Config
     opts = {
       bigfile = { enabled = true, notify = false },
-      dashboard = { enabled = true },
+      -- Start screen: the handful of actions you need, with their keys.
+      dashboard = {
+        enabled = true,
+        preset = {
+          keys = {
+            { icon = " ", key = "f", desc = "Find file", action = ":lua Snacks.picker.files()" },
+            { icon = " ", key = "r", desc = "Recent files", action = ":lua Snacks.picker.recent()" },
+            { icon = " ", key = "g", desc = "Search text in project", action = ":lua Snacks.picker.grep()" },
+            { icon = " ", key = "e", desc = "File explorer", action = ":lua Snacks.explorer()" },
+            { icon = " ", key = "p", desc = "Projects", action = ":lua Snacks.picker.projects()" },
+            { icon = "󰋗 ", key = "?", desc = "Guide: how to use this setup", action = ":edit " .. vim.fn.stdpath("config") .. "/GUIDE.md" },
+            { icon = "󰒲 ", key = "L", desc = "Plugins (Lazy)", action = ":Lazy" },
+            { icon = " ", key = "q", desc = "Quit", action = ":qa" },
+          },
+        },
+      },
       explorer = { enabled = true, replace_netrw = true, trash = true },
       indent = { enabled = true, animate = { enabled = false } },
       input = { enabled = true },
       notifier = { enabled = true, timeout = 3000 },
-      picker = { enabled = true },
+      -- Show files the way VS Code does: dotfiles (.env, .sops.yaml,
+      -- .github/) and gitignored files are visible; .git itself stays hidden.
+      -- In the explorer, gitignored entries are dimmed. Toggle inside any
+      -- picker/explorer with  H  (hidden) and  I  (ignored).
+      picker = {
+        enabled = true,
+        sources = {
+          explorer = {
+            hidden = true,
+            ignored = true,
+            exclude = { ".git" },
+            follow_file = true,
+            layout = { layout = { width = 34 } },
+          },
+          files = { hidden = true, ignored = false, exclude = { ".git" } },
+          grep = { hidden = true, ignored = false, exclude = { ".git" } },
+          smart = { hidden = true },
+        },
+      },
       quickfile = { enabled = true },
       scratch = { enabled = true },
       scope = { enabled = true },
@@ -64,6 +97,8 @@ return {
         { "<leader>t", group = "terminal" },
         { "<leader>b", group = "buffers" },
         { "<leader>w", group = "windows" },
+        { "<leader>?", desc = "Keys for this buffer" },
+        { "<leader>H", desc = "Guide (how to use this setup)" },
       },
     },
   },
@@ -81,6 +116,9 @@ return {
       { "<C-j>", "<cmd><C-U>TmuxNavigateDown<cr>", desc = "Navigate down" },
       { "<C-k>", "<cmd><C-U>TmuxNavigateUp<cr>", desc = "Navigate up" },
       { "<C-l>", "<cmd><C-U>TmuxNavigateRight<cr>", desc = "Navigate right" },
+      -- No terminal-mode copies: inside :terminal the shell needs Ctrl-h/j/k/l
+      -- (backspace, accept-line, kill-line, clear). Leave with Ctrl-\ Ctrl-n
+      -- first, then navigate.
     },
   },
   {
