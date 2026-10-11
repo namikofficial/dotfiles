@@ -107,6 +107,45 @@ Core UI consumers also read the generated palette directly:
 - `WALLPAPER_ROTATE_STATE_FILE` (daily mode state file, default `~/.cache/hypr/wallpaper-last-rotate-date`)
 - `WALLPAPER_CANVAS_MODE` (`blurpad` default, `solidpad`, `raw`)
 
+## VS Code theme
+
+`hypr/scripts/vscode-theme.py` owns the theme; `theme-sync.sh` only calls it.
+It is a pure function of `theme-palette.json` (nested `colors.*` roles, with the
+legacy flat keys as fallback): no wallpaper access, no user settings, no clock.
+
+- **Own surface ramp.** Chrome (activity, title, status bar), tab strip, editor,
+  side bar/panel, hover, raised and floating layers are derived from the
+  palette's tint hue, in both modes. Light themes step darker, dark themes
+  lighter, so regions separate by surface, with borders only as reinforcement.
+- **Syntax.** TextMate rules plus semantic token colors. Each role takes its hue
+  from the palette's hue-correct terminal ramp, clamped near a fixed anchor so
+  roles stay at least 25 degrees apart, and shares one visual weight. Contrast
+  fitting moves lightness only. Comments are italic, keywords upright.
+- **Accent discipline.** The status bar is neutral. Filled accent is reserved for
+  primary buttons, badges, remote sessions and debugging; the accent otherwise
+  marks focus and the active tab/activity indicator.
+- **Fail closed.** The emitted theme is validated (contrast floors on every
+  emitted foreground, composited selections, surface steps, border visibility,
+  syntax hue separation, valid hex) before anything is written. On failure the
+  previous theme stays installed and `theme-sync.sh` prints a warning.
+  Unchanged output is not rewritten.
+- **Light and dark.** `package.json` `uiTheme` follows the palette mode. After a
+  light/dark flip, run **Developer: Reload Window** once so VS Code re-reads it.
+
+Light-mode palettes (`nox-theme.py`) use their own surface ladder: canvas, base,
+three darker steps and a near-white floating layer, a hue taken from the
+wallpaper's pale colors, borders darker than the canvas, soft text and AA
+contrast for every accent and terminal color. Dark output is unchanged.
+
+Checks: `python3 -I -m unittest discover -s tests/theme`. Visual check (needs a
+running Hyprland session; uses a throwaway VS Code profile and briefly takes the
+focused workspace):
+
+```sh
+tests/theme/render-vscode.sh ~/.cache/hypr/theme-palette.json /tmp/vscode-render
+tests/theme/render-vscode.sh tests/theme/fixtures/palettes/light.json /tmp/vscode-render-light
+```
+
 ## Notes
 
 - Kitty dynamic colors require `kitty` remote control support in running sessions (`kitty @ set-colors -a ...`).
@@ -123,7 +162,7 @@ Core UI consumers also read the generated palette directly:
 - VS Code receives an isolated generated extension at
   `~/.vscode/extensions/noxflow.dynamic-theme-0.0.1`; select **NoxFlow Dynamic**
   once from the Color Theme picker. The wallpaper pipeline never rewrites
-  `settings.json`.
+  `settings.json`. See [VS Code theme](#vs-code-theme).
 - Discord/Vesktop dynamic theming is applied when the client theme directories are available.
 - PrismLauncher uses `ApplicationTheme=system` in `~/.local/share/PrismLauncher/prismlauncher.cfg`; it follows the system/Qt theme rather than panel CSS.
 - If you want absolutely no visual transition artifacts, set:

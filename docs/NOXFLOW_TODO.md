@@ -31,7 +31,7 @@ Last updated: 2026-05-25
 - [x] Add Kitty runtime wallpaper palette sync (`~/.cache/hypr/theme-colors-kitty.conf` + `kitty @ set-colors`)
 - [x] Add Hyprlock runtime palette sync (`~/.cache/hypr/theme-colors-hyprlock.conf` + sourced lock vars)
 - [x] Add GTK3/GTK4 wallpaper palette overrides (`~/.config/gtk-3.0/gtk.css`, `~/.config/gtk-4.0/gtk.css`)
-- [x] Add VSCode wallpaper palette merge into user settings (`workbench.colorCustomizations`)
+- [x] Add VSCode wallpaper palette as an isolated generated theme extension (`hypr/scripts/vscode-theme.py`); user settings are never rewritten
 - [x] Document wallpaper/theming workflow and tuning knobs (`docs/WALLPAPER_THEMING.md`)
 - [x] Add Kitty startup dashboard banner with system/repo context and dedicated app-like tabs (Dashboard, Scratch, Logs, Repo, AI, Clipboard)
 - [x] Switch notification helpers to the shell-native backend (`notif-center-toggle.sh`, `notif-dnd-toggle.sh`)

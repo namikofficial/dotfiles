@@ -1,5 +1,7 @@
 {
   "workbench.colorTheme": "NoxFlow Dynamic",
+  "editor.semanticHighlighting.enabled": true,
+  "editor.guides.bracketPairs": "active",
   "git.confirmSync": false,
   "editor.formatOnSave": true,
   "yaml.disableSchemaDetection": [

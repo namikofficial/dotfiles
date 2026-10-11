@@ -321,14 +321,6 @@ bright_blue="$(jq -r '.colors.terminal.brightBlue // .accent' "$palette_json")"
 bright_magenta="$(jq -r '.colors.terminal.brightMagenta // .colors.tertiary' "$palette_json")"
 bright_cyan="$(jq -r '.colors.terminal.brightCyan // .accent2' "$palette_json")"
 bright_white="$(jq -r '.colors.terminal.brightWhite // .text' "$palette_json")"
-vscode_ui_theme="$(jq -r '.scheme.mode | if . == "light" then "light" else "dark" end' "$palette_json")"
-if [ "$vscode_ui_theme" = "light" ]; then
-  vscode_ui_theme="vs-light"
-  vscode_theme_type="light"
-else
-  vscode_ui_theme="vs-dark"
-  vscode_theme_type="dark"
-fi
 
 # Accent interaction states
 accent_hover="$(jq -r '.colors.accent.hover // .accent' "$palette_json")"
@@ -645,115 +637,19 @@ vim.g.noxflow_accent_pressed  = "$accent_pressed"
 vim.g.noxflow_accent_focus    = "$accent_focus"
 EOF2
 
-cat >"$vscode_colors" <<EOF2
-{
-  "name": "NoxFlow Dynamic",
-  "type": "$vscode_theme_type",
-  "colors": {
-    "editor.background": "$surf_canvas",
-    "editor.foreground": "$text",
-    "editorGroupHeader.tabsBackground": "$surf_base",
-    "editorLineNumber.foreground": "$muted",
-    "editorLineNumber.activeForeground": "$text",
-    "editorCursor.foreground": "$accent",
-    "editor.selectionBackground": "${accent}33",
-    "editor.findMatchBackground": "${accent}44",
-    "editor.findMatchHighlightBackground": "${accent}22",
-    "editorWidget.background": "$surf_float",
-    "editorWidget.border": "$outline_default",
-    "editorSuggestWidget.background": "$surf_float",
-    "editorSuggestWidget.border": "$outline_subtle",
-    "editorSuggestWidget.selectedBackground": "$surf2",
-    "editorHoverWidget.background": "$surf_float",
-    "editorHoverWidget.border": "$outline_subtle",
-    "minimap.background": "$surf_canvas",
-    "sideBar.background": "$surf_base",
-    "sideBar.foreground": "$text",
-    "sideBarSectionHeader.background": "$surf1",
-    "activityBar.background": "$surf_canvas",
-    "activityBar.foreground": "$text",
-    "activityBar.activeBorder": "$accent",
-    "statusBar.background": "$accent",
-    "statusBar.foreground": "$on_primary",
-    "statusBar.noFolderBackground": "$surf_base",
-    "statusBar.debuggingBackground": "$danger",
-    "statusBar.debuggingForeground": "$on_danger",
-    "titleBar.activeBackground": "$surf2",
-    "titleBar.activeForeground": "$text",
-    "titleBar.inactiveBackground": "$surf1",
-    "panel.background": "$surf_base",
-    "panel.border": "$outline_subtle",
-    "panelTitle.activeBorder": "$accent",
-    "tab.activeBackground": "$surf_base",
-    "tab.activeForeground": "$text",
-    "tab.inactiveBackground": "$surf1",
-    "tab.inactiveForeground": "$muted",
-    "tab.border": "$outline_subtle",
-    "scrollbarSlider.background": "${muted}40",
-    "scrollbarSlider.hoverBackground": "${muted}66",
-    "scrollbarSlider.activeBackground": "${accent}60",
-    "focusBorder": "$accent",
-    "input.background": "$surf2",
-    "input.border": "$outline_subtle",
-    "input.foreground": "$text",
-    "input.placeholderForeground": "$muted",
-    "button.background": "$accent",
-    "button.foreground": "$on_primary",
-    "button.hoverBackground": "$accent_hover",
-    "button.secondaryBackground": "$surf2",
-    "button.secondaryForeground": "$text",
-    "dropdown.background": "$surf_float",
-    "dropdown.border": "$outline_subtle",
-    "dropdown.foreground": "$text",
-    "list.hoverBackground": "$surf2",
-    "list.activeSelectionBackground": "$surf2",
-    "list.activeSelectionForeground": "$text",
-    "list.focusBackground": "$surf1",
-    "tree.indentGuidesStroke": "$outline_subtle",
-    "gitDecoration.modifiedResourceForeground": "$accent",
-    "gitDecoration.deletedResourceForeground": "$danger",
-    "gitDecoration.addedResourceForeground": "$success",
-    "gitDecoration.untrackedResourceForeground": "$tertiary",
-    "problemsErrorIcon.foreground": "$danger",
-    "problemsWarningIcon.foreground": "$warn",
-    "problemsInfoIcon.foreground": "$accent",
-    "terminal.ansiBlack": "$surf_canvas",
-    "terminal.ansiRed": "$danger",
-    "terminal.ansiGreen": "$success",
-    "terminal.ansiYellow": "$warn",
-    "terminal.ansiBlue": "$accent",
-    "terminal.ansiMagenta": "$tertiary",
-    "terminal.ansiCyan": "$accent2",
-    "terminal.ansiWhite": "$text",
-    "terminal.ansiBrightBlack": "$bright_black",
-    "terminal.ansiBrightRed": "$bright_red",
-    "terminal.ansiBrightGreen": "$bright_green",
-    "terminal.ansiBrightYellow": "$bright_yellow",
-    "terminal.ansiBrightBlue": "$bright_blue",
-    "terminal.ansiBrightMagenta": "$bright_magenta",
-    "terminal.ansiBrightCyan": "$bright_cyan",
-    "terminal.ansiBrightWhite": "$bright_white"
-  }
-}
-EOF2
-
-# VS Code discovers themes from extensions. Keep this generated extension
-# isolated from the user's settings.json; after the one-time selection of
-# “NoxFlow Dynamic”, future theme passes only replace this generated file.
-mkdir -p "$vscode_theme_dir/themes"
-# Unquoted heredoc: uiTheme must expand to vs-dark/vs-light. It was quoted,
-# so VS Code received the literal string "$vscode_ui_theme".
-cat >"$vscode_theme_dir/package.json" <<EOF2
-{
-  "name": "noxflow-dynamic-theme",
-  "displayName": "NoxFlow Dynamic Theme",
-  "version": "0.0.1",
-  "publisher": "noxflow",
-  "engines": { "vscode": ">=1.80.0" },
-  "contributes": { "themes": [{ "label": "NoxFlow Dynamic", "uiTheme": "$vscode_ui_theme", "path": "./themes/NoxFlow Dynamic-color-theme.json" }] }
-}
-EOF2
-cp "$vscode_colors" "$vscode_theme_dir/themes/NoxFlow Dynamic-color-theme.json"
+# VS Code theme: a dedicated generator owns role derivation, contrast fitting
+# and validation. It writes nothing unless the emitted theme validates, so a bad
+# palette keeps the previous theme installed. It never touches settings.json;
+# after the one-time selection of "NoxFlow Dynamic", later passes only replace
+# the generated extension files. A light/dark flip needs a window reload.
+if [ -x "$HOME/.config/hypr/scripts/vscode-theme.py" ]; then
+  if ! "$HOME/.config/hypr/scripts/vscode-theme.py" "$palette_json" \
+    --cache "$vscode_colors" --extension-dir "$vscode_theme_dir"; then
+    printf 'theme-sync: VS Code theme was not (fully) updated; see the messages above\n' >&2
+  fi
+else
+  printf 'theme-sync: vscode-theme.py is missing or not executable; VS Code theme skipped\n' >&2
+fi
 
 mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
 cat >"$gtk3_css" <<EOF2
