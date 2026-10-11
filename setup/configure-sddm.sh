@@ -41,6 +41,17 @@ fi
 
 install -Dm644 "$REPO_DIR/sddm/sddm.conf.d/10-noxflow-theme.conf" /etc/sddm.conf.d/10-noxflow-theme.conf
 
+# SDDM runs as its own user and cannot read ~/.local/share/fonts, so the UI
+# fonts from setup/install-ui-fonts.sh are copied system-wide for Font=Onest.
+user_fonts="${src_home:-}/.local/share/fonts/noxflow"
+if [[ -f "$user_fonts/Onest[wght].ttf" ]]; then
+  install -d /usr/local/share/fonts/noxflow
+  install -m644 "$user_fonts"/*.ttf "$user_fonts"/OFL-*.txt /usr/local/share/fonts/noxflow/
+  fc-cache -f /usr/local/share/fonts/noxflow >/dev/null
+else
+  echo "Note: run setup/install-ui-fonts.sh first; the login screen will use the default font."
+fi
+
 rm -rf "$THEME_DEST"
 mkdir -p "$THEME_DEST"
 cp -r "$THEME_SRC"/. "$THEME_DEST"/

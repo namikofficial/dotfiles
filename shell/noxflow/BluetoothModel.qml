@@ -21,8 +21,8 @@ ProviderModel {
         adapterPresent = next.adapter_present === true;
         powered = next.powered === true;
         discovering = next.discovering === true;
-        adapters = Array.isArray(next.adapters) ? next.adapters : [];
-        devices = Array.isArray(next.devices) ? next.devices : [];
+        adapters = Utils.asArray(next.adapters);
+        devices = Utils.asArray(next.devices);
         return true;
     }
 

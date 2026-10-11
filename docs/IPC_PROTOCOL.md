@@ -66,6 +66,25 @@ volume/mute/default-device actions. There is no IPC
 operation for executing a shell command or passing an executable and its
 arguments.
 
+## Subscribing to providers
+
+`subscribe` accepts a list of provider names. The providers `noxd` actually
+registers are exactly the modules under `core/noxd/src/providers/`:
+
+`hyprland`, `audio`, `brightness`, `power`, `network`, `bluetooth`, `media`,
+`transfer`.
+
+**`EventBus::subscribe` does not validate provider names.** An unknown name is
+stored in the subscriber's filter and the subscription is acknowledged; the
+client simply never receives an event for it. A typo or a provider that was
+never implemented therefore looks like a healthy subscription while delivering
+nothing.
+
+Callers must not rely on the daemon to catch this. The NoxFlow shell keeps a
+client-side allowlist in `shell/noxflow/Protocol.js` that mirrors the module
+list above, and a test asserts the two stay in step. Adding a provider name
+requires adding the daemon module in the same change.
+
 Audio actions use `audio_set_volume`, `audio_adjust_volume`,
 `audio_toggle_mute`, and `audio_set_default`, with `target` set to `output` or
 `input`. Device selectors are PipeWire node IDs or node names.

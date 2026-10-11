@@ -4,5 +4,8 @@
     "sounds": {
       "enabled": true
     }
+  },
+  "power": {
+    "default_profile": "balanced"
   }
 }

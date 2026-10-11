@@ -14,6 +14,9 @@ return {
     dependencies = {
       "saghen/blink.cmp",
       "mrcjkb/rustaceanvim",
+      -- Schemas for package.json, tsconfig, GitHub workflows, compose files,
+      -- biome.json, … : completion and validation in JSON and YAML.
+      "b0o/SchemaStore.nvim",
     },
     config = function()
       local capabilities = require("blink.cmp").get_lsp_capabilities()
@@ -50,6 +53,9 @@ return {
         jsonls = {
           cmd = { node_tools .. "vscode-json-language-server", "--stdio" },
           init_options = { provideFormatter = false },
+          settings = {
+            json = { schemas = require("schemastore").json.schemas(), validate = { enable = true } },
+          },
         },
         lua_ls = {
           settings = {
@@ -93,6 +99,10 @@ return {
             yaml = {
               keyOrdering = false,
               format = { enable = false },
+              -- SchemaStore.nvim supplies the catalogue; disable the server's
+              -- own download so the two do not fight.
+              schemaStore = { enable = false, url = "" },
+              schemas = require("schemastore").yaml.schemas(),
             },
           },
         },
@@ -114,7 +124,26 @@ return {
         end
       end
 
+      -- Biome lives in each project's node_modules (e.g. noxorigin), not on
+      -- PATH, so only attach where a biome config and local binary exist.
+      local biome_markers = { "biome.json", "biome.jsonc" }
+      servers.biome = {
+        root_dir = function(bufnr, on_dir)
+          local root = utils.find_root(vim.api.nvim_buf_get_name(bufnr), biome_markers)
+          if root and vim.fn.executable(root .. "/node_modules/.bin/biome") == 1 then
+            on_dir(root)
+          end
+        end,
+        cmd = function(dispatchers, config)
+          local bin = config.root_dir .. "/node_modules/.bin/biome"
+          return vim.lsp.rpc.start({ bin, "lsp-proxy" }, dispatchers, { cwd = config.root_dir })
+        end,
+      }
+      servers.qmlls = { cmd = { "/usr/lib/qt6/bin/qmlls", "-E" } }
+
       local binaries = {
+        biome = "node", -- resolved per project in root_dir above
+        qmlls = "/usr/lib/qt6/bin/qmlls",
         bashls = "bash-language-server",
         cssls = node_tools .. "vscode-css-language-server",
         dockerls = "docker-langserver",
@@ -133,6 +162,45 @@ return {
           vim.lsp.enable(name)
         end
       end
+
+      vim.diagnostic.config({
+        severity_sort = true,
+        underline = true,
+        update_in_insert = false,
+        virtual_text = { spacing = 2, source = "if_many", prefix = "●" },
+        float = { border = "rounded", source = "if_many" },
+        signs = {
+          text = {
+            [vim.diagnostic.severity.ERROR] = "",
+            [vim.diagnostic.severity.WARN] = "",
+            [vim.diagnostic.severity.INFO] = "",
+            [vim.diagnostic.severity.HINT] = "󰌵",
+          },
+        },
+      })
+
+      -- Buffer-local LSP keys. Neovim 0.12 already provides grn/gra/grr/gri/
+      -- grt, K and [d/]d; these add the <leader>c "code" group on top.
+      vim.api.nvim_create_autocmd("LspAttach", {
+        group = vim.api.nvim_create_augroup("noxflow_lsp_attach", { clear = true }),
+        callback = function(args)
+          local client = vim.lsp.get_client_by_id(args.data.client_id)
+          local function map(lhs, rhs, desc, mode)
+            vim.keymap.set(mode or "n", lhs, rhs, { buffer = args.buf, desc = desc })
+          end
+          map("<leader>ca", vim.lsp.buf.code_action, "Code action", { "n", "v" })
+          map("<leader>cr", vim.lsp.buf.rename, "Rename symbol")
+          map("<leader>cd", vim.diagnostic.open_float, "Line diagnostics")
+          map("<leader>cl", "<cmd>checkhealth vim.lsp<cr>", "LSP info")
+          map("gD", vim.lsp.buf.declaration, "Go to declaration")
+          if client and client:supports_method("textDocument/inlayHint") then
+            map("<leader>ci", function()
+              local on = vim.lsp.inlay_hint.is_enabled({ bufnr = args.buf })
+              vim.lsp.inlay_hint.enable(not on, { bufnr = args.buf })
+            end, "Toggle inlay hints")
+          end
+        end,
+      })
     end,
   },
   {
@@ -154,7 +222,6 @@ return {
   },
   {
     "saecki/crates.nvim",
-    ft = "toml",
     event = "BufRead Cargo.toml",
     dependencies = { "nvim-lua/plenary.nvim" },
     opts = {},
@@ -207,19 +274,33 @@ return {
         return false
       end
 
+      -- Biome projects (noxorigin) format with their pinned local biome;
+      -- everything else keeps prettier.
+      local function project_has_biome(filename)
+        local root = utils.find_root(filename, { "biome.json", "biome.jsonc" })
+        return root ~= nil and vim.fn.executable(root .. "/node_modules/.bin/biome") == 1
+      end
+      local function web(bufnr)
+        if project_has_biome(vim.api.nvim_buf_get_name(bufnr)) then
+          return { "biome" }
+        end
+        return { "prettier", stop_after_first = true }
+      end
+      local biome_fts = { "javascript", "javascriptreact", "json", "jsonc", "tsx", "typescript", "typescriptreact" }
+
       local formatters_by_ft = {
-        javascript = { "prettier", stop_after_first = true },
-        javascriptreact = { "prettier", stop_after_first = true },
-        json = { "prettier", stop_after_first = true },
-        jsonc = { "prettier", stop_after_first = true },
+        javascript = web,
+        javascriptreact = web,
+        json = web,
+        jsonc = web,
         markdown = { "prettier", stop_after_first = true },
         rust = { "rustfmt" },
         sh = { "shfmt" },
         bash = { "shfmt" },
         toml = { "taplo" },
-        tsx = { "prettier", stop_after_first = true },
-        typescript = { "prettier", stop_after_first = true },
-        typescriptreact = { "prettier", stop_after_first = true },
+        tsx = web,
+        typescript = web,
+        typescriptreact = web,
         yaml = { "prettier", stop_after_first = true },
       }
 
@@ -239,6 +320,7 @@ return {
           local filename = vim.api.nvim_buf_get_name(bufnr)
           local ft = vim.bo[bufnr].filetype
           local safe = vim.tbl_contains({ "rust", "sh", "bash", "toml" }, ft)
+            or (vim.tbl_contains(biome_fts, ft) and project_has_biome(filename))
             or (vim.tbl_contains({ "javascript", "javascriptreact", "json", "jsonc", "markdown", "tsx", "typescript", "typescriptreact", "yaml" }, ft)
               and project_has_prettier(filename))
           if not safe then

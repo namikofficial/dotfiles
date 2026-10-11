@@ -33,11 +33,16 @@ PanelWindow {
         NumberAnimation { duration: lifecycle.animDuration; easing.type: lifecycle.easingType }
     }
 
-    property Process dashProcess: Process { command: []; running: false }
+    property Components.Command dashProcess: Components.Command { label: "Restart shell" }
 
     anchors.top: true; anchors.bottom: true; anchors.left: true; anchors.right: true
-    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    exclusiveZone: 0; aboveWindows: true; color: "transparent"
     visible: lifecycle.active
+    // Request the keyboard seat on open rather than on click; see the long
+    // explanation in core/MorphSurface.qml.
+    WlrLayershell.keyboardFocus: lifecycle.active
+        ? WlrKeyboardFocus.Exclusive
+        : WlrKeyboardFocus.None
 
     Connections {
         target: lifecycle
@@ -69,8 +74,8 @@ PanelWindow {
     // ── Dashboard panel ──
     Rectangle {
         anchors.centerIn: parent
-        width: Math.min(parent.width * 0.72, Theme.Tokens.scaled(720))
-        height: Math.min(parent.height * 0.72, Theme.Tokens.scaled(540))
+        width: Math.min(parent.width * 0.72, Theme.Tokens.scaled(760))
+        height: Math.min(parent.height * 0.82, Theme.Tokens.scaled(640))
         radius: Theme.Tokens.radiusXl
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
         border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
@@ -104,7 +109,7 @@ PanelWindow {
                         }
                         color: Theme.Tokens.textPrimary
                         font.pixelSize: Theme.Tokens.typographyDisplayMedium
-                        font.family: Theme.Tokens.typographyFontFamily
+                        font.family: Theme.Tokens.typographyDisplayFamily
                         font.bold: true
                     }
                     Text {
@@ -125,6 +130,7 @@ PanelWindow {
                             text: Math.round(weatherModel.temperature) + "°C"
                             color: Theme.Tokens.textPrimary
                             font.pixelSize: Theme.Tokens.typographyTitleLarge
+                            font.family: Theme.Tokens.typographyDisplayFamily
                             font.bold: true
                         }
                         Text {
@@ -144,7 +150,7 @@ PanelWindow {
                             required property int index
                             readonly property var day: weatherModel.forecast[index]
                             implicitWidth: Theme.Tokens.scaled(80)
-                            height: Theme.Tokens.scaled(64)
+                            Layout.preferredHeight: Theme.Tokens.scaled(72)
                             radius: Theme.Tokens.radiusMd
                             color: Theme.Tokens.surfaceSurfaceContainer
                             visible: day !== undefined
@@ -203,8 +209,12 @@ PanelWindow {
                 spacing: Theme.Tokens.spacingLg
 
                 // ── Left column: Calendar + Agenda ──
+                // Fixed width: with both columns on fillWidth the system
+                // tiles' implicit width won and squeezed the 7-column grid
+                // until the weekday labels ran together.
                 ColumnLayout {
-                    Layout.fillWidth: true; Layout.fillHeight: true
+                    Layout.preferredWidth: Theme.Tokens.scaled(250)
+                    Layout.fillWidth: false; Layout.alignment: Qt.AlignTop
                     spacing: Theme.Tokens.spacingMd
 
                     Text {
@@ -279,7 +289,7 @@ PanelWindow {
                             delegate: Rectangle {
                                 required property var modelData
                                 Layout.fillWidth: true
-                                height: Theme.Tokens.scaled(32)
+                                Layout.preferredHeight: Theme.Tokens.scaled(32)
                                 radius: Theme.Tokens.radiusSm
                                 color: Theme.Tokens.surfaceSurfaceContainer
                                 RowLayout {
@@ -325,7 +335,7 @@ PanelWindow {
                     // CPU tile
                     Rectangle {
                         Layout.fillWidth: true
-                        height: Theme.Tokens.scaled(64)
+                        Layout.preferredHeight: Theme.Tokens.scaled(64)
                         radius: Theme.Tokens.radiusMd
                         color: Theme.Tokens.surfaceSurfaceContainer
                         ColumnLayout {
@@ -333,7 +343,7 @@ PanelWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 Text {
-                                    text: "⚡"
+                                    text: "󰻠"; font.family: Theme.Tokens.iconFont
                                     color: (systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
                                     font.pixelSize: Theme.Tokens.iconSm
                                 }
@@ -347,14 +357,12 @@ PanelWindow {
                                     font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true
                                 }
                             }
-                            Rectangle {
-                                Layout.fillWidth: true; height: 4; radius: 2
-                                color: Theme.Tokens.outlineSubtle
-                                Rectangle {
-                                    width: parent.width * Math.min(1, (root.systemTelemetryReadable ? systemModel.cpuUsage : 0) / 100)
-                                    height: parent.height; radius: parent.radius
-                                    color: (systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
-                                }
+                            Components.Slider {
+                                Layout.fillWidth: true
+                                readOnly: true
+                                accessibleName: "CPU usage"
+                                value: (root.systemTelemetryReadable ? systemModel.cpuUsage : 0) / 100
+                                fillColor: (systemModel && systemModel.cpuUsage > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
                             }
                             Text {
                                 text: root.systemTelemetryReadable && systemModel.cpuTempAvailable ? systemModel.cpuTemp + "°C" : "Temperature unavailable"
@@ -367,7 +375,7 @@ PanelWindow {
                     // GPU tile
                     Rectangle {
                         Layout.fillWidth: true
-                        height: Theme.Tokens.scaled(64)
+                        Layout.preferredHeight: Theme.Tokens.scaled(64)
                         radius: Theme.Tokens.radiusMd
                         color: Theme.Tokens.surfaceSurfaceContainer
                         ColumnLayout {
@@ -375,7 +383,7 @@ PanelWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 Text {
-                                    text: "🎮"; color: Theme.Tokens.tonalSecondary
+                                    text: "󰢮"; font.family: Theme.Tokens.iconFont; color: Theme.Tokens.tonalSecondary
                                     font.pixelSize: Theme.Tokens.iconSm
                                 }
                                 Text {
@@ -389,14 +397,12 @@ PanelWindow {
                                     font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true
                                 }
                             }
-                            Rectangle {
-                                Layout.fillWidth: true; height: 4; radius: 2
-                                color: Theme.Tokens.outlineSubtle
-                                Rectangle {
-                                    width: parent.width * Math.min(1, (root.systemTelemetryReadable && systemModel.gpuAvailable ? systemModel.gpuUsage : 0) / 100)
-                                    height: parent.height; radius: parent.radius
-                                    color: Theme.Tokens.tonalSecondary
-                                }
+                            Components.Slider {
+                                Layout.fillWidth: true
+                                readOnly: true
+                                accessibleName: "GPU usage"
+                                value: (root.systemTelemetryReadable && systemModel.gpuAvailable ? systemModel.gpuUsage : 0) / 100
+                                fillColor: Theme.Tokens.tonalSecondary
                             }
                             Text {
                                 text: root.systemTelemetryReadable && systemModel.gpuAvailable && systemModel.gpuMemTotal > 0
@@ -409,7 +415,7 @@ PanelWindow {
                     // RAM tile
                     Rectangle {
                         Layout.fillWidth: true
-                        height: Theme.Tokens.scaled(64)
+                        Layout.preferredHeight: Theme.Tokens.scaled(64)
                         radius: Theme.Tokens.radiusMd
                         color: Theme.Tokens.surfaceSurfaceContainer
                         ColumnLayout {
@@ -417,7 +423,7 @@ PanelWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 Text {
-                                    text: "💾"
+                                    text: "󰍛"; font.family: Theme.Tokens.iconFont
                                     color: (systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalTertiary
                                     font.pixelSize: Theme.Tokens.iconSm
                                 }
@@ -431,14 +437,12 @@ PanelWindow {
                                     font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: true
                                 }
                             }
-                            Rectangle {
-                                Layout.fillWidth: true; height: 4; radius: 2
-                                color: Theme.Tokens.outlineSubtle
-                                Rectangle {
-                                    width: parent.width * Math.min(1, (root.systemTelemetryReadable ? systemModel.memPercent : 0) / 100)
-                                    height: parent.height; radius: parent.radius
-                                    color: (systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalTertiary
-                                }
+                            Components.Slider {
+                                Layout.fillWidth: true
+                                readOnly: true
+                                accessibleName: "Memory usage"
+                                value: (root.systemTelemetryReadable ? systemModel.memPercent : 0) / 100
+                                fillColor: (systemModel && systemModel.memPercent > 80) ? Theme.Tokens.stateDanger : Theme.Tokens.tonalTertiary
                             }
                             Text {
                                 text: root.systemTelemetryReadable
@@ -451,13 +455,13 @@ PanelWindow {
                     // Battery
                     Rectangle {
                         Layout.fillWidth: true
-                        height: Theme.Tokens.scaled(40)
+                        Layout.preferredHeight: Theme.Tokens.scaled(40)
                         radius: Theme.Tokens.radiusMd
                         color: Theme.Tokens.surfaceSurfaceContainer
                         RowLayout {
-                            anchors.fill: parent; anchors.margins: Theme.Tokens.spacingMd
+                            anchors.fill: parent; anchors.leftMargin: Theme.Tokens.spacingMd; anchors.rightMargin: Theme.Tokens.spacingMd
                             Text {
-                                text: "▰"
+                                text: "󰁹"; font.family: Theme.Tokens.iconFont
                                 color: battery.present ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted
                                 font.pixelSize: Theme.Tokens.iconMd
                             }
@@ -475,13 +479,13 @@ PanelWindow {
                     // Network
                     Rectangle {
                         Layout.fillWidth: true
-                        height: Theme.Tokens.scaled(40)
+                        Layout.preferredHeight: Theme.Tokens.scaled(40)
                         radius: Theme.Tokens.radiusMd
                         color: Theme.Tokens.surfaceSurfaceContainer
                         RowLayout {
-                            anchors.fill: parent; anchors.margins: Theme.Tokens.spacingMd
+                            anchors.fill: parent; anchors.leftMargin: Theme.Tokens.spacingMd; anchors.rightMargin: Theme.Tokens.spacingMd
                             Text {
-                                text: "⌁"
+                                text: "󰖩"; font.family: Theme.Tokens.iconFont
                                 color: network.connectivity === "full" ? Theme.Tokens.stateSuccess : Theme.Tokens.textMuted
                                 font.pixelSize: Theme.Tokens.iconMd
                             }
@@ -501,13 +505,13 @@ PanelWindow {
                     // Audio
                     Rectangle {
                         Layout.fillWidth: true
-                        height: Theme.Tokens.scaled(40)
+                        Layout.preferredHeight: Theme.Tokens.scaled(40)
                         radius: Theme.Tokens.radiusMd
                         color: Theme.Tokens.surfaceSurfaceContainer
                         RowLayout {
-                            anchors.fill: parent; anchors.margins: Theme.Tokens.spacingMd
+                            anchors.fill: parent; anchors.leftMargin: Theme.Tokens.spacingMd; anchors.rightMargin: Theme.Tokens.spacingMd
                             Text {
-                                text: audio.outputMuted ? "⊘" : "◉"
+                                text: audio.outputMuted ? "󰖁" : "󰕾"; font.family: Theme.Tokens.iconFont
                                 color: audio.outputMuted ? Theme.Tokens.stateWarning : Theme.Tokens.stateSuccess
                                 font.pixelSize: Theme.Tokens.iconMd
                             }
@@ -553,8 +557,10 @@ PanelWindow {
                         Components.TextButton {
                             text: "Reload shell"
                             onClicked: {
-                                root.dashProcess.command = ["systemctl", "--user", "reload", "noxflow-shell"]
-                                root.dashProcess.running = true
+                                // The unit has no ExecReload (probed), so
+                                // "reload" failed silently. Restart is the
+                                // only command that actually reapplies config.
+                                root.dashProcess.run(["systemctl", "--user", "restart", "noxflow-shell.service"])
                                 lifecycle.requestClose("reloadShell")
                             }
                         }
@@ -567,9 +573,11 @@ PanelWindow {
                         Components.TextButton {
                             text: "Settings"
                             onClicked: {
-                                root.dashProcess.command = ["gnome-control-center"]
-                                root.dashProcess.running = true
+                                // Open NoxFlow's own settings panel.
+                                // gnome-control-center is not installed here.
                                 lifecycle.requestClose("systemSettings")
+                                if (shellRoot && typeof shellRoot.openSettings === "function")
+                                    shellRoot.openSettings();
                             }
                         }
                     }

@@ -152,7 +152,12 @@ fn shell_local_action_names_are_not_action_variants() {
     // for one of them surfaces as an explicit error instead of silent
     // success or silent no-op.
     let daemon = TestDaemon::start();
-    for action_name in ["window_focus", "clipboard_copy", "notification_action", "toggle_launcher"] {
+    for action_name in [
+        "window_focus",
+        "clipboard_copy",
+        "notification_action",
+        "toggle_launcher",
+    ] {
         let envelope = serde_json::json!({
             "version": PROTOCOL_VERSION,
             "id": format!("nf02-{action_name}"),
@@ -594,10 +599,22 @@ fn get_settings_returns_canonical_map_for_shell_hydration() {
     assert!(resp.error.is_none(), "get_settings should succeed");
     match resp.result {
         Some(noxflow_ipc::Response::Settings(map)) => {
-            assert_eq!(map.settings.get("appearance.profile"), Some(&serde_json::json!("material-oled")));
-            assert_eq!(map.settings.get("appearance.density"), Some(&serde_json::json!("spacious")));
-            assert_eq!(map.settings.get("appearance.radius"), Some(&serde_json::json!(20)));
-            assert_eq!(map.settings.get("shell.reduced_motion"), Some(&serde_json::json!(true)));
+            assert_eq!(
+                map.settings.get("appearance.profile"),
+                Some(&serde_json::json!("material-oled"))
+            );
+            assert_eq!(
+                map.settings.get("appearance.density"),
+                Some(&serde_json::json!("spacious"))
+            );
+            assert_eq!(
+                map.settings.get("appearance.radius"),
+                Some(&serde_json::json!(20))
+            );
+            assert_eq!(
+                map.settings.get("shell.reduced_motion"),
+                Some(&serde_json::json!(true))
+            );
         }
         other => panic!("expected Settings response, got {other:?}"),
     }
@@ -628,31 +645,33 @@ fn get_settings_includes_unchanged_keys_after_partial_writes() {
     // canonical map must reflect every value — not just the keys the shell
     // touched this session.
     let daemon = TestDaemon::start();
-    daemon
-        .request(
-            Request::SetSetting {
-                key: "appearance.profile".into(),
-                value: serde_json::json!("material-focus"),
-            },
-            "nf05-partial-1",
-        );
-    daemon
-        .request(
-            Request::SetSetting {
-                key: "appearance.density".into(),
-                value: serde_json::json!("compact"),
-            },
-            "nf05-partial-2",
-        );
+    daemon.request(
+        Request::SetSetting {
+            key: "appearance.profile".into(),
+            value: serde_json::json!("material-focus"),
+        },
+        "nf05-partial-1",
+    );
+    daemon.request(
+        Request::SetSetting {
+            key: "appearance.density".into(),
+            value: serde_json::json!("compact"),
+        },
+        "nf05-partial-2",
+    );
 
     let resp = daemon.request(Request::GetSettings, "nf05-partial-get");
     assert!(resp.error.is_none());
     match resp.result {
         Some(noxflow_ipc::Response::Settings(map)) => {
-            assert!(map.settings.contains_key("appearance.profile"),
-                "every written key must be present in the canonical map");
-            assert!(map.settings.contains_key("appearance.density"),
-                "every written key must be present in the canonical map");
+            assert!(
+                map.settings.contains_key("appearance.profile"),
+                "every written key must be present in the canonical map"
+            );
+            assert!(
+                map.settings.contains_key("appearance.density"),
+                "every written key must be present in the canonical map"
+            );
         }
         other => panic!("expected Settings response, got {other:?}"),
     }

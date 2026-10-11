@@ -181,14 +181,15 @@ fn run(
             let result = execute(&command, agent_connection, &agent);
             if let Err(error) = &result {
                 let data = BTreeMap::from([
-                    ("action".into(), Value::String(command_name(&command).into())),
+                    (
+                        "action".into(),
+                        Value::String(command_name(&command).into()),
+                    ),
                     ("message".into(), Value::String(error.to_string())),
                 ]);
-                let snapshot = bus
-                    .snapshot()
-                    .get(PROVIDER)
-                    .cloned()
-                    .unwrap_or_else(|| BluetoothState::default().snapshot(ProviderStatus::Available));
+                let snapshot = bus.snapshot().get(PROVIDER).cloned().unwrap_or_else(|| {
+                    BluetoothState::default().snapshot(ProviderStatus::Available)
+                });
                 let _ = bus.publish(BluetoothEvent {
                     event_type: "action_failed".into(),
                     data,
@@ -351,7 +352,12 @@ impl PairingAgent {
         let senders = self
             .pending
             .lock()
-            .map(|mut pending| pending.drain().map(|(_, sender)| sender).collect::<Vec<_>>())
+            .map(|mut pending| {
+                pending
+                    .drain()
+                    .map(|(_, sender)| sender)
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
         for sender in senders {
             let _ = sender.send(PairingDecision::Reject);
@@ -881,7 +887,7 @@ mod tests {
             }],
         };
         let data = changed_data(&state);
-        assert!(data.get("state").is_none());
+        assert!(!data.contains_key("state"));
         assert_eq!(data["devices"][0]["paired"], json!(false));
         assert_eq!(data["discovering"], json!(true));
     }
@@ -889,17 +895,12 @@ mod tests {
     #[test]
     fn pairing_agent_round_trips_an_in_shell_confirmation() {
         let bus = EventBus::new();
-        bus.register_provider(
-            BluetoothState::default().snapshot(ProviderStatus::Available),
-        )
-        .unwrap();
+        bus.register_provider(BluetoothState::default().snapshot(ProviderStatus::Available))
+            .unwrap();
         let subscription = bus.subscribe(vec![PROVIDER.into()], vec![]).unwrap();
         let agent = PairingAgent::new(bus);
         let worker = agent.clone();
-        let device = OwnedObjectPath::try_from(
-            "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF",
-        )
-        .unwrap();
+        let device = OwnedObjectPath::try_from("/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF").unwrap();
         let request = thread::spawn(move || worker.request(&device, "confirmation", Some(123456)));
 
         let event = subscription.recv().unwrap();

@@ -7,12 +7,16 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import "../../theme" as Theme
+import "../../config" as Config
 import "../../components" as Components
 
 PanelWindow {
     id: root
 
     required property var noxd
+    // Shared AI client owned by shell.qml. Capture analysis and the launcher's
+    // "Ask AI" mode use the same endpoint, read from noxd settings.
+    property var aiClient: null
 
     signal fullScreenCaptureRequested(string destinationPath)
 
@@ -57,8 +61,13 @@ PanelWindow {
     // below the topbar and y=0 can never be selected.
     margins.top: -Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
     margins.bottom: 0
-    exclusiveZone: 0; aboveWindows: true; focusable: true; color: "transparent"
+    exclusiveZone: 0; aboveWindows: true; color: "transparent"
     visible: lifecycle.active
+    // Request the keyboard seat on open rather than on click; see the long
+    // explanation in core/MorphSurface.qml.
+    WlrLayershell.keyboardFocus: lifecycle.active
+        ? WlrKeyboardFocus.Exclusive
+        : WlrKeyboardFocus.None
 
     Connections {
         target: lifecycle
@@ -243,6 +252,7 @@ PanelWindow {
                 Text {
                     text: "OCR Result"; color: Theme.Tokens.textPrimary
                     font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true
+                    font.family: Theme.Tokens.typographyDisplayFamily
                     Layout.fillWidth: true
                 }
                 Rectangle {
@@ -334,32 +344,31 @@ PanelWindow {
 
         switch (action) {
             case "copy":
-                copyToClipboard.command = ["sh", "-c", "grim -g \"" + region + "\" - | wl-copy"]
-                copyToClipboard.running = true
+                copyToClipboard.runShell("grim -g \"" + region + "\" - | wl-copy")
                 break
             case "save": {
                 var base = Quickshell.env("XDG_PICTURES_DIR") || (Quickshell.env("HOME") + "/Pictures")
                 var file = base + "/Screenshots/" + ts + ".png"
-                saveScreenshot.command = ["sh", "-c",
+                saveScreenshot.runShell(
                     "mkdir -p \"$(dirname '" + file.replace(/'/g, "'\\''") + "')\""
                     + " && grim -g \"" + region + "\" \"" + file + "\""
                     + " && notify-send 'Screenshot saved' \"" + file + "\" -t 3000"
-                    + " || { notify-send 'Screenshot failed' 'grim returned an error' -u critical; exit 1; }"]
-                saveScreenshot.running = true
+                    // No notify-send fallback here: saveScreenshot.onExited now
+                    // reports the real exit code through notifyProcess, which is
+                    // what the plan asked for instead of self-reporting in-shell.
+                    + " || exit 1")
                 break
             }
             case "lens": {
                 lensUploadFile = "/tmp/nox-capture-lens-" + ts + ".png"
                 lensResultFile = "/tmp/nox-lens-result-" + ts + ".html"
-                lensCapture.command = ["sh", "-c", "grim -g \"" + region + "\" \"" + lensUploadFile + "\""]
-                lensCapture.running = true
+                lensCapture.runShell("grim -g \"" + region + "\" \"" + lensUploadFile + "\"")
                 break
             }
             case "search": {
                 searchImageFile = "/tmp/nox-capture-search-" + ts + ".png"
                 searchResultFile = "/tmp/nox-search-result-" + ts + ".html"
-                searchCapture.command = ["sh", "-c", "grim -g \"" + region + "\" \"" + searchImageFile + "\""]
-                searchCapture.running = true
+                searchCapture.runShell("grim -g \"" + region + "\" \"" + searchImageFile + "\"")
                 break
             }
         }
@@ -370,97 +379,91 @@ PanelWindow {
     property string searchImageFile: ""
     property string searchResultFile: ""
 
-    property Process lensCapture: Process {
-        running: false
-        onExited: function(code, status) {
+    property Components.Command lensCapture: Components.Command {
+        label: "Screen capture"
+        onExited: function(code) {
             if (code !== 0) {
-                notifyProcess.command = ["notify-send", "Lens capture failed", "grim returned an error", "-u", "critical"]
-                notifyProcess.running = true
+                notifyProcess.run(["notify-send", "Lens capture failed", root.lensCapture.failureText(), "-u", "critical"])
                 return
             }
             // Show disclosure that we're opening an external service
-            notifyProcess.command = ["notify-send", "Opening Google Lens", "Uploading image to lens.google.com", "-t", "3000"]
-            notifyProcess.running = true
-            lensUpload.command = ["sh", "-c",
+            notifyProcess.run(["notify-send", "Opening Google Lens", "Uploading image to lens.google.com", "-t", "3000"])
+            lensUpload.runShell(
                 "curl -s --data-binary @" + lensUploadFile
                 + " \"https://lens.google.com/v3/upload\" > \"" + lensResultFile + "\""
                 + " && xdg-open \"" + lensResultFile + "\""
-                + " ; rc=$?; rm -f \"" + lensUploadFile + "\"; exit $rc"]
-            lensUpload.running = true
+                + " ; rc=$?; rm -f \"" + lensUploadFile + "\"; exit $rc")
         }
     }
-    property Process lensUpload: Process {
-        running: false
-        onExited: function(code, status) {
+    property Components.Command lensUpload: Components.Command {
+        label: "Google Lens upload"
+        onExited: function(code) {
             if (code !== 0) {
-                notifyProcess.command = ["notify-send", "Lens upload failed", "Could not reach lens.google.com", "-u", "critical"]
-                notifyProcess.running = true
+                notifyProcess.run(["notify-send", "Lens upload failed", root.lensUpload.failureText(), "-u", "critical"])
             }
             lifecycle.requestClose("lensDone")
         }
     }
 
-    property Process searchCapture: Process {
-        running: false
-        onExited: function(code, status) {
+    property Components.Command searchCapture: Components.Command {
+        label: "Screen capture"
+        onExited: function(code) {
             if (code !== 0) {
-                notifyProcess.command = ["notify-send", "Search capture failed", "grim returned an error", "-u", "critical"]
-                notifyProcess.running = true
+                notifyProcess.run(["notify-send", "Search capture failed", root.searchCapture.failureText(), "-u", "critical"])
                 return
             }
             // Show disclosure before uploading to an external image-search service.
-            notifyProcess.command = ["notify-send", "Searching image", "Uploading image to Google", "-t", "3000"]
-            notifyProcess.running = true
-            searchUpload.command = ["sh", "-c",
+            notifyProcess.run(["notify-send", "Searching image", "Uploading image to Google", "-t", "3000"])
+            searchUpload.runShell(
                 "curl -s -L -F \"encoded_image=@" + searchImageFile + "\""
                 + " -F \"image_content=\" \"https://www.google.com/searchbyimage/upload\""
                 + " -o \"" + searchResultFile + "\""
                 + " && xdg-open \"" + searchResultFile + "\""
-                + " ; rc=$?; rm -f \"" + searchImageFile + "\"; exit $rc"]
-            searchUpload.running = true
+                + " ; rc=$?; rm -f \"" + searchImageFile + "\"; exit $rc")
         }
     }
-    property Process searchUpload: Process {
-        running: false
-        onExited: function(code, status) {
+    property Components.Command searchUpload: Components.Command {
+        label: "Image search upload"
+        onExited: function(code) {
             if (code !== 0) {
-                notifyProcess.command = ["notify-send", "Image search failed", "Could not open image search", "-u", "critical"]
-                notifyProcess.running = true
+                notifyProcess.run(["notify-send", "Image search failed", root.searchUpload.failureText(), "-u", "critical"])
             }
             lifecycle.requestClose("searchDone")
         }
     }
-    property Process openUrlProcess: Process { running: false }
+    property Components.Command openUrlProcess: Components.Command { label: "Open URL" }
 
-    property Process copyToClipboard: Process {
-        id: copyToClipboard; running: false
+    property Components.Command copyToClipboard: Components.Command {
+        label: "Copy image"
         stdinEnabled: false
-        onExited: function(code, status) {
+        onExited: function(code) {
             if (code !== 0) {
-                root.showCopyFailure()
+                root.showCopyFailure(root.copyToClipboard)
             } else {
                 root.showCopySuccess()
                 lifecycle.requestClose("copyDone")
             }
         }
     }
-    property Process notifyProcess: Process { running: false }
-    property Process saveScreenshot: Process {
-        running: false
-        onExited: function(code, status) {
+    property Components.Command notifyProcess: Components.Command { label: "Desktop notification" }
+    property Components.Command saveScreenshot: Components.Command {
+        label: "Save screenshot"
+        onExited: function(code) {
             if (code !== 0) {
-                // Failure is already handled in the command itself via notify-send
+                // Report through the same notification path as every other
+                // failure here, naming the real exit code.
+                notifyProcess.run(["notify-send", "Save failed", root.saveScreenshot.failureText(), "-u", "critical"])
             } else {
                 lifecycle.requestClose("saveDone")
             }
         }
     }
-    property Process textCopyProcess: Process {
-        id: textCopyProcess; running: false
+    property Components.Command textCopyProcess: Components.Command {
+        label: "Copy text"
         stdinEnabled: true
-        onExited: function(code, status) {
+        onExited: function(code) {
             if (code !== 0) {
-                root.showCopyFailure()
+                root.showCopyFailure(root.textCopyProcess)
             } else {
                 root.showCopySuccess()
                 lifecycle.requestClose("textCopyDone")
@@ -470,10 +473,10 @@ PanelWindow {
 
     property bool copyFailureVisible: false
     property bool copySuccessVisible: false
-    function showCopyFailure() {
+    function showCopyFailure(failed) {
         copyFailureVisible = true
-        notifyProcess.command = ["notify-send", "Copy failed", "wl-copy returned an error", "-u", "critical"]
-        notifyProcess.running = true
+        notifyProcess.run(["notify-send", "Copy failed",
+            failed ? failed.failureText() : "Copy failed", "-u", "critical"])
         Qt.callLater(function() { copyFailureVisible = false })
     }
     function showCopySuccess() {
@@ -483,19 +486,17 @@ PanelWindow {
 
     function copyText(text) {
         if (!text || text === "" || text === "Recognizing text…" || text === "OCR failed. Is tesseract installed?") return
-        textCopyProcess.command = ["wl-copy"]
         textCopyProcess.stdinEnabled = true
-        textCopyProcess.running = true
+        textCopyProcess.run(["wl-copy"])
         Qt.callLater(function() {
             if (textCopyProcess.running) {
-                textCopyProcess.write(text)
+                textCopyProcess.process.write(text)
                 textCopyProcess.stdinEnabled = false
             }
         })
     }
 
     // ── OCR pipeline ──
-    property string ocrBuffer: ""
     property string ocrCaptureFile: ""
 
     function performOcr() {
@@ -503,11 +504,14 @@ PanelWindow {
         root.showToolbar = false; root.showOcrResult = true
         root.ocrText = "Recognizing text…"; root.ocrWords = []; root.analysisType = ""
 
+        // Fail loudly and specifically when a required binary is absent,
+        // instead of running a pipeline that dies on its first command.
+        if (!Config.Apps.isAvailable("grim")) { root.ocrText = "Cannot capture: grim is not installed"; return }
+        if (!Config.Apps.isAvailable("tesseract")) { root.ocrText = "OCR unavailable: tesseract is not installed"; return }
+
         var w = Math.round(root.selW); var h = Math.round(root.selH)
-        var area = w * h; var isSmall = area < 40000; var isTiny = h < 30
-        var upscale = isTiny ? "-resize 400%" : isSmall ? "-resize 200%" : ""
         var psm = root.settings && root.settings.rawMode ? "6"
-            : (isTiny || h < 50 || w / h > 10) ? "7" : "3"
+            : (h < 30 || w / h > 10) ? "7" : "3"
 
         var postProcess = ""
         if (root.settings && root.settings.rawMode) {
@@ -520,60 +524,62 @@ PanelWindow {
                 + " | sed 's/[[:space:]]*$//'"
         }
 
-        // Capture once to a temp file and derive both OCR text and TSV from it
+        // Capture once to a temp file, then derive both the OCR text and the
+        // TSV word boxes from it. No second grim capture.
         var ts = new Date().toISOString().replace(/[:T]/g, "-").replace(/\..*$/, "")
         ocrCaptureFile = "/tmp/nox-ocr-" + ts + ".png"
 
-        ocrProcess.command = ["sh", "-c",
+        // No `magick` step: it is not installed here, so the old pipeline
+        // always exited non-zero and reported "Is tesseract installed?" —
+        // naming the wrong binary. Tesseract reads the PNG directly; tsv
+        // generation in onExited handles upscaling-sensitive layouts.
+        // stderr is no longer discarded: Command keeps it, so a failure can say
+        // what actually failed instead of guessing from an empty stdout.
+        ocrProcess.runShell(
             "grim -g \"" + region + "\" \"" + ocrCaptureFile + "\""
-            + " && magick \"" + ocrCaptureFile + "\" " + upscale
-            + " -colorspace Gray -depth 8 - | tesseract stdin stdout -l " + root.ocrLanguage
-            + " --oem 1 --psm " + psm + " 2>/dev/null" + postProcess]
-        ocrBuffer = ""; ocrProcess.running = true
+            + " && tesseract \"" + ocrCaptureFile + "\" stdout -l " + root.ocrLanguage
+            + " --oem 1 --psm " + psm + postProcess)
     }
 
-    property Process ocrProcess: Process {
-        id: ocrProcess; running: false
-        stdout: SplitParser {
-            splitMarker: ""
-            onRead: function(data) { root.ocrBuffer += data }
-        }
-        onExited: function(code, status) {
-            var text = root.ocrBuffer.trim()
+    property Components.Command ocrProcess: Components.Command {
+        label: "OCR"
+        onExited: function(code) {
+            var text = root.ocrProcess.output.trim()
             if (code !== 0 || text === "") {
-                root.ocrText = "OCR failed. Is tesseract installed?"; return
+                // Name the binary that actually failed rather than guessing.
+                root.ocrText = !Config.Apps.isAvailable("grim")
+                    ? "Capture failed: grim is not installed"
+                    : !Config.Apps.isAvailable("tesseract")
+                        ? "OCR failed: tesseract is not installed"
+                        : text === "" ? "No text recognised in the selection"
+                            : "OCR failed (tesseract exit " + code + ")";
+            if (code !== 0 && root.ocrProcess.errorOutput.trim() !== "")
+                root.ocrText += " — " + root.ocrProcess.errorOutput.trim().split("\n")[0];
+                return
             }
             root.ocrText = text; root.analysisType = root.analyzeText(text)
             var clean = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim()
             var snippet = clean.substring(0, 100)
             if (clean.length > 100) snippet += "…"
-            notifyProcess.command = ["sh", "-c",
-                "notify-send 'OCR ready' '" + snippet.replace(/'/g, "'\\''") + "' -t 3000"]
-            notifyProcess.running = true
+            notifyProcess.runShell(
+                "notify-send 'OCR ready' '" + snippet.replace(/'/g, "'\\''") + "' -t 3000")
             // Use the same captured file for TSV word boxes - no second grim capture
-            tsvProcess.command = ["sh", "-c",
+            tsvProcess.runShell(
                 "tesseract \"" + ocrCaptureFile + "\" stdout -l "
-                + root.ocrLanguage + " tsv 2>/dev/null"]
-            tsvBuffer = ""; tsvProcess.running = true
+                + root.ocrLanguage + " tsv")
         }
     }
 
-    property string tsvBuffer: ""
-    property Process tsvProcess: Process {
-        id: tsvProcess; running: false
-        stdout: SplitParser {
-            splitMarker: ""
-            onRead: function(data) { root.tsvBuffer += data }
-        }
-        onExited: function(code, status) {
+    property Components.Command tsvProcess: Components.Command {
+        label: "OCR word boxes"
+        onExited: function(code) {
             if (code !== 0) return
-            root.parseTsv(root.tsvBuffer)
-            ocrCleanup.command = ["rm", "-f", root.ocrCaptureFile]
-            ocrCleanup.running = true
+            root.parseTsv(root.tsvProcess.output)
+            ocrCleanup.run(["rm", "-f", root.ocrCaptureFile])
         }
     }
 
-    property Process ocrCleanup: Process { running: false }
+    property Components.Command ocrCleanup: Components.Command { label: "OCR cleanup" }
 
     function parseTsv(tsv) {
         var lines = tsv.split("\n"); var words = []; var header = true
@@ -637,10 +643,12 @@ PanelWindow {
         if (root.analysisType === "url") {
             var url = root.ocrText.trim()
             if (!url.startsWith("http")) url = "https://" + url
-            Quickshell.exec("xdg-open \"" + url + "\"")
+            Config.Apps.invoke("xdgOpen", [url])
         } else if (root.analysisType === "ai") {
-            if (root.noxd && root.noxd.connected)
-                root.noxd.runAction({ ai_query: { text: root.ocrText } })
+            // Shared AI client — noxd has no `ai_query` action and rejects it
+            // with invalid_request (probed).
+            if (root.aiClient) root.aiClient.ask(root.ocrText, "Explain or summarise the following text concisely.")
+            else console.warn("capture: AI analysis requested but no AI client is wired")
         }
     }
 

@@ -1,0 +1,5 @@
+.panel > .title:hover {
+  color: #3b82f6;
+  margin: 0 auto 12px;
+  font: 600 14px/1.4 "Inter", sans-serif;
+}

@@ -9,19 +9,6 @@ QtObject {
 
     property var triggers: ({})
 
-    function registerChip(id, chipRect) {
-        registerTrigger(id, "", chipRect, 999);
-    }
-
-    function unregisterChip(id) {
-        unregisterTrigger(id, "");
-    }
-
-    function chipRect(id) {
-        var record = trigger(id, "");
-        return record ? Qt.rect(record.globalX, record.globalY, record.globalWidth, record.globalHeight) : Qt.rect(0, 0, 0, 0);
-    }
-
     function registerTrigger(panelId, monitorName, geometry, cornerRadius, triggerId) {
         if (!geometry || geometry.width <= 0 || geometry.height <= 0 || !panelId) return false;
         var next = {};

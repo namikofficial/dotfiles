@@ -22,29 +22,17 @@
         "baseURL": "https://api.minimax.io/anthropic/v1"
       },
       "models": {
-        "MiniMax-M3": {
-          "name": "MiniMax M3",
-          "tool_call": true
-        },
-        "MiniMax-M2.7": {
-          "name": "MiniMax M2.7",
-          "tool_call": true
-        },
-        "MiniMax-M2.5": {
-          "name": "MiniMax M2.5",
-          "tool_call": true
-        },
-        "MiniMax-M2.1": {
-          "name": "MiniMax M2.1",
-          "tool_call": true
-        }
+        "MiniMax-M3.1-Flash-Preview": {"name": "MiniMax M3.1 Flash (Preview)", "tool_call": true},
+        "MiniMax-M3": {"name": "MiniMax M3", "tool_call": true},
+        "MiniMax-M2.7": {"name": "MiniMax M2.7", "tool_call": true},
+        "MiniMax-M2.5": {"name": "MiniMax M2.5", "tool_call": true},
+        "MiniMax-M2.1": {"name": "MiniMax M2.1", "tool_call": true}
       }
     }
   },
   "enabled_providers": ["openai", "minimax-coding-plan"],
   "model": "minimax-coding-plan/MiniMax-M2.7",
   "small_model": "minimax-coding-plan/MiniMax-M2.7",
-  "lsp": true,
   "default_agent": "build",
   "share": "manual",
   "experimental": {"subagent_depth": 1},
@@ -52,11 +40,15 @@
     "ignore": [
       "node_modules/**", ".git/**", ".headroom/**", ".beads/**", "dist/**", "build/**",
       "coverage/**", ".turbo/**", ".next/**", ".expo/**", "android/.gradle/**",
-      "android/**/build/**", "ios/Pods/**", ".codex/sessions/**", ".codex/archived_sessions/**"
+      "android/**/build/**", "ios/Pods/**", ".codex/sessions/**", ".codex/archived_sessions/**",
+      "target/**", "**/target/**", ".codegraph/**", "logs/**", "__pycache__/**",
+      "private/**", "external/**", "*.sqlite*"
     ]
   },
   "instructions": [
     "/home/namik/Documents/code/dotfiles/ai/system/GLOBAL_SYSTEM.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/quality_contract.md",
+    "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/verification_policy.md",
     "/home/namik/Documents/code/dotfiles/configs/opencode/instructions/shell_strategy.md"
   ],
   "permissions": [
@@ -70,60 +62,45 @@
     {"action": "read", "resource": "~/.codex/archived_sessions/**", "effect": "deny"}
   ],
   "mcp": {
-    "codegraph": {
-      "type": "local",
-      "command": [
-        "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh",
-        "codegraph"
-      ],
-      "environment": {
-        "NOXFLOW_MCP_PROFILE": "dev"
+    "servers": {
+      "codegraph": {
+        "type": "local",
+        "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "codegraph"],
+        "environment": {"NOXFLOW_MCP_PROFILE": "dev"},
+        "timeout": {"catalog": 60000, "execution": 120000}
       },
-      "enabled": true,
-      "timeout": 30000
-    },
-    "maestro": {
-      "type": "local",
-      "command": [
-        "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh",
-        "maestro"
-      ],
-      "environment": {
-        "NOXFLOW_MCP_PROFILE": "mobile"
+      "maestro": {
+        "type": "local",
+        "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "maestro"],
+        "environment": {"NOXFLOW_MCP_PROFILE": "mobile"},
+        "timeout": {"catalog": 120000, "execution": 600000}
       },
-      "enabled": true,
-      "timeout": 120000
-    },
-    "browser": {
-      "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "browser"],
-      "environment": {"NOXFLOW_MCP_PROFILE": "web"},
-      "enabled": true,
-      "timeout": 120000
-    },
-    "playwright": {
-      "type": "local",
-      "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "playwright"],
-      "environment": {"NOXFLOW_MCP_PROFILE": "web"},
-      "enabled": true,
-      "timeout": 120000
-    },
-    "v0": {
-      "type": "remote",
-      "url": "https://v0.app/api/mcp",
-      "enabled": true
-    },
-    "vp0": {
-      "type": "local",
-      "command": ["npx", "-y", "vp0-mcp"],
-      "enabled": true
-    },
-    "stitch": {
-      "type": "remote",
-      "url": "https://stitch.googleapis.com/mcp",
-      "enabled": true,
-      "oauth": false,
-      "headers": {"X-Goog-Api-Key": "{file:~/.config/opencode/stitch-api-key}"}
+      "browser": {
+        "type": "local",
+        "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "browser"],
+        "environment": {"NOXFLOW_MCP_PROFILE": "web"},
+        "timeout": {"catalog": 120000, "execution": 600000}
+      },
+      "playwright": {
+        "type": "local",
+        "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "playwright"],
+        "environment": {"NOXFLOW_MCP_PROFILE": "web"},
+        "timeout": {"catalog": 120000, "execution": 600000}
+      },
+      "v0": {
+        "type": "remote",
+        "url": "https://v0.app/api/mcp"
+      },
+      "vp0": {
+        "type": "local",
+        "command": ["npx", "-y", "vp0-mcp"]
+      },
+      "stitch": {
+        "type": "remote",
+        "url": "https://stitch.googleapis.com/mcp",
+        "oauth": false,
+        "headers": {"X-Goog-Api-Key": "{file:~/.config/opencode/stitch-api-key}"}
+      }
     }
   },
   "skills": ["/home/namik/Documents/code/dotfiles/configs/opencode/skills"],
@@ -160,7 +137,7 @@
     "/home/namik/Documents/code/dotfiles/configs/opencode/plugins/safety-guards"
   ],
   "tool_output": {"max_lines": 500, "max_bytes": 32768},
-  "compaction": {"auto": true, "keep": {"tokens": 12000}, "buffer": 24000},
+  "compaction": {"auto": true, "keep": {"tokens": 30000}, "buffer": 24000},
   "agent": {
     "general": {"disable": true},
     "build": {
@@ -173,10 +150,9 @@
         "question": "allow",
         "plan_enter": "allow",
         "plan_exit": "allow",
-        "doom_loop": "allow",
         "read": {"*": "allow", "*.env": "deny", "*.env.*": "deny", "*.env.example": "allow"},
         "skill": "allow",
-        "subagent": {"*": "deny", "explore-m2.7": "allow", "explore-m2.5": "allow", "worker-m2.7": "allow", "worker-m3": "allow", "worker-luna": "allow"}
+        "subagent": {"*": "deny", "explore-m2.7": "allow", "explore-m2.5": "allow", "worker-m2.7": "allow", "worker-m3": "allow", "worker-m3.1": "allow", "worker-luna": "allow"}
       },
       "prompt": "Finish the requested outcome. Use any configured tool or skill that materially helps. Work directly by default; spawn one explicit explorer or model worker only for a substantial independent slice. Preserve unrelated work, inspect the final diff, run risk-appropriate validation, and never claim unobserved proof."
     },
@@ -196,7 +172,7 @@
       "steps": 60,
       "color": "info",
       "permission": {"edit": "deny", "skill": "allow", "subagent": "deny"},
-      "prompt": "Answer one bounded repository question. Inspect only relevant files, callers, tests, and history. Do not modify files or launch children. Return concise findings with file:line evidence, uncertainty, and the next useful action."
+      "prompt": "Read /home/namik/Documents/code/dotfiles/configs/opencode/instructions/worker_contract.md and follow it. Answer one bounded repository question. Inspect only relevant files, callers, tests, and history. Do not modify files or launch children. Return concise findings with file:line evidence, uncertainty, and the next useful action."
     },
     "explore-m2.5": {
       "description": "Cheaper MiniMax M2.5 explorer for straightforward repository search and mapping.",
@@ -205,7 +181,7 @@
       "steps": 50,
       "color": "info",
       "permission": {"edit": "deny", "skill": "allow", "subagent": "deny"},
-      "prompt": "Answer one narrow repository question. Use targeted search and relevant files only. Do not modify files or launch children. Return concise findings with file:line evidence and uncertainty."
+      "prompt": "Read /home/namik/Documents/code/dotfiles/configs/opencode/instructions/worker_contract.md and follow it. Answer one narrow repository question. Use targeted search and relevant files only. Do not modify files or launch children. Return concise findings with file:line evidence and uncertainty."
     },
     "worker-m2.7": {
       "description": "MiniMax M2.7 implementation worker.",
@@ -214,7 +190,7 @@
       "steps": 200,
       "color": "primary",
       "permission": {"skill": "allow", "subagent": "deny"},
-      "prompt": "Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
+      "prompt": "Read /home/namik/Documents/code/dotfiles/configs/opencode/instructions/worker_contract.md and follow it. Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
     },
     "worker-m3": {
       "description": "MiniMax M3 implementation worker for larger or harder bounded tasks.",
@@ -223,7 +199,16 @@
       "steps": 220,
       "color": "warning",
       "permission": {"skill": "allow", "subagent": "deny"},
-      "prompt": "Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
+      "prompt": "Read /home/namik/Documents/code/dotfiles/configs/opencode/instructions/worker_contract.md and follow it. Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
+    },
+    "worker-m3.1": {
+      "description": "MiniMax M3.1 Flash Preview implementation worker for fast, wide-context bounded tasks.",
+      "mode": "subagent",
+      "model": "minimax-coding-plan/MiniMax-M3.1-Flash-Preview",
+      "steps": 200,
+      "color": "#38bdf8",
+      "permission": {"skill": "allow", "subagent": "deny"},
+      "prompt": "Read /home/namik/Documents/code/dotfiles/configs/opencode/instructions/worker_contract.md and follow it. Complete the assigned implementation end to end. This preview model is the fast, wide-context lane: prefer it for broad reads, mechanical multi-file edits, and well-specified changes; defer to worker-m3 for the hardest reasoning and worker-luna for vision or arbitration. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
     },
     "worker-luna": {
       "description": "GPT-5.6 Luna implementation worker for difficult bounded tasks.",
@@ -233,7 +218,7 @@
       "steps": 160,
       "color": "error",
       "permission": {"skill": "allow", "subagent": "deny"},
-      "prompt": "Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
+      "prompt": "Read /home/namik/Documents/code/dotfiles/configs/opencode/instructions/worker_contract.md and follow it. Complete the assigned implementation end to end. Stay within the stated scope, preserve unrelated work, use relevant tools and skills, run proportional validation, inspect the diff, and return files changed, checks, blockers, and assumptions. Do not launch children, commit, or push."
     }
   }
 }

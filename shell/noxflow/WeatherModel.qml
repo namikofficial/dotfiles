@@ -6,6 +6,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "ModelUtils.js" as Utils
+import "components" as Components
 
 QtObject {
     id: root
@@ -45,7 +46,17 @@ QtObject {
     // ── Settings (from env or config) ──
     readonly property string weatherLocation: Quickshell.env("NOXFLOW_WEATHER_LOCATION") || ""
     readonly property int fetchInterval: 600000  // 10 min
-    readonly property int retryInterval: 60000   // 1 min on failure
+    // Exponential backoff. The delay used to be a flat 60 s forever, so a
+    // machine with no network retried once a minute for the entire session and
+    // wrote one journal line each time — the model was the loudest thing in the
+    // log during an outage.
+    readonly property int retryBase: 60000      // first retry: 1 min
+    readonly property int retryMax: 1800000     // cap at 30 min
+    property int retryAttempt: 0
+    readonly property int retryDelay: Math.min(
+        retryBase * Math.pow(2, retryAttempt), retryMax)
+    // True once anything has failed, so recovery can be reported once.
+    property bool degraded: false
 
     // ── Fetch weather ──
     function fetch() {
@@ -54,33 +65,29 @@ QtObject {
         lastError = "";
         var location = weatherLocation;
         var url = location ? "https://wttr.in/" + encodeURIComponent(location) + "?format=j1" : "https://wttr.in?format=j1";
-        fetchProcess.command = ["curl", "-s", "--max-time", "10", url];
-        fetchBuffer = "";
-        fetchProcess.running = true;
+        fetchProcess.run(["curl", "-s", "--max-time", "10", url]);
     }
 
-    property string fetchBuffer: ""
-
-    property Process fetchProcess: Process {
-        id: fetchProcess
-        running: false
-        stdout: SplitParser {
-            splitMarker: ""
-            onRead: function(data) { root.fetchBuffer += data; }
-        }
-        onExited: function(code, status) {
+    property Components.Command fetchProcess: Components.Command {
+        label: "Weather fetch"
+        onExited: function(code) {
             root.loading = false;
             if (code !== 0) {
-                root.lastError = "Weather fetch failed (curl exit " + code + ")";
+                // curl 35 is an SSL connect error — usually a captive portal or
+                // a network that has come up but cannot reach the internet.
+                root.lastError = root.fetchProcess.failureText();
                 root.status = "error";
-                console.warn("weather:", root.lastError);
+                root.retryAttempt = Math.min(root.retryAttempt + 1, 20);
+                root.reportFailure(root.lastError);
                 scheduleRetry();
                 return;
             }
             try {
-                var json = JSON.parse(root.fetchBuffer);
+                var json = JSON.parse(root.fetchProcess.output);
                 root.parseWeather(json);
                 root.status = "available";
+                root.retryAttempt = 0;
+                root.reportRecovery();
                 // Cache
                 try {
                     cacheFile.setText(JSON.stringify(json));
@@ -88,9 +95,11 @@ QtObject {
                     // noop
                 }
             } catch (e) {
-                root.lastError = "Weather parse failed: " + e;
+                root.lastError = "Weather parse failed: " + e
+                    + (root.fetchProcess.errorOutput.trim() ? " (" + root.fetchProcess.errorOutput.trim() + ")" : "");
                 root.status = "error";
-                console.warn("weather:", root.lastError);
+                root.retryAttempt = Math.min(root.retryAttempt + 1, 20);
+                root.reportFailure(root.lastError);
                 scheduleRetry();
             }
         }
@@ -99,20 +108,42 @@ QtObject {
     // ── Schedule a retry after failure ──
     property Timer retryTimer: Timer {
         id: retryTimer
-        interval: root.retryInterval
+        // Starts at the current backoff level; scheduleRetry() re-reads it on
+        // every failure, so it has to track retryDelay rather than a constant.
+        interval: root.retryDelay
         repeat: false
         running: false
         onTriggered: root.fetch()
     }
 
     function scheduleRetry() {
-        retryTimer.interval = root.retryInterval;
+        retryTimer.interval = root.retryDelay;
         retryTimer.restart();
+    }
+
+    /// Journal a failure without turning an outage into a log flood.
+    ///
+    /// Only the first two failures are reported: after that the backoff has
+    /// already stretched the interval to minutes, and repeating the same line
+    /// adds nothing. Recovery is always reported, so a long silence still
+    /// resolves into a visible pair of lines.
+    function reportFailure(message) {
+        root.degraded = true;
+        if (root.retryAttempt <= 1) console.warn("weather:", message);
+    }
+
+    function reportRecovery() {
+        if (!root.degraded) return;
+        root.degraded = false;
+        console.log("weather: recovered after " + root.retryAttempt + " failed attempt(s)");
     }
 
     property FileView cacheFile: FileView {
         id: cacheFile
-        path: root.cachePath
+        // Empty until the cache directory exists. Setting this eagerly made the
+        // first run depend on ~/.local/state/noxflow already being created by
+        // some other model.
+        path: ""
         watchChanges: false
         onLoaded: {
             try {
@@ -132,12 +163,12 @@ QtObject {
         }
     }
 
-    property Process ensureCacheDir: Process {
-        id: ensureCacheDir
-        running: false
-        command: ["mkdir", "-p", root.cacheDir]
-        onExited: function(code, status) {
-            if (code === 0) cacheFile.path = root.cachePath;
+    property Components.Command ensureCacheDir: Components.Command {
+        label: "Weather cache directory"
+        onExited: function(code) {
+            // Set the path even when mkdir failed: a missing cache is not a
+            // reason to never fetch. loadFailed already routes to fetch().
+            cacheFile.path = root.cachePath;
         }
     }
 
@@ -200,7 +231,7 @@ QtObject {
                 var dayCondition = day.hourly && day.hourly[0] && day.hourly[0].weatherDesc
                                   ? day.hourly[0].weatherDesc[0].value : "";
                 fc.push({
-                    day: date.toLocaleDateString(Qt.locale(), Locale.ShortFormat),
+                    day: Qt.formatDate(date, "ddd d"),
                     condition: dayCondition,
                     icon: mapConditionToIcon(dayCondition, dayIsDay),
                     tempHigh: parseFloat(day.maxtempC) || 0,
@@ -214,7 +245,9 @@ QtObject {
 
     // ── Init ──
     function start() {
-        // Load cache first, then the fetchTimer will periodically refresh
-        cacheFile.path = root.cachePath;
+        // Load cache first, then the fetchTimer will periodically refresh.
+        // The directory has to exist first, so this is what actually runs
+        // ensureCacheDir — it was previously declared and never invoked.
+        ensureCacheDir.run(["mkdir", "-p", root.cacheDir]);
     }
 }

@@ -62,7 +62,7 @@ impl SettingKind {
                 _ => Err("value must be a string".into()),
             },
             SettingKind::Radius => match value {
-                Value::Number(n) if n.as_u64().map_or(false, |v| v <= 36) => Ok(()),
+                Value::Number(n) if n.as_u64().is_some_and(|v| v <= 36) => Ok(()),
                 _ => Err("radius must be an integer between 0 and 36".into()),
             },
             SettingKind::BarMode => match value {
@@ -75,9 +75,7 @@ impl SettingKind {
                 _ => Err("value must be a string".into()),
             },
             SettingKind::AnimationSpeed => match value {
-                Value::Number(n) if n.as_f64().map_or(false, |v| (0.0..=2.0).contains(&v)) => {
-                    Ok(())
-                }
+                Value::Number(n) if n.as_f64().is_some_and(|v| (0.0..=2.0).contains(&v)) => Ok(()),
                 _ => Err("animation speed must be a number between 0.0 and 2.0".into()),
             },
         }

@@ -1,20 +1,35 @@
 # OpenCode configuration guidance
 
 `opencode.local-llamacpp.json` is canonical and is linked to
-`~/.config/opencode/opencode.json`. OpenCode 2.0.11 migrates this installed
-schema to V2 internally. Use the redacted path-only config check below for
-source loading and the filtered resolved-agent check below for roles and
-permission order; raw config debug output can contain MCP headers.
+`~/.config/opencode/opencode.json`. OpenCode 2.0.16 normalizes this file
+internally; the file is deliberately mixed, and each nested block is
+internally consistent. `mcp.servers`, `permissions`, `instructions`, `skills`,
+`commands`, `compaction`, and `share` use native V2 shapes, while `agent` and
+`provider` stay entirely in V1 (`prompt`, `permission`, `disable`, `variant`,
+`npm`, `options`, `tool_call`, `modalities`). OpenCode does not infer formats
+recursively inside individual agents, providers, commands, or models, so never
+mix V2 members into one of those entries. A V2 `timeout` object inside the old
+V1 `mcp.<name>` layout is rejected as malformed and silently drops the whole
+server — that is why the block moved to `mcp.servers`. Use the redacted
+path-only config check below for source loading and the filtered resolved-agent
+check below for roles and permission order; raw config debug output can contain
+MCP headers.
 
 Keep the harness direct:
 
 - primary modes: `build` and read-only `plan`, both on MiniMax M2.7;
 - explorers: `explore-m2.7` for harder investigation and cheaper
   `explore-m2.5` for straightforward search/mapping;
-- implementation children: `worker-m2.7`, `worker-m3`, and `worker-luna`;
+- implementation children: `worker-m2.7`, `worker-m3`, `worker-m3.1`, and
+  `worker-luna`; `worker-m3.1` is the fast wide-context lane for broad reads
+  and mechanical multi-file work, `worker-m3` is the hardest-reasoning
+  fallback, and `worker-luna` covers vision and arbitration;
 - build has all configured tools; build, plan, and workers see all installed
   skills;
 - depth one; workers cannot launch children;
+- `quality_contract.md` and `verification_policy.md` are global instructions;
+  `worker_contract.md` is read by each explorer and worker on spawn and is
+  never added to `instructions`;
 - `tmux-tools` uses the system `nox` socket and shares the `nox` session;
   killing that shared session is refused;
 - CodeGraph remains the default semantic navigation MCP.
@@ -38,11 +53,16 @@ jq empty configs/opencode/opencode.local-llamacpp.json
 ./setup/test-ai-config.sh
 opencode debug config | jq -r '.[].path'
 opencode debug config | jq -r '.[0].info.agents | keys[]'
+opencode debug config | jq '.[0].info.mcp.servers | map_values(.timeout)'
 git diff --check
 ```
 
-Config changes are watched automatically. Restart the OpenCode service only
-when a local plugin change does not reload: `opencode service restart`.
+`opencode debug config` is served by the running background service and kept
+returning pre-change values after edits to the linked config file, so verify
+resolved settings after `opencode service restart` rather than trusting a
+stale response. Do not use `PATCH /api/experimental/config` to force a reload:
+it writes to the highest-precedence global document, which is this file through
+its symlink.
 
 Authenticate v0 with `opencode mcp auth v0`. Browser MCP uses the active Chrome
 profile via `--autoConnect`; enable remote debugging in

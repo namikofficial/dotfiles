@@ -123,11 +123,12 @@
 - New/attach named session: `tns work`
 - Sessionizer picker: `tms`
 - List sessions: `tls`
-- Reload tmux config from `~/Documents/code/dotfiles/tmux/tmux.conf`: `tr`
+- Reload tmux config from `~/Documents/code/dotfiles/tmux/tmux.conf`: `treload` (or `prefix r`)
+- tmux keys: `prefix ?` help · `prefix F` hint-copy · `prefix C-f` fzf menu · `prefix \` menus · `prefix g` lazygit · `prefix t` scratch shell
 - Kill session: `tk work`
 - Kill tmux server: `tka`
-- Start the four-pane project layout: `project-profile dev nox-billings`
-- Open Nox Billings on the Android emulator: `nox-billings-emulator`
+- Start the four-pane project layout: `project-profile dev noxorigin`
+- Start the NoxOrigin dev stack (add `-a` for Android): `nox-up`
 - Start all trackMe dev servers (backend + web + mobile): `trackme-up`
 - Open trackMe in editor: `trackme-edit`
 

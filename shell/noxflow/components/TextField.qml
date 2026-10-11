@@ -41,6 +41,11 @@ FocusScope {
         input.forceActiveFocus()
     }
 
+    function releaseInput() {
+        input.focus = false
+        root.focus = false
+    }
+
     onActiveFocusChanged: {
         if (activeFocus && !input.activeFocus) input.forceActiveFocus()
     }
@@ -149,5 +154,10 @@ FocusScope {
     }
 
     Keys.onReturnPressed: root.accepted()
-    Keys.onEscapePressed: root.focus = false
+    // Escape releases focus from the field first; the surrounding panel's
+    // FocusScope closes the panel on the *next* press. The event has to be
+    // accepted for that two-step behaviour to exist: an unaccepted key press
+    // propagates to the ancestor FocusScope, which would close the panel (and
+    // make this line a no-op) in a single keystroke.
+    Keys.onEscapePressed: { root.focus = false; event.accepted = true; }
 }

@@ -48,19 +48,34 @@ profiles or hand work to another agent. After reloading zsh, `ai-opencode` and
 
 MiniMax M2.7 is the normal build and plan model. From the same build session it
 can spawn `explore-m2.7`, cheaper `explore-m2.5`, `worker-m2.7`, `worker-m3`,
-or `worker-luna`; no restart or primary mode switch is required. Luna uses the
-medium variant.
+`worker-m3.1`, or `worker-luna`; no restart or primary mode switch is
+required. Luna uses the medium variant.
+
+Pick the worker deliberately: `worker-m3.1` (MiniMax M3.1 Flash Preview) is the
+fast lane with a 1M-token context — broad reads, mechanical multi-file edits,
+and well-specified changes. `worker-m3` is the hardest-reasoning fallback and
+`worker-luna` is for vision or arbitration. `worker-m3.1` is a preview model, so
+if the provider retires the id the agent fails at spawn and `worker-m3` is the
+fallback; `opencode models | grep M3.1` confirms it is still served.
 
 The ceilings are build 250, plan 120, M2.7 explorer 60, M2.5 explorer 50, M2.7
-worker 200, M3 worker 220, and Luna worker 160. Delegation depth is one and
-children cannot launch children. There are no verifier, expert, review, ask,
-UI-specialist, security, or devops roles.
+worker 200, M3 worker 220, M3.1 worker 200, and Luna worker 160. Delegation
+depth is one and children cannot launch children. There are no verifier,
+expert, review, ask, UI-specialist, security, or devops roles.
 
 Sensitive environment/auth/session paths remain denied. Build has every
 configured tool. Build, plan, and all workers can use the full installed skill
 catalog. Restart or run `opencode reload` after configuration changes, then
 inspect resolved role names with
 `opencode debug config | jq -r '.[0].info.agents | keys[]'`.
+
+`quality_contract.md` and `verification_policy.md` are loaded as global
+instructions, so every task inherits the same conduct and result vocabulary.
+`worker_contract.md` is deliberately *not* global: each explorer and worker
+prompt points at it and reads it on spawn, which keeps the contract in one file
+without paying for it on every coordinator request. When a child returns, treat
+its report as evidence — it is required to separate observed checks from
+assumptions.
 
 `Super+Tab` is owned by Hyprland workspace overview and is unrelated to OpenCode task execution. Use `/fix` inside OpenCode for end-to-end coding work; use `Super+Space` for the NoxFlow AI launcher.
 
@@ -84,6 +99,18 @@ debugging at `chrome://inspect/#remote-debugging` are required; Chrome may ask
 you to approve the connection. This gives the agent access to open tabs and
 session data in that profile. Verify the effective process map with
 `opencode mcp list`.
+
+Local servers declare split MCP timeouts. `catalog` bounds tool discovery;
+`execution` bounds a single tool call, which is what long-running work such as
+a Maestro cloud run or a Playwright session actually needs. CodeGraph uses
+60s/120s; Maestro, browser, and Playwright use 120s/600s. The remote servers
+(v0, VP0, Stitch) set no timeout and keep the OpenCode defaults. The block uses
+the native V2 `mcp.servers.<name>` layout: an object `timeout` in the old V1
+`mcp.<name>` position is rejected as a malformed value and OpenCode silently
+drops the entire server. Resolve the effective values with
+`opencode debug config | jq '.[0].info.mcp.servers | map_values(.timeout)'` and
+confirm nothing was dropped with `opencode mcp list`; a dropped server also
+appears in `opencode.log` as `configuration normalization diagnostic`.
 
 ```sh
 eval "$(mcp-profile env dev)"    # browser + Playwright + CodeGraph + local docs

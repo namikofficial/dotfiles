@@ -36,14 +36,14 @@ ProviderModel {
     function applySnapshot(snapshot) {
         if (!Utils.applyBase(this, snapshot, providerName)) return false;
         var next = snapshot.data;
-        workspaces = Array.isArray(next.workspaces) ? next.workspaces : [];
-        windows = Array.isArray(next.windows) ? next.windows : [];
-        monitors = Array.isArray(next.monitors) ? next.monitors : [];
+        workspaces = Utils.asArray(next.workspaces);
+        windows = Utils.asArray(next.windows);
+        monitors = Utils.asArray(next.monitors);
         focusedMonitor = next.focused_monitor === undefined ? "" : String(next.focused_monitor);
         activeWorkspace = next.active_workspace === undefined ? null : next.active_workspace;
         activeWindow = next.active_window === undefined ? null : next.active_window;
-        urgentWindows = Array.isArray(next.urgent_windows) ? next.urgent_windows : [];
-        specialWorkspaces = Array.isArray(next.special_workspaces) ? next.special_workspaces : [];
+        urgentWindows = Utils.asArray(next.urgent_windows);
+        specialWorkspaces = Utils.asArray(next.special_workspaces);
         return true;
     }
 }

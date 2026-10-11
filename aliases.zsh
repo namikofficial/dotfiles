@@ -198,9 +198,10 @@ fi
 if command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
   alias python="python3"
 fi
-alias cp='cp -i'
-alias mv='mv -i'
-alias rm='rm -I'
+# cp/mv/rm are deliberately left non-interactive. The `-i`/`-I` prompts block
+# non-interactive consumers of this file (agent/tool shells source ~/.zshrc and
+# hang waiting on a prompt that nobody can answer). Use `-i` explicitly when you
+# want the confirmation.
 
 # Atuin helpers
 alias hs="atuin search"
@@ -366,6 +367,28 @@ ta() {
 tn() {
   local session="${1:-main}"
   tmux new-session -A -s "$session"
+}
+alias tns='tn'
+# Kills every session, so ask first.
+tka() { read -q "?Kill the tmux server and ALL sessions? [y/N] " && { echo; tmux kill-server; } || echo; }
+tk() { tmux kill-session -t "${1:?usage: tk SESSION}"; }
+
+# Project sessionizer. Prefer the private script when the submodule is
+# checked out; otherwise pick a git repo under ~/Documents/code with fzf.
+tms() {
+  if [[ -x "$HOME/.local/bin/tmux-sessionizer" ]]; then
+    "$HOME/.local/bin/tmux-sessionizer" "$@"
+    return
+  fi
+  local dir="${1:-}"
+  if [[ -z "$dir" ]]; then
+    dir="$(fd -H -t d -d 4 '^\.git$' "$HOME/Documents/code" -E node_modules -E target -x dirname {} \
+      | sort -u | fzf --prompt='project> ' --height=40% --reverse)" || return
+  fi
+  [[ -d "$dir" ]] || return 1
+  local name="${${dir:t}//[.:]/_}"
+  tmux has-session -t "=$name" 2>/dev/null || tmux new-session -d -s "$name" -c "$dir"
+  if [[ -n "$TMUX" ]]; then tmux switch-client -t "=$name"; else tmux attach -t "=$name"; fi
 }
 
 # Installed modern CLIs

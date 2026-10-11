@@ -1,22 +1,27 @@
-// NotificationModel — local notification store.
-// Merges daemon-sourced notifications (via noxd provider) with local ones.
-// Acts like a ProviderModel for Protocol.js compatibility, but keeps its own list.
-// DMS + Tide steal: grouped by app, DND, history, inline actions.
+// NotificationModel — the shell's notification store.
+//
+// Decision 5: Quickshell owns org.freedesktop.Notifications and dunst is
+// retired, so this is a plain in-memory store fed by services/NotificationBridge
+// with Do Not Disturb as one property right here.
+//
+// It used to carry two dead paths: a `dunstctl` query and setter for DND, and a
+// noxd `notifications` provider snapshot. noxd registers no such provider, so
+// `applySnapshot` could never fire — and `addNotification` had no caller at all,
+// which is why the bar's notification pill and the notification centre rendered
+// permanently empty while looking perfectly healthy.
 
 import QtQml
 import Quickshell
-import Quickshell.Io
 import "ModelUtils.js" as Utils
 
 QtObject {
     id: root
 
     property string providerName: "notifications"
-    // Dunst owns org.freedesktop.Notifications in this profile. NoxFlow's
-    // model is a shell-local history/demo store until a non-conflicting bridge
-    // is installed; it must not claim daemon-backed ingress.
-    property string source: "dunst-owned"
-    property string ingressStatus: "dunst-owned"
+    // Quickshell's NotificationServer is the ingress. `source` stays
+    // "quickshell" so the views and the log can say which daemon owns the bus.
+    property string source: "quickshell"
+    property string ingressStatus: "quickshell"
     property string status: "available"
     readonly property bool available: status === "available"
 
@@ -27,8 +32,6 @@ QtObject {
     property int maxActive: 20
     property int maxHistory: 50
     property int nextId: 1
-    property bool dndQueryRunning: false
-    property bool dndUpdateRunning: false
 
     // ── Signals (names prefixed to avoid clashing with property change signals) ──
     signal sigNotificationAdded(var notification)
@@ -46,7 +49,7 @@ QtObject {
             body: body || "",
             urgency: urgency || "normal",
             time: Date.now(),
-            actions: Array.isArray(actions) ? actions : [],
+            actions: Utils.asArray(actions),
             dismissable: true,
             timeout: timeout === undefined ? 5000 : Math.max(0, Number(timeout)),
             timestamp: new Date().toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
@@ -106,62 +109,56 @@ QtObject {
         history = next.slice(0, maxHistory);
     }
 
+    /// Toggle Do Not Disturb. This is the single write path: there is no
+    /// daemon to ask, so the property *is* the state.
     function toggleDnd() {
-        if (dndUpdateRunning) return;
-        dndUpdateRunning = true;
-        dndProcess.command = ["dunstctl", "set-paused", dnd ? "false" : "true"];
-        dndProcess.running = true;
+        root.dnd = !root.dnd;
+        root.sigDndChanged(root.dnd);
     }
 
-    function refreshDnd() {
-        if (dndQueryRunning) return;
-        dndQueryRunning = true;
-        dndQuery.command = ["dunstctl", "is-paused"];
-        dndQuery.running = true;
+    function setDnd(enabled) {
+        if (root.dnd === !!enabled) return;
+        root.dnd = !!enabled;
+        root.sigDndChanged(root.dnd);
     }
 
     property string dndOutput: ""
-    property Process dndQuery: Process {
-        running: false
-        stdout: SplitParser {
-            splitMarker: ""
-            onRead: function(data) { root.dndOutput += String(data || ""); }
-        }
-        onExited: function(code, status) {
-            root.dndQueryRunning = false;
-            if (code === 0) {
-                var value = root.dndOutput.trim().toLowerCase();
-                root.dnd = value === "true" || value === "1" || value === "paused";
-                root.sigDndChanged(root.dnd);
-            } else {
-                root.ingressStatus = "dunst-unavailable";
+
+    /// Replace the whole active list from the bridge. The bridge owns the live
+    /// set, so this replaces rather than merges — a merge would leave notes
+    /// behind that the server no longer holds.
+    function replaceAll(items, dndEnabled) {
+        if (dndEnabled !== undefined) root.dnd = !!dndEnabled;
+        var next = [];
+        var history = root.history;
+        for (var i = 0; i < items.length; i++) {
+            var note = items[i];
+            // DND suppresses presentation but keeps the note in history, the
+            // same rule addNotification() has always used.
+            if (root.dnd && note.urgency !== "critical") {
+                history = [note].concat(history).slice(0, root.maxHistory);
+                continue;
             }
-            root.dndOutput = "";
+            next.push(note);
         }
-    }
-    property Process dndProcess: Process {
-        running: false
-        onExited: function(code, status) {
-            root.dndUpdateRunning = false;
-            if (code === 0) {
-                root.ingressStatus = "dunst-owned";
-                root.refreshDnd();
-            } else {
-                root.ingressStatus = "dunst-unavailable";
-            }
-        }
+        notifications = next;
+        history = history;
     }
 
-    Component.onCompleted: refreshDnd()
-
-    // ── Provider-style snapshot (for daemon compatibility) ──
-    function applySnapshot(snapshot) {
-        if (!Utils.applyBase(this, snapshot, providerName)) return false;
-        var next = snapshot.data;
-        if (Array.isArray(next.items)) {
-            notifications = next.items.slice();
+    /// Called when DND flips so already-visible notes are pulled back.
+    function applyDnd(enabled) {
+        if (root.dnd === enabled) return;
+        root.dnd = enabled;
+        if (!enabled) return;
+        var history = root.history;
+        var keep = [];
+        for (var i = 0; i < root.notifications.length; i++) {
+            var note = root.notifications[i];
+            if (note.urgency === "critical") keep.push(note);
+            else history = [note].concat(history);
         }
-        dnd = next.dnd === true;
-        return true;
+        notifications = keep;
+        history = history.slice(0, root.maxHistory);
+        root.sigDndChanged(enabled);
     }
 }

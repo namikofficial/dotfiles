@@ -10,6 +10,7 @@ the nox-theme-schema-v1 contract.
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import math
@@ -249,6 +250,14 @@ def personality_from_policy(policy: dict, entries: list[dict], entropy: float) -
     }
 
 
+# Light surface ladder (OKLCH L): canvas, base, surface1..3, floating. Light UIs
+# cannot climb above white, so hover/selection layers step *darker* and the
+# floating layer is the brightest. Every step is distinguishable (>= 1.05:1).
+LIGHT_LADDER = (0.940, 0.966, 0.915, 0.884, 0.853, 0.994)
+LIGHT_MAX_CHROMA = 0.016
+LIGHT_TEXT_L = 0.22
+LIGHT_ACCENT_CONTRAST = 4.5
+
 PERSONALITY_TUNES: dict = {
     # personality: (surface_chroma_mult, accent_chroma_mult, surface_lightness_bump, accent_footprint, transparency)
     "dark":      (0.30, 0.90,  0.00, "medium", 0.80),
@@ -322,6 +331,18 @@ def pick_background(entries: list[dict]) -> tuple[float, float, float]:
     H_b = (H_s + 220.0) % 360  # nudge toward blue-purple darkness
     L_b, C_b, H_b = clamp_chroma(L_b, C_b, H_b)
     return (L_b, C_b, H_b)
+
+
+def pick_light_background(entries: list[dict]) -> tuple[float, float, float]:
+    """Seed a light canvas from the wallpaper's dominant pale colour.
+
+    The dark seed nudges hue by +220 degrees toward blue-purple, which turned
+    every cream or sky wallpaper into a lilac UI. Light canvases keep the
+    wallpaper's own hue at a barely-there chroma.
+    """
+    pale = [e for e in entries if e["L"] >= 0.6] or entries
+    seed = max(pale, key=lambda e: (float(e["fraction"]), e["rgb"]))
+    return (LIGHT_LADDER[0], min(float(seed["C"]) * 0.5, LIGHT_MAX_CHROMA), float(seed["H"]))
 
 
 def pick_accent_hues(entries: list[dict], bg_L: float, personality: dict) -> list[tuple[float, float, float]]:
@@ -399,19 +420,25 @@ def build_tonal_palette(
     tunes = PERSONALITY_TUNES.get(personality["class"], PERSONALITY_TUNES["muted"])
     surf_chroma_mult, accent_chroma_mult, surf_L_bump, _, _ = tunes
 
-    bg_L, bg_C, bg_H = pick_background(entries)
-    if personality["mode"] == "light":
-        # Explicit light mode uses a neutral, stable canvas; wallpaper hue is
-        # still expressed through accents and the softly tinted surface ladder.
-        bg_L, bg_C = 0.92, 0.0
-    elif personality["mode"] == "oled":
-        bg_L, bg_C = 0.025, 0.0
+    light = personality["mode"] == "light"
+    # Accent text on light surfaces needs AA contrast; dark keeps the 3:1 floor.
+    ensure_contrast = functools.partial(
+        _ensure_surface_contrast, min_ratio=LIGHT_ACCENT_CONTRAST if light else 3.0,
+    )
+    if light:
+        # The light ladder is absolute; a personality bump would clamp it flat.
+        surf_L_bump = 0.0
+        bg_L, bg_C, bg_H = pick_light_background(entries)
     else:
-        # `pick_background` falls back to all samples when a wallpaper has no
-        # dark pixels. Keep the shell canvas in a stable dark range in that
-        # case instead of deriving a pale canvas with near-white text.
-        bg_L = min(bg_L, 0.10)
-        bg_C = min(bg_C, 0.025)
+        bg_L, bg_C, bg_H = pick_background(entries)
+        if personality["mode"] == "oled":
+            bg_L, bg_C = 0.025, 0.0
+        else:
+            # `pick_background` falls back to all samples when a wallpaper has no
+            # dark pixels. Keep the shell canvas in a stable dark range in that
+            # case instead of deriving a pale canvas with near-white text.
+            bg_L = min(bg_L, 0.10)
+            bg_C = min(bg_C, 0.025)
 
     # ── Neutral hues ──
     accent_hues = pick_accent_hues(entries, bg_L, personality)
@@ -458,6 +485,8 @@ def build_tonal_palette(
     # ── Surface ladder (OKLCH L steps) ──
     def surf_L(n: int) -> float:
         """L for surface level n (0=base, 1-4=elevated)."""
+        if light:
+            return LIGHT_LADDER[n]
         base = bg_L + surf_L_bump
         steps = [0.00, 0.042, 0.082, 0.128, 0.178]
         return min(0.98, base + steps[n])
@@ -465,7 +494,7 @@ def build_tonal_palette(
     def neutral_chroma(n: int) -> float:
         mult = surf_chroma_mult * (1.0 + n * 0.12)
         tint = surface_tint * (0.06 + n * 0.008)
-        return min(neutral_C * mult + tint, 0.075)
+        return min(neutral_C * mult + tint, LIGHT_MAX_CHROMA if light else 0.075)
 
     surf0_L = surf_L(0)
     surf0_C = neutral_chroma(0)
@@ -484,10 +513,11 @@ def build_tonal_palette(
         ("surface1",        surf_L(2), neutral_chroma(2), surf0_H),
         ("surface2",        surf_L(3), neutral_chroma(3), surf0_H),
         ("surface3",        surf_L(4), neutral_chroma(4), surf0_H),
-        ("surfaceFloating", min(0.96, surf_L(4) + 0.04), neutral_chroma(5) * 1.2, surf0_H),
+        ("surfaceFloating", LIGHT_LADDER[5] if light else min(0.96, surf_L(4) + 0.04),
+         neutral_chroma(5) * 1.2, surf0_H),
     ]
     for name, L, C, H in levels:
-        C = min(C, 0.055)  # keep surfaces clearly neutral
+        C = min(C, LIGHT_MAX_CHROMA if light else 0.055)  # keep surfaces clearly neutral
         colors[name] = (L, C, H)
         colors[f"on{name[0].upper()}{name[1:]}"] = (
             1.0 - L, 0.0, bg_H
@@ -496,12 +526,16 @@ def build_tonal_palette(
     surface_colors = [colors[name] for name in (
         "surfaceCanvas", "surfaceBase", "surface1", "surface2", "surface3", "surfaceFloating",
     )]
-    accent_direction = 1 if personality["mode"] != "light" else -1
+    accent_direction = -1 if light else 1
+    if light:
+        # Terminal and shell backgrounds must match the canvas, not a separate
+        # seed colour.
+        colors["background"] = colors["surfaceCanvas"]
 
     # Primary text uses a deliberately strong endpoint. The muted role below
     # can be tuned to the minimum readable contrast without dimming body copy.
     colors["onBackground"] = (
-        (0.04 if personality["mode"] == "light" else 0.96), 0.0, bg_H,
+        (LIGHT_TEXT_L if light else 0.96), 0.0, bg_H,
     )
 
     # ── Neutral / neutral-variant ──
@@ -516,7 +550,7 @@ def build_tonal_palette(
     primary_L = max(0.38, min(0.76, primary_L))
     primary_L_ok = primary_L
     primary_C = min(primary_C, 0.38)
-    primary_L_ok, primary_C, primary_H = _ensure_surface_contrast(
+    primary_L_ok, primary_C, primary_H = ensure_contrast(
         primary_L_ok, primary_C, primary_H, surface_colors, accent_direction,
     )
     colors["primary"] = (primary_L_ok, primary_C, primary_H)
@@ -535,7 +569,7 @@ def build_tonal_palette(
     # ── Secondary ──
     secondary_L = max(0.36, min(0.74, secondary_L))
     secondary_C = min(secondary_C, 0.32)
-    secondary_L, secondary_C, secondary_H = _ensure_surface_contrast(
+    secondary_L, secondary_C, secondary_H = ensure_contrast(
         secondary_L, secondary_C, secondary_H, surface_colors, accent_direction,
     )
     colors["secondary"] = (secondary_L, secondary_C, secondary_H)
@@ -552,7 +586,7 @@ def build_tonal_palette(
     # ── Tertiary ──
     tertiary_C = min(tertiary_C, 0.30)
     tertiary_L = max(0.38, min(0.74, 0.60))
-    tertiary_L, tertiary_C, tertiary_H = _ensure_surface_contrast(
+    tertiary_L, tertiary_C, tertiary_H = ensure_contrast(
         tertiary_L, tertiary_C, tertiary_H, surface_colors, accent_direction,
     )
     colors["tertiary"] = (tertiary_L, tertiary_C, tertiary_H)
@@ -574,7 +608,7 @@ def build_tonal_palette(
         "info":      (0.62, 0.22, 255.0),
     }
     for name, (L, C, H) in sem.items():
-        L, C, H = _ensure_surface_contrast(
+        L, C, H = ensure_contrast(
             L, C * chroma_boost * 0.9, H, surface_colors, accent_direction,
         )
         colors[name] = (L, C, H)
@@ -588,9 +622,16 @@ def build_tonal_palette(
             container_L, container_C, H, 4.5 * contrast_mult)
 
     # ── Outline / border ──
-    colors["outline"] = (surf_L(2), neutral_chroma(3) * 1.5, surf0_H)
-    colors["outlineSubtle"] = (surf_L(1), neutral_chroma(2), surf0_H)
-    colors["outlineStrong"] = (surf_L(3), neutral_chroma(4) * 2.0, surf0_H)
+    if light:
+        # Borders must be darker than the surface they sit on; reusing surface
+        # lightness made them lighter than the canvas and invisible.
+        colors["outline"] = (surf_L(0) - 0.10, LIGHT_MAX_CHROMA, surf0_H)
+        colors["outlineSubtle"] = (surf_L(0) - 0.05, LIGHT_MAX_CHROMA, surf0_H)
+        colors["outlineStrong"] = (surf_L(0) - 0.22, LIGHT_MAX_CHROMA, surf0_H)
+    else:
+        colors["outline"] = (surf_L(2), neutral_chroma(3) * 1.5, surf0_H)
+        colors["outlineSubtle"] = (surf_L(1), neutral_chroma(2), surf0_H)
+        colors["outlineStrong"] = (surf_L(3), neutral_chroma(4) * 2.0, surf0_H)
     # Outlines are surface colors and must never be reused as muted text.
     # Check every actual surface because chroma clipping can change their
     # perceived lightness order at the edges of the palette.
@@ -605,10 +646,33 @@ def build_tonal_palette(
     for role in ("danger", "success", "warning", "primary", "tertiary", "secondary"):
         L, C, H = colors[role]
         bright_L = min(0.97, L + 0.07) if accent_direction > 0 else max(0.03, L - 0.07)
-        colors[f"bright{role[0].upper()}{role[1:]}"] = _ensure_surface_contrast(
+        colors[f"bright{role[0].upper()}{role[1:]}"] = ensure_contrast(
             bright_L, min(0.38, C * 1.08), H, surface_colors, accent_direction,
         )
     colors["brightWhite"] = colors["onBackground"]
+
+    # ── Hue-correct ANSI blue / cyan / magenta ──
+    # Terminal programs assume slot 4 is blue, 6 cyan, 5 magenta (ls dirs,
+    # git, diffs, prompts, syntax). Mapping UI roles straight into those slots
+    # made "blue" the wallpaper's orange accent on warm wallpapers. Stay
+    # wallpaper-faithful: reuse a wallpaper accent whose hue is within 20° of
+    # the standard one, otherwise build that hue with the wallpaper accent's
+    # own lightness and chroma, then apply the usual surface-contrast guard.
+    ansi_anchors = {"Blue": 255.0, "Cyan": 200.0, "Magenta": 320.0}
+    accent_roles = [colors[r] for r in ("primary", "secondary", "tertiary")]
+    aL, aC, _aH = colors["primary"]
+    for name, anchor in ansi_anchors.items():
+        nearest = min(accent_roles, key=lambda c: hue_dist(c[2], anchor))
+        if hue_dist(nearest[2], anchor) <= 20.0:
+            L, C, H = nearest
+        else:
+            L, C, H = aL, max(0.08, min(0.20, aC)), anchor
+        colors[f"ansi{name}"] = ensure_contrast(L, C, H, surface_colors, accent_direction)
+        bL, bC, bH = colors[f"ansi{name}"]
+        bright_L = min(0.97, bL + 0.07) if accent_direction > 0 else max(0.03, bL - 0.07)
+        colors[f"ansiBright{name}"] = ensure_contrast(
+            bright_L, min(0.38, bC * 1.08), bH, surface_colors, accent_direction,
+        )
 
     # ── Accent interaction states ──
     pL, pC, pH = colors["primary"]
@@ -829,16 +893,16 @@ def compile_theme(path: Path, policy_override: Optional[dict] = None) -> dict:
                 "red": raw["danger"],
                 "green": raw["success"],
                 "yellow": raw["warning"],
-                "blue": raw["primary"],
-                "cyan": raw["secondary"],
-                "magenta": raw["tertiary"],
+                "blue": raw["ansiBlue"],
+                "cyan": raw["ansiCyan"],
+                "magenta": raw["ansiMagenta"],
                 "brightBlack": raw["brightBlack"],
                 "brightRed": raw["brightDanger"],
                 "brightGreen": raw["brightSuccess"],
                 "brightYellow": raw["brightWarning"],
-                "brightBlue": raw["brightPrimary"],
-                "brightCyan": raw["brightSecondary"],
-                "brightMagenta": raw["brightTertiary"],
+                "brightBlue": raw["ansiBrightBlue"],
+                "brightCyan": raw["ansiBrightCyan"],
+                "brightMagenta": raw["ansiBrightMagenta"],
                 "brightWhite": raw["brightWhite"],
             },
         },

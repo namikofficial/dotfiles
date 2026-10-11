@@ -11,6 +11,10 @@ Item {
     id: root
     property var screen
     required property var noxd; required property var notifModel; required property var morphRegistry
+    // The bridge owns the live set on the bus; the model is only the
+    // shell-side presentation of it. Dismissals and "clear" must go
+    // through the bridge so the sending application is actually told.
+    required property var bridge
 
     Components.SurfaceLifecycle { id: lifecycle }
     property alias openProgress: lifecycle.openProgress
@@ -38,10 +42,10 @@ Item {
 
             // Header
             RowLayout { Layout.fillWidth: true
-                Text { text: root.showHistory ? "History" : "Notifications"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.bold: true; Layout.fillWidth: true }
+                Text { text: root.showHistory ? "History" : "Notifications"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.family: Theme.Tokens.typographyDisplayFamily; font.bold: true; Layout.fillWidth: true }
                 Components.TextButton { text: "Clear"; accessibleName: root.showHistory ? "Clear notification history" : "Clear notifications"
                     visible: (!root.showHistory && notifModel.notifications.length > 0) || (root.showHistory && notifModel.history.length > 0)
-                    onClicked: root.showHistory ? notifModel.clearHistory() : notifModel.clearAll() }
+                    onClicked: root.showHistory ? notifModel.clearHistory() : root.bridge.closeAll() }
                 Components.IconButton { iconText: "\uF00D"; accessibleName: "Close"; onClicked: lifecycle.requestClose("closeButton") }
             }
 
@@ -52,10 +56,11 @@ Item {
             }
             Text {
                 Layout.fillWidth: true
-                visible: !root.showHistory && notifModel.ingressStatus !== "dunst-owned"
-                text: notifModel.ingressStatus === "dunst-unavailable"
-                    ? "Dunst is unavailable; notification state cannot be synchronized."
-                    : "Notifications are owned by Dunst; NoxFlow history is local."
+                // Quickshell owns the bus outright now that dunst is retired, so
+                // there is no "someone else owns this" state left to warn about.
+                // The text remains as a live assertion of that invariant.
+                visible: !root.showHistory && notifModel.ingressStatus !== "quickshell"
+                text: "Notifications are not owned by NoxFlow; the shell cannot track them."
                 color: Theme.Tokens.stateWarning
                 font.pixelSize: Theme.Tokens.typographyLabelSmall
                 wrapMode: Text.Wrap
@@ -100,11 +105,15 @@ Item {
                             delegate: Components.NotificationItem {
                                 required property var modelData
                                 notification: modelData; width: parent ? parent.width : 0
-                                onDismissed: notifModel.dismissNotification(modelData.id)
+                                onDismissed: root.bridge.dismiss(modelData.id)
                                 onActionInvoked: function(notif, actionId) {
                                     if (actionId === "dismiss") {
-                                        notifModel.dismissNotification(notif.id);
+                                        root.bridge.dismiss(notif.id);
+                                        return;
                                     }
+                                    // A real action goes to the sending
+                                    // application, not to the shell's store.
+                                    root.bridge.invoke(notif.id, actionId);
                                     // Other notification actions are
                                     // shell-local: the notification store
                                     // and any default handlers (xdg-open,

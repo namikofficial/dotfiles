@@ -5,16 +5,20 @@ var protocolVersion = 1;
 //
 // The QML client only subscribes to providers whose events have a real,
 // observable consumer in the shell. Each entry must correspond to:
-//   1. A registered provider on the daemon side (core/noxd/src/main.rs).
+//   1. A registered provider on the daemon side (core/noxd/src/providers/).
 //   2. A consumer that wires `applyEvent` / `applySnapshot` from this client
 //      (typically via the daemonClient Connections in shell.qml).
 //
 // "transfer" is included because core/noxd/src/providers/transfer.rs publishes
 // `discovery` and `sessions` events that TransferModel.qml consumes in
-// shell.qml's `onEventReceived`. "notifications" is included because
-// NotificationModel.qml consumes its own snapshot fan-out via applySnapshot
-// (the provider is daemon-typed for state, even though the model is
-// shell-owned).
+// shell.qml's `onEventReceived`.
+//
+// "notifications", "calendar" and "clipboard" were removed because noxd
+// registers no such providers. EventBus::subscribe does not validate names —
+// it stores the filter and silently delivers nothing for an unknown provider
+// — so those three subscriptions looked healthy while the bar's notification
+// pill and the notification centre rendered permanently empty data. They are
+// re-added in the same change that gives them a real producer.
 //
 // "settings" is intentionally NOT in this allowlist. Settings changes are
 // delivered through the explicit set_setting / get_setting requests and the
@@ -24,7 +28,7 @@ var protocolVersion = 1;
 // no handler — silently discarded and raising the question of why the event
 // exists at all. If a future surface needs live settings updates, add it here
 // AND wire a consumer in shell.qml on the same change.
-var providers = ["hyprland", "audio", "brightness", "power", "network", "bluetooth", "media", "notifications", "transfer"];
+var providers = ["hyprland", "audio", "brightness", "power", "network", "bluetooth", "media", "transfer"];
 
 function isAllowedProvider(name) {
     if (typeof name !== "string") return false;

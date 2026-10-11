@@ -93,7 +93,7 @@ QtObject {
     property color textOnSurfaceVariant: "#CBBEC0"
 
     // ── Outline (writable) ──
-    property color outlineDefault: "#6E5D69"
+    property color outlineDefault: "#8A7A86"
     property color outlineSubtle: "#4A3D49"
     property color outlineStrong: "#B9A4A2"
     property color outlineFocus: "#E0B39A"
@@ -158,10 +158,22 @@ QtObject {
     readonly property int elevationOverlay: 12
 
     // typography
-    readonly property string typographyFontFamily: "Inter"
-    readonly property int typographyDisplayLarge: 36
+    readonly property string typographyFontFamily: "Onest"
+    // Headings and display numerals (greeting, panel titles, island clock).
+    readonly property string typographyDisplayFamily: "Bricolage Grotesque"
+    // Nerd Font carries the glyphs the shell's icons and labels rely on. It
+    // was hardcoded as the literal "Symbols Nerd Font Mono" in 14 places, so
+    // changing the icon font meant finding all of them by hand.
+    //
+    // The name must match an installed family. "Symbols Nerd Font Mono" is not
+    // installed on this machine, so every icon silently fell back to Noto Sans
+    // Mono, which has no Nerd Font codepoints — the island clock rendered as an
+    // oversized stray glyph on top of its own label. The only Nerd Font family
+    // installed here is JetBrainsMono Nerd Font.
+    readonly property string iconFont: "JetBrainsMono Nerd Font"
+    readonly property int typographyDisplayLarge: 28
     readonly property int typographyDisplayMedium: 28
-    readonly property int typographyHeadlineLarge: 24
+    readonly property int typographyHeadlineLarge: 20
     readonly property int typographyHeadlineMedium: 20
     readonly property int typographyTitleLarge: 18
     readonly property int typographyTitleMedium: 16
@@ -185,11 +197,28 @@ QtObject {
     readonly property int durationMedium: 200
     readonly property int durationLong: 350
     readonly property int durationEmphasized: 500
+    // ── The motion table ──
+    // Every animation timing in the shell is defined here, once. Motion.qml
+    // derives named durations from these; surfaces never hold literals.
+    // Reduced motion and the speed setting are applied in exactly one place
+    // (duration() below, plus Motion.qml's speed factor).
+    readonly property int motionMicro: 110
+    readonly property int motionHover: 140
+    readonly property int motionSurface: 185
+    readonly property int motionPanelOpen: 205
+    readonly property int motionPanelSwitch: 175
+    readonly property int motionPanelClose: 145
+    readonly property int motionContentEnter: 125
+    readonly property int motionContentExit: 95
+    readonly property int motionOsdEnter: 145
+    readonly property int motionOsdExit: 150
+    readonly property int motionThemeTransition: 380
 
     // Island geometry and interaction timings are shared by the host,
     // controller, and extracted island presentation components.
     readonly property int islandIdleWidth: 150
-    readonly property int islandIdleHeight: 38
+    // Same height as every other bar pill (heightChip), so the bar shares one baseline.
+    readonly property int islandIdleHeight: heightChip
     readonly property int islandCompactMinWidth: 180
     readonly property int islandCompactMaxWidth: 280
     readonly property int islandActivityMinWidth: 360
@@ -200,9 +229,11 @@ QtObject {
     readonly property int islandCalendarWidth: 520
     readonly property int islandHoverDwell: 140
     readonly property int islandTransitGrace: 450
-    readonly property int islandExpandDuration: 205
-    readonly property int islandSwitchDuration: 175
-    readonly property int islandCollapseDuration: 145
+    // Island morphs share the panel timings (they were separate copies of
+    // the same three numbers).
+    readonly property int islandExpandDuration: motionPanelOpen
+    readonly property int islandSwitchDuration: motionPanelSwitch
+    readonly property int islandCollapseDuration: motionPanelClose
 
     // easing
     readonly property string easingStandard: "cubic-bezier(0.2, 0.0, 0.0, 1.0)"
@@ -242,6 +273,14 @@ QtObject {
     readonly property int heightControl: 44
     readonly property int heightField: 48
     readonly property int heightChip: 32
+    // Switch metrics. The track is deliberately shorter than heightControl:
+    // heightControl is the touch target, the track is the painted pill.
+    readonly property int heightSwitchTrack: 32
+    readonly property int widthSwitchTrack: 56
+    readonly property int sizeSwitchKnob: 24
+    // Horizontal slider metrics (QuickTab brightness/volume, MediaPanel, …).
+    readonly property int heightSliderTrack: 6
+    readonly property int sizeSliderKnob: 18
     // Keep the persistent bar thin; panels use their own control metrics.
     readonly property int heightToolbar: 44
 
@@ -263,6 +302,29 @@ QtObject {
         return Qt.rgba(value.r || 0, value.g || 0, value.b || 0, alpha);
     }
     function glass(value, alpha) { return withAlpha(value, alpha === undefined ? glassPanelAlpha : alpha); }
+
+    // WCAG relative luminance / contrast, used to keep control borders
+    // visible whatever the wallpaper produces.
+    function luminance(c) {
+        function ch(v) { return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+        return 0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b);
+    }
+    function contrastRatio(a, b) {
+        var la = luminance(a), lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+    // Move `fg` toward `toward` until it reaches `ratio` on `bg`. The hue
+    // stays the palette's; only lightness is lifted.
+    function ensureContrast(fg, bg, ratio, toward) {
+        // Qt.tint with transparent converts a string or color to a color on
+        // every Qt 6 release (Qt.color() is newer).
+        fg = Qt.tint(fg, "transparent"); bg = Qt.tint(bg, "transparent"); toward = Qt.tint(toward, "transparent");
+        for (var t = 0; t <= 1.0001; t += 0.05) {
+            var c = Qt.rgba(fg.r + (toward.r - fg.r) * t, fg.g + (toward.g - fg.g) * t, fg.b + (toward.b - fg.b) * t, 1);
+            if (contrastRatio(c, bg) >= ratio) return c;
+        }
+        return toward;
+    }
 
     function runtimeColor(colors, name, fallback) {
         var value = colors && colors[name] ? colors[name] : fallback;
@@ -322,7 +384,9 @@ QtObject {
             textOnSurfaceVariant = runtimeColor(colors, "onSurfaceVariant", textOnSurfaceVariant);
 
             // Outline / border
-            outlineDefault = runtimeColor(colors, "outline", outlineDefault);
+            // The wallpaper "outline" is a surface tone (near-invisible as a
+            // control border); lift it to the 3:1 non-text contrast floor.
+            outlineDefault = ensureContrast(runtimeColor(colors, "outline", outlineDefault), surfaceSurfaceContainerHigh, 3.0, textPrimary);
             outlineSubtle = runtimeColor(colors, "outlineSubtle", outlineSubtle);
             outlineStrong = runtimeColor(colors, "outlineStrong", outlineStrong);
             outlineFocus = runtimeColor(colors, "primary", outlineFocus);
@@ -376,22 +440,22 @@ QtObject {
 
     // Keep the visible chrome and border transitions coherent. Other semantic
     // roles update through the same singleton in the same event turn.
-    Behavior on tonalBackground { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on tonalPrimary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on tonalSecondary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on tonalTertiary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on tonalNeutral { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurfaceCanvas { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurfaceBase { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurface1 { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurface2 { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurface3 { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurfaceFloating { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on surfaceSurfaceContainerHigh { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on outlineDefault { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on accentPrimary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on accentSecondary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
-    Behavior on accentTertiary { ColorAnimation { duration: root.duration(380); easing.type: Easing.InOutCubic } }
+    Behavior on tonalBackground { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on tonalPrimary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on tonalSecondary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on tonalTertiary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on tonalNeutral { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceCanvas { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceBase { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurface1 { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurface2 { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurface3 { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceFloating { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on surfaceSurfaceContainerHigh { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on outlineDefault { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on accentPrimary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on accentSecondary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
+    Behavior on accentTertiary { ColorAnimation { duration: root.duration(motionThemeTransition); easing.type: Easing.InOutCubic } }
 
     /// Apply a named theme profile, updating all color properties.
     function applyProfile(name) {
@@ -446,7 +510,7 @@ QtObject {
         textOnSurfaceVariant       = p.text.onSurfaceVariant;
 
         // outline
-        outlineDefault             = p.outline.default;
+        outlineDefault             = ensureContrast(p.outline.default, surfaceSurfaceContainerHigh, 3.0, textPrimary);
         outlineSubtle              = p.outline.subtle;
         outlineStrong              = p.outline.strong;
         outlineFocus               = p.outline.focus;

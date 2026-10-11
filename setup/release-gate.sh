@@ -34,7 +34,12 @@ check_qml() {
       return 1
     fi
   done < <(find shell/noxflow -name '*.qml' -print | sort)
-  node shell/noxflow/tests/test_protocol.js
+}
+
+# Every NoxFlow shell suite, not just test_protocol.js. run-all.js discovers
+# and runs all of them and fails on the first regression.
+check_shell_tests() {
+  node shell/noxflow/tests/run-all.js
 }
 
 check_required_runtime() {
@@ -104,10 +109,36 @@ check_config() {
 }
 
 check_ipc_docs() {
-  local changed
-  changed="$(git diff --name-only -- core/noxflow-ipc shell/noxflow/Protocol.js)"
-  if [[ -n "$changed" ]] && ! git diff --name-only -- docs/IPC_PROTOCOL.md | rg -q .; then
+  local file changed=""
+  # Only a semantic change needs a doc update. Whitespace-only edits — which
+  # `cargo fmt` produces routinely — do not change the protocol, and demanding
+  # an IPC doc edit for a re-indented assertion trains people to ignore this
+  # check. Compare each changed file against its rustfmt-normalised form to
+  # tell formatting apart from meaning.
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    local normalised current
+    normalised="$(mktemp)" current="$(mktemp)"
+    # `--emit stdout` prints a "<path>:" header when reading a named file but
+    # not when reading stdin, so feed the content through stdin on both sides
+    # to get comparable output.
+    if rustfmt --emit stdout --edition 2021 <"$file" >"$normalised" 2>/dev/null &&
+      git show "HEAD:$file" 2>/dev/null | rustfmt --emit stdout --edition 2021 >"$current" 2>/dev/null; then
+      if ! diff -q "$current" "$normalised" >/dev/null 2>&1; then
+        changed="$changed $file"
+      fi
+    else
+      # No rustfmt for this file type: fall back to whitespace-insensitive diff.
+      if ! diff -q -w -B "$file" <(git show "HEAD:$file" 2>/dev/null) >/dev/null 2>&1; then
+        changed="$changed $file"
+      fi
+    fi
+    rm -f "$normalised" "$current"
+  done < <(git diff --name-only -- core/noxflow-ipc shell/noxflow/Protocol.js)
+
+  if [[ -n "${changed// /}" ]] && ! git diff --name-only -- docs/IPC_PROTOCOL.md | rg -q .; then
     echo "IPC implementation changed without docs/IPC_PROTOCOL.md" >&2
+    echo "Changed:$changed" >&2
     return 1
   fi
 }
@@ -123,7 +154,16 @@ check_live() {
 }
 
 check "Rust format, lint, and tests" check_rust
-check "QML syntax and protocol fixtures" check_qml
+check "QML syntax" check_qml
+# qmllint passes a config whose components cannot instantiate (it cannot resolve
+# the Quickshell C++ module imports), so the shell is also loaded for real.
+check "NoxFlow config loads" bash setup/check-noxflow-load.sh
+check "NoxFlow shell test suites" check_shell_tests
+check "external program registry" bash setup/check-noxflow-binaries.sh
+# The plan quotes line counts and an acceptance verdict. Prose goes stale;
+# this asserts those quotes against the tree, so a stale figure is caught
+# rather than read as current.
+check "repair plan matches the tree" bash setup/check-noxflow-plan.sh
 check "required shell runtime" check_required_runtime
 check "optional QML modules" check_optional_runtime
 check "systemd unit validity" check_units

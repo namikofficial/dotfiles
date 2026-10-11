@@ -35,9 +35,16 @@ export PATH="$PATH:$HOME/.maestro/bin"
 export PATH="$HOME/.local/bin:$PATH"
 
 DOTFILES_HOME="${DOTFILES_HOME:-$HOME/Documents/code/dotfiles}"
-if [ -r "$DOTFILES_HOME/shell/claude-minimax.sh" ]; then
+# MiniMax routing for the `claude` CLI is opt-in. Sourcing this file overrides
+# `claude` to point at api.minimax.io, which also suppresses the claude.ai OAuth
+# login and its connectors. Unset (the default) so `claude` uses the native
+# subscription auth. Opt in per shell with NOXFLOW_CLAUDE_MINIMAX=1.
+if [ "${NOXFLOW_CLAUDE_MINIMAX:-0}" = "1" ] && [ -r "$DOTFILES_HOME/shell/claude-minimax.sh" ]; then
   . "$DOTFILES_HOME/shell/claude-minimax.sh"
 fi
 
 # MiniMax Code CLI
 export PATH="/home/namik/.minimax-code/bin:$PATH"
+
+# Added by MiniMax Code
+export PATH="/home/namik/.minimax/bin:$PATH"

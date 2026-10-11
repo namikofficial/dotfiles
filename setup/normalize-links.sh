@@ -41,6 +41,7 @@ force_link "$ROOT_DIR/hypr/lib" "$HOME/.config/hypr/lib"
 force_link "$ROOT_DIR/hypr/monitor-layout.json" "$HOME/.config/hypr/monitor-layout.json"
 force_link "$ROOT_DIR/uwsm/env" "$HOME/.config/uwsm/env"
 force_link "$ROOT_DIR/wayle/config.toml" "$HOME/.config/wayle/config.toml"
+force_link "$ROOT_DIR/fontconfig/fonts.conf" "$HOME/.config/fontconfig/fonts.conf"
 force_link "$ROOT_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
 force_link "$ROOT_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
 force_link "$ROOT_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
@@ -51,5 +52,18 @@ force_link "$ROOT_DIR/configs/opencode/plugins/linux-notify" "$HOME/.config/open
 force_link "$ROOT_DIR/configs/opencode/opencode-quota/quota-toast.json" "$HOME/.config/opencode/opencode-quota/quota-toast.json"
 force_link "$HOME/.cache/hypr/theme-colors-rofi.rasi" "$HOME/.config/rofi/theme-colors-rofi.rasi"
 force_copy "$ROOT_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
+
+# ~/.local/bin/noxctl was a 3.4 MB *copy* of the cargo build output, so it
+# silently drifted: the copy was rebuilt on a different day than target/release
+# and neither the gate nor any check noticed. Link it instead.
+#
+# Skipped when the binary has not been built yet — a dangling symlink is worse
+# than a stale copy, and `cargo build --release -p noxctl` fixes it.
+if [[ -x "$ROOT_DIR/target/release/noxctl" ]]; then
+  force_link "$ROOT_DIR/target/release/noxctl" "$HOME/.local/bin/noxctl"
+else
+  echo "skip ~/.local/bin/noxctl: target/release/noxctl not built" >&2
+  echo "  fix: cargo build --release --manifest-path cli/noxctl/Cargo.toml" >&2
+fi
 
 echo "Normalization complete."

@@ -33,6 +33,10 @@ ProviderModel {
     property string warningLevel: "unknown"
     property bool critical: false
 
+    // BatteryModel used to expose this as `present` and is now merged here.
+    // Views still read `battery.present`, so keep the name.
+    readonly property bool present: batteryPresent
+
     // ── Power profiles ──
     // `activeProfile` is the empty string when no daemon is reachable;
     // `profilesAvailable` makes that distinction explicit so the UI can
@@ -94,7 +98,8 @@ ProviderModel {
         // when present; the daemon's own field `profiles_available` is the
         // single source of truth. We never fabricate profile names.
         profilesAvailable = next.profiles_available === true;
-        profileDataAvailable = profilesAvailable && Array.isArray(next.available_profiles);
+        profileDataAvailable = profilesAvailable && Utils.asArray(next.available_profiles).length >= 0
+            && next.available_profiles !== undefined;
         availableProfiles = profileDataAvailable ? next.available_profiles : [];
         activeProfile = profilesAvailable
             ? Utils.stringOr(next.active_profile, "")

@@ -961,7 +961,7 @@ async fn send_to_peer(
                 id: id.clone(),
                 file_name: name,
                 size: meta.len(),
-                file_type: mime_guess_for(&path),
+                file_type: mime_guess_for(path),
                 sha256: None,
                 preview: None,
             },

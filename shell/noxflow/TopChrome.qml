@@ -1,6 +1,8 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import "bar" as Bar
+import "island" as Island
 import "theme" as Theme
 
 // The only top chrome layer. Bar and NoxIsland are ordinary child items so
@@ -28,7 +30,11 @@ PanelWindow {
     screen: root.screen
     anchors.top: true; anchors.left: true; anchors.right: true
     exclusiveZone: Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
-    implicitHeight: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightToolbar), island.implicitHeight)
+    // Bar pills are vertically centred in the toolbar; offset the island by the
+    // same amount so the idle pill shares their baseline instead of hugging
+    // the screen edge.
+    readonly property real islandTopMargin: Theme.Tokens.scaled((Theme.Tokens.heightToolbar - Theme.Tokens.islandIdleHeight) / 2)
+    implicitHeight: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightToolbar), island.implicitHeight + islandTopMargin)
     color: "transparent"
     aboveWindows: true
     // Keep transparent pixels click-through. The bar remains interactive
@@ -46,7 +52,7 @@ PanelWindow {
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
 
-    Bar {
+    Bar.Bar {
         id: bar
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         height: Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
@@ -59,15 +65,16 @@ PanelWindow {
         islandHost: island
     }
 
-    NoxIsland {
+    Island.IslandHost {
         id: island
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+        anchors.topMargin: root.islandTopMargin
         screen: root.screen
         noxd: root.noxd; audio: root.audio; brightness: root.brightness
         hyprland: root.hyprland
         battery: root.battery; network: root.network; bluetooth: root.bluetooth
         media: root.media; notificationModel: root.notificationModel; systemModel: root.systemModel
-        transfer: root.transfer; syncthing: root.syncthing; updates: root.updates
+        updates: root.updates
         calModel: root.calModel
         launcherComponent: root.launcherComponent
         activityController: root.activityController

@@ -1,0 +1,7 @@
+{
+  "name": "demo",
+  "version": "1.4.2",
+  "private": true,
+  "scripts": { "build": "tsc -p .", "test": "vitest run" },
+  "limits": { "retries": 3, "timeoutMs": 2500.5, "strict": false, "proxy": null }
+}

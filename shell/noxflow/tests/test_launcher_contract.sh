@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 QML="$ROOT/shell/noxflow/surfaces/launcher/Launcher.qml"
 RADIAL="$ROOT/shell/noxflow/surfaces/radialmenu/RadialWheel.qml"
-ISLAND="$ROOT/shell/noxflow/NoxIsland.qml"
+ISLAND="$ROOT/shell/noxflow/island"
 TOP_CHROME="$ROOT/shell/noxflow/TopChrome.qml"
 TEXT_FIELD="$ROOT/shell/noxflow/components/TextField.qml"
 SHELL="$ROOT/shell/noxflow/shell.qml"
@@ -49,9 +49,13 @@ fi
 
 # Super+Space must be hosted by the existing Dynamic Island. A launcher entry
 # in MorphSurface would create a second layer window and regress the morph.
-has 'launcherVisible' "$ISLAND"
-has 'sourceComponent: root.launcherComponent' "$ISLAND"
-has 'height: parent.height' "$ISLAND"
+# Phase 3 split the island: the launcher overlay lives in island/IslandLayers.qml
+# (the Loader) while the host in island/IslandHost.qml exposes the toggle.
+has 'launcherVisible' "$ISLAND/IslandLayers.qml"
+has 'sourceComponent: root.launcherComponent' "$ISLAND/IslandLayers.qml"
+has 'function toggleLauncher()' "$ISLAND/IslandLayers.qml"
+has 'function toggleLauncher()' "$ISLAND/IslandHost.qml"
+has 'height: parent.height' "$ISLAND/IslandCard.qml"
 if grep -Fq '"launcher": launcherComponent' "$SHELL"; then
   printf 'launcher must not be registered in MorphSurface\n' >&2
   exit 1
@@ -78,10 +82,74 @@ has 'Super + Space' "$KEYBINDS"
 has 'Rofi' "$KEYBINDS"
 has 'NoxFlow' "$KEYBINDS"
 
-# NF-07: AI stale callback protection — generation counter invalidates old requests
-has 'aiGeneration' "$QML"
-has 'aiGeneration++' "$QML"
-has 'pendingAiQuery = ""' "$QML"
+# NF-07: AI stale callback protection. The guard moved to the shared
+# services/AiClient.qml (decision 4), so assert it there rather than in the
+# launcher, which is now a thin adapter over that client.
+AI_CLIENT="$ROOT/shell/noxflow/services/AiClient.qml"
+has 'generation' "$AI_CLIENT"
+has 'gen !== generation' "$AI_CLIENT"
+has 'function reset()' "$AI_CLIENT"
+has 'aiClient.reset()' "$QML"
+# The launcher must not carry its own AI transport any more.
+if grep -Fq 'new XMLHttpRequest()' "$QML"; then
+  printf 'launcher must use the shared AiClient, not its own XMLHttpRequest\n' >&2
+  exit 1
+fi
+if grep -Fq 'NOXFLOW_AI_ENDPOINT' "$QML"; then
+  printf 'launcher must not read AI configuration from env vars\n' >&2
+  exit 1
+fi
+
+# Phase 1 — no view may launch a binary that is not installed on this
+# workstation, and no view may hardcode an external command at all.
+APPS="$ROOT/shell/noxflow/config/Apps.qml"
+has 'command -v' "$APPS"
+has 'function unavailableReason' "$APPS"
+# A view may name an uninstalled program in a comment or in the nerd-font icon
+# map, but never as an executed command. These patterns match the invocation
+# contexts only: a Process command array, an action payload's command field, or
+# a raw shell pipeline stage.
+INVOKE_RE='command: *\[[^]]*"$stale"|command: *\[? *"$stale"|command: *"$stale"|command:"$stale"|\| *"$stale" |&& *"$stale"'
+for stale in gnome-control-center zenity magick thunar; do
+  hits="$(grep -RnE "$INVOKE_RE" \
+      "$ROOT/shell/noxflow/surfaces" "$ROOT/shell/noxflow/bar" \
+      "$ROOT/shell/noxflow/island" "$ROOT/shell/noxflow/shell.qml" 2>/dev/null || true)"
+  if [ -n "$hits" ]; then
+    printf 'view still invokes the uninstalled program: %s\n%s\n' "$stale" "$hits" >&2
+    exit 1
+  fi
+done
+# Quickshell.exec does not exist in 0.3.1; only execDetached does. Scope the
+# search to shipped shell code — the test files assert on the very string they
+# are forbidding.
+if grep -Rq 'Quickshell\.exec(' "$ROOT/shell/noxflow" \
+    --include='*.qml' --include='*.js' --exclude-dir=tests; then
+  printf 'Quickshell.exec() is not available in this Quickshell version\n' >&2
+  grep -Rn 'Quickshell\.exec(' "$ROOT/shell/noxflow" \
+    --include='*.qml' --include='*.js' --exclude-dir=tests >&2
+  exit 1
+fi
+# noxd rejects ai_query (probed); the shell must not send it. Comments may
+# name the rejected action to explain why it is not used.
+if grep -Rn 'ai_query' "$ROOT/shell/noxflow" \
+    --include='*.qml' --include='*.js' --exclude-dir=tests \
+    | grep -vE ':[0-9]+: *//' >/dev/null; then
+  printf 'ai_query is not a valid noxd action\n' >&2
+  grep -Rn 'ai_query' "$ROOT/shell/noxflow" \
+    --include='*.qml' --include='*.js' --exclude-dir=tests >&2
+  exit 1
+fi
+# The shell unit has no ExecReload, so "reload" must never be used.
+if grep -Rq '"reload", *"noxflow-shell' "$ROOT/shell/noxflow" \
+    --include='*.qml' --include='*.js' --exclude-dir=tests; then
+  printf 'noxflow-shell.service has no ExecReload; use restart\n' >&2
+  exit 1
+fi
+# dunstctl has no get-paused subcommand.
+if grep -Rq 'get-paused' "$ROOT/shell/noxflow" --exclude-dir=tests; then
+  printf 'dunstctl get-paused is not a valid command; use is-paused\n' >&2
+  exit 1
+fi
 
 # NF-08: Calculator returns structured result with valid/display/value fields
 has 'function evaluateCalc' "$QML"

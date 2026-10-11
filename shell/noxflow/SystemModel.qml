@@ -23,6 +23,7 @@ import QtQml
 import Quickshell
 import Quickshell.Io
 import "SystemSnapshot.js" as Snapshot
+import "components" as Components
 
 QtObject {
     id: root
@@ -89,57 +90,105 @@ QtObject {
         onTriggered: root.pollAll()
     }
 
+    // Decision 8: query the discrete NVIDIA GPU only while something is
+    // actually showing GPU numbers.
+    //
+    // `nvidia-smi` pokes the dGPU out of its low-power state on every call,
+    // and this snapshot ran every two seconds for the life of the shell — so a
+    // machine that was otherwise idle kept the dGPU awake. The island's
+    // health dashboard sets this while it is open and clears it on close;
+    // everything else (CPU, memory, thermals, disk) polls regardless.
+    property bool gpuPollingEnabled: false
+    // The integrated GPU lives on sysfs, so it is free to read. Only the
+    // nvidia-smi call is gated.
+    readonly property bool integratedGpuAvailable: integratedGpuSeen
+
+    property bool integratedGpuSeen: false
+
+    onGpuPollingEnabled: function (enabled) {
+        // Learn once whether an integrated card exists, so the snapshot script
+        // can skip the whole GPU section when the dashboard is closed.
+        if (enabled) { gpuRequested = true; pollAll(); }
+    }
+    property bool gpuRequested: false
+
+    function gpuSection() {
+        if (!root.gpuRequested && !root.gpuPollingEnabled) return "printf 'GPU=NA\\n'; ";
+        var nvidia =
+            "nvidia=$(timeout -k 1 1 nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,power.draw,temperature.gpu,index,name --format=csv,noheader,nounits 2>/dev/null | head -1 || true); " +
+            "if [ -n \"$nvidia\" ]; then " +
+            "  gpu=$(printf '%s' \"$nvidia\" | awk -F, '{name=$7; for (i=8; i<=NF; i++) name=name \",\" $i; printf \"%s|%s|%s|%s|%s|%s|nvidia|%s\\n\", $1, $2, $3, $4, $5, name, $6}'); " +
+            "else " +
+            // Integrated: discover the card directory name from sysfs.
+            // This must NOT hardcode card numbers — every value comes from
+            // glob expansion at runtime.
+            "  card=$(awk 'FNR==1 {n=split(FILENAME, p, \"/\"); c=p[n-2]; print c; exit}' /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null || true); " +
+            "  busy=$(awk 'FNR==1 {print; exit}' /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null || true); " +
+            "  if [ -n \"$busy\" ]; then " +
+            "    gpu=\"$busy|0|0|0|0|Integrated GPU|integrated|${card:-unknown}\"; " +
+            "  else " +
+            "    gpu=\"\"; " +
+            "  fi; " +
+            "fi; " +
+            "printf 'GPU=%s\\n' \"${gpu:-NA}\"";
+        return nvidia;
+    }
+
     // ── Per-snapshot Process ──
     // The shell command emits one `KEY=value` per metric. The GPU line layout
     // is busy|memUsed|memTotal|power|temp|name|source|sourceId so that
     // names containing commas round-trip cleanly through awk -F,. The
     // integrated source is identified by its sysfs card directory name
     // (`card0`, `card1`, …) discovered via glob — never hardcoded.
-    property Process snapshotProcess: Process {
-        id: snapshotProcess
-        running: false
+    property Components.Command snapshotProcess: Components.Command {
+        label: "System snapshot"
+        // Command is built below; this placeholder keeps the property
+        // declaration readable, refresh() assigns the real script.
         command: ["sh", "-c",
             "set -u; " +
             "set -- $(sed -n '1{s/^cpu[[:space:]]*//;p;q}' /proc/stat); printf 'CPU=%s %s %s %s %s %s %s %s\\n' \"$1\" \"$2\" \"$3\" \"$4\" \"${5:-0}\" \"${6:-0}\" \"${7:-0}\" \"${8:-0}\"; " +
             "awk '/^MemTotal:/ {t=$2} /^MemAvailable:/ {a=$2} /^SwapTotal:/ {s=$2} /^SwapFree:/ {f=$2} END {if (t>0 && a>=0) printf \"MEM=%.0f %.0f\\n\",t,a; if (s>0) printf \"SWAP=%.0f %.0f\\n\",s,f}' /proc/meminfo; " +
             "df -Pk / | awk 'NR==2 {printf \"DISK=%.0f %.0f\\n\",$3,$2}'; " +
-            "temp=$(awk 'FNR==1 && ($1+0)>m {m=$1+0} END {if (m>0) print m}' /sys/class/thermal/thermal_zone*/temp 2>/dev/null || true); printf 'TEMP=%s\\n' \"${temp:-NA}\"; " +
+            // CPU temperature comes from the CPU's own hwmon driver
+            // (coretemp on Intel, k10temp on AMD), whose temp1_input is the
+            // package sensor. This used to be the max over every
+            // thermal_zone*/temp, which on this machine also spans the WiFi
+            // radio (58C), ACPI and DIMM sensors — so the number labelled "CPU"
+            // was frequently not the CPU at all.
+            "temp=$(" +
+                "for c in /sys/class/hwmon/hwmon*; do " +
+                "[ -r \"$c/name\" ] || continue; " +
+                "case \"$(cat \"$c/name\")\" in coretemp|k10temp) [ -r \"$c/temp1_input\" ] && cat \"$c/temp1_input\" && break;; esac; " +
+                "done" +
+                " 2>/dev/null || true); " +
+            // Fallback for a kernel with no coretemp/k10temp: x86_pkg_temp is
+            // the package sensor rather than an arbitrary max. Only if that is
+            // missing too do we fall back to the old max-over-zones scan.
+            "[ -n \"$temp\" ] || temp=$(for z in /sys/class/thermal/thermal_zone*; do " +
+                "[ \"$(cat \"$z/type\" 2>/dev/null)\" = x86_pkg_temp ] && cat \"$z/temp\" 2>/dev/null && break; " +
+                "done); " +
+            "[ -n \"$temp\" ] || temp=$(awk 'FNR==1 && ($1+0)>m {m=$1+0} END {if (m>0) print m}' /sys/class/thermal/thermal_zone*/temp 2>/dev/null || true); " +
+            "printf 'TEMP=%s\\n' \"${temp:-NA}\"; " +
             "freq=$(awk '/cpu MHz/ {sum+=$4; c++} END {if(c>0) printf \"%.0f\", sum/c}' /proc/cpuinfo 2>/dev/null || echo 'NA'); printf 'FREQ=%s\\n' \"$freq\"; " +
             "read l1 l5 l15 rest < /proc/loadavg; printf 'LOAD=%s %s %s\\n' \"$l1\" \"$l5\" \"$l15\"; " +
-            // One bounded NVIDIA query. The first six CSV fields are fixed;
-            // awk rejoins every remaining field as the name, preserving
-            // uncommon names containing commas.
-            "nvidia=$(timeout -k 1 1 nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,power.draw,temperature.gpu,index,name --format=csv,noheader,nounits 2>/dev/null | head -1 || true); " +
-            "if [ -n \"$nvidia\" ]; then " +
-              "  gpu=$(printf '%s' \"$nvidia\" | awk -F, '{name=$7; for (i=8; i<=NF; i++) name=name \",\" $i; printf \"%s|%s|%s|%s|%s|%s|nvidia|%s\\n\", $1, $2, $3, $4, $5, name, $6}'); " +
-            "else " +
-              // Integrated: discover the card directory name from sysfs.
-              // This must NOT hardcode card numbers — every value comes from
-              // glob expansion at runtime.
-              "  card=$(awk 'FNR==1 {n=split(FILENAME, p, \"/\"); c=p[n-2]; print c; exit}' /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null || true); " +
-              "  busy=$(awk 'FNR==1 {print; exit}' /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null || true); " +
-              "  if [ -n \"$busy\" ]; then " +
-              "    gpu=\"$busy|0|0|0|0|Integrated GPU|integrated|${card:-unknown}\"; " +
-              "  else " +
-              "    gpu=\"\"; " +
-              "  fi; " +
-            "fi; " +
-            "printf 'GPU=%s\\n' \"${gpu:-NA}\""
+            // The GPU section is assembled by gpuSection(), which omits the
+            // nvidia-smi call entirely unless the dashboard asked for it.
+            root.gpuSection()
         ]
-        stdout: StdioCollector {
-            onStreamFinished: root.applySnapshot(this.text)
-        }
-        stderr: StdioCollector {
-            onStreamFinished: root.processError = String(this.text || "").trim()
-        }
         onExited: function(code) {
-            if (code !== 0 && !root.snapshotApplied) {
-                root.lastError = root.processError || "System snapshot command failed (exit " + code + ")";
-                root.markUnavailable();
-            } else if (!root.snapshotApplied && root.lastError === "") {
-                root.lastError = "System snapshot returned no valid data";
-                root.markUnavailable();
+            // Parse first: applySnapshot() is what sets snapshotApplied, so
+            // testing that flag before calling it made every poll look like an
+            // empty snapshot and the dashboard stayed "Telemetry unavailable".
+            if (code === 0) {
+                root.applySnapshot(root.snapshotProcess.output);
+                if (root.snapshotApplied) return;
             }
+            root.processError = root.snapshotProcess.errorOutput.trim();
+            root.lastError = code !== 0
+                ? root.snapshotProcess.failureText()
+                : "System snapshot returned no valid data"
+                    + (root.processError ? ": " + root.processError : "");
+            root.markUnavailable();
         }
     }
 
@@ -161,6 +210,11 @@ QtObject {
         if (snapshotProcess.running) return;
         snapshotApplied = false;
         processError = "";
+        // Not run(): that would replace the bound command (which tracks
+        // gpuSection()) with a one-off copy. Clear the buffers so this
+        // snapshot is not parsed together with the previous one.
+        snapshotProcess.output = "";
+        snapshotProcess.errorOutput = "";
         snapshotProcess.running = true;
     }
 

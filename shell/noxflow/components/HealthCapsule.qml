@@ -64,11 +64,11 @@ FocusScope {
     Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: root.hovered ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62); border.color: root.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: root.activeFocus ? 2 : 0 }
     RowLayout {
         id: values; anchors.centerIn: parent; spacing: Theme.Tokens.scaled(6)
-        Text { text: "\uF2DB"; color: Theme.Tokens.textSecondary; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }
+        Text { text: "\uF2DB"; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconXs }
         Text { text: root.cpuLabel; color: Theme.Tokens.textPrimary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium }
-        Text { text: "\uE266"; color: Theme.Tokens.textMuted; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }
+        Text { text: "\uE266"; color: Theme.Tokens.textMuted; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconXs }
         Text { text: root.memoryLabel; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium }
-        Text { text: "\uF2C9"; color: root.temperatureColor; font.family: "Symbols Nerd Font Mono"; font.pixelSize: Theme.Tokens.iconXs }
+        Text { text: "\uF2C9"; color: root.temperatureColor; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconXs }
         Text { text: root.temperatureLabel; color: root.temperatureColor; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium }
     }
     HoverHandler { onHoveredChanged: root.ho = hovered }

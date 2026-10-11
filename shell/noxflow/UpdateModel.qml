@@ -6,12 +6,15 @@
 import QtQml
 import Quickshell
 import Quickshell.Io
+import "components" as Components
 
 QtObject {
     id: root
 
     property int count: 0
     property string tooltip: ""
+    // Set when the update script itself fails; empty means the last check worked.
+    property string lastError: ""
     property bool checked: false
     readonly property bool available: root.count > 0
 
@@ -29,31 +32,37 @@ QtObject {
 
     function poll() {
         if (procUpdate.running) return;
-        procUpdate.running = false;
-        procUpdate.running = true;
+        // stderr is deliberately NOT discarded: a failing script must say why.
+        procUpdate.run(["sh", "-c", "exec \"$HOME/.config/hypr/scripts/status-updates.sh\""]);
     }
 
-    property Process procUpdate: Process {
-        id: procUpdate
-        running: false
-        command: ["sh", "-c", "exec \"$HOME/.config/hypr/scripts/status-updates.sh\" 2>/dev/null || printf '{\"count\":0,\"text\":\"0\",\"tooltip\":\"Update status unavailable\"}'"]
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: function(data) {
-                var line = String(data).trim();
-                if (!line) return;
-                try {
-                    var state = JSON.parse(line);
-                    if (state && state.count !== undefined) {
-                        root.count = Math.max(0, parseInt(state.count, 10) || 0);
-                        root.tooltip = String(state.tooltip || "");
-                        root.checked = true;
-                    }
-                } catch (error) {
-                    // Malformed output — keep last known state but mark checked
-                    // so the bar pill settles instead of flashing.
+    property Components.Command procUpdate: Components.Command {
+        label: "Update check"
+        onExited: function(code) {
+            if (code !== 0) {
+                // Previously this command was
+                //   "... 2>/dev/null || printf '{"count":0,...}'"
+                // which turned every failure into a confident "0 updates" and
+                // made a broken script indistinguishable from an up-to-date
+                // machine. Now the failure is recorded instead.
+                root.lastError = root.procUpdate.failureText();
+                root.checked = true;   // let the pill settle rather than flash
+                console.warn("updates:", root.lastError);
+                return;
+            }
+            root.lastError = "";
+            var line = root.procUpdate.output.trim().split("\n")[0] || "";
+            if (!line) { root.checked = true; return; }
+            try {
+                var state = JSON.parse(line);
+                if (state && state.count !== undefined) {
+                    root.count = Math.max(0, parseInt(state.count, 10) || 0);
+                    root.tooltip = String(state.tooltip || "");
                     root.checked = true;
                 }
+            } catch (error) {
+                root.checked = true;
+                console.warn("updates: malformed output:", line);
             }
         }
     }

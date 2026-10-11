@@ -7,6 +7,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "ModelUtils.js" as Utils
+import "components" as Components
 
 QtObject {
     id: root
@@ -77,6 +78,7 @@ QtObject {
     }
 
     property string pendingJson: ""
+    property bool createAfterMkdir: false
 
     property FileView storageFile: FileView {
         id: storageFile
@@ -91,7 +93,8 @@ QtObject {
             }
         }
         onLoadFailed: function(error) {
-            // First run: file doesn't exist yet. Ensure dir for later writes.
+            // First run: file doesn't exist yet. Create the dir, then the file.
+            root.createAfterMkdir = true;
             ensureDirProcess.running = true;
         }
         onSaveFailed: function(error) {
@@ -100,10 +103,17 @@ QtObject {
         }
     }
 
-    property Process ensureDirProcess: Process {
-        id: ensureDirProcess
-        running: false
+    property Components.Command ensureDirProcess: Components.Command {
+        label: "Clipboard storage"
         command: ["mkdir", "-p", root.storageDir]
+        // Write the (possibly empty) history once the directory exists, so the
+        // file is there on the next start instead of warning on every boot.
+        // One-shot, and only after a failed load: onSaveFailed also runs
+        // mkdir, and saving from here unconditionally would loop forever on
+        // an existing but unwritable directory.
+        onExited: function(code) {
+            if (code === 0 && root.createAfterMkdir) { root.createAfterMkdir = false; root.save(); }
+        }
     }
 
     // ── Format helpers for launcher display ──

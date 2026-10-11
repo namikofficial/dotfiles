@@ -31,10 +31,10 @@ Item {
                 anchors.fill: parent; anchors.margins: Theme.Tokens.spacingLg; spacing: Theme.Tokens.spacingMd
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "Now playing"; color: Theme.Tokens.textPrimary; font.bold: true; font.pixelSize: Theme.Tokens.typographyTitleLarge; Layout.fillWidth: true }
+                    Text { text: "Now playing"; color: Theme.Tokens.textPrimary; font.bold: true; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.family: Theme.Tokens.typographyDisplayFamily; Layout.fillWidth: true }
                     Components.IconButton { iconText: "✕"; accessibleName: "Close media"; onClicked: lifecycle.requestClose("closeButton") }
                 }
-                Text { text: media.title || "Nothing is playing"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyHeadlineMedium; elide: Text.ElideRight; Layout.fillWidth: true }
+                Text { text: media.title || "Nothing is playing"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyHeadlineMedium; font.family: Theme.Tokens.typographyDisplayFamily; elide: Text.ElideRight; Layout.fillWidth: true }
                 Text { text: media.artists && media.artists.length ? media.artists.join(", ") : (media.album || ""); color: Theme.Tokens.textMuted; elide: Text.ElideRight; Layout.fillWidth: true }
                 Item { Layout.fillHeight: true }
                 RowLayout {
