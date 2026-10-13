@@ -68,21 +68,21 @@ button:hover {
 
 /* Generated palette overrides. */
 window {
-  background-color: rgba(1,3,9, 0.90);
-  background-image: linear-gradient(rgba(1,3,9, 0.80), rgba(1,3,9, 0.80)), url("/home/namik/Pictures/wallpaper/handpicked/4k/46. wallhaven-vpeek5_1920x1080.jpg"); background-size: cover; background-position: center;
+  background-color: rgba(2,4,5, 0.90);
+  background-image: linear-gradient(rgba(2,4,5, 0.80), rgba(2,4,5, 0.80)), url("/home/namik/Pictures/wallpaper/handpicked/1080p/38. wallhaven-7jeozo_1920x1080.jpg"); background-size: cover; background-position: center;
 }
 
 button {
   color: #f2f2f2;
-  background-color: rgba(37,25,23, 0.94);
-  border-color: rgba(79,139,149, 0.66);
+  background-color: rgba(35,26,23, 0.94);
+  border-color: rgba(47,143,158, 0.66);
 }
 
 button:hover,
 button:focus,
 button:active {
-  background-color: rgba(15,7,6, 0.98);
-  border-color: #0092a7;
+  background-color: rgba(14,8,6, 0.98);
+  border-color: #0097b5;
 }
 
 #firmware {

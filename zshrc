@@ -398,24 +398,26 @@ elif command -v github-copilot-cli >/dev/null 2>&1; then
   eval "$(github-copilot-cli alias -- zsh)"
 fi
 
-# Android SDK Configuration
-export ANDROID_SDK_ROOT="$HOME/Android/Sdk"
-export ANDROID_HOME="$ANDROID_SDK_ROOT"
-path=(
-  "$ANDROID_SDK_ROOT/emulator"
-  "$ANDROID_SDK_ROOT/platform-tools"
-  "$ANDROID_SDK_ROOT/build-tools/35.0.0"
-  "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin"
-  $path
-)
+# Android SDK paths and JAVA_HOME come from android-env.sh, sourced at the top.
 
 # Android Studio
-export ANDROID_STUDIO="/opt/android-studio"
+export ANDROID_STUDIO="$HOME/.local/opt/android-studio"
 export _JAVA_AWT_WM_NONREPARENTING=1
 
-# Gradle
-export GRADLE_HOME="$HOME/gradle/gradle-8.13"
-path=("$GRADLE_HOME/bin" $path)
+# Gradle (optional standalone install; projects normally use ./gradlew)
+if [ -d "$HOME/gradle/gradle-8.13/bin" ]; then
+  export GRADLE_HOME="$HOME/gradle/gradle-8.13"
+  path=("$GRADLE_HOME/bin" $path)
+fi
+
+# Unreal Engine (precompiled Linux build, extracted outside this repository)
+export UE_ROOT="${UE_ROOT:-$HOME/Games/UnrealEngine/UE_5.8.3}"
+if [ -x "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor" ]; then
+  # The NVIDIA dGPU cannot present to native Wayland surfaces here (Hyprland runs
+  # on Intel), so UE exits with "Cannot find a compatible Vulkan device that
+  # supports surface presentation". XWayland + PRIME offload keeps it on NVIDIA.
+  alias unreal='SDL_VIDEODRIVER=x11 __NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor"'
+fi
 
 # Zoxide (smarter cd)
 if command -v zoxide >/dev/null 2>&1; then

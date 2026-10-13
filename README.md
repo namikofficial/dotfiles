@@ -127,6 +127,9 @@ You can run package install via `sudo` too; the script now delegates AUR operati
 - `setup/nvidia-packages.txt`: NVIDIA kernel/userspace acceleration stack
 - `setup/aur-packages.txt`: AUR packages (`google-chrome`, `wlogout`, `localsend`)
 - `setup/install-hypr-plugins.sh`: builds/installs `hyprexpo` locally and loads it when possible
+- `setup/install-godot-android.sh`: after `godot` and `jdk17-openjdk` are installed, adds the
+  Android SDK packages Godot's export needs, sets the editor's Java/Android SDK paths, and
+  installs matching export templates (verified against the release's `SHA512-SUMS.txt`)
 
 ## Network stack standard
 

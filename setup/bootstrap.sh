@@ -238,6 +238,11 @@ link_path "$REPO_DIR/settings/features.env" "$HOME/.config/dotfiles/features.env
 link_path "$REPO_DIR/settings/machine.env" "$HOME/.config/dotfiles/machine.env"
 link_path "$REPO_DIR/android/android-env.conf" "$HOME/.config/environment.d/60-android.conf"
 link_path "$REPO_DIR/android/android-env.sh" "$HOME/.config/dotfiles/android-env.sh"
+# Unreal Engine looks for Android Studio only at ~/android-studio on Linux.
+if [ -x "$HOME/.local/opt/android-studio/bin/studio" ]; then
+  link_path "$REPO_DIR/android/unreal-studio.sh" "$HOME/android-studio/bin/studio.sh"
+  link_path "$HOME/.local/opt/android-studio/jbr" "$HOME/android-studio/jbr"
+fi
 link_path "$REPO_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
 link_path "$REPO_DIR/systemd/user/noxflow-session-optional.service" "$HOME/.config/systemd/user/noxflow-session-optional.service"
 link_path "$REPO_DIR/systemd/user/noxflow-shell.service" "$HOME/.config/systemd/user/noxflow-shell.service"

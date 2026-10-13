@@ -27,3 +27,12 @@ fi
 PATH=$ANDROID_PATH:$PATH
 export ANDROID_HOME ANDROID_SDK_ROOT JAVA_HOME PATH
 unset ANDROID_BUILD_TOOLS ANDROID_PATH
+
+# Unreal Engine's Android toolchain reads NDKROOT and needs the exact NDK pinned
+# in $UE_ROOT/Engine/Config/Android/Android_SDK.json (UE 5.8: r27c).
+UE_ANDROID_NDK_VERSION=27.2.12479018
+if [ -z "${NDKROOT:-}" ] && [ -d "$ANDROID_HOME/ndk/$UE_ANDROID_NDK_VERSION" ]; then
+  NDKROOT=$ANDROID_HOME/ndk/$UE_ANDROID_NDK_VERSION
+  export NDKROOT
+fi
+unset UE_ANDROID_NDK_VERSION

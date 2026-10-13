@@ -23,6 +23,7 @@ dog
 man-db
 man-pages
 git
+git-lfs
 github-cli
 git-delta
 tmux
@@ -187,3 +188,9 @@ dnsmasq
 edk2-ovmf
 swtpm
 dmidecode
+
+# Game development: Godot editor and the JDK 17 its Android export needs
+# (jdk17-openjdk provides jre17-openjdk and conflicts with an installed one).
+# Android SDK packages and export templates: setup/install-godot-android.sh
+godot
+jdk17-openjdk

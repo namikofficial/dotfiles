@@ -22,7 +22,7 @@ upsert_kv() {
 if [ -d "$prism_dir/instances" ]; then
   while IFS= read -r -d '' cfg; do
     upsert_kv "$cfg" "EnableFeralGamemode" "true"
-    upsert_kv "$cfg" "EnableMangoHud" "true"
+    upsert_kv "$cfg" "EnableMangoHud" "false"
     upsert_kv "$cfg" "OverridePerformance" "true"
     upsert_kv "$cfg" "UseDiscreteGpu" "true"
     upsert_kv "$cfg" "OverrideMemory" "true"
@@ -75,4 +75,4 @@ fi
 echo "Prism performance profile applied."
 echo "- Wrapper: ~/.config/hypr/scripts/prism-launcher.sh"
 echo "- Desktop entries overridden in: ~/.local/share/applications"
-echo "- Instance defaults: gamemode+mangohud+discrete GPU+JVM args+memory (${min_mem}-${max_mem} MB)"
+echo "- Instance defaults: gamemode+discrete GPU+JVM args+memory (${min_mem}-${max_mem} MB)"
