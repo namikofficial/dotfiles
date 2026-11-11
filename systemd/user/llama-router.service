@@ -1,0 +1,34 @@
+# Local llama.cpp router serving the agentic-coding lanes to pi and OpenCode.
+#
+# Managed by the dotfiles repository. Installed by setup/install-llama-router.sh.
+#
+# The router runs in llama.cpp router mode with a rendered preset
+# (~/.config/llama-router/models.ini) that pins each lane's context size and
+# GPU/CPU split.
+#
+# --models-max 1 is mandatory, not a default to change: llama.cpp otherwise
+# keeps four models resident, which is an immediate cudaMalloc OOM on the
+# 6 GB card and turns every request into an HTTP 500.
+#
+# This unit is intentionally NOT enabled at login. The workstation
+# documentation prioritises CUDA availability over battery, and a resident
+# model server costs both. Start it on demand:
+#
+#   system/llama-router/llama-router.sh start
+#
+[Unit]
+Description=llama.cpp router for local agentic-coding models
+Documentation=https://github.com/ggml-org/llama.cpp
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStartPre=%h/Documents/code/dotfiles/system/llama-router/render-preset.py
+ExecStart=/usr/bin/llama-server --models-preset %h/.config/llama-router/models.ini --host 127.0.0.1 --port 8080 --models-max 1
+Restart=on-failure
+RestartSec=5
+# The 35B lane maps ~10 GiB of expert weights; give it time to release them.
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

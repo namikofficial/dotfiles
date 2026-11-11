@@ -38,6 +38,7 @@ flowchart LR
 | `Super + Ctrl + Shift + Y` | Execute command | `~/.config/hypr/scripts/theme-pass.sh` |
 | `Super + Shift + ,` | Execute command | `~/.config/hypr/scripts/settings-hub.sh` |
 | `Super + Alt + M` | Execute command | `~/.config/hypr/scripts/minimize-window.sh restore` |
+| `Super + Ctrl + Alt + M` | Execute command | `~/.config/hypr/scripts/minimize-window.sh recover` |
 | `Super + Ctrl + ,` | Execute command | `~/.config/hypr/scripts/settings-hub.sh quick` |
 | `Super + Alt + ,` | Execute command | `~/.config/hypr/scripts/settings/editor.sh` |
 | `Super + Ctrl + Alt + ,` | Execute command | `~/.config/hypr/scripts/app-routing-apply-focused.sh` |

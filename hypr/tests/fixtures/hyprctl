@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Fake `hyprctl` for the minimize-window.sh test suite.
+
+Models the parts of Hyprland's IPC surface the script actually uses, including
+the two behaviours that make the script's own error handling tricky:
+
+  * `hyprctl eval` answers "ok" (exit 0) even when the addressed window does
+    not exist, so a dispatch result proves nothing on its own;
+  * `hyprctl eval` answers "error: =[C]:-1: Invalid workspace" (exit 7) when
+    the target workspace is unknown.
+
+State lives in the JSON file named by FAKE_HYPR_STATE.
+
+Test knobs:
+  FAKE_HYPR_STATE               path to the JSON state file (required)
+  FAKE_HYPR_FAIL_WORKSPACES     comma separated workspace targets whose
+                                moves must fail with exit 7
+  FAKE_HYPR_EVAL_SLEEP          seconds to sleep inside eval, used to widen
+                                the window in which two runs can interleave
+  FAKE_HYPR_ACTIVE_SEQ          comma separated addresses handed out by
+                                successive `activewindow` calls
+  FAKE_HYPR_ACTIVE_SEQ_COUNTER  file used to count `activewindow` calls
+"""
+
+import json
+import os
+import re
+import sys
+import time
+
+STATE_PATH = os.environ.get("FAKE_HYPR_STATE", "")
+FAIL_WORKSPACES = {
+    w.strip()
+    for w in os.environ.get("FAKE_HYPR_FAIL_WORKSPACES", "").split(",")
+    if w.strip()
+}
+EVAL_SLEEP = float(os.environ.get("FAKE_HYPR_EVAL_SLEEP", "0"))
+ACTIVE_SEQ = [
+    a.strip()
+    for a in os.environ.get("FAKE_HYPR_ACTIVE_SEQ", "").split(",")
+    if a.strip()
+]
+ACTIVE_SEQ_COUNTER = os.environ.get("FAKE_HYPR_ACTIVE_SEQ_COUNTER", "")
+
+SPECIAL_ID_BASE = -97
+
+
+def load_state():
+    with open(STATE_PATH, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def save_state(state):
+    tmp_path = STATE_PATH + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(state, handle)
+    os.replace(tmp_path, STATE_PATH)
+
+
+def next_sequenced_address():
+    """Hand out the next address of the configured sequence.
+
+    The counter is bumped with an O_APPEND write so that two concurrent
+    invocations cannot read the same slot.
+    """
+    if not ACTIVE_SEQ:
+        return None
+    if not ACTIVE_SEQ_COUNTER:
+        return ACTIVE_SEQ[0]
+
+    fd = os.open(ACTIVE_SEQ_COUNTER, os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0o644)
+    try:
+        os.write(fd, b"x")
+    finally:
+        os.close(fd)
+
+    with open(ACTIVE_SEQ_COUNTER, "rb") as handle:
+        calls = len(handle.read())
+    return ACTIVE_SEQ[(calls - 1) % len(ACTIVE_SEQ)]
+
+
+def find_workspace(state, target):
+    for workspace in state["workspaces"]:
+        if str(workspace["id"]) == str(target) or workspace["name"] == target:
+            return workspace
+    return None
+
+
+def ensure_special_workspace(state, name):
+    for workspace in state["workspaces"]:
+        if workspace["name"] == name:
+            return workspace
+
+    special_id = SPECIAL_ID_BASE
+    for workspace in state["workspaces"]:
+        if workspace["id"] < special_id:
+            special_id = workspace["id"] - 1
+
+    workspace = {"id": special_id, "name": name}
+    state["workspaces"].append(workspace)
+    return workspace
+
+
+def find_client(state, address):
+    for client in state["clients"]:
+        if client["address"] == address:
+            return client
+    return None
+
+
+def eval_lua(state, lua):
+    time.sleep(EVAL_SLEEP)
+
+    if "dsp.window.move" not in lua:
+        if "dsp.focus" in lua:
+            match = re.search(r'window\s*=\s*"address:([^"]*)"', lua)
+            if match:
+                client = find_client(state, match.group(1))
+                if client:
+                    state["active"] = client["address"]
+        elif "dsp.window.fullscreen" in lua:
+            match = re.search(r'window\s*=\s*"address:([^"]*)"', lua)
+            mode_match = re.search(r'mode\s*=\s*"([^"]*)"', lua)
+            action_match = re.search(r'action\s*=\s*"([^"]*)"', lua)
+            if match:
+                client = find_client(state, match.group(1))
+                if client:
+                    action = action_match.group(1) if action_match else "set"
+                    mode = mode_match.group(1) if mode_match else ""
+                    if action == "unset":
+                        client["fullscreen"] = 0
+                    elif mode == "maximized":
+                        client["fullscreen"] = 1
+                    elif mode == "fullscreen":
+                        client["fullscreen"] = 2
+        save_state(state)
+        print("ok")
+        return 0
+
+    workspace_match = re.search(r'workspace\s*=\s*"([^"]*)"', lua)
+    address_match = re.search(r'window\s*=\s*"address:([^"]*)"', lua)
+
+    if not workspace_match:
+        # out_of_group style move: nothing to do.
+        save_state(state)
+        print("ok")
+        return 0
+
+    target = workspace_match.group(1)
+    if target in FAIL_WORKSPACES:
+        print("error: =[C]:-1: Invalid workspace", file=sys.stderr)
+        return 7
+
+    workspace = find_workspace(state, target)
+    if workspace is None and target.startswith("special:"):
+        workspace = ensure_special_workspace(state, target)
+    if workspace is None:
+        print("error: =[C]:-1: Invalid workspace", file=sys.stderr)
+        return 7
+
+    if address_match:
+        client = find_client(state, address_match.group(1))
+        if client:
+            client["workspace"] = {"id": workspace["id"], "name": workspace["name"]}
+
+    save_state(state)
+    print("ok")
+    return 0
+
+
+def main(argv):
+    if not STATE_PATH:
+        print("FAKE_HYPR_STATE is not set", file=sys.stderr)
+        return 2
+
+    if not argv:
+        print("usage: hyprctl [-j] <command>", file=sys.stderr)
+        return 2
+
+    json_mode = False
+    if argv[0] == "-j":
+        json_mode = True
+        argv = argv[1:]
+
+    if not argv:
+        print("usage: hyprctl [-j] <command>", file=sys.stderr)
+        return 2
+
+    command = argv[0]
+    state = load_state()
+
+    if command == "eval":
+        return eval_lua(state, argv[1] if len(argv) > 1 else "")
+
+    if command == "clients":
+        print(json.dumps(state["clients"]))
+        return 0
+
+    if command == "workspaces":
+        print(json.dumps(state["workspaces"]))
+        return 0
+
+    if command == "activeworkspace":
+        active_id = state.get("active_workspace", 1)
+        for workspace in state["workspaces"]:
+            if workspace["id"] == active_id:
+                print(json.dumps(workspace))
+                return 0
+        print(json.dumps({}))
+        return 0
+
+    if command == "activewindow":
+        address = next_sequenced_address() or state.get("active")
+        client = find_client(state, address) if address else None
+        print(json.dumps(client if client else {}))
+        return 0
+
+    if command == "version":
+        print("Hyprland 0.56.2 (fake)")
+        return 0
+
+    print(f"unsupported command: {command}", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

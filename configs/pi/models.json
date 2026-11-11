@@ -1,0 +1,141 @@
+{
+  "providers": {
+    "llama-cpp": {
+      "baseUrl": "http://127.0.0.1:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "local",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "qwen35-4b-224k",
+          "name": "Qwen3.5 4B Local (224K, fastest)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 229376,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "qwen35-4b-288k",
+          "name": "Qwen3.5 4B Local (288K, IQ3)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 294912,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "qwen35-9b-160k",
+          "name": "Qwen3.5 9B Local (160K, strongest reasoning)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 163840,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "qwen36-35b-400k",
+          "name": "Qwen3.6 35B-A3B Local (400K session)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 409600,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "qwen36-35b-131k",
+          "name": "Qwen3.6 35B-A3B Local (131K, faster)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 131072,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "omnicoder-9b-96k",
+          "name": "OmniCoder 9B Local (96K, A/B only)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 98304,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "qwopus-9b-96k",
+          "name": "Qwopus3.5 9B Coder Local (96K, A/B only)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 98304,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "maestro-9b-16k",
+          "name": "Maestro 2 9B Local (16K, short tasks only)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 16384,
+          "maxTokens": 16384,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "ling-tiny-64k",
+          "name": "Ling 3.0 Tiny SFT-Agentic Local (64K, weak)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 65536,
+          "maxTokens": 32768,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      ]
+    }
+  }
+}

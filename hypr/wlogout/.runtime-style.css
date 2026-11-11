@@ -57,8 +57,8 @@ button:hover {
 }
 
 #shutdown {
-  background-color: rgba(239,32,48, 0.3);
-  border-color: #ef2030;
+  background-color: rgba(228,4,38, 0.3);
+  border-color: #e40426;
   background-image: url("/usr/share/wlogout/icons/shutdown.png");
 }
 
@@ -68,20 +68,20 @@ button:hover {
 
 /* Generated palette overrides. */
 window {
-  background-color: rgba(2,4,5, 0.90);
-  background-image: linear-gradient(rgba(2,4,5, 0.80), rgba(2,4,5, 0.80)), url("/home/namik/Pictures/wallpaper/handpicked/1080p/38. wallhaven-7jeozo_1920x1080.jpg"); background-size: cover; background-position: center;
+  background-color: rgba(0,0,0, 0.90);
+  background-image: linear-gradient(rgba(0,0,0, 0.80), rgba(0,0,0, 0.80)), url("/home/namik/Pictures/wallpaper/handpicked/1080p/28.  wallhaven-zp92gy.jpg"); background-size: cover; background-position: center;
 }
 
 button {
   color: #f2f2f2;
-  background-color: rgba(35,26,23, 0.94);
+  background-color: rgba(6,13,16, 0.94);
   border-color: rgba(47,143,158, 0.66);
 }
 
 button:hover,
 button:focus,
 button:active {
-  background-color: rgba(14,8,6, 0.98);
+  background-color: rgba(0,1,2, 0.98);
   border-color: #0097b5;
 }
 

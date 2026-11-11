@@ -116,6 +116,33 @@ dotfiles), run:
 ./setup/install-noxorigin-profile.sh
 ```
 
+## SSH configuration
+
+`~/.ssh/config` is owned by this repository as `ssh/config`. `setup/bootstrap.sh`
+installs it on every run (`--no-ssh-config` to skip), and it can be run directly:
+
+```sh
+./setup/install-ssh-config.sh            # back up the current file, then link
+./setup/install-ssh-config.sh --dry-run
+./setup/install-ssh-config.sh --restore
+```
+
+Because `~/.ssh/config` becomes a symlink, edit `ssh/config` rather than the
+target. The current file is backed up to `~/.ssh/config.bak-<timestamp>` before
+it is replaced.
+
+NoxOrigin hosts use these aliases:
+
+| Alias | Target | Use |
+| --- | --- | --- |
+| `nox` | `server.noxorigin.com` | the current server |
+| `nox-tunnel` | `server.noxorigin.com` | local PostgreSQL/Redis forwards for development |
+| `noxorigin` | `31.97.202.202` | previous server, kept as the migration rollback path |
+| `noxorigin-tunnel` | `31.97.202.202` | previous server's development forwards |
+
+The deployment tooling defaults to `NOXORIGIN_SSH_ALIAS=noxorigin`; export
+`NOXORIGIN_SSH_ALIAS=nox` to deploy to the current server.
+
 You can run package install via `sudo` too; the script now delegates AUR operations to your normal user automatically.
 
 ## Package manifests

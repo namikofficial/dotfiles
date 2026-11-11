@@ -76,9 +76,31 @@ sudo systemctl stop docker.service docker.socket containerd.service
 sudo systemctl start docker.socket
 ```
 
-The local CUDA model router no longer starts at login. Existing local-AI
-surfaces and `llama-swap-manager start` still start it explicitly. NVIDIA
-remains loaded because this workstation prioritizes CUDA availability and the
+The local CUDA model router does not start at login. It is a user unit
+(`llama-router.service`) managed by `setup/install-llama-router.sh` and started
+on demand:
+
+```sh
+llama-router start     # render the preset and start the unit
+llama-router status    # unit state, health and the available lanes
+llama-router stop
+```
+
+The router is llama.cpp in router mode, serving the agentic-coding lanes
+defined in `system/llama-router/models.ini.template`. Two properties of it are
+load-bearing on this hardware and must not be changed casually:
+
+- It runs with `--models-max 1`. The llama.cpp default keeps four models
+  resident, which is an immediate `cudaMalloc` OOM on the 6 GB card and turns
+  every request into an HTTP 500.
+- Context sizes are pinned per lane and were measured, not estimated. A lane
+  that does not fit its measured ceiling must not be widened.
+
+`setup/test-local-models.sh` checks the rendered preset against the models on
+disk and against the pi catalogue, so a lane cannot drift between the router
+and the client.
+
+NVIDIA remains loaded because this workstation prioritizes CUDA availability and the
 known-stable hybrid configuration over the additional battery saving from an
 iGPU-only boot.
 

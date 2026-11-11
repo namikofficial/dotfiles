@@ -15,10 +15,23 @@ mkdir -p "$CONFIG_DIR"
 ln -sfn "$NOXORIGIN_REPO" "$CONFIG_DIR/repo-root"
 printf 'NoxOrigin repo link: %s -> %s\n' "$CONFIG_DIR/repo-root" "$NOXORIGIN_REPO"
 
-if ssh -o BatchMode=yes -o ConnectTimeout=5 noxorigin 'true' >/dev/null 2>&1; then
-  printf 'SSH alias noxorigin: OK\n'
-else
-  printf 'SSH alias noxorigin: unavailable (configure ~/.ssh/config separately)\n' >&2
+# `nox` is the current server. `noxorigin` is the previous one, kept as the
+# rollback path during a migration, so both are probed and neither is required.
+ssh_status=0
+for alias in nox noxorigin; do
+  if ssh -o BatchMode=yes -o ConnectTimeout=5 "$alias" 'true' >/dev/null 2>&1; then
+    printf 'SSH alias %-10s OK\n' "$alias"
+  else
+    printf 'SSH alias %-10s unreachable\n' "$alias"
+    ssh_status=1
+  fi
+done
+
+if [ "$ssh_status" -ne 0 ]; then
+  printf '\nAt least one server alias is unreachable. Check ~/.ssh/config, or install the\n' >&2
+  printf 'managed config with: %s/setup/install-ssh-config.sh\n' "$REPO_DIR" >&2
+  printf 'If the new VPS has not accepted the public key yet, see Phase 0 of\n' >&2
+  printf 'noxorigin/docs/VPS_MIGRATION_PLAN.md.\n' >&2
   exit 1
 fi
 

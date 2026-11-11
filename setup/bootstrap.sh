@@ -26,6 +26,7 @@ INSTALL_LOCAL_AI_MODELS=0
 INSTALL_ZSH_PLUGINS=1
 INSTALL_TMUX_PLUGINS=1
 INSTALL_HYPR_PLUGINS=0
+INSTALL_SSH_CONFIG=1
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 usage() {
@@ -33,6 +34,7 @@ usage() {
 Usage: $0 [options]
   --scripts-dir PATH   Path to scripts repo (default: auto-detect private/scripts, then legacy locations)
   --install-packages   Run setup/install-packages.sh after linking
+  --no-ssh-config      Do not install the repository-managed ~/.ssh/config
   --with-aur           Include AUR packages (requires yay)
   --with-nvidia        Opt in to repo-managed NVIDIA package installation
   --no-nvidia          Skip repo-managed NVIDIA package installation
@@ -60,6 +62,7 @@ while (($#)); do
       }
       ;;
     --install-packages) RUN_PACKAGES=1 ;;
+    --no-ssh-config) INSTALL_SSH_CONFIG=0 ;;
     --with-aur) WITH_AUR=1 ;;
     --with-nvidia) WITH_NVIDIA="--with-nvidia" ;;
     --no-nvidia) WITH_NVIDIA="--no-nvidia" ;;
@@ -337,6 +340,15 @@ if ((RUN_PACKAGES)); then
   cmd=("$SCRIPT_DIR/install-packages.sh")
   ((WITH_AUR)) && cmd+=(--with-aur)
   [ -n "$WITH_NVIDIA" ] && cmd+=("$WITH_NVIDIA")
+  ((DRY_RUN)) && cmd+=(--dry-run)
+  "${cmd[@]}"
+fi
+
+# SSH config is owned by this repository. It is installed on every bootstrap
+# because ~/.ssh/config is the one file that silently changes behaviour
+# everywhere: a missing alias fails at the worst moment rather than loudly.
+if ((INSTALL_SSH_CONFIG)); then
+  cmd=("$SCRIPT_DIR/install-ssh-config.sh")
   ((DRY_RUN)) && cmd+=(--dry-run)
   "${cmd[@]}"
 fi

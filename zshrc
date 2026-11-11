@@ -910,3 +910,6 @@ export OPENCODE_EXPERIMENTAL_LSP_TOOL=true
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
+
+# kimi-code
+export PATH="/home/namik/.kimi-code/bin:$PATH"

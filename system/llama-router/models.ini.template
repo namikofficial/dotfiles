@@ -1,0 +1,92 @@
+# llama.cpp router preset template for the local agentic-coding lanes.
+#
+# Rendered by system/llama-router/render-preset.py into
+# ~/.config/llama-router/models.ini. The renderer substitutes the model root
+# and emits only the lanes whose GGUF is actually present on disk, so a
+# partial model install degrades instead of failing to load.
+#
+# ---------------------------------------------------------------------------
+# WHY THESE NUMBERS (measured on this workstation, not estimated)
+#
+# Hardware: RTX 4050 Max-Q (6141 MiB VRAM), i7-13620H (10C/16T, AVX-VNNI),
+# 15 GiB RAM + 65 GiB swap. Usable VRAM for llama.cpp buffers ~5661 MiB.
+#
+# Qwen3.5 and Qwen3.6 are HYBRID attention models: most layers are linear
+# attention (constant-size recurrent state) and only a few are full
+# attention (growing KV cache). That is what makes long context affordable.
+#
+#   Qwen3.5 family (8 full-attn + 24 linear layers):
+#     KV cache ........... 9,216 B per context token
+#     compute buffer .... 4,260 B per context token
+#     total ............. ~13.5 KiB per context token
+#
+#   Qwen3.6-35B (10 full-attn + 30 linear layers):
+#     KV cache ........... 5,760 B per context token
+#     compute buffer .... 2,865 B per context token
+#     total ............. ~8.4 KiB per context token
+#
+# Measured ceilings (context that actually loaded without OOM):
+#   Qwen3.5-4B  Q4_K_M .......... 229,376
+#   Qwen3.5-4B  UD-IQ3_XXS ..... 294,912
+#   Qwen3.5-9B  UD-IQ3_XXS ..... 163,840
+#   Qwen3.6-35B UD-IQ2_XXS ..... 409,600
+#
+# HARD RULES LEARNED BY MEASUREMENT - do not undo these:
+#
+#   1. The router MUST run with --models-max 1. The llama.cpp default is 4
+#      resident models; on a 6 GB card that is an immediate cudaMalloc OOM
+#      and every request fails with HTTP 500.
+#
+#   2. Never use IQ2_XXS on Qwen3.5-4B. It fits more context but corrupts
+#      the think block (orphan </think>) and breaks tool-call reliability.
+#      Measured: Q4_K_M scored 9/9 on the agentic eval, UD-IQ2_XXS scored
+#      4/9 (wrong tool called, orphan </think>, runaway repetition).
+#      IQ2_XXS IS safe on the Qwen3.6 35B MoE - measured 9/9 there.
+#
+#   3. For the 35B, --cpu-moe (every expert on CPU) is roughly 3.5x slower
+#      than --n-cpu-moe N, because prompt processing must touch all experts.
+#      N=38 is the exact ceiling at 409,600 context; N=37 fails to allocate.
+#
+# ---------------------------------------------------------------------------
+# LANE TABLE
+#
+# Format: <lane-id> | <path under model root> | <ctx-size> | <extra args>
+# Extra args are separated by semicolons. A lane whose file is missing from
+# disk is omitted from the rendered preset.
+#
+# Recommended subset for daily use:
+#   qwen35-4b-224k    fast default, highest measured generation speed
+#   qwen35-4b-288k    fast AND very large context
+#   qwen35-9b-160k    strongest reasoning that still fits at 160K
+#   qwen36-35b-400k   the only lane that holds a 400K session
+#
+# A/B only (each costs roughly 4x the context of the base model and did not
+# beat it on the hard eval):
+#   omnicoder-9b-96k, qwopus-9b-96k, maestro-9b-16k, ling-tiny-64k
+
+version = 1
+
+[*]
+n-gpu-layers = all
+cache-type-k = q4_0
+cache-type-v = q4_0
+flash-attn = on
+threads = 10
+threads-batch = 16
+batch-size = 256
+ubatch-size = 64
+parallel = 1
+jinja = true
+no-webui = true
+fit = off
+
+# lane-id | path | ctx-size | extra args
+qwen36-35b-400k | chat/qwen3.6-35b/Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf | 409600 | n-cpu-moe = 38;moe-cache-mib = 512
+qwen36-35b-131k | chat/qwen3.6-35b/Qwen3.6-35B-A3B-UD-IQ2_XXS.gguf | 131072 | n-cpu-moe = 30;moe-cache-mib = 512
+qwen35-4b-224k | chat/qwen3.5-4b/Qwen3.5-4B-Q4_K_M.gguf | 229376 |
+qwen35-4b-288k | chat/qwen3.5-4b/Qwen3.5-4B-UD-IQ3_XXS.gguf | 294912 |
+qwen35-9b-160k | chat/qwen3.5-9b/Qwen3.5-9B-UD-IQ3_XXS.gguf | 163840 |
+omnicoder-9b-96k | chat/omnicoder-9b/omnicoder-9b-q3_k_m.gguf | 98304 |
+qwopus-9b-96k | chat/qwopus-9b-coder/Qwopus3.5-9B-coder-Exp-Q3_K_M.gguf | 98304 |
+maestro-9b-16k | chat/maestro-9b/Maestro-2-9B-Preview-Q4_K_M.gguf | 16384 |
+ling-tiny-64k | chat/ling-tiny/Ling-3.0-tiny-sft-agentic-Q4_K_M.gguf | 65536 |

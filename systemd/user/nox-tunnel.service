@@ -1,0 +1,27 @@
+# SSH tunnel to the NoxOrigin server for local development.
+#
+# Managed by the dotfiles repository. Links in via setup/install-ssh-config.sh.
+#
+# The forwards bind 127.0.0.2 rather than 127.0.0.1 on purpose: the seed guard in
+# packages/database/scripts/seed.ts treats only localhost/127.0.0.1/::1 as
+# "local", so the remote-seed confirmation stays enforced whenever this is up.
+# That is why the repository .env points at 127.0.0.2 and not at 127.0.0.1.
+#
+# The host alias `nox-tunnel` is defined in ssh/config. Changing servers means
+# changing that alias, not this unit.
+[Unit]
+Description=SSH tunnel to the NoxOrigin server (Postgres 127.0.0.2:15432, Redis 127.0.0.2:16379)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N nox-tunnel
+Restart=always
+RestartSec=5
+# ExitOnForwardFailure in the ssh alias means a busy local port fails fast
+# instead of retrying silently, so a failed unit is visible in `systemctl
+# --user status` rather than looking like a slow tunnel.
+
+[Install]
+WantedBy=default.target

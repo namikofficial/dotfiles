@@ -36,6 +36,9 @@ exec(mainMod .. " + CTRL + SHIFT + Y", home .. "/.config/hypr/scripts/theme-pass
 -- Settings hub (terminal TUI) — distinct from QML panel on Super+,
 exec(mainMod .. " + SHIFT + comma", home .. "/.config/hypr/scripts/settings-hub.sh")
 exec(mainMod .. " + ALT + M", home .. "/.config/hypr/scripts/minimize-window.sh restore")
+-- Re-register windows parked in the hidden workspace without a state entry,
+-- so `restore` can reach them again.
+exec(mainMod .. " + CTRL + ALT + M", home .. "/.config/hypr/scripts/minimize-window.sh recover")
 exec(mainMod .. " + CTRL + comma", home .. "/.config/hypr/scripts/settings-hub.sh quick")
 exec(mainMod .. " + ALT + comma", home .. "/.config/hypr/scripts/settings/editor.sh")
 exec(mainMod .. " + CTRL + ALT + comma", home .. "/.config/hypr/scripts/app-routing-apply-focused.sh")

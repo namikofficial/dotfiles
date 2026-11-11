@@ -1,0 +1,100 @@
+# Managed by the dotfiles repository. Installed by
+# ~/.config/dotfiles/install-ssh-config.sh, which backs up the previous file
+# before linking this one.
+#
+# Edit this file, not ~/.ssh/config.
+
+# ---------------------------------------------------------------------------
+# NoxOrigin servers
+#
+# `nox` is the current server (server.noxorigin.com). `noxorigin` is the
+# previous server, kept deliberately: during a migration both hosts are live and
+# the older alias is the rollback path. Remove it only after the new host has
+# served real traffic and the old one has been explicitly retired.
+#
+# IdentityFile is the workstation key pair, reused across both hosts. Per-host
+# keys would be tidier, and are worth doing if these ever need separate
+# revocation.
+# ---------------------------------------------------------------------------
+
+Host nox
+  HostName server.noxorigin.com
+  User root
+  Port 22
+  IdentityFile ~/.ssh/id_ed25519
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+
+Host noxorigin
+  HostName 31.97.202.202
+  User root
+  Port 22
+  IdentityFile ~/.ssh/id_ed25519
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+
+# Tunnel access to a server's PostgreSQL and Redis for local development.
+#
+# Listens on 127.0.0.2 rather than 127.0.0.1 on purpose: the seed guard in
+# packages/database/scripts/seed.ts treats only localhost/127.0.0.1/::1 as
+# "local", so the remote-seed confirmation stays enforced when these forwards
+# are active.
+Host nox-tunnel
+  HostName server.noxorigin.com
+  User root
+  Port 22
+  IdentityFile ~/.ssh/id_ed25519
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+  ExitOnForwardFailure yes
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+  LocalForward 127.0.0.2:15432 127.0.0.1:5432
+  LocalForward 127.0.0.2:16379 127.0.0.1:6380
+
+# Previous server's tunnel, kept for the same rollback reason.
+Host noxorigin-tunnel
+  HostName 31.97.202.202
+  User root
+  Port 22
+  IdentityFile ~/.ssh/id_ed25519
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+  ExitOnForwardFailure yes
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
+  LocalForward 127.0.0.2:15432 127.0.0.1:5432
+  LocalForward 127.0.0.2:16379 127.0.0.1:6380
+
+# ---------------------------------------------------------------------------
+# Other hosts
+# ---------------------------------------------------------------------------
+
+Host trackme_root
+  HostName 31.97.202.202
+  User root
+  Port 22
+  IdentityFile ~/.ssh/id_ed25519
+  StrictHostKeyChecking accept-new
+
+# ---------------------------------------------------------------------------
+# GitHub
+#
+# IPv4 only. GitHub's SSH front end has no usable AAAA record, so letting ssh
+# try IPv6 first costs a connect timeout on every operation.
+# ---------------------------------------------------------------------------
+
+Host github.com
+  AddressFamily inet
+
+# ---------------------------------------------------------------------------
+# Options applied to every host
+#
+# ServerAlive settings are repeated per host above rather than set here, so
+# that `ssh -G <host>` shows the effective configuration for a single host
+# instead of hiding it behind a wildcard match.
+# ---------------------------------------------------------------------------
