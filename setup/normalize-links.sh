@@ -11,8 +11,18 @@ backup_if_exists() {
   fi
 }
 
+# force_link <src> <dst> [runtime] — link <dst> to <src>.
+#
+# A missing source is refused by default: a symlink that points at nothing is
+# a broken configuration, and it is harder to notice than a missing file. A
+# source that a daemon generates later is linked with the 'runtime' mode,
+# where the link is allowed to dangle until the daemon writes the file.
 force_link() {
-  local src="$1" dst="$2"
+  local src="$1" dst="$2" mode="${3:-strict}"
+  if [[ "$mode" != "runtime" && ! -e "$src" && ! -L "$src" ]]; then
+    echo "skip $dst: source does not exist: $src" >&2
+    return 0
+  fi
   mkdir -p "$(dirname "$dst")"
   if [[ -L "$dst" ]]; then
     local resolved_dst resolved_src
@@ -43,7 +53,6 @@ force_link "$ROOT_DIR/uwsm/env" "$HOME/.config/uwsm/env"
 force_link "$ROOT_DIR/wayle/config.toml" "$HOME/.config/wayle/config.toml"
 force_link "$ROOT_DIR/fontconfig/fonts.conf" "$HOME/.config/fontconfig/fonts.conf"
 force_link "$ROOT_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
-force_link "$ROOT_DIR/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf" "$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
 force_link "$ROOT_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
 force_link "$ROOT_DIR/configs/opencode/opencode.local-llamacpp.json" "$HOME/.config/opencode/opencode.json"
 force_link "$ROOT_DIR/configs/pi/models.json" "$HOME/.pi/agent/models.json"
@@ -51,7 +60,7 @@ force_link "$ROOT_DIR/configs/opencode/cli.json" "$HOME/.config/opencode/cli.jso
 force_link "$ROOT_DIR/configs/opencode/plugins/quota-v2" "$HOME/.config/opencode/plugins/quota-v2"
 force_link "$ROOT_DIR/configs/opencode/plugins/linux-notify" "$HOME/.config/opencode/plugins/linux-notify"
 force_link "$ROOT_DIR/configs/opencode/opencode-quota/quota-toast.json" "$HOME/.config/opencode/opencode-quota/quota-toast.json"
-force_link "$HOME/.cache/hypr/theme-colors-rofi.rasi" "$HOME/.config/rofi/theme-colors-rofi.rasi"
+force_link "$HOME/.cache/hypr/theme-colors-rofi.rasi" "$HOME/.config/rofi/theme-colors-rofi.rasi" runtime
 force_copy "$ROOT_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
 
 # ~/.local/bin/noxctl was a 3.4 MB *copy* of the cargo build output, so it
@@ -65,6 +74,16 @@ if [[ -x "$ROOT_DIR/target/release/noxctl" ]]; then
 else
   echo "skip ~/.local/bin/noxctl: target/release/noxctl not built" >&2
   echo "  fix: cargo build --release --manifest-path cli/noxctl/Cargo.toml" >&2
+fi
+
+# The managed DRM override was retired. DRM selection belongs to
+# uwsm/env-hyprland, which exports AQ_DRM_DEVICES; a drop-in that pins the
+# GPU fights it. A link left behind by an earlier run is removed here rather
+# than re-created.
+obsolete_drm_override="$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
+if [[ -L "$obsolete_drm_override" ]]; then
+  rm -f "$obsolete_drm_override"
+  echo "removed obsolete $obsolete_drm_override"
 fi
 
 echo "Normalization complete."

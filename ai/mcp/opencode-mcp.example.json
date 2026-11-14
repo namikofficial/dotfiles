@@ -2,17 +2,17 @@
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/namik/Documents"],
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "~/Documents"],
       "enabled": true
     },
     "git": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "/home/namik/Documents/code/dotfiles"],
+      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "~/Documents/code/dotfiles"],
       "enabled": true
     },
     "sqlite": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "/home/namik/.local/share/rag/rag.db"],
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "~/.local/share/rag/rag.db"],
       "enabled": true
     },
     "context7": {

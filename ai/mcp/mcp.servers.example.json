@@ -3,19 +3,19 @@
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/namik/Documents"],
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "~/Documents"],
       "enabled": true,
       "_note": "Always enabled. Adjust path to your workspace."
     },
     "git": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "/home/namik/Documents/code/dotfiles"],
+      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "~/Documents/code/dotfiles"],
       "enabled": true,
       "_note": "Set repository to your active repo."
     },
     "sqlite": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "/home/namik/.local/share/rag/rag.db"],
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "~/.local/share/rag/rag.db"],
       "enabled": true,
       "_note": "RAG database."
     },
@@ -58,7 +58,7 @@
       "command": "npx",
       "args": ["-y", "mcp-obsidian"],
       "env": {
-        "VAULT_PATH": "/home/namik/Documents/obsidian"
+        "VAULT_PATH": "~/Documents/obsidian"
       },
       "enabled": false,
       "_note": "OPTIONAL. Set VAULT_PATH to your Obsidian vault."

@@ -20,7 +20,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "models.ini.template"
-DEFAULT_MODEL_ROOT = os.environ.get("LLAMA_MODEL_ROOT", "/home/namik/llama-models")
+DEFAULT_MODEL_ROOT = os.environ.get(
+    "LLAMA_MODEL_ROOT", str(Path.home() / "llama-models")
+)
 DEFAULT_OUTPUT = Path(
     os.environ.get(
         "LLAMA_ROUTER_PRESET",

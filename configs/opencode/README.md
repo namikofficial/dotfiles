@@ -133,9 +133,9 @@ apply it with:
 
 ```sh
 workstationctl resources plan
-sudo /home/namik/Documents/code/dotfiles/setup/workstationctl resources apply
+sudo ./setup/workstationctl resources apply
 systemctl reboot
-/home/namik/Documents/code/dotfiles/setup/workstationctl resources verify
+./setup/workstationctl resources verify
 ```
 
 The `sudo` command and reboot are intentionally manual. `resource-profile.sh

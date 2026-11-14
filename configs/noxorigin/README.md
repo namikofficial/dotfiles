@@ -7,7 +7,7 @@ Resend keys, SOPS plaintext, or SSH private keys.
 The repository is expected at:
 
 ```text
-/home/namik/Documents/code/noxorigin/noxorigin
+~/Documents/code/noxorigin/noxorigin
 ```
 
 Install the profile with:

@@ -26,12 +26,15 @@ echo "--- Installing binaries ---"
 mkdir -p "$BIN_DIR"
 install -m 755 "$REPO_DIR/target/release/noxd" "$BIN_DIR/noxd"
 install -m 755 "$REPO_DIR/target/release/noxctl" "$BIN_DIR/noxctl"
-install -m 755 "$REPO_DIR/setup/noxflow-shell-launcher.sh" "$BIN_DIR/noxflow-shell"
+# The launcher is a tracked script, so it is linked rather than copied: a
+# copy silently drifts from the repository, which is how the noxctl binary
+# copy in normalize-links.sh went stale.
+ln -sfn "$REPO_DIR/setup/noxflow-shell-launcher.sh" "$BIN_DIR/noxflow-shell"
 
 # Verify architectures match
 echo "  noxd:     $(file "$BIN_DIR/noxd" | grep -o 'ELF 64-bit\|ELF 32-bit\|script')"
 echo "  noxctl:   $(file "$BIN_DIR/noxctl" | grep -o 'ELF 64-bit\|ELF 32-bit\|script')"
-echo "  shell:    $(file "$BIN_DIR/noxflow-shell" | grep -o 'ELF 64-bit\|ELF 32-bit\|script')"
+echo "  shell:    $(readlink "$BIN_DIR/noxflow-shell" 2>/dev/null || file "$BIN_DIR/noxflow-shell" | grep -o 'script')"
 
 # ── 3. Symlink systemd units ──
 echo "--- Installing systemd units ---"

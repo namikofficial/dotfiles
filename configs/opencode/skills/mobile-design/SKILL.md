@@ -19,6 +19,6 @@ This skill exists to **prevent desktop-thinking, AI-defaults, and unsafe assumpt
 ## Vault
 
 Read the full skill from the vault:
-`/home/namik/.config/opencode/skill-libraries/mobile/mobile-design/SKILL.md`
+`~/.config/opencode/skill-libraries/mobile/mobile-design/SKILL.md`
 
 Includes: MFRI decision trees, mobile-backend, mobile-color-system, mobile-debugging, mobile-design-thinking, mobile-navigation, mobile-performance, mobile-testing, mobile-typography, platform-android, platform-ios, touch-psychology.

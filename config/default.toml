@@ -1,6 +1,12 @@
-# NoxFlow user configuration.
+# NoxFlow user configuration — the annotated reference.
 #
-# Path: $XDG_CONFIG_HOME/noxflow/config.toml (default ~/.config/noxflow/config.toml)
+# This file documents every key the daemon accepts. The file the daemon
+# actually reads is the one the bootstrap installs:
+# configs/noxflow/config.toml -> ~/.config/noxflow/config.toml
+#
+# The schema is authoritative and lives in core/noxflow-config. Both files are
+# checked against it by core/noxflow-config/tests/repository_config.rs, so a
+# key that the daemon would ignore cannot survive here.
 #
 # Machine-local overrides (gitignored): config.local.toml in the same directory.
 # Named profiles: profiles/<name>.toml (selected via `profile` key or $NOXFLOW_PROFILE).

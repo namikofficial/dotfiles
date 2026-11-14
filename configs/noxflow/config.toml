@@ -1,14 +1,17 @@
 # NoxFlow daemon configuration
 # Canonical source: dotfiles/configs/noxflow/config.toml
 # Symlinked to ~/.config/noxflow/config.toml
+#
+# The daemon's schema lives in core/noxflow-config. A key the schema does
+# not know is ignored when the file is loaded, so a key that reads as if it
+# configures something but is not in the schema is dead weight. This file is
+# checked against the schema by
+# core/noxflow-config/tests/repository_config.rs.
+#
+# The named profile is resolved from ~/.config/noxflow/profiles/<name>.toml,
+# which the bootstrap links from config/profiles/.
 
-profile = "material-expressive"
-
-[runtime]
-# state_dir overrides XDG_STATE_HOME when set (empty = use env default)
-state_dir = ""
-# socket_path overrides XDG_RUNTIME_DIR when set (empty = use env default)  
-socket_path = ""
+profile = "laptop"
 
 [appearance]
 profile = "material-expressive"
@@ -18,31 +21,18 @@ radius = 14
 [shell]
 reduced_motion = false
 
-[bar]
-mode = "normal"
-
 [ai]
 provider = "local"
 endpoint = "http://127.0.0.1:8080/v1"
 model = "qwen3-4b-local"
-api_key = ""
-
-[calendar]
-sync_enabled = false
-
-[island]
-enabled = true
-
-[animation]
-speed = 1.0
 
 [brightness]
 minimum = 1
 step = 10
-external_backend = ""
+external_backend = "none"
 
 [audio]
-max_volume = 255
+max_volume = 100
 
 [media]
 mpris_integration = true
@@ -53,20 +43,13 @@ artwork_cache_ttl = 3600
 default_player = "spotify"
 
 [network]
-refresh_interval = 15
 wifi_backend = "iwd"
 
-[bluetooth]
-discovery_timeout = 30
-
 [power]
-enabled = true
+profile = "balanced"
 
 [providers]
 hyprland = true
 audio = true
-brightness = true
-network = true
 bluetooth = true
-power = true
 media = true

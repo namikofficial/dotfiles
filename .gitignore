@@ -9,6 +9,9 @@ settings/export/
 *.bak.*
 nvim.log
 
+# Untracked per-checkout agent overlay; see AGENTS.md.
+AGENTS.local.md
+
 # RAG runtime artifacts (keep durable notes like .agent/memory.md tracked if desired)
 .agent/archive/
 .agent/rag-runs/

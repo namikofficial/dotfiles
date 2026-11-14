@@ -14,7 +14,7 @@ profile: operations-mobile
 
 # Required: where agent-lab golden cases for this product live.
 # Path is absolute or relative to the workdir.
-golden_root: /home/namik/Documents/code/dotfiles/configs/opencode/agent-lab/datasets/golden/operations-mobile
+golden_root: configs/opencode/agent-lab/datasets/golden/operations-mobile
 
 # Optional: which capabilities this product uses.
 # Used by the build agent to skip irrelevant invariants.

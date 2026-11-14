@@ -100,6 +100,13 @@
         "url": "https://stitch.googleapis.com/mcp",
         "oauth": false,
         "headers": {"X-Goog-Api-Key": "{file:~/.config/opencode/stitch-api-key}"}
+      },
+      "tinyfish": {
+        "type": "remote",
+        "url": "https://agent.tinyfish.ai/mcp?source=tinyfish_cli&client=opencode&connect_attempt_id=426030f1-7ad8-4661-ae31-ca45d344111f",
+        "headers": {
+          "X-API-Key": "sk-tinyfish-_P3-iDg6XM9GhRyyAokFu_0sKPvvasO-"
+        }
       }
     }
   },

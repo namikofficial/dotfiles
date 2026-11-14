@@ -1,5 +1,9 @@
 [core]
 	pager = delta
+	untrackedCache = true
+	preloadIndex = true
+	hooksPath = ~/.config/git/hooks
+	sshCommand = ssh -i ~/.ssh/id_ed25519
 
 [interactive]
 	diffFilter = delta --color-only
@@ -19,11 +23,6 @@
 	manyFiles = true
 [index]
 	version = 4
-[core]
-	untrackedCache = true
-	preloadIndex = true
-	hooksPath = /home/namik/.config/git/hooks
-	sshCommand = ssh -i /home/namik/.ssh/id_ed25519
 [credential "https://github.com"]
 	helper = 
 	helper = !/usr/bin/gh auth git-credential
@@ -33,7 +32,7 @@
 [user]
 	email = namikofficial@gmail.com
 	name = namikofficial
-	signingkey = /home/namik/.ssh/id_ed25519
+	signingkey = ~/.ssh/id_ed25519
 [gpg]
 	format = ssh
 [commit]
@@ -41,7 +40,7 @@
 [tag]
 	gpgsign = true
 [gpg "ssh"]
-	allowedSignersFile = /home/namik/.config/git/allowed_signers
+	allowedSignersFile = ~/.config/git/allowed_signers
 [pull]
 	rebase = true
 [rebase]

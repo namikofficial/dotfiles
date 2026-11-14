@@ -16,6 +16,6 @@ Stop coding agents from shipping generic UI with UIZZE's 800,000+ real web and i
 ## Vault
 
 Read the full skill from the vault:
-`/home/namik/.config/opencode/skill-libraries/frontend/anti-ui-slop/SKILL.md`
+`~/.config/opencode/skill-libraries/frontend/anti-ui-slop/SKILL.md`
 
 Tags: ui, ux, frontend, design, anti-ui-slop. Author: UIZZE. License: MIT.

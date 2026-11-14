@@ -703,7 +703,7 @@ landed.
 | --- | --- | --- | --- |
 | pre-repair (`095e7fd`) | 81 | 13,944 | 11,742 |
 | *superseded*: before the split of `IslandHost` and the dead-file removal | 117 | 16,792 | 12,876 |
-| now (committed) | **111** | **16,790** | **12,828** |
+| now (committed) | **111** | **16,812** | **12,835** |
 
 Whole `shell/noxflow` code: 14,191 → 16,131.
 

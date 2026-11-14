@@ -9,7 +9,7 @@
 
 # Local project shortcuts.
 alias wellvantage='cd ~/Documents/code/WellVantage'
-alias trackme='cd /home/namik/Documents/code/trackMe'
+alias trackme='cd ~/Documents/code/trackMe'
 alias scripts='cd ${SCRIPTS_HOME:-$HOME/Documents/code/dotfiles/private/scripts}'
 alias dotfiles='cd ~/Documents/code/dotfiles'
 
@@ -100,7 +100,7 @@ nox-help() {
 
 # ── trackMe ─────────────────────────────────────────────────────────────────
 trackme-edit() {
-  code /home/namik/Documents/code/trackMe "$@"
+  code ~/Documents/code/trackMe "$@"
 }
 
 trackme-env-edit() {
@@ -116,11 +116,11 @@ trackme-env-edit() {
 }
 
 trackme-log() {
-  cd /home/namik/Documents/code/trackMe/backend && npm run docker:logs "$@"
+  cd ~/Documents/code/trackMe/backend && npm run docker:logs "$@"
 }
 
 trackme-up() {
-  just --justfile /home/namik/Documents/code/trackMe/justfile up "$@"
+  just --justfile ~/Documents/code/trackMe/justfile up "$@"
 }
 
 # Use Kitty's SSH kitten to auto-bootstrap remote terminal capabilities.

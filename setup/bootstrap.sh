@@ -3,6 +3,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# shellcheck source=setup/lib/install-manifest.sh
+source "$SCRIPT_DIR/lib/install-manifest.sh"
+
 DEFAULT_SCRIPTS_DIR=""
 for candidate in \
   "$REPO_DIR/private/scripts" \
@@ -29,6 +33,13 @@ INSTALL_HYPR_PLUGINS=0
 INSTALL_SSH_CONFIG=1
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
+# The manifest records every path this run touches so 'setup/rollback.sh'
+# can undo exactly those paths. It lives in the XDG state directory, not in
+# the repository: it describes the machine, not the checkout.
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
+MANIFEST_DIR="$STATE_DIR/manifests"
+MANIFEST_FILE=""
+
 usage() {
   cat <<USAGE
 Usage: $0 [options]
@@ -41,12 +52,12 @@ Usage: $0 [options]
   --no-zsh-plugins     Skip optional zsh plugin sync
   --no-tmux-plugins    Skip optional tmux plugin sync
   --install-hypr-plugins  Build/install hyprexpo locally (must run in Hyprland session)
-  --install-local-ai   Install local AI runtime links/config
+  --install-local-ai   Install the local llama.cpp router (user unit, preset, helpers)
   --install-local-ai-models
-                       Also download autoload local AI models
+                       Also download the local GGUF models
   --no-local-ai        Skip local AI runtime install/linking
-  --dry-run            Print actions without writing changes
-  --no-backup          Replace existing files without backup copy
+  --dry-run            Print the plan without writing anything
+  --no-backup          Replace paths this repository already owns without keeping a backup copy
   --set-default-shell  Set the account login shell to /usr/bin/zsh
 USAGE
 }
@@ -94,112 +105,229 @@ while (($#)); do
   shift
 done
 
-backup_if_needed() {
+# ── Plan ─────────────────────────────────────────────────────────────────
+#
+# Every path is planned before anything is written, so a missing source or
+# an unreadable target is reported before the machine is half-configured.
+PLAN_OPS=()
+PLAN_SRCS=()
+PLAN_DSTS=()
+
+plan_add() {
+  PLAN_OPS+=("$1")
+  PLAN_SRCS+=("$2")
+  PLAN_DSTS+=("$3")
+}
+
+plan_link() {
+  local source="$1" target="$2"
+
+  if [ ! -e "$source" ] && [ ! -L "$source" ]; then
+    echo "Missing source: $source" >&2
+    exit 1
+  fi
+
+  plan_add link "$source" "$target"
+}
+
+plan_copy() {
+  local source="$1" target="$2"
+
+  if [ ! -e "$source" ] && [ ! -L "$source" ]; then
+    echo "Missing source: $source" >&2
+    exit 1
+  fi
+
+  plan_add copy "$source" "$target"
+}
+
+# A runtime link points at a file a daemon regenerates (a theme cache entry),
+# so the source is allowed to be absent at plan time.
+plan_runtime_link() {
+  plan_add runtime "$1" "$2"
+}
+
+# ── Ownership ────────────────────────────────────────────────────────────
+#
+# A path is 'ours' when this repository created it. Only 'ours' paths may
+# be deleted outright. Anything else belongs to the user and is moved aside
+# instead of being removed.
+#
+# A symlink counts as ours when it resolves into the checkout. A regular
+# file counts as ours only when an earlier manifest recorded it as a copy
+# AND it still holds the content we installed: a file the user edited after
+# the install is their data, not ours.
+symlink_is_ours() {
+  local target="$1"
+  local resolved
+  resolved="$(readlink -f "$target" 2>/dev/null || true)"
+  case "$resolved" in
+    "$REPO_DIR"/*) return 0 ;;
+  esac
+  return 1
+}
+
+file_is_ours() {
+  local target="$1"
+  manifest_owns_target "$MANIFEST_DIR" "$target" copy || return 1
+  local source
+  source="$(manifest_source_for "$MANIFEST_DIR" "$target" copy || true)"
+  [ -n "$source" ] || return 1
+  [ -f "$source" ] || return 1
+  cmp -s "$source" "$target"
+}
+
+# ── Apply ────────────────────────────────────────────────────────────────
+
+CONFLICTS=0
+
+ensure_parent() {
+  local dir="$1"
+  if ((DRY_RUN)); then
+    echo "[dry-run] mkdir -p '$dir'"
+    return 0
+  fi
+  mkdir -p "$dir"
+}
+
+# preserve_existing <target> — make room for a new path at <target>.
+#
+# Returns 1 when the existing path must not be replaced. The rules:
+#   * a symlink into this repository is unlinked, never followed, so the
+#     file it pointed at is never touched;
+#   * a regular file this repository installed, still holding the content
+#     we installed, may be removed when --no-backup is given;
+#   * anything else (a user file, a user symlink, a directory, a file the
+#     user edited) is moved aside to a timestamped backup and never
+#     deleted.
+preserve_existing() {
   local target="$1"
 
   if [ ! -e "$target" ] && [ ! -L "$target" ]; then
     return 0
   fi
 
-  if ((NO_BACKUP)); then
+  if [ -L "$target" ] && symlink_is_ours "$target"; then
+    local previous
+    previous="$(readlink "$target" || true)"
     if ((DRY_RUN)); then
-      echo "[dry-run] rm -rf '$target'"
-    else
-      rm -rf "$target"
+      echo "[dry-run] unlink '$target' (was -> $previous)"
+      return 0
     fi
+    # Record the previous link so a rollback can put it back.
+    manifest_record remove "$target" "$previous"
+    rm -f "$target"
     return 0
+  fi
+
+  if [ -f "$target" ] && file_is_ours "$target"; then
+    if ((NO_BACKUP)); then
+      if ((DRY_RUN)); then
+        echo "[dry-run] rm '$target' (owned by this repository)"
+      else
+        rm -f "$target"
+      fi
+      return 0
+    fi
+  fi
+
+  if ((NO_BACKUP)); then
+    echo "conflict: '$target' is not owned by this repository; leaving it untouched" >&2
+    CONFLICTS=$((CONFLICTS + 1))
+    return 1
   fi
 
   local backup="${target}.bak.${STAMP}"
   if ((DRY_RUN)); then
     echo "[dry-run] mv '$target' '$backup'"
-  else
-    mv "$target" "$backup"
+    return 0
   fi
+  mv "$target" "$backup"
+  echo "backed up $target -> $backup"
+  BACKUP_PATH="$backup"
+  return 0
 }
 
-link_path() {
-  local source="$1"
-  local target="$2"
+apply_link() {
+  local source="$1" target="$2"
 
-  if [ ! -e "$source" ] && [ ! -L "$source" ]; then
-    echo "Missing source: $source" >&2
-    exit 1
+  if [ -L "$target" ] && target_is_link_to "$target" "$source"; then
+    echo "ok   $target"
+    return 0
   fi
 
-  mkdir -p "$(dirname "$target")"
-
-  if [ -L "$target" ]; then
-    local existing
-    existing="$(readlink -f "$target" || true)"
-    local desired
-    desired="$(readlink -f "$source" || true)"
-    if [ -n "$existing" ] && [ "$existing" = "$desired" ]; then
-      echo "ok   $target"
-      return 0
-    fi
+  local backup=""
+  BACKUP_PATH=""
+  if ! preserve_existing "$target"; then
+    return 0
   fi
+  backup="$BACKUP_PATH"
 
-  backup_if_needed "$target"
-
+  ensure_parent "$(dirname "$target")"
   if ((DRY_RUN)); then
     echo "[dry-run] ln -s '$source' '$target'"
   else
     ln -s "$source" "$target"
     echo "link $target -> $source"
+    manifest_record link "$target" "$source" "$backup"
   fi
 }
 
-copy_path() {
-  local source="$1"
-  local target="$2"
-
-  if [ ! -e "$source" ] && [ ! -L "$source" ]; then
-    echo "Missing source: $source" >&2
-    exit 1
-  fi
+apply_copy() {
+  local source="$1" target="$2"
 
   if [ -f "$source" ] && [ -f "$target" ] && cmp -s "$source" "$target"; then
     echo "ok   $target"
     return 0
   fi
 
-  mkdir -p "$(dirname "$target")"
+  local backup=""
+  BACKUP_PATH=""
+  if ! preserve_existing "$target"; then
+    return 0
+  fi
+  backup="$BACKUP_PATH"
 
-  backup_if_needed "$target"
-
+  ensure_parent "$(dirname "$target")"
   if ((DRY_RUN)); then
     echo "[dry-run] cp -a '$source' '$target'"
   else
     cp -a "$source" "$target"
     echo "copy $target <- $source"
+    manifest_record copy "$target" "$source" "$backup"
   fi
 }
 
-link_runtime_path() {
-  local source="$1"
-  local target="$2"
+apply_runtime_link() {
+  local source="$1" target="$2"
 
-  mkdir -p "$(dirname "$target")"
-
-  if [ -L "$target" ]; then
-    local existing
-    existing="$(readlink "$target" || true)"
-    if [ -n "$existing" ] && [ "$existing" = "$source" ]; then
-      echo "ok   $target"
-      return 0
-    fi
+  if [ -L "$target" ] && target_is_link_to "$target" "$source"; then
+    echo "ok   $target"
+    return 0
   fi
 
-  backup_if_needed "$target"
+  local backup=""
+  BACKUP_PATH=""
+  if ! preserve_existing "$target"; then
+    return 0
+  fi
+  backup="$BACKUP_PATH"
 
+  ensure_parent "$(dirname "$target")"
   if ((DRY_RUN)); then
     echo "[dry-run] ln -s '$source' '$target'"
   else
     ln -s "$source" "$target"
     echo "link $target -> $source"
+    manifest_record link "$target" "$source" "$backup"
   fi
 }
+
+# ── Plan contents ────────────────────────────────────────────────────────
+
+link_path() { plan_link "$1" "$2"; }
+copy_path() { plan_copy "$1" "$2"; }
+link_runtime_path() { plan_runtime_link "$1" "$2"; }
 
 link_path "$REPO_DIR/zshrc" "$HOME/.zshrc"
 link_path "$REPO_DIR/bashrc" "$HOME/.bashrc"
@@ -223,6 +351,9 @@ link_path "$REPO_DIR/setup/resource-report.sh" "$HOME/.local/bin/resource-report
 link_path "$REPO_DIR/hypr/scripts/chatgpt-launcher.sh" "$HOME/.local/bin/chatgpt-launcher.sh"
 link_path "$REPO_DIR/setup/client-backup.sh" "$HOME/.local/bin/client-backup"
 link_path "$REPO_DIR/setup/workstationctl" "$HOME/.local/bin/workstationctl"
+# noxflow-shell.service starts this launcher. The bootstrap links the unit,
+# so it has to link the launcher too.
+link_path "$REPO_DIR/setup/noxflow-shell-launcher.sh" "$HOME/.local/bin/noxflow-shell"
 link_path "$REPO_DIR/system/node-runtime" "$HOME/.local/bin/node"
 link_path "$REPO_DIR/system/node-runtime" "$HOME/.local/bin/npm"
 link_path "$REPO_DIR/system/node-runtime" "$HOME/.local/bin/npx"
@@ -251,18 +382,6 @@ link_path "$REPO_DIR/systemd/user/noxflow-session-optional.service" "$HOME/.conf
 link_path "$REPO_DIR/systemd/user/noxflow-shell.service" "$HOME/.config/systemd/user/noxflow-shell.service"
 link_path "$REPO_DIR/systemd/user/noxflow-fallback.service" "$HOME/.config/systemd/user/noxflow-fallback.service"
 
-# Remove the obsolete managed drop-in that discarded the GPU selected by
-# env-hyprland. Unrelated local overrides are deliberately left alone.
-legacy_gpu_override="$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
-if [ -L "$legacy_gpu_override" ]; then
-  if ((DRY_RUN)); then
-    echo "[dry-run] rm '$legacy_gpu_override'"
-  else
-    rm -f "$legacy_gpu_override"
-  fi
-fi
-
-mkdir -p "$HOME/.config/hypr" "$HOME/.config/kitty"
 link_path "$REPO_DIR/hypr/hyprland.lua" "$HOME/.config/hypr/hyprland.lua"
 link_path "$REPO_DIR/hypr/conf" "$HOME/.config/hypr/conf"
 link_path "$REPO_DIR/hypr/lib" "$HOME/.config/hypr/lib"
@@ -275,6 +394,13 @@ link_path "$REPO_DIR/hypr/scripts" "$HOME/.config/hypr/scripts"
 link_path "$REPO_DIR/xdg/applications/chatgpt.desktop" "$HOME/.local/share/applications/chatgpt.desktop"
 link_path "$REPO_DIR/wayle/config.toml" "$HOME/.config/wayle/config.toml"
 link_path "$REPO_DIR/shell/noxflow" "$HOME/.config/noxflow/shell"
+# The daemon loads ~/.config/noxflow/config.toml (core/noxflow-config
+# loader.rs). Without it the shell runs on code defaults only.
+link_path "$REPO_DIR/configs/noxflow/config.toml" "$HOME/.config/noxflow/config.toml"
+# The named profile that config selects is resolved from
+# ~/.config/noxflow/profiles/<name>.toml; without them the daemon refuses to
+# load ("ProfileNotFound").
+link_path "$REPO_DIR/config/profiles" "$HOME/.config/noxflow/profiles"
 link_path "$REPO_DIR/hypr/rofi" "$HOME/.config/rofi"
 link_path "$REPO_DIR/hypr/wlogout" "$HOME/.config/wlogout"
 link_runtime_path "$HOME/.cache/hypr/theme-colors-rofi.rasi" "$HOME/.config/rofi/theme-colors-rofi.rasi"
@@ -286,42 +412,7 @@ copy_path "$REPO_DIR/mime/mimeapps.list" "$HOME/.config/mimeapps.list"
 link_path "$REPO_DIR/theme/gtk-3.0/settings.ini" "$HOME/.config/gtk-3.0/settings.ini"
 link_path "$REPO_DIR/theme/gtk-4.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"
 
-if ((! DRY_RUN)) && command -v luac >/dev/null 2>&1; then
-  "$REPO_DIR/hypr/scripts/hypr-validate.sh" "$REPO_DIR/hypr/hyprland.lua"
-fi
-
-if ((! DRY_RUN)) && command -v systemctl >/dev/null 2>&1; then
-  systemctl --user daemon-reload 2>/dev/null || true
-fi
-
-if ((DRY_RUN)); then
-  echo "[dry-run] mkdir -p '$HOME/.local/bin'"
-else
-  mkdir -p "$HOME/.local/bin"
-fi
-
-if [ -d "$SCRIPTS_DIR/bin" ]; then
-  while IFS= read -r -d '' file; do
-    target="$HOME/.local/bin/$(basename "$file")"
-    if ((DRY_RUN)); then
-      echo "[dry-run] ln -sf '$file' '$target'"
-    else
-      ln -sf "$file" "$target"
-    fi
-  done < <(find "$SCRIPTS_DIR/bin" -maxdepth 1 -type f -print0)
-else
-  echo "warning: scripts bin directory not found at $SCRIPTS_DIR/bin" >&2
-  echo "warning: public dotfiles setup will continue without private scripts" >&2
-  echo "warning: if you have access, run: git submodule update --init private/scripts" >&2
-fi
-
 if ((INSTALL_LOCAL_AI)); then
-  if ((DRY_RUN)); then
-    printf '[dry-run] mkdir -p %q %q %q\n' \
-      "$HOME/.config/local-ai/templates" "$HOME/.config/local-ai/skills" "$HOME/.config/local-ai/system"
-  else
-    mkdir -p "$HOME/.config/local-ai/templates" "$HOME/.config/local-ai/skills" "$HOME/.config/local-ai/system"
-  fi
   for f in "$REPO_DIR/ai/templates/"*.md; do
     [ -e "$f" ] || continue
     link_path "$f" "$HOME/.config/local-ai/templates/$(basename "$f")"
@@ -334,6 +425,60 @@ if ((INSTALL_LOCAL_AI)); then
     [ -e "$f" ] || continue
     link_path "$f" "$HOME/.config/local-ai/system/$(basename "$f")"
   done
+fi
+
+if [ -d "$SCRIPTS_DIR/bin" ]; then
+  while IFS= read -r -d '' file; do
+    link_path "$file" "$HOME/.local/bin/$(basename "$file")"
+  done < <(find "$SCRIPTS_DIR/bin" -maxdepth 1 -type f -print0)
+else
+  echo "warning: scripts bin directory not found at $SCRIPTS_DIR/bin" >&2
+  echo "warning: public dotfiles setup will continue without private scripts" >&2
+  echo "warning: if you have access, run: git submodule update --init private/scripts" >&2
+fi
+
+# ── Apply the plan ───────────────────────────────────────────────────────
+
+if ((DRY_RUN)); then
+  echo "[dry-run] plan: ${#PLAN_OPS[@]} path(s); nothing will be written"
+else
+  MANIFEST_FILE="$MANIFEST_DIR/manifest-$STAMP-$$.tsv"
+  manifest_init "$MANIFEST_FILE"
+fi
+
+index=0
+while [ "$index" -lt "${#PLAN_OPS[@]}" ]; do
+  op="${PLAN_OPS[$index]}"
+  src="${PLAN_SRCS[$index]}"
+  dst="${PLAN_DSTS[$index]}"
+  case "$op" in
+    link) apply_link "$src" "$dst" ;;
+    copy) apply_copy "$src" "$dst" ;;
+    runtime) apply_runtime_link "$src" "$dst" ;;
+  esac
+  index=$((index + 1))
+done
+
+# The obsolete managed drop-in discarded the GPU that env-hyprland selects.
+# Removing it is recorded so a rollback can put the symlink back.
+legacy_gpu_override="$HOME/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf"
+if [ -L "$legacy_gpu_override" ]; then
+  previous_link="$(readlink "$legacy_gpu_override" || true)"
+  if ((DRY_RUN)); then
+    echo "[dry-run] rm '$legacy_gpu_override'"
+  else
+    manifest_record remove "$legacy_gpu_override" "$previous_link"
+    rm -f "$legacy_gpu_override"
+    echo "removed obsolete $legacy_gpu_override"
+  fi
+fi
+
+if ((! DRY_RUN)) && command -v luac >/dev/null 2>&1; then
+  "$REPO_DIR/hypr/scripts/hypr-validate.sh" "$REPO_DIR/hypr/hyprland.lua"
+fi
+
+if ((! DRY_RUN)) && command -v systemctl >/dev/null 2>&1; then
+  systemctl --user daemon-reload 2>/dev/null || true
 fi
 
 if ((RUN_PACKAGES)); then
@@ -392,15 +537,29 @@ if ((INSTALL_HYPR_PLUGINS)); then
   fi
 fi
 
+# The local AI runtime is optional. A missing llama.cpp install must not
+# abort a workstation bootstrap, so failures here are reported and the rest
+# of the setup continues.
 if ((INSTALL_LOCAL_AI)); then
-  cmd=("$SCRIPT_DIR/install-local-ai-stack.sh" --install-runtime)
-  ((DRY_RUN)) && cmd+=(--dry-run)
-  "${cmd[@]}"
-  if ((INSTALL_LOCAL_AI_MODELS)); then
-    cmd=("$SCRIPT_DIR/install-local-ai-stack.sh" --install-models)
-    ((DRY_RUN)) && cmd+=(--dry-run)
-    "${cmd[@]}"
+  if ((DRY_RUN)); then
+    echo "[dry-run] $SCRIPT_DIR/install-llama-router.sh"
+  elif ! "$SCRIPT_DIR/install-llama-router.sh"; then
+    echo "warning: local llama.cpp router install failed; see the message above" >&2
+    echo "warning: the rest of the workstation setup completed" >&2
   fi
+  if ((INSTALL_LOCAL_AI_MODELS)); then
+    if ((DRY_RUN)); then
+      echo "[dry-run] $SCRIPT_DIR/download-local-models.sh core"
+    elif ! "$SCRIPT_DIR/download-local-models.sh" core; then
+      echo "warning: local model download failed; see the message above" >&2
+    fi
+  fi
+fi
+
+if ((CONFLICTS)); then
+  echo "$CONFLICTS path(s) were left untouched because they are not owned by this repository." >&2
+  echo "Move them aside, or re-run without --no-backup so a backup is kept." >&2
+  exit 1
 fi
 
 cat <<DONE
@@ -410,3 +569,8 @@ Bootstrap complete.
 - Set the account login shell with: $0 --set-default-shell
 - Restart Hyprland/login session to activate hyprland.lua after migration
 DONE
+
+if ((! DRY_RUN)) && [ -n "$MANIFEST_FILE" ]; then
+  printf 'manifest: %s\n' "$MANIFEST_FILE"
+  printf 'rollback:  %s --manifest %s\n' "$SCRIPT_DIR/rollback.sh" "$MANIFEST_FILE"
+fi

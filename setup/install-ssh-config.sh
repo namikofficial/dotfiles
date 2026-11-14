@@ -97,11 +97,19 @@ if ! ssh -F "$SOURCE" -G nox >/dev/null 2>&1; then
   die "the managed config does not parse (ssh -F $SOURCE -G nox failed)"
 fi
 
-mkdir -p "$HOME/.ssh"
-chmod 0700 "$HOME/.ssh"
+# The directory is created only for a real install: a dry run must not
+# leave anything behind on disk.
+if [ "$DRY_RUN" -eq 1 ]; then
+  log "[dry-run] mkdir -p $HOME/.ssh"
+else
+  mkdir -p "$HOME/.ssh"
+  chmod 0700 "$HOME/.ssh"
+fi
 
 if [ -L "$TARGET" ] && [ "$(readlink -f "$TARGET")" = "$(readlink -f "$SOURCE")" ]; then
-  chmod 0600 "$TARGET" 2>/dev/null || true
+  if [ "$DRY_RUN" -ne 1 ]; then
+    chmod 0600 "$TARGET" 2>/dev/null || true
+  fi
   ok "$TARGET already points at the managed config"
 else
   if [ -e "$TARGET" ]; then

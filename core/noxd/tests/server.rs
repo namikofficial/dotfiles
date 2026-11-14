@@ -33,20 +33,27 @@ impl TestDaemon {
         ));
         fs::create_dir(&runtime).unwrap();
         fs::set_permissions(&runtime, fs::Permissions::from_mode(0o700)).unwrap();
-        let child = Command::new(env!("CARGO_BIN_EXE_noxd"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_noxd"))
             .env("XDG_RUNTIME_DIR", &runtime)
             .env("XDG_STATE_HOME", runtime.join("state"))
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
         let socket = runtime.join("noxflow/noxd.sock");
+        // Wait for the socket, but not forever: a daemon that exited will
+        // never create it, and a daemon that is merely slow (a loaded
+        // machine, a cold page cache) still will. One second was not enough
+        // and made this test fail intermittently in the release gate.
         for _ in 0..100 {
             if socket.exists() {
                 return Self { child, runtime };
             }
-            thread::sleep(Duration::from_millis(10));
+            if let Some(status) = child.try_wait().unwrap() {
+                panic!("daemon exited before creating the socket: {status}");
+            }
+            thread::sleep(Duration::from_millis(50));
         }
-        panic!("daemon did not create socket");
+        panic!("daemon did not create the socket within 5s");
     }
 
     fn socket(&self) -> PathBuf {
@@ -202,12 +209,19 @@ fn owned_stale_socket_is_removed_and_unexpected_path_is_rejected() {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    for _ in 0..100 {
+    // Wait for the daemon to replace the stale socket, and prove it
+    // answered: killing a daemon that is still starting up left its socket
+    // behind, and the cleanup assertion below then failed for the wrong
+    // reason. One second was not always enough on a loaded machine.
+    let mut replaced = false;
+    for _ in 0..200 {
         if socket.exists() && UnixStream::connect(&socket).is_ok() {
+            replaced = true;
             break;
         }
-        thread::sleep(Duration::from_millis(10));
+        thread::sleep(Duration::from_millis(25));
     }
+    assert!(replaced, "the daemon did not replace the stale socket");
     unsafe {
         libc::kill(daemon.id() as i32, libc::SIGTERM);
     }

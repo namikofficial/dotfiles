@@ -44,7 +44,7 @@ if [ "${NOXFLOW_CLAUDE_MINIMAX:-0}" = "1" ] && [ -r "$DOTFILES_HOME/shell/claude
 fi
 
 # MiniMax Code CLI
-export PATH="/home/namik/.minimax-code/bin:$PATH"
+export PATH="$HOME/.minimax-code/bin:$PATH"
 
 # Added by MiniMax Code
-export PATH="/home/namik/.minimax/bin:$PATH"
+export PATH="$HOME/.minimax/bin:$PATH"

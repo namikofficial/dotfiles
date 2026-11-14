@@ -3,17 +3,17 @@
 
 [mcp_servers.filesystem]
 command = "npx"
-args = ["-y", "@modelcontextprotocol/server-filesystem", "/home/namik/Documents"]
+args = ["-y", "@modelcontextprotocol/server-filesystem", "~/Documents"]
 enabled = true
 
 [mcp_servers.git]
 command = "npx"
-args = ["-y", "@modelcontextprotocol/server-git", "--repository", "/home/namik/Documents/code/dotfiles"]
+args = ["-y", "@modelcontextprotocol/server-git", "--repository", "~/Documents/code/dotfiles"]
 enabled = true
 
 [mcp_servers.sqlite]
 command = "npx"
-args = ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "/home/namik/.local/share/rag/rag.db"]
+args = ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "~/.local/share/rag/rag.db"]
 enabled = true
 
 [mcp_servers.context7]
@@ -27,7 +27,7 @@ args = []
 enabled = true
 
 [mcp_servers.browser]
-command = "/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh"
+command = "~/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh"
 args = ["browser"]
 enabled = true
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-mcp_bin="${CHROME_DEVTOOLS_MCP_BIN:-/home/namik/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp}"
+mcp_bin="${CHROME_DEVTOOLS_MCP_BIN:-$HOME/.local/share/opencode/mcp/node_modules/.bin/chrome-devtools-mcp}"
 
 if [ ! -x "$mcp_bin" ]; then
   mcp_bin="$(command -v chrome-devtools-mcp || true)"

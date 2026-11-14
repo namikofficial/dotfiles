@@ -11,7 +11,7 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-model_root="${LLAMA_MODEL_ROOT:-/home/namik/llama-models}"
+model_root="${LLAMA_MODEL_ROOT:-$HOME/llama-models}"
 preset="${LLAMA_ROUTER_PRESET:-$HOME/.config/llama-router/models.ini}"
 pi_models="${PI_MODELS_FILE:-$HOME/.pi/agent/models.json}"
 require_router=0

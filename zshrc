@@ -912,4 +912,5 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 
 
 # kimi-code
-export PATH="/home/namik/.kimi-code/bin:$PATH"
+export PATH="$HOME/.kimi-code/bin:$PATH"
+export TINYFISH_API_KEY='sk-tinyfish-_P3-iDg6XM9GhRyyAokFu_0sKPvvasO-'

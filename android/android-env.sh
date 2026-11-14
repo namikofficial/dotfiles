@@ -6,8 +6,8 @@ ANDROID_SDK_ROOT=$ANDROID_HOME
 # Full JDK for Android/Gradle builds. Use the JetBrains Runtime bundled with
 # Android Studio (has javac/jar/javadoc). The distro default is JRE-only and
 # lacks javac, which breaks AGP toolchain resolution.
-if [ -x /home/namik/.local/opt/android-studio/jbr/bin/javac ]; then
-  JAVA_HOME=/home/namik/.local/opt/android-studio/jbr
+if [ -x "$HOME/.local/opt/android-studio/jbr/bin/javac" ]; then
+  JAVA_HOME="$HOME/.local/opt/android-studio/jbr"
 else
   JAVA_HOME=/usr/lib/jvm/default
 fi

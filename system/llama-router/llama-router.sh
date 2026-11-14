@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "$script_path")" && pwd)"
 UNIT="${LLAMA_ROUTER_UNIT:-llama-router.service}"
 PORT="${LLAMA_ROUTER_PORT:-8080}"
 HOST="${LLAMA_ROUTER_HOST:-127.0.0.1}"
-MODEL_ROOT="${LLAMA_MODEL_ROOT:-/home/namik/llama-models}"
+MODEL_ROOT="${LLAMA_MODEL_ROOT:-$HOME/llama-models}"
 PRESET="${LLAMA_ROUTER_PRESET:-$HOME/.config/llama-router/models.ini}"
 
 usage() {

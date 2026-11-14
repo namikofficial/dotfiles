@@ -36,7 +36,10 @@ done < <(jq -r '.instructions[]' "$opencode")
 jq -e '(([.agent.build.permission.subagent | to_entries[] | select(.key != "*") | .key]) - (.agent | keys)) == []' "$opencode" >/dev/null
 jq -e '([.agent | to_entries[] | select(.key != "general") | .value]) | (all(.[]; ((.description // "") | length) > 0)) and (all(.[]; ((.model // "") | length) > 0))' "$opencode" >/dev/null
 jq -e '([.agent[] | select(.mode == "subagent") | .prompt] | all(contains("worker_contract.md")))' "$opencode" >/dev/null
-jq -e '.commands | keys == ["fix", "ui"]' "$opencode" >/dev/null
+# The required commands must exist and every command must be complete, but
+# the set is not frozen: agent-lab added /capture-eval and /agent-lab, and a
+# hard-coded list made this test fail for a feature that works.
+jq -e '(.commands | has("fix") and has("ui")) and ([.commands[] | (((.description // "") | length) > 0) and (((.template // "") | length) > 0) and (((.agent // "") | length) > 0)] | all)' "$opencode" >/dev/null
 jq -e '(.commands.ui.template | contains("building-native-ui") and contains("mobile-design") and contains("anti-ui-slop") and contains("emil-design-eng") and contains("NOXORIGIN_SYSTEM.md"))' "$opencode" >/dev/null
 jq -e '(.plugins | length) == 2 and ([.plugins[] | (if type == "string" then . else .package end) | contains("tmux-tools") or contains("safety-guards")] | all) and ([.plugins[] | select(type == "object" and (.package | contains("tmux-tools"))) | .options == {socketName: "nox", sharedSessions: ["nox"]}] | all)' "$opencode" >/dev/null
 jq -e '(.plugins? // []) == []' "$cli" >/dev/null

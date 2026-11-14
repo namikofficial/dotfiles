@@ -14,7 +14,7 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 unit_src="$repo_dir/systemd/user/llama-router.service"
 unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
-model_root="${LLAMA_MODEL_ROOT:-/home/namik/llama-models}"
+model_root="${LLAMA_MODEL_ROOT:-$HOME/llama-models}"
 dry_run=0
 
 if [[ "${1:-}" == "--dry-run" ]]; then
@@ -44,16 +44,24 @@ run() {
   "$@"
 }
 
-mkdir -p "$unit_dir" "$bin_dir"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/llama-router"
+
+mkdir -p "$unit_dir" "$bin_dir" "$config_dir"
 
 if ((dry_run)); then
   printf '[dry-run] ln -sfn %q %q\n' "$unit_src" "$unit_dir/llama-router.service"
   printf '[dry-run] ln -sfn %q %q\n' "$repo_dir/system/llama-router/llama-router.sh" "$bin_dir/llama-router"
+  printf '[dry-run] ln -sfn %q %q\n' "$repo_dir/system/llama-router/render-preset.py" "$config_dir/render-preset.py"
 else
   ln -sfn "$unit_src" "$unit_dir/llama-router.service"
   ln -sfn "$repo_dir/system/llama-router/llama-router.sh" "$bin_dir/llama-router"
+  # The unit regenerates the preset before it starts the server. It reaches
+  # the renderer through this link, so the unit does not have to know where
+  # the repository is checked out.
+  ln -sfn "$repo_dir/system/llama-router/render-preset.py" "$config_dir/render-preset.py"
   printf 'link %s -> %s\n' "$unit_dir/llama-router.service" "$unit_src"
   printf 'link %s -> %s\n' "$bin_dir/llama-router" "$repo_dir/system/llama-router/llama-router.sh"
+  printf 'link %s -> %s\n' "$config_dir/render-preset.py" "$repo_dir/system/llama-router/render-preset.py"
 fi
 
 run python3 "$repo_dir/system/llama-router/render-preset.py" --model-root "$model_root"

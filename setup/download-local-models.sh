@@ -18,7 +18,7 @@
 #   all      everything above
 set -euo pipefail
 
-MODEL_ROOT="${LLAMA_MODEL_ROOT:-/home/namik/llama-models}"
+MODEL_ROOT="${LLAMA_MODEL_ROOT:-$HOME/llama-models}"
 HF_BIN="${HF_BIN:-$(command -v hf || true)}"
 SCOPE="${1:-core}"
 

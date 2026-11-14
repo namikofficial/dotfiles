@@ -14,8 +14,10 @@ mod config;
 mod error;
 mod loader;
 mod redact;
+mod schema;
 
 pub use config::*;
 pub use error::ConfigError;
 pub use loader::*;
 pub use redact::display_config;
+pub use schema::{schema_keys, unknown_keys, unknown_keys_in_file};

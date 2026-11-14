@@ -73,7 +73,7 @@ That command:
 - links Atuin config into `~/.config/atuin/config.toml`
 - links Starship config into `~/.config/starship.toml`
 - links UWSM compositor env (`~/.config/uwsm/env` and `~/.config/uwsm/env-hyprland`)
-- links Hyprland service override (`~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf`)
+- selects the compositor GPU through `uwsm/env-hyprland` (which exports `AQ_DRM_DEVICES`); the retired Hyprland service override at `~/.config/systemd/user/wayland-wm@hyprland.desktop.service.d/10-aq-drm-devices.conf` is removed, not installed
 - links the modular Hyprland entrypoint (`hyprland.lua` + `hypr/conf/*.lua`), Wayle, Rofi, wlogout, and Kitty configs into `~/.config`
 - links GTK theme configs into `~/.config`
 - links portal routing so screen sharing uses XDPH and file picking uses GTK
@@ -83,7 +83,8 @@ That command:
 - links your private scripts commands into `~/.local/bin` when `private/scripts` (or another `--scripts-dir`) is available
 - installs/updates optional zsh plugins under `~/.local/share/zsh/plugins`
 - installs/updates tmux plugins via TPM (`~/.tmux/plugins/tpm`)
-- creates timestamped backups when replacing existing configs
+- creates timestamped backups when replacing existing configs, and never deletes a path it does not own
+- records every path it touched in an install manifest, so `./setup/rollback.sh` can undo exactly those paths
 
 Set zsh as the account login shell after installing zsh:
 

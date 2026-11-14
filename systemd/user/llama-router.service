@@ -23,7 +23,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStartPre=%h/Documents/code/dotfiles/system/llama-router/render-preset.py
+ExecStartPre=%h/.config/llama-router/render-preset.py
 ExecStart=/usr/bin/llama-server --models-preset %h/.config/llama-router/models.ini --host 127.0.0.1 --port 8080 --models-max 1
 Restart=on-failure
 RestartSec=5

@@ -1,5 +1,3 @@
-@/home/namik/.codex/RTK.md
-
 # Dotfiles repository guidance
 
 This repository contains independent workstation configuration surfaces. Read
@@ -9,6 +7,23 @@ the nearest nested `AGENTS.md` before editing a scoped area:
 - `core/AGENTS.md` — Rust workspace and `cli/noxctl`.
 - `setup/AGENTS.md` — bootstrap, health, and shell scripts.
 - `configs/opencode/AGENTS.md` — OpenCode models, agents, MCP, skills, and links.
+
+## Personal agent instructions
+
+This file is deliberately self-contained: it carries no absolute path into a
+personal home directory, so a clone of the repository is usable by anyone.
+
+Personal instructions — a local tool-use contract, a private checklist —
+belong to the machine that owns them, not to the tracked tree:
+
+- `~/.codex/AGENTS.md` holds your global instructions and applies to every
+  repository. Put personal instructions there.
+- `AGENTS.local.md` in this directory is an untracked per-checkout overlay.
+  Git ignores it and no agent discovers it automatically, so reference it from
+  your global instructions if you want it applied.
+
+Do not add an absolute path such as `/home/<user>/...` to a tracked file
+here.
 
 ## Repository map
 
@@ -48,6 +63,7 @@ the nearest nested `AGENTS.md` before editing a scoped area:
    dependencies, build output, `.git`, or credential stores. Byte-cap unknown
    output and summarize structured data mechanically.
 
-Common checks are `./setup/check-shell.sh --all`, `./setup/check-dotfiles.sh --all`,
-`cargo check --workspace`, and `cargo test --workspace`; use only those relevant
-to the changed surface.
+Common checks are `./setup/check-shell.sh --all` (`./setup/check-dotfiles.sh`
+is an alias for it), `./setup/release-gate.sh verify-static`,
+`./setup/test-bootstrap-safety.sh`, `cargo check --workspace`, and
+`cargo test --workspace`; use only those relevant to the changed surface.

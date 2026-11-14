@@ -1,6 +1,6 @@
 # Codex optimization record
 
-The active user configuration is `/home/namik/.codex/config.toml`; credentials
+The active user configuration is `~/.codex/config.toml`; credentials
 and user state must not be committed here. The current baseline is deliberately
 small and profile-driven:
 
@@ -23,4 +23,4 @@ rework metrics.
 
 The 2026-09-22 user-config backup is retained at:
 
-`/home/namik/.codex/backups/20260922T-codex-opencode-optimization/config.toml`
+`~/.codex/backups/20260922T-codex-opencode-optimization/config.toml`
