@@ -47,9 +47,10 @@ PanelWindow {
     }
 
     function selectFocusedWorkspace() {
+        var focusedWorkspace = Hyprland.focusedWorkspace;
         for (var i = 0; i < workspaceGrid.count; i++) {
             var card = workspaceGrid.itemAtIndex(i);
-            if (card && card.workspace && card.workspace.focused) {
+            if (card && card.workspace && card.workspace === focusedWorkspace) {
                 workspaceGrid.currentIndex = i;
                 card.forceActiveFocus();
                 return;
@@ -168,7 +169,7 @@ PanelWindow {
                 boundsBehavior: Flickable.StopAtBounds
                 interactive: contentHeight > height
                 keyNavigationEnabled: false
-                currentIndex: 0
+                currentIndex: -1
                 onCurrentIndexChanged: {
                     if (currentItem && lifecycle.active)
                         Qt.callLater(function() { if (workspaceGrid.currentItem) workspaceGrid.currentItem.forceActiveFocus(); });
