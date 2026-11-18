@@ -10,7 +10,6 @@ import "." as Local
 PanelWindow {
     id: root
 
-    required property var screen
     required property var coordinator
 
     Components.SurfaceLifecycle { id: lifecycle }
@@ -20,7 +19,6 @@ PanelWindow {
     anchors.bottom: true
     anchors.left: true
     anchors.right: true
-    screen: root.screen
     exclusiveZone: 0
     aboveWindows: true
     color: "transparent"
