@@ -5,6 +5,7 @@ FocusScope {
     id: root
     required property var network
     required property var bluetooth
+    property bool railMode: false
     property bool ho: false
     property bool hovered: ho
     signal openNetwork()
@@ -17,7 +18,13 @@ FocusScope {
     readonly property bool online: network && (network.connectivity === "full" || network.connectivity === "limited")
     implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), values.implicitWidth + Theme.Tokens.scaled(24))
     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
-    Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: root.hovered ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78) : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62) }
+    Rectangle {
+        anchors.fill: parent
+        radius: Theme.Tokens.radiusPill
+        color: root.railMode ? "transparent"
+            : root.hovered ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78)
+            : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
+    }
     RowLayout {
         id: values; anchors.centerIn: parent; spacing: Theme.Tokens.scaled(6)
         FocusScope {
@@ -27,7 +34,15 @@ FocusScope {
             implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
             Accessible.role: Accessible.Button
             Accessible.name: root.online ? "Connected to " + (root.network.connectedSsid || "network") : "Network offline"
-            Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: networkAction.activeFocus ? Theme.Tokens.glass(Theme.Tokens.outlineFocus, 0.20) : "transparent"; border.color: networkAction.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: networkAction.activeFocus ? 2 : 0 }
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.Tokens.radiusSm
+                color: networkAction.activeFocus ? Theme.Tokens.glass(Theme.Tokens.outlineFocus, 0.20)
+                    : networkTap.pressed ? Theme.Tokens.surfaceSurfaceHighest
+                    : networkHover.hovered ? Theme.Tokens.surfaceSurface2 : "transparent"
+                border.color: networkAction.activeFocus ? Theme.Tokens.outlineFocus : "transparent"
+                border.width: networkAction.activeFocus ? 2 : 0
+            }
             RowLayout {
                 id: networkValues
                 anchors.centerIn: parent
@@ -35,7 +50,8 @@ FocusScope {
                 Text { text: root.vpnActive ? "\uF023" : root.online ? "\uF1EB" : "\uF071"; color: root.online ? Theme.Tokens.textSecondary : Theme.Tokens.stateWarning; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconXs }
                 Text { visible: root.shortSsid !== ""; text: root.shortSsid; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium; elide: Text.ElideRight; Layout.maximumWidth: Theme.Tokens.scaled(132) }
             }
-            TapHandler { onTapped: root.openNetwork() }
+            HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { id: networkTap; onTapped: root.openNetwork() }
             Keys.onReturnPressed: root.openNetwork()
             Keys.onSpacePressed: root.openNetwork()
         }
@@ -49,7 +65,15 @@ FocusScope {
             Accessible.name: root.connectedDevices.length > 0
                 ? "Bluetooth connected to " + String(root.connectedDevices[0].name || root.connectedDevices.length + " devices")
                 : "Open Bluetooth"
-            Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusPill; color: bluetoothAction.activeFocus ? Theme.Tokens.glass(Theme.Tokens.outlineFocus, 0.20) : "transparent"; border.color: bluetoothAction.activeFocus ? Theme.Tokens.outlineFocus : "transparent"; border.width: bluetoothAction.activeFocus ? 2 : 0 }
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.Tokens.radiusSm
+                color: bluetoothAction.activeFocus ? Theme.Tokens.glass(Theme.Tokens.outlineFocus, 0.20)
+                    : bluetoothTap.pressed ? Theme.Tokens.surfaceSurfaceHighest
+                    : bluetoothHover.hovered ? Theme.Tokens.surfaceSurface2 : "transparent"
+                border.color: bluetoothAction.activeFocus ? Theme.Tokens.outlineFocus : "transparent"
+                border.width: bluetoothAction.activeFocus ? 2 : 0
+            }
             RowLayout {
                 id: bluetoothValues
                 anchors.centerIn: parent
@@ -57,7 +81,8 @@ FocusScope {
                 Text { text: "\uF294"; color: root.connectedDevices.length > 0 ? Theme.Tokens.tonalSecondary : Theme.Tokens.textMuted; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconXs }
                 Text { visible: root.connectedDevices.length > 0; text: root.connectedDevices.length === 1 ? String(root.connectedDevices[0].name || "Device") : String(root.connectedDevices.length); color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; elide: Text.ElideRight; Layout.maximumWidth: Theme.Tokens.scaled(72) }
             }
-            TapHandler { onTapped: root.openBluetooth() }
+            HoverHandler { id: bluetoothHover; cursorShape: Qt.PointingHandCursor }
+            TapHandler { id: bluetoothTap; onTapped: root.openBluetooth() }
             Keys.onReturnPressed: root.openBluetooth()
             Keys.onSpacePressed: root.openBluetooth()
         }

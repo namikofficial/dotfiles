@@ -23,6 +23,10 @@ FocusScope {
     property bool urgent: false
     property bool failed: false
     property bool danger: false
+    // Workspace controls live inside one shared rail track. Their inactive
+    // states stay open so the active workspace, rather than a row of little
+    // cards, carries the visual weight.
+    property bool railItem: false
 
     // ── Behaviour ──
     signal tapped()
@@ -48,24 +52,32 @@ FocusScope {
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.Tokens.radiusPill
-        color: root.failed
-            ? Theme.Tokens.glass(Theme.Tokens.stateDanger, 0.34)
-            : root.pressed
-                ? Theme.Tokens.tonalPrimaryContainer
-                : root.active
-                    ? Theme.Tokens.tonalPrimary
+        radius: root.railItem ? Theme.Tokens.radiusMd : Theme.Tokens.radiusPill
+        color: root.railItem
+            ? (root.active
+                ? Theme.Tokens.tonalPrimary
+                : root.pressed
+                    ? Theme.Tokens.surfaceSurfaceHighest
                     : root.hovered
-                        ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78)
-                        : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
+                        ? Theme.Tokens.surfaceSurface2
+                        : "transparent")
+            : root.failed
+                ? Theme.Tokens.glass(Theme.Tokens.stateDanger, 0.34)
+                : root.pressed
+                    ? Theme.Tokens.tonalPrimaryContainer
+                    : root.active
+                        ? Theme.Tokens.tonalPrimary
+                        : root.hovered
+                            ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78)
+                            : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
         border.color: root.active
-            ? Theme.Tokens.tonalPrimary
+            ? (root.railItem ? "transparent" : Theme.Tokens.tonalPrimary)
             : root.activeFocus
                 ? Theme.Tokens.outlineFocus
                 : "transparent"
-        border.width: root.active ? 1 : (root.activeFocus ? 2 : 0)
+        border.width: root.active && !root.railItem ? 1 : (root.activeFocus ? 2 : 0)
         // Unoccupied pills recede so the active workspace reads first.
-        opacity: root.active ? 1.0 : root.occupied ? 0.85 : 0.55
+        opacity: root.railItem ? 1.0 : root.active ? 1.0 : root.occupied ? 0.85 : 0.55
     }
 
     RowLayout {

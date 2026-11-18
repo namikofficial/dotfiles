@@ -36,6 +36,7 @@ Local.BarStatusPill {
     active: root.isActive
     occupied: root.isOccupied
     urgent: root.isUrgent
+    railItem: true
     tooltipText: Presentation.tooltip(root.workspaceName, root.isActive, root.isOccupied,
                                       root.activeApp, root.activeTitle)
 

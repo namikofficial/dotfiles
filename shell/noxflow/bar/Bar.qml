@@ -216,85 +216,129 @@ Item {
         Item { Layout.fillWidth: true; Layout.minimumWidth: Theme.Tokens.scaled(20) }
 
         // ── RIGHT ──
-        RowLayout {
+        Item {
             id: rightZone
             Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-            spacing: root.groupGap
+            readonly property int railInset: Theme.Tokens.scaled(6)
+            implicitWidth: statusItems.implicitWidth + railInset * 2
+            implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
 
-            Local.TrayCapsule {
-                id: tray
-                Layout.alignment: Qt.AlignVCenter
-            }
-
-            Components.ConnectivityCapsule {
-                id: connectivityCapsule
-                network: root.network
-                bluetooth: root.bluetooth
-                Layout.alignment: Qt.AlignVCenter
-                onOpenNetwork: root.toggleQuickSettings(connectivityCapsule.networkActionItem, "network")
-                onOpenBluetooth: root.toggleQuickSettings(connectivityCapsule.bluetoothActionItem, "bluetooth")
-                onHoveredChanged: function (hovered) {
-                    root.islandHover("connectivity", hovered, connectivityCapsule);
-                }
-            }
-
-            Components.AudioPowerCapsule {
-                id: audioPowerCapsule
-                audio: root.audio
-                battery: root.battery
-                Layout.alignment: Qt.AlignVCenter
-                onToggleMute: root.toggleMute()
-                onAdjustVolume: function (delta) { root.adjustVolume(delta); }
-                onOpenPower: root.toggleQuickSettings(audioPowerCapsule.powerActionItem, "battery")
-                onHoveredChanged: function (hovered) {
-                    root.islandHover("audio-power", hovered, audioPowerCapsule);
-                }
-            }
-
-            Local.MicIndicator {
-                id: micIndicator
-                Layout.alignment: Qt.AlignVCenter
-            }
-
-            Local.NotificationPill {
-                id: notificationPill
-                count: root.notificationModel && root.notificationModel.notifications
-                    ? root.notificationModel.notifications.length : 0
-                dnd: !!(root.notificationModel && root.notificationModel.dnd)
-                Layout.alignment: Qt.AlignVCenter
-                onActivated: root.toggleNotifications()
-                onHoverChangedToIsland: function (hovered) {
-                    root.islandHover("notification-preview", hovered, notificationPill);
-                }
-            }
-
-            Local.UpdatePill {
-                id: updatePill
-                launchState: root.updateLaunchState
-                launchMessage: root.updateLaunchMessage
-                checked: root.updates.checked
-                count: root.updates.count
-                detailTooltip: root.updates.tooltip
-                Layout.alignment: Qt.AlignVCenter
-                onRunUpdate: root.runSystemUpdate()
-                onRefreshRequested: root.updates.refresh()
-                onHoverChangedToIsland: function (hovered) {
-                    root.islandHover("updates", hovered, updatePill);
-                }
-            }
-
-            // Provider health dot — only visible when something is degraded.
             Rectangle {
-                id: providerHealthDot
-                visible: root.providerDegraded
-                width: Theme.Tokens.scaled(8)
-                height: Theme.Tokens.scaled(8)
-                radius: Theme.Tokens.scaled(4)
-                color: Theme.Tokens.stateWarning
-                Layout.alignment: Qt.AlignVCenter
-                HoverHandler {
-                    onHoveredChanged: {
-                        if (hovered) root.islandHover("provider-health", true, providerHealthDot);
+                anchors.fill: parent
+                radius: Theme.Tokens.radiusMd
+                color: Theme.Tokens.surfaceSurfaceContainerLow
+                border.color: Theme.Tokens.outlineSubtle
+                border.width: 1
+            }
+
+            RowLayout {
+                id: statusItems
+                anchors.fill: parent
+                anchors.leftMargin: rightZone.railInset
+                anchors.rightMargin: rightZone.railInset
+                spacing: Theme.Tokens.scaled(4)
+
+                Local.TrayCapsule {
+                    id: tray
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
+                Rectangle {
+                    visible: tray.implicitWidth > 0
+                    Layout.alignment: Qt.AlignVCenter
+                    width: 1
+                    height: Theme.Tokens.scaled(16)
+                    color: Theme.Tokens.outlineSubtle
+                }
+
+                Components.ConnectivityCapsule {
+                    id: connectivityCapsule
+                    network: root.network
+                    bluetooth: root.bluetooth
+                    railMode: true
+                    Layout.alignment: Qt.AlignVCenter
+                    onOpenNetwork: root.toggleQuickSettings(connectivityCapsule.networkActionItem, "network")
+                    onOpenBluetooth: root.toggleQuickSettings(connectivityCapsule.bluetoothActionItem, "bluetooth")
+                    onHoveredChanged: function (hovered) {
+                        root.islandHover("connectivity", hovered, connectivityCapsule);
+                    }
+                }
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignVCenter
+                    width: 1
+                    height: Theme.Tokens.scaled(16)
+                    color: Theme.Tokens.outlineSubtle
+                }
+
+                Components.AudioPowerCapsule {
+                    id: audioPowerCapsule
+                    audio: root.audio
+                    battery: root.battery
+                    railMode: true
+                    Layout.alignment: Qt.AlignVCenter
+                    onToggleMute: root.toggleMute()
+                    onAdjustVolume: function (delta) { root.adjustVolume(delta); }
+                    onOpenPower: root.toggleQuickSettings(audioPowerCapsule.powerActionItem, "battery")
+                    onHoveredChanged: function (hovered) {
+                        root.islandHover("audio-power", hovered, audioPowerCapsule);
+                    }
+                }
+
+                Rectangle {
+                    Layout.alignment: Qt.AlignVCenter
+                    width: 1
+                    height: Theme.Tokens.scaled(16)
+                    color: Theme.Tokens.outlineSubtle
+                }
+
+                Local.MicIndicator {
+                    id: micIndicator
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
+                Local.NotificationPill {
+                    id: notificationPill
+                    count: root.notificationModel && root.notificationModel.notifications
+                        ? root.notificationModel.notifications.length : 0
+                    dnd: !!(root.notificationModel && root.notificationModel.dnd)
+                    railItem: true
+                    Layout.alignment: Qt.AlignVCenter
+                    onActivated: root.toggleNotifications()
+                    onHoverChangedToIsland: function (hovered) {
+                        root.islandHover("notification-preview", hovered, notificationPill);
+                    }
+                }
+
+                Local.UpdatePill {
+                    id: updatePill
+                    launchState: root.updateLaunchState
+                    launchMessage: root.updateLaunchMessage
+                    checked: root.updates.checked
+                    count: root.updates.count
+                    detailTooltip: root.updates.tooltip
+                    railItem: true
+                    Layout.alignment: Qt.AlignVCenter
+                    onRunUpdate: root.runSystemUpdate()
+                    onRefreshRequested: root.updates.refresh()
+                    onHoverChangedToIsland: function (hovered) {
+                        root.islandHover("updates", hovered, updatePill);
+                    }
+                }
+
+                // Provider health dot — only visible when something is degraded.
+                Rectangle {
+                    id: providerHealthDot
+                    visible: root.providerDegraded
+                    width: Theme.Tokens.scaled(8)
+                    height: Theme.Tokens.scaled(8)
+                    radius: Theme.Tokens.scaled(4)
+                    color: Theme.Tokens.stateWarning
+                    Layout.alignment: Qt.AlignVCenter
+                    HoverHandler {
+                        onHoveredChanged: {
+                            if (hovered) root.islandHover("provider-health", true, providerHealthDot);
+                        }
                     }
                 }
             }

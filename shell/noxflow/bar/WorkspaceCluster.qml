@@ -26,7 +26,19 @@ Item {
     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
     // The strip grows with its content up to a cap, then scrolls. Without the
     // cap a heavily-used monitor pushes the right zone off screen.
-    implicitWidth: Math.min(contents.implicitWidth, Theme.Tokens.scaled(360))
+    readonly property int railInset: Theme.Tokens.scaled(4)
+    implicitWidth: Math.min(contents.implicitWidth + railInset * 2, Theme.Tokens.scaled(360))
+
+    // One quiet track gives workspace identity a home in the bar. Individual
+    // inactive workspaces remain unboxed; only the selected one gets a filled
+    // state in WorkspacePill.
+    Rectangle {
+        anchors.fill: parent
+        radius: Theme.Tokens.radiusMd
+        color: Theme.Tokens.surfaceSurfaceContainerLow
+        border.color: Theme.Tokens.outlineSubtle
+        border.width: 1
+    }
 
     // Wheel over the strip cycles workspaces. It lives on the cluster because
     // the pill itself is a FocusScope (a BarStatusPill) and cannot take a
@@ -43,7 +55,7 @@ Item {
         id: scroller
         anchors.fill: parent
         clip: true
-        contentWidth: contents.implicitWidth
+        contentWidth: contents.implicitWidth + root.railInset * 2
         contentHeight: height
         // The scroller decides whether it is *interactive*, not whether it is
         // *visible*. `visible: contentWidth > width` hid the whole workspace
@@ -56,7 +68,9 @@ Item {
 
         RowLayout {
             id: contents
-            spacing: Theme.Tokens.scaled(Theme.Tokens.spacingSm)
+            x: root.railInset
+            width: implicitWidth
+            spacing: Theme.Tokens.scaled(2)
             height: scroller.height
 
             Repeater {
