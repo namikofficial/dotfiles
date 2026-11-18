@@ -40,7 +40,7 @@ Item {
         windowFocusProcess.run(["hyprctl", "dispatch", "focuswindow", "address:" + addr]);
     }
 
-    readonly property var modes: ["Apps","Windows","Commands","Calc","Ask AI","Clipboard"]
+    readonly property var modes: ["All","Apps","Windows","Commands","Calc","Ask AI","Clipboard"]
     property int activeMode: 0
     property string searchText: ""
     property var filteredResults: []
@@ -79,7 +79,7 @@ Item {
         "obs-studio":"\uF030"
     })
     readonly property string defaultIcon: "\u25A3"
-    readonly property var emptyLabels: ["No applications found","No open windows","No matching commands","","Ask anything\u2026","No clipboard history"]
+    readonly property var emptyLabels: ["No matching actions","No applications found","No open windows","No matching commands","","Ask anything\u2026","No clipboard history"]
 
     anchors.fill: parent
     visible: lifecycle.active
@@ -121,8 +121,8 @@ Item {
             // Search
             Components.TextField { id: searchField; Layout.fillWidth: true; label: ""; showClearButton: true
                 focus: lifecycle.active
-                placeholderText: root.activeMode === 4 ? "Ask anything\u2026" : "Search\u2026"
-                onTextChanged: { root.searchText = text; if (root.activeMode === 4) { root.aiQuery = text; root.triggerAiQuery() } root.filterResults() }
+                placeholderText: root.activeMode === 5 ? "Ask anything\u2026" : "Search apps, projects, windows, and actions\u2026"
+                onTextChanged: { root.searchText = text; if (root.activeMode === 5) { root.aiQuery = text; root.triggerAiQuery() } root.filterResults() }
                 onAccepted: root.activateSelected()
                 onNavigateUp: root.moveList(-1)
                 onNavigateDown: root.moveList(1)
@@ -152,12 +152,12 @@ Item {
             Components.Divider { Layout.fillWidth: true }
             RowLayout {
                 Layout.fillWidth: true
-                visible: root.launchBusy || root.scanBusy || root.launchError !== "" || root.scanError !== ""
+                visible: root.launchBusy || root.scanBusy || root.projectScanBusy || root.launchError !== "" || root.scanError !== "" || root.projectScanError !== ""
                 spacing: Theme.Tokens.spacingSm
                 Text {
                     Layout.fillWidth: true
-                    text: root.launchBusy ? "Opening " + root.launchTarget + "\u2026" : root.scanBusy ? "Loading applications\u2026" : (root.launchError || root.scanError)
-                    color: root.launchBusy ? Theme.Tokens.textMuted : Theme.Tokens.stateDanger
+                    text: root.launchBusy ? "Opening " + root.launchTarget + "\u2026" : root.scanBusy ? "Loading applications\u2026" : root.projectScanBusy ? "Loading project contexts\u2026" : (root.launchError || root.scanError || root.projectScanError)
+                    color: root.launchBusy || root.scanBusy || root.projectScanBusy ? Theme.Tokens.textMuted : Theme.Tokens.stateDanger
                     font.pixelSize: Theme.Tokens.typographyLabelSmall
                     wrapMode: Text.WordWrap
                 }
@@ -172,7 +172,7 @@ Item {
             Item { Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                 // AI panel
                 Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusMd; color: Theme.Tokens.surfaceSurfaceContainer
-                    visible: root.activeMode === 4 && (root.aiStatus > 0 || root.aiLoading)
+                    visible: root.activeMode === 5 && (root.aiStatus > 0 || root.aiLoading)
                     ColumnLayout { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingMd; spacing: Theme.Tokens.spacingSm
                         RowLayout { Layout.fillWidth: true; visible: root.aiLoading; spacing: Theme.Tokens.spacingSm
                             Components.LoadingIndicator {}
@@ -189,14 +189,14 @@ Item {
                 // Empty
                 Text { anchors.centerIn: parent
                     text: root.searchText !== "" ? "No results"
-                        : root.activeMode === 4 ? root.emptyLabels[4]
-                        : root.activeMode === 3 ? "Type an expression\u2026"
+                        : root.activeMode === 5 ? root.emptyLabels[5]
+                        : root.activeMode === 4 ? "Type an expression\u2026"
                         : root.emptyLabels[root.activeMode] || "Type to search\u2026"
                     color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodyMedium
-                    visible: root.filteredResults.length === 0 && !(root.activeMode === 4 && (root.aiResponse !== "" || root.aiLoading)) }
+                    visible: root.filteredResults.length === 0 && !(root.activeMode === 5 && (root.aiResponse !== "" || root.aiLoading)) }
                 // List
                 ListView { id: resultsList; anchors.fill: parent; model: root.filteredResults; currentIndex: root.selectedIndex
-                    spacing: Theme.Tokens.spacingXs; visible: !(root.activeMode === 4 && (root.aiResponse !== "" || root.aiLoading))
+                    spacing: Theme.Tokens.spacingXs; visible: !(root.activeMode === 5 && (root.aiResponse !== "" || root.aiLoading))
                     delegate: Item {
                         required property int index; required property var modelData
                         width: parent ? parent.width : 0; height: Theme.Tokens.scaled(Theme.Tokens.heightControl)
@@ -254,6 +254,10 @@ Item {
     // ── App scanning ──
     property var appCache: []; property bool scanStarted: false; property bool scanBusy: false
     property string scanError: ""
+    property var projectCache: []
+    property bool projectScanStarted: false
+    property bool projectScanBusy: false
+    property string projectScanError: ""
     // Retry button visible when last scan failed and we have defaults showing
     property bool scanFailed: false
     property Components.Command desktopScanner: Components.Command {
@@ -267,12 +271,39 @@ Item {
             root.filterResults()
         }
     }
+    property Components.Command projectScanner: Components.Command {
+        label: "Project discovery"
+        onStarted: { root.projectScanBusy = true; root.projectScanError = "" }
+        onExited: function(exitCode) {
+            root.projectScanBusy = false
+            if (exitCode !== 0) {
+                root.projectScanError = root.projectScanner.failureText()
+                root.projectCache = []
+            } else {
+                try {
+                    var payload = JSON.parse(root.projectScanner.output || "{}")
+                    root.projectCache = payload.schemaVersion === 1 && Array.isArray(payload.projects)
+                        ? payload.projects : []
+                    root.projectScanError = ""
+                } catch (e) {
+                    root.projectCache = []
+                    root.projectScanError = "Project registry returned invalid data"
+                }
+            }
+            root.filterResults()
+        }
+    }
     function scanDesktopFiles() {
         if (desktopScanner.running) return;
         scanStarted = true; scanFailed = false;
         desktopScanner.run([Quickshell.env("HOME") + "/.config/hypr/scripts/launcher.sh", "--list-json"]);
     }
     function retryScan() { if (desktopScanner.running) return; scanStarted = false; scanError = ""; scanDesktopFiles() }
+    function scanProjects() {
+        if (projectScanner.running || projectScanStarted) return
+        projectScanStarted = true
+        projectScanner.run([Quickshell.env("HOME") + "/Documents/code/dotfiles/setup/project-profile.sh", "list-json"])
+    }
     function iconSource(item) {
         // launcher.sh resolves most icons to files; load those directly. The
         // image://icon provider below rasterises SVGs at an unbounded size
@@ -324,15 +355,16 @@ Item {
         return scored.slice(0, limit || 30).map(function(entry) { return entry.item; });
     }
     function filterResults() {
-        if (activeMode === 0 && !root.scanStarted) { appCache = buildDefaultApps(); scanDesktopFiles(); }
+        if ((activeMode === 0 || activeMode === 1) && !root.scanStarted) { appCache = buildDefaultApps(); scanDesktopFiles(); }
+        if (activeMode === 0 && !root.projectScanStarted) scanProjects()
         var q = searchText.toLowerCase().trim();
         selectedIndex = 0;
-        if (activeMode === 4) { filteredResults = []; return; }
-        if (activeMode === 5) {
+        if (activeMode === 5) { filteredResults = []; return; }
+        if (activeMode === 6) {
             var clipboardItems = [{ title:"Open Author Clipboard", iconName:"com.namikofficial.author-clipboard", icon:"\uF0EA", subtitle:"Search, copy, paste, pin, and manage history", action:"open_clipboard", actionParams:{} }];
             filteredResults = ranked(clipboardItems, q, 1); return;
         }
-        if (activeMode === 3) {
+        if (activeMode === 4) {
             if (q === "") { filteredResults = []; return; }
             var calcResult = evaluateCalc(q);
             if (calcResult.valid) {
@@ -343,10 +375,30 @@ Item {
             }
             return;
         }
-        var src = activeMode === 0 ? buildAppResults() : activeMode === 1 ? buildWindowResults() : buildCommandResults();
+        var src = activeMode === 0 ? buildAllResults()
+            : activeMode === 1 ? buildAppResults()
+            : activeMode === 2 ? buildWindowResults()
+            : buildCommandResults();
         filteredResults = ranked(src, q, q === "" ? 20 : 30);
     }
     function buildAppResults() { return appCache.length > 0 ? appCache : buildDefaultApps() }
+    function buildProjectResults() {
+        return projectCache.map(function(project) {
+            if (!project || !project.id || !project.name) return null
+            return { title: project.name, icon: "\uF07C", subtitle: "Project · " + project.id,
+                action: "resume_project", actionParams: { id: String(project.id) } }
+        }).filter(function(project) { return project !== null })
+    }
+    function buildAllResults() {
+        var items = buildAppResults().concat(buildWindowResults(), buildCommandResults(), buildProjectResults())
+        if (searchText.trim() !== "") {
+            var result = evaluateCalc(searchText)
+            if (result.valid) items.push({ title: "= " + result.display, icon: "\uF1EC",
+                subtitle: "Calculation · " + searchText.trim(), action: "copy_result",
+                actionParams: { value: result.value } })
+        }
+        return items
+    }
     function buildWindowResults() { try { if (!hyprland || !hyprland.windows) return []; var out = []; var wins = hyprland.windows; for (var i = 0; i < wins.length; i++) { var w = wins[i]; if (!w) continue; var wsLabel = ""; if (w.workspace) wsLabel = "ws " + (w.workspace.name || w.workspace.id || ""); out.push({ title:w.title||"Untitled", icon:"\uF2D2", subtitle:wsLabel, action:"focus_window", actionParams:{address:w.address||""} }) } return out } catch(e) { return [] } }
     function buildCommandResults() { return [{ title:"Lock", icon:"\uF023", subtitle:"Lock the screen", action:"lock", actionParams:{} }, { title:"Suspend", icon:"\uF186", subtitle:"Suspend to RAM", action:"suspend", actionParams:{} }, { title:"Reboot", icon:"\uF01E", subtitle:"Reboot the system", action:"reboot", actionParams:{} }, { title:"Power Off", icon:"\uF011", subtitle:"Shut down", action:"power_off", actionParams:{} }, { title:"Dolphin", icon:"\uF07C", subtitle:"Open file manager", action:"launchProgram", actionParams:{program:"files"} }, { title:"Screenshot", icon:"\uF030", subtitle:"Take a screenshot", action:"screenshot", actionParams:{} }, { title:"Reload shell", icon:"\uF021", subtitle:"Restart NoxFlow shell", action:"reload_shell", actionParams:{} }] }
 

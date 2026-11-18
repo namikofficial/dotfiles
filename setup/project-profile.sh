@@ -18,6 +18,7 @@ Projects are resolved from the canonical Workbench registry by ID, name, or alia
 
 Commands:
   list                    List registered projects
+  list-json               Print registered projects for shell integrations
   status                  Show registry and cached active-project status
   current                 Print the selected project ID
   path <project>          Print the canonical project path
@@ -143,6 +144,14 @@ list_projects() {
     (if .id == $selected then "*" else " " end) +
     "\t" + .id + "\t" + .name + "\t" + .path
   ' <<<"$registry"
+}
+
+list_projects_json() {
+  jq -c '{schemaVersion: 1, projects: [.projects[] | {
+    id, name, path, aliases,
+    preferredEditor: (.preferredEditor // null),
+    tmuxSession: (.tmuxSession // null)
+  }]}' <<<"$registry"
 }
 
 project_status() {
@@ -325,6 +334,9 @@ selector="${2:-}"
 case "$command_name" in
   list)
     list_projects
+    ;;
+  list-json)
+    list_projects_json
     ;;
   status)
     project_status
