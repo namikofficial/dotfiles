@@ -9,6 +9,7 @@ import "surfaces/clipboard" as ClipboardSurface
 import "surfaces/radialmenu" as RadialSurface
 import "surfaces/calendar" as CalendarSurface
 import "surfaces/media" as MediaSurface
+import "surfaces/atlas" as AtlasSurface
 import "surfaces/dashboard" as DashboardSurface
 import "surfaces/settings" as SettingsSurface
 import "surfaces/share" as ShareSurface
@@ -359,6 +360,18 @@ ShellRoot {
     function openDashboard()   { panelController.openModal(dashboard); }
     function closeDashboard()  { dashboard.close(); }
 
+    // Nox Atlas is the single visual window/workspace overview. It replaces
+    // the external overview plugin and its Rofi fallback while using the
+    // compositor's live toplevel model and screencopy path.
+    AtlasSurface.Atlas {
+        id: atlas
+        screen: Quickshell.activeScreen || null
+        coordinator: panelController
+    }
+    function toggleAtlas() { panelController.toggleModal(atlas); }
+    function openAtlas() { panelController.openModal(atlas); }
+    function closeAtlas() { atlas.close(); }
+
     // ── Settings Panel (modal, singleton) ──
     SettingsSurface.SettingsPanel {
         id: settingsPanel
@@ -461,6 +474,9 @@ ShellRoot {
         function toggleDashboard() { shellRoot.toggleDashboard(); }
         function openDashboard()   { shellRoot.openDashboard(); }
         function closeDashboard()  { shellRoot.closeDashboard(); }
+        function toggleAtlas() { shellRoot.toggleAtlas(); }
+        function openAtlas() { shellRoot.openAtlas(); }
+        function closeAtlas() { shellRoot.closeAtlas(); }
         function toggleSettings() { shellRoot.toggleSettings(); }
         function openSettings()   { shellRoot.openSettings(); }
         function closeSettings()  { shellRoot.closeSettings(); }
