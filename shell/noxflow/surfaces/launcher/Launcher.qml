@@ -65,9 +65,9 @@ Item {
     property Components.Command copyResultProcess: Components.Command {
         label: "Copy calculation result"
         onExited: function(exitCode) {
+            root.launchBusy = false
             if (exitCode === 0) lifecycle.requestClose("action")
             else {
-                root.launchBusy = false
                 root.launchError = root.copyResultProcess.failureText()
                 searchField.forceActiveFocus()
             }
@@ -539,6 +539,8 @@ Item {
             break
         case "copy_result":
             if (!item.actionParams || item.actionParams.value === undefined) return
+            launchBusy = true
+            launchTarget = "result"
             copyResultProcess.run(["sh", "-c", "printf %s \"$1\" | wl-copy --type text/plain",
                 "launcher", String(item.actionParams.value)])
             break
@@ -546,6 +548,7 @@ Item {
             if (!item.actionParams) return
             launchTarget = item.title || "application"
             launchError = ""
+            launchProcess.label = "Launch application"
             var argv;
             if (item.actionParams.desktopId) argv = ["uwsm", "app", "-t", "service", "--", item.actionParams.desktopId];
             else if (item.actionParams.command) argv = ["uwsm", "app", "-t", "service", "--", item.actionParams.command];
