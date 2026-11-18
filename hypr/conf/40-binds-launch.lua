@@ -9,7 +9,7 @@ exec(mainMod .. " + Return", ctx.terminal)
 exec(mainMod .. " + Space", home .. "/.local/bin/noxctl panel toggle launcher")
 
 -- NoxFlow feature keybinds (canonical)
--- SUPER+TAB (overview) is owned by hypr/conf/95-plugins.lua (scroll-overview).
+-- SUPER+TAB (overview) is owned by hypr/conf/95-plugins.lua (Nox Atlas).
 -- SUPER+SPACE (launcher) above. SUPER+C → control centre, SUPER+M → media,
 -- SUPER+V → Author Clipboard picker, SUPER+S → quick share,
 -- SUPER+W → wallpaper/theme.

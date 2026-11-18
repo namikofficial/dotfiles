@@ -133,7 +133,7 @@ PanelWindow {
                         text: "Your work, in view."
                         color: Theme.Tokens.textPrimary
                         font.family: Theme.Tokens.typographyDisplayFamily
-                        font.pixelSize: Math.min(Theme.Tokens.scaled(32), parent.parent.height * 0.055)
+                        font.pixelSize: Theme.Tokens.scaled(32)
                         font.bold: true
                     }
                 }

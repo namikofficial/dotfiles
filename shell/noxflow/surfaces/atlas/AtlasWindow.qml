@@ -99,6 +99,5 @@ Item {
     DragHandler {
         id: dragHandler
         target: null
-        dragThreshold: Theme.Tokens.scaled(10)
     }
 }

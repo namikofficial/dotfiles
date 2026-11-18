@@ -35,8 +35,8 @@ One Quickshell process owns bar + central island + panels. Full docs:
 
 - **Morphing central island** — panels morph from the bar chip that opened
   them (phased geometry + crossfade, retained window height on collapse)
-- **ScrollOverview plugin** — `SUPER+TAB` (was the deleted QML overview).
-  ABI-breaking: rebuild after Hyprland upgrades via `setup/scrolloverview-rebuild.sh`
+- **Nox Atlas** — `SUPER+TAB` opens one visual overview of live windows and
+  workspaces, with keyboard focus and drag-to-move.
 - **Quick Share panel** — `SUPER+S` left-side panel backed by LocalSend
   (`localsend.service`); transfers are app-owned, panel shows honest daemon state
 - **Clipboard panel** — `SUPER+V` history drawer (wl-copy)
@@ -52,7 +52,6 @@ systemctl --user restart noxflow-shell.service   # restart the shell
 systemctl --user restart noxd.service            # restart the daemon
 journalctl --user -u noxflow-shell --no-pager    # shell logs
 journalctl --user -u noxd --no-pager             # daemon logs
-setup/scrolloverview-rebuild.sh --source         # rebuild overview plugin
 ```
 
 ## Quick start
@@ -244,8 +243,7 @@ The bootstrap script automatically runs `setup/install-tmux-plugins.sh` unless y
 
 - `Super + Y`: primary workspace hub (`workspace-overview.sh`)
 - `Super + W`: wallpaper and theme panel
-- `Super + Tab`: overview toggle (`hyprexpo` if loaded, otherwise fallback Rofi overview)
-- `Super + Shift + Tab`: direct Rofi overview
+- `Super + Tab`: Nox Atlas window and workspace overview
 - `Super + Space`: desktop command palette
 - `Super + Shift + Space`: ultra-fast app launcher
 - `Super + Ctrl + Space`: workspace/window search
@@ -571,10 +569,8 @@ atomic `workstationctl apply-system` implementation.
 ./setup/install-hypr-plugins.sh
 ```
 
-This builds `hyprexpo` into `~/.local/share/hypr/plugins/hyprexpo/hyprexpo.so`.
-`startup.sh` keeps it unloaded by default so Hyprland upgrades do not emit a
-plugin version mismatch warning at login.
-`Super + Tab` loads it on demand before falling back to the Rofi overview.
+This builds the optional `hyprexpo` plugin used by Kage's explicit overview
+fallback. Nox Atlas owns `Super + Tab` and does not depend on Hyprland plugins.
 
 If you want the old eager-load behavior back, set:
 
