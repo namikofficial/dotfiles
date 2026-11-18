@@ -23,6 +23,7 @@ PanelWindow {
     aboveWindows: true
     color: "transparent"
     visible: lifecycle.active
+    WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "noxflow-atlas"
     WlrLayershell.keyboardFocus: lifecycle.active
         ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -97,7 +98,7 @@ PanelWindow {
 
         Rectangle {
             anchors.fill: parent
-            color: Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceCanvas, 0.90)
+            color: Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceCanvas, 0.96)
             opacity: root.openProgress
         }
 

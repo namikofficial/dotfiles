@@ -38,14 +38,13 @@ Item {
             captureSource: root.client ? root.client.wayland : null
             live: root.live
             constraintSize: Qt.size(960, 540)
-            onLiveChanged: if (live && !hasContent) captureFrame()
             Connections {
                 target: root
                 function onOverviewOpenChanged() {
-                    if (root.overviewOpen) Qt.callLater(preview.captureFrame);
+                    if (root.overviewOpen && !root.live) captureTimer.restart();
                 }
                 function onClientChanged() {
-                    if (root.overviewOpen) Qt.callLater(preview.captureFrame);
+                    if (root.overviewOpen && !root.live) captureTimer.restart();
                 }
             }
         }
@@ -98,6 +97,20 @@ Item {
 
     HoverHandler { cursorShape: Qt.PointingHandCursor }
     TapHandler { onTapped: root.activated(root.client) }
+
+    Timer {
+        id: captureTimer
+        interval: 240
+        repeat: false
+        onTriggered: {
+            if (root.overviewOpen && !root.live && preview.captureSource && !preview.hasContent)
+                preview.captureFrame();
+        }
+    }
+
+    Component.onCompleted: {
+        if (root.overviewOpen && !root.live) captureTimer.start();
+    }
 
     Drag.active: dragHandler.active
     Drag.source: root
