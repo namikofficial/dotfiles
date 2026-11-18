@@ -25,6 +25,7 @@ PanelWindow {
     visible: lifecycle.active
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "noxflow-atlas"
+    WlrLayershell.exclusionMode: ExclusionMode.Ignore
     WlrLayershell.keyboardFocus: lifecycle.active
         ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
