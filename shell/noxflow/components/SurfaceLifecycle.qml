@@ -20,6 +20,7 @@
 
 import QtQuick
 import "../theme" as Theme
+import "../config" as Config
 
 QtObject {
     id: root
@@ -33,7 +34,8 @@ QtObject {
     readonly property bool interactive: state === SurfaceLifecycle.State.Open
     readonly property bool transitioning: completionTimer.running
     property string closeReason: ""
-    readonly property int animDuration: Theme.Tokens.duration(Theme.Tokens.motionSurface)
+    readonly property int animDuration: state === SurfaceLifecycle.State.Closing
+        ? Config.Motion.panelClose : Config.Motion.panelOpen
 
     // The type of easing the surface's Behavior should use
     readonly property int easingType: state === SurfaceLifecycle.State.Opening

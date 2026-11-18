@@ -332,11 +332,12 @@ PanelWindow {
 
         var width = Theme.Tokens.scaled(Config.ShellConfig.panelPreferredWidth);
         if (name === "calendar" || name === "sync") width = Theme.Tokens.scaled(520);
+        else if (name === "media") width = Theme.Tokens.scaled(452);
         else if (name === "quick-share") width = Theme.Tokens.scaled(460);
         else if (name === "launcher") width = Theme.Tokens.scaled(620);
 
         var height = Math.min(Theme.Tokens.scaled(720), available);
-        if (name === "media") height = Theme.Tokens.scaled(230);
+        if (name === "media") height = Math.min(Theme.Tokens.scaled(324), available);
         else if (name === "calendar") height = Theme.Tokens.scaled(650);
         else if (name === "launcher") height = Theme.Tokens.scaled(520);
         else if (name === "sync") height = Theme.Tokens.scaled(680);
