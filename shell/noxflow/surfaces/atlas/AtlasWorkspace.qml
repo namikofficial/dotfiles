@@ -149,6 +149,10 @@ FocusScope {
                     if (currentItem && currentItem.client)
                         root.activateWindow(currentItem.client);
                 }
+                Keys.onSpacePressed: {
+                    if (currentItem && currentItem.client)
+                        root.activateWindow(currentItem.client);
+                }
                 Keys.onEscapePressed: root.requestWorkspaceStep(0)
             }
 

@@ -38,7 +38,8 @@ Item {
             live: root.live
             constraintSize: Qt.size(960, 540)
             onLiveChanged: if (live && !hasContent) captureFrame()
-            Component.onCompleted: captureFrame()
+            onVisibleChanged: if (visible && !hasContent) captureFrame()
+            Component.onCompleted: if (visible) captureFrame()
         }
 
         Rectangle {
