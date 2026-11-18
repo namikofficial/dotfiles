@@ -41,7 +41,7 @@ QtObject {
         id: pollTimer
         interval: root.pollIntervalMs
         repeat: true
-        running: true
+        running: root.sessionId !== ""
         onTriggered: root.refresh()
     }
 }

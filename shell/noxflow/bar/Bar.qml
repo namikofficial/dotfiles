@@ -302,6 +302,11 @@ Item {
                     Layout.alignment: Qt.AlignVCenter
                 }
 
+                Local.ScreenCaptureIndicator {
+                    id: screenCaptureIndicator
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
                 Local.NotificationPill {
                     id: notificationPill
                     count: !root.notificationModel || root.notificationModel.privacyRedacted ? 0
