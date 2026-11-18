@@ -41,17 +41,17 @@ QtObject {
         scanning = true;
         error = "";
         var dirs = root.wallDirs.split(":");
-        var expr = [];
+        var roots = [];
         for (var i = 0; i < dirs.length; i++) {
-            if (dirs[i]) expr.push("-E " + JSON.stringify(dirs[i]));
+            if (dirs[i]) roots.push(JSON.stringify(dirs[i]));
         }
-        if (expr.length === 0) {
+        if (roots.length === 0) {
             scanning = false;
             walls = [];
             return;
         }
         scanProc.runShell(
-            "find " + expr.join(" ") +
+            "find " + roots.join(" ") +
             " -maxdepth 1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) 2>/dev/null | sort -u");
     }
 
