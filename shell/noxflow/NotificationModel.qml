@@ -27,6 +27,9 @@ QtObject {
 
     // ── State ──
     property bool dnd: false
+    // Redact display content while the session is locked or lock state is
+    // unavailable. Stored notification data remains in memory for unlock.
+    property bool privacyRedacted: true
     property var notifications: []      // active notifications
     property var history: []            // dismissed/expired (max 50)
     property int maxActive: 20

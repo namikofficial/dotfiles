@@ -18,6 +18,7 @@ ColumnLayout {
     readonly property var notes: notificationModel && notificationModel.notifications
         ? notificationModel.notifications : []
     readonly property bool dnd: !!(notificationModel && notificationModel.dnd)
+    readonly property bool privacyRedacted: !notificationModel || !!notificationModel.privacyRedacted
 
     // At most three previews; the rest is a count, not a wall of text.
     readonly property var recent: {
@@ -28,11 +29,15 @@ ColumnLayout {
 
     Local.DashboardSection {
         Layout.fillWidth: true
-        headline: root.dnd
+        headline: root.privacyRedacted
+            ? "Notifications hidden"
+            : root.dnd
             ? "Do Not Disturb enabled"
             : root.notes.length + " unread"
         headlineColor: root.dnd ? Theme.Tokens.stateWarning : Theme.Tokens.textPrimary
-        details: root.notes.length === 0
+        details: root.privacyRedacted
+            ? [{ text: "Notification details hidden while locked", color: Theme.Tokens.textMuted }]
+            : root.notes.length === 0
             ? [{ text: "No unread notifications", color: Theme.Tokens.textMuted }]
             : root.recent.map(function (note) {
                 return {

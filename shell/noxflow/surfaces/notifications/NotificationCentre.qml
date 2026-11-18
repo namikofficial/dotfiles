@@ -29,7 +29,7 @@ Item {
 
     Connections { target: lifecycle; function onOpened() { showHistory = false; } }
 
-    FocusScope { id: focusRoot; focus: lifecycle.interactive; anchors.fill: parent; Keys.onEscapePressed: lifecycle.requestClose("escape") }
+    FocusScope { id: focusRoot; focus: lifecycle.interactive && !notifModel.privacyRedacted; anchors.fill: parent; Keys.onEscapePressed: lifecycle.requestClose("escape") }
 
     // Panel
     Rectangle {
@@ -42,15 +42,15 @@ Item {
 
             // Header
             RowLayout { Layout.fillWidth: true
-                Text { text: root.showHistory ? "History" : "Notifications"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.family: Theme.Tokens.typographyDisplayFamily; font.bold: true; Layout.fillWidth: true }
+                Text { text: notifModel.privacyRedacted ? "Notifications hidden" : (root.showHistory ? "History" : "Notifications"); color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyTitleLarge; font.family: Theme.Tokens.typographyDisplayFamily; font.bold: true; Layout.fillWidth: true }
                 Components.TextButton { text: "Clear"; accessibleName: root.showHistory ? "Clear notification history" : "Clear notifications"
-                    visible: (!root.showHistory && notifModel.notifications.length > 0) || (root.showHistory && notifModel.history.length > 0)
+                    visible: !notifModel.privacyRedacted && ((!root.showHistory && notifModel.notifications.length > 0) || (root.showHistory && notifModel.history.length > 0))
                     onClicked: root.showHistory ? notifModel.clearHistory() : root.bridge.closeAll() }
                 Components.IconButton { iconText: "\uF00D"; accessibleName: "Close"; onClicked: lifecycle.requestClose("closeButton") }
             }
 
             // DND (only in active tab)
-            RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd; visible: !root.showHistory
+            RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.spacingMd; visible: !root.showHistory && !notifModel.privacyRedacted
                 Text { text: "Do Not Disturb"; color: Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; Layout.fillWidth: true }
                 Components.Toggle { accessibleName: "Do Not Disturb"; checked: notifModel.dnd; onToggled: notifModel.toggleDnd() }
             }
@@ -69,7 +69,7 @@ Item {
             Components.Divider { Layout.fillWidth: true }
 
             // Tab picker
-            RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.spacingXs
+            RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.spacingXs; visible: !notifModel.privacyRedacted
                 Rectangle { Layout.fillWidth: true; height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusPill
                     activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: "Active notifications tab"
                     color: !root.showHistory ? Theme.Tokens.tonalPrimaryContainer : "transparent"
@@ -90,12 +90,13 @@ Item {
 
             // List area
             Item { Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                Text { anchors.centerIn: parent; text: root.showHistory ? "No history" : "No notifications"
+                Text { anchors.centerIn: parent; text: notifModel.privacyRedacted ? "Notification details hidden while locked" : (root.showHistory ? "No history" : "No notifications")
                     color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodyMedium
-                    visible: (root.showHistory ? notifModel.history.length : notifModel.notifications.length) === 0 }
+                    visible: notifModel.privacyRedacted || (root.showHistory ? notifModel.history.length : notifModel.notifications.length) === 0 }
 
                 Flickable {
                     anchors.fill: parent; clip: true
+                    visible: !notifModel.privacyRedacted
                     contentHeight: listCol.childrenRect.height + Theme.Tokens.spacingMd
                     interactive: contentHeight > height
 
@@ -105,6 +106,7 @@ Item {
                             delegate: Components.NotificationItem {
                                 required property var modelData
                                 notification: modelData; width: parent ? parent.width : 0
+                                privacyRedacted: notifModel.privacyRedacted
                                 onDismissed: root.bridge.dismiss(modelData.id)
                                 onActionInvoked: function(notif, actionId) {
                                     if (actionId === "dismiss") {

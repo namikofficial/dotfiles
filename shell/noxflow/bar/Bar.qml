@@ -304,9 +304,11 @@ Item {
 
                 Local.NotificationPill {
                     id: notificationPill
-                    count: root.notificationModel && root.notificationModel.notifications
+                    count: !root.notificationModel || root.notificationModel.privacyRedacted ? 0
+                        : root.notificationModel.notifications
                         ? root.notificationModel.notifications.length : 0
                     dnd: !!(root.notificationModel && root.notificationModel.dnd)
+                    privacyRedacted: !!(root.notificationModel && root.notificationModel.privacyRedacted)
                     railItem: true
                     Layout.alignment: Qt.AlignVCenter
                     onActivated: root.toggleNotifications()

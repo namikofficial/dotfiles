@@ -11,13 +11,16 @@ Local.BarStatusPill {
 
     required property int count
     required property bool dnd
+    property bool privacyRedacted: false
 
     signal activated()
     signal hoverChangedToIsland(bool hovered)
 
     occupied: true
     minimumWidth: Theme.Tokens.scaled(Theme.Tokens.heightChip)
-    tooltipText: dnd
+    tooltipText: privacyRedacted
+        ? "Notification details hidden while locked"
+        : dnd
         ? "Do Not Disturb is on"
         : count > 0 ? count + " unread notification" + (count === 1 ? "" : "s")
                     : "No unread notifications"
@@ -28,8 +31,10 @@ Local.BarStatusPill {
     // `hover` property here: its generated change signal shadows the base one.
     onHoverChanged: function(hovered) { root.hoverChangedToIsland(hovered) }
 
-    readonly property string glyph: dnd ? "" : count > 0 ? "" : ""
-    readonly property color glyphColor: dnd
+    readonly property string glyph: privacyRedacted ? "" : dnd ? "" : count > 0 ? "" : ""
+    readonly property color glyphColor: privacyRedacted
+        ? Theme.Tokens.textMuted
+        : dnd
         ? Theme.Tokens.stateWarning
         : count > 0 ? Theme.Tokens.tonalPrimary : Theme.Tokens.tonalSecondary
 

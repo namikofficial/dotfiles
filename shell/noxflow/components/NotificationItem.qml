@@ -13,6 +13,7 @@ FocusScope {
 
     required property var notification
     property bool hovered: false
+    property bool privacyRedacted: false
 
     signal dismissed(var notification)
     signal actionInvoked(var notification, string actionId)
@@ -31,8 +32,12 @@ FocusScope {
     activeFocusOnTab: true
 
     Accessible.role: Accessible.Notification
-    Accessible.name: notification.summary + " " + notification.body
-    Accessible.description: "Notification from " + notification.app_name
+    Accessible.name: privacyRedacted
+        ? "Notification details hidden while locked"
+        : notification.summary + " " + notification.body
+    Accessible.description: privacyRedacted
+        ? "Notification details are hidden while the session is locked"
+        : "Notification from " + notification.app_name
 
     // ── Physics state (Rivendell-style spring-damper frame loop) ──
     enum AnimState { Returning, Inert, Flinging, Dismissing }
@@ -236,13 +241,13 @@ FocusScope {
                 spacing: Theme.Tokens.spacingSm
 
                 Text {
-                    text: notification.app_icon || "◈"
+                    text: root.privacyRedacted ? "◈" : (root.notification.app_icon || "◈")
                     color: Theme.Tokens.tonalPrimary
                     font.pixelSize: Theme.Tokens.iconSm
                 }
 
                 Text {
-                    text: notification.app_name || "System"
+                    text: root.privacyRedacted ? "Notification" : (root.notification.app_name || "System")
                     color: Theme.Tokens.textSecondary
                     font.family: Theme.Tokens.typographyFontFamily
                     font.pixelSize: Theme.Tokens.typographyLabelSmall
@@ -251,7 +256,7 @@ FocusScope {
                 }
 
                 Text {
-                    text: notification.timestamp || ""
+                    text: root.privacyRedacted ? "" : (root.notification.timestamp || "")
                     color: Theme.Tokens.textMuted
                     font.pixelSize: Theme.Tokens.typographyLabelSmall
                 }
@@ -267,7 +272,9 @@ FocusScope {
 
             // Summary
             Text {
-                text: notification.summary || ""
+                text: root.privacyRedacted
+                    ? "Notification details hidden while locked"
+                    : (root.notification.summary || "")
                 color: Theme.Tokens.textPrimary
                 font.family: Theme.Tokens.typographyFontFamily
                 font.pixelSize: Theme.Tokens.typographyBodyMedium
@@ -279,7 +286,7 @@ FocusScope {
 
             // Body
             Text {
-                text: notification.body || ""
+                text: root.privacyRedacted ? "" : (root.notification.body || "")
                 color: Theme.Tokens.textSecondary
                 font.family: Theme.Tokens.typographyFontFamily
                 font.pixelSize: Theme.Tokens.typographyBodySmall
@@ -294,7 +301,8 @@ FocusScope {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.Tokens.spacingXs
-                visible: notification.actions && notification.actions.length > 0
+                visible: !root.privacyRedacted && root.notification.actions
+                    && root.notification.actions.length > 0
 
                 Repeater {
                     model: notification.actions

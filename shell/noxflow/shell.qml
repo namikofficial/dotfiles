@@ -28,6 +28,7 @@ ShellRoot {
     AudioModel { id: audioModel }
     BrightnessModel { id: brightnessModel }
     PowerModel { id: powerModel }
+    SessionSecurityModel { id: sessionSecurity }
     // noxd: the Wi-Fi connect flow lives in the model and issues the actions.
     NetworkModel { id: networkModel; noxd: daemonClient }
     BluetoothModel { id: bluetoothModel }
@@ -38,7 +39,10 @@ ShellRoot {
     // resolved the right-hand side to the property itself, so the bar
     // received `undefined` and the notification badge was structurally
     // incapable of ever showing a count.
-    NotificationModel { id: notifStore }
+    NotificationModel {
+        id: notifStore
+        privacyRedacted: sessionSecurity.privacyRedacted
+    }
 
     // Decision 5: Quickshell owns org.freedesktop.Notifications. Instantiating
     // the server is what claims the bus name — referencing it as a singleton
