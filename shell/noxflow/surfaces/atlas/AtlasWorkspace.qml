@@ -11,13 +11,13 @@ FocusScope {
     required property int workspaceIndex
     property bool selected: false
     property int selectedWindowIndex: 0
+    property bool overviewOpen: false
 
     signal activateWindow(var client)
     signal moveWindow(string address, var workspace)
     signal requestWorkspaceStep(int delta)
 
-    readonly property int windowCount: workspace && workspace.toplevels
-        ? workspace.toplevels.count : 0
+    readonly property int windowCount: windowGrid.count
     readonly property string workspaceLabel: workspace
         ? (workspace.name || String(workspace.id)) : "Workspace"
 
@@ -137,7 +137,8 @@ FocusScope {
                     width: windowGrid.cellWidth - Theme.Tokens.scaled(8)
                     height: windowGrid.cellHeight - Theme.Tokens.scaled(8)
                     selected: root.selected && index === root.selectedWindowIndex
-                    live: visible && selected
+                    overviewOpen: root.overviewOpen
+                    live: root.overviewOpen && visible && selected
                     onActivated: function(client) { root.activateWindow(client); }
                 }
 

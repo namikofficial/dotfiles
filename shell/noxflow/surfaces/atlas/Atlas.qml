@@ -177,6 +177,7 @@ PanelWindow {
                     required property int index
                     workspace: modelData
                     workspaceIndex: index
+                    overviewOpen: lifecycle.active
                     width: workspaceGrid.cellWidth - Theme.Tokens.scaled(10)
                     height: workspaceGrid.cellHeight - Theme.Tokens.scaled(10)
                     selected: index === workspaceGrid.currentIndex

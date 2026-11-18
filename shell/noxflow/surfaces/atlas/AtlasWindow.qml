@@ -7,6 +7,7 @@ Item {
 
     required property var client
     property bool selected: false
+    property bool overviewOpen: false
     property bool live: false
 
     signal activated(var client)
@@ -38,8 +39,15 @@ Item {
             live: root.live
             constraintSize: Qt.size(960, 540)
             onLiveChanged: if (live && !hasContent) captureFrame()
-            onVisibleChanged: if (visible && !hasContent) captureFrame()
-            Component.onCompleted: if (visible) captureFrame()
+            Connections {
+                target: root
+                function onOverviewOpenChanged() {
+                    if (root.overviewOpen) Qt.callLater(preview.captureFrame);
+                }
+                function onClientChanged() {
+                    if (root.overviewOpen) Qt.callLater(preview.captureFrame);
+                }
+            }
         }
 
         Rectangle {
