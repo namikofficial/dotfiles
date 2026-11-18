@@ -60,6 +60,7 @@ PanelWindow {
                 || card.workspace.focused === true;
             if (isFocused) {
                 workspaceGrid.currentIndex = i;
+                workspaceGrid.positionViewAtIndex(i, GridView.Contain);
                 card.forceActiveFocus();
                 return;
             }
@@ -175,8 +176,13 @@ PanelWindow {
                 model: Hyprland.workspaces
                 cellWidth: width < Theme.Tokens.scaled(900)
                     ? width : Math.floor((width - Theme.Tokens.scaled(18)) / 2)
-                cellHeight: Math.max(Theme.Tokens.scaled(310),
-                    Math.min(Theme.Tokens.scaled(410), (height - Theme.Tokens.scaled(18)) / 2))
+                cellHeight: {
+                    var columns = width < Theme.Tokens.scaled(900) ? 1 : 2;
+                    var rows = Math.max(1, Math.ceil(workspaceGrid.count / columns));
+                    var heightPerRow = Math.floor(height / rows);
+                    return Math.max(Theme.Tokens.scaled(380),
+                        Math.min(Theme.Tokens.scaled(410), heightPerRow));
+                }
                 boundsBehavior: Flickable.StopAtBounds
                 interactive: contentHeight > height
                 keyNavigationEnabled: false
