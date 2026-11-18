@@ -80,16 +80,9 @@ echo
 echo "[4/15] Hyprland plugin state"
 if hyprctl plugin list 2>/dev/null | rg -q 'hyprexpo'; then
   hyprctl plugin list 2>/dev/null
-  ok "hyprexpo loaded"
+  ok "hyprexpo loaded for Kage's optional overview"
 else
-  hyprexpo_startup_flag="$(
-    sed -n 's/^export HYPR_LOAD_HYPREXPO_AT_STARTUP=//p' "$REPO_DIR/settings/features.env" 2>/dev/null | tail -n1
-  )"
-  if [ "${hyprexpo_startup_flag:-0}" = "0" ] && [ -x "$HOME/.config/hypr/scripts/workspace-overview.sh" ]; then
-    ok "hyprexpo disabled; workspace overview fallback available"
-  else
-    warn "hyprexpo not loaded"
-  fi
+  ok "hyprexpo is optional; Nox Atlas owns Super+Tab"
 fi
 echo
 

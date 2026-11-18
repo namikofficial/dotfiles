@@ -100,7 +100,7 @@ PanelWindow {
 
         Rectangle {
             anchors.fill: parent
-            color: Theme.Tokens.withAlpha(Theme.Tokens.surfaceSurfaceCanvas, 0.96)
+            color: Theme.Tokens.surfaceSurfaceCanvas
             opacity: root.openProgress
         }
 
