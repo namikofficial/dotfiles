@@ -49,14 +49,24 @@ PanelWindow {
 
     function selectFocusedWorkspace() {
         var focusedWorkspace = Hyprland.focusedWorkspace;
+        var focusedId = focusedWorkspace && focusedWorkspace.id !== undefined
+            ? Number(focusedWorkspace.id) : NaN;
         for (var i = 0; i < workspaceGrid.count; i++) {
             var card = workspaceGrid.itemAtIndex(i);
-            if (card && card.workspace && card.workspace === focusedWorkspace) {
+            if (!card || !card.workspace) continue;
+            var workspaceId = card.workspace.id !== undefined ? Number(card.workspace.id) : NaN;
+            var isFocused = card.workspace === focusedWorkspace
+                || (!isNaN(focusedId) && !isNaN(workspaceId) && workspaceId === focusedId)
+                || card.workspace.focused === true;
+            if (isFocused) {
                 workspaceGrid.currentIndex = i;
                 card.forceActiveFocus();
                 return;
             }
         }
+        // During the opening transition GridView may not have instantiated
+        // its delegates yet. Keep the selection pending until onOpened retries.
+        if (focusedWorkspace) return;
         if (workspaceGrid.count > 0) {
             workspaceGrid.currentIndex = 0;
             if (workspaceGrid.currentItem) workspaceGrid.currentItem.forceActiveFocus();
@@ -217,7 +227,10 @@ PanelWindow {
 
     Connections {
         target: lifecycle
-        function onOpened() { root.previewsActive = true; }
+        function onOpened() {
+            root.previewsActive = true;
+            Qt.callLater(root.selectFocusedWorkspace);
+        }
         function onClosing() { root.previewsActive = false; }
         function onClosed() { root.previewsActive = false; }
     }

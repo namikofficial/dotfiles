@@ -6,15 +6,15 @@
 .pragma library
 
 var profiles = {
-    // ── current default: dark pastel glass ──
+    // ── current default: Atelier charcoal and mineral sage ──
     "material-expressive": {
         tonals: {
-            background:               "#151218",
-            primary:                  "#D6A083",
-            onPrimary:                "#2A1813",
-            primaryContainer:         "#5A3931",
-            onPrimaryContainer:       "#F8DCCB",
-            secondary:                "#9DB9A6",
+            background:               "#151917",
+            primary:                  "#B7C5B9",
+            onPrimary:                "#17211A",
+            primaryContainer:         "#35483B",
+            onPrimaryContainer:       "#E0ECE2",
+            secondary:                "#A4BDA9",
             onSecondary:              "#152019",
             secondaryContainer:       "#30483A",
             onSecondaryContainer:     "#D1E8D4",
@@ -24,12 +24,12 @@ var profiles = {
             onTertiaryContainer:      "#EBDCF0",
         },
         surfaces: {
-            surface:                  "#1C1820",
-            surfaceContainerLow:      "#17141A",
-            surfaceContainer:         "#241F29",
-            surfaceContainerHigh:     "#302A36",
-            surfaceContainerHighest:  "#3D3442",
-            surfaceVariant:           "#463B49",
+            surface:                  "#1B1E1C",
+            surfaceContainerLow:      "#171A18",
+            surfaceContainer:         "#232724",
+            surfaceContainerHigh:     "#2B302D",
+            surfaceContainerHighest:  "#363C38",
+            surfaceVariant:           "#414944",
             inverseSurface:           "#F0E8E0",
             inverseOnSurface:         "#2B2529",
         },
@@ -43,10 +43,10 @@ var profiles = {
             onSurfaceVariant:         "#CBBEC0",
         },
         outline: {
-            default:                  "#6E5D69",
-            subtle:                   "#4A3D49",
-            strong:                   "#B9A4A2",
-            focus:                    "#E0B39A",
+            default:                  "#667269",
+            subtle:                   "#454D47",
+            strong:                   "#B0BDB2",
+            focus:                    "#C0D0C3",
         },
         state: {
             success:                  "#A9D3A7",
@@ -59,7 +59,7 @@ var profiles = {
             onInfo:                   "#17242A",
             hoverOverlay:             "#FFFFFF",
             pressedOverlay:           "#000000",
-            focusOverlay:             "#E0B39A",
+            focusOverlay:             "#C0D0C3",
             disabledOverlay:          "#FFFFFF",
         },
     },

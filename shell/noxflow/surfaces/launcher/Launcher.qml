@@ -1,4 +1,4 @@
-// Universal Launcher — Super+Space. Modes: Apps, Windows, Commands, Calc, Ask AI, Clipboard.
+// Nox Command — one searchable desktop canvas, opened with Super+Space.
 
 import QtQuick
 import QtQuick.Layouts
@@ -40,7 +40,6 @@ Item {
         windowFocusProcess.run(["hyprctl", "dispatch", "focuswindow", "address:" + addr]);
     }
 
-    readonly property var modes: ["All","Apps","Windows","Commands","Calc","Ask AI","Clipboard"]
     property int activeMode: 0
     property string searchText: ""
     property var filteredResults: []
@@ -90,7 +89,6 @@ Item {
         "obs-studio":"\uF030"
     })
     readonly property string defaultIcon: "\u25A3"
-    readonly property var emptyLabels: ["No matching actions","No applications found","No open windows","No matching commands","","Ask anything\u2026","No clipboard history"]
 
     anchors.fill: parent
     visible: lifecycle.active
@@ -122,8 +120,8 @@ Item {
     Component.onCompleted: root.open()
 
     // NoxIsland supplies the launcher card and its pill-to-panel transition.
-    // Drawing another card here would stack translucent surfaces and reduce
-    // the usable width enough to truncate mode labels.
+    // Drawing another card here would stack translucent surfaces and compete
+    // with the single command canvas.
     Item {
         anchors.fill: parent
         opacity: lifecycle.openProgress
@@ -132,33 +130,35 @@ Item {
             // Search
             Components.TextField { id: searchField; Layout.fillWidth: true; label: ""; showClearButton: true
                 focus: lifecycle.active
-                placeholderText: root.activeMode === 5 ? "Ask anything\u2026" : "Search apps, projects, windows, and actions\u2026"
-                onTextChanged: { root.searchText = text; if (root.activeMode === 5) { root.aiQuery = text; root.triggerAiQuery() } root.filterResults() }
+                placeholderText: root.activeMode === 5 ? "Ask anything\u2026" : "Search your desktop · ? to ask AI"
+                onTextChanged: {
+                    root.searchText = text
+                    var ask = text.trim().charAt(0) === "?"
+                    if (ask) {
+                        root.activeMode = 5
+                        root.aiQuery = text.trim().slice(1).trim()
+                        root.triggerAiQuery()
+                    } else {
+                        if (root.activeMode === 5) root.resetAi()
+                        root.activeMode = 0
+                    }
+                    root.filterResults()
+                }
                 onAccepted: root.activateSelected()
                 onNavigateUp: root.moveList(-1)
                 onNavigateDown: root.moveList(1)
                 onNavigateHome: root.selectBoundary(false)
                 onNavigateEnd: root.selectBoundary(true)
                 Keys.onEscapePressed: lifecycle.requestClose("escape")
-                Keys.onTabPressed: function(e) { root.activeMode = (root.activeMode + 1) % root.modes.length; root.resetAi(); root.filterResults(); e.accepted = true }
             }
-            // Tabs
-            RowLayout { Layout.fillWidth: true; spacing: Theme.Tokens.scaled(2)
-                Repeater { model: root.modes
-                    delegate: Rectangle { required property int index; required property string modelData
-                        Layout.fillWidth: true; Layout.minimumWidth: 0; height: Theme.Tokens.scaled(Theme.Tokens.heightChip); radius: Theme.Tokens.radiusPill
-                        activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: modelData + " launcher mode"
-                        color: root.activeMode === index ? Theme.Tokens.tonalPrimaryContainer : "transparent"
-                        border.color: root.activeMode === index ? Theme.Tokens.tonalPrimary : "transparent"; border.width: root.activeMode === index ? 1 : 0
-                        Text { anchors.fill: parent; anchors.leftMargin: Theme.Tokens.scaled(3); anchors.rightMargin: Theme.Tokens.scaled(3); text: modelData; elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-                            color: root.activeMode === index ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
-                            font.pixelSize: Theme.Tokens.typographyLabelSmall }
-                        TapHandler { onTapped: { parent.forceActiveFocus(); root.activeMode = index; root.resetAi(); root.filterResults() } }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                        Keys.onReturnPressed: { root.activeMode = index; root.resetAi(); root.filterResults() }
-                        Keys.onSpacePressed: { root.activeMode = index; root.resetAi(); root.filterResults() }
-                    }
-                }
+            Text {
+                Layout.fillWidth: true
+                text: root.activeMode === 5
+                    ? (root.aiAvailable ? "Ask NoxFlow · type a question" : "AI is not configured")
+                    : "Apps   ·   Windows   ·   Projects   ·   Actions   ·   Calculations"
+                color: Theme.Tokens.textMuted
+                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                elide: Text.ElideRight
             }
             Components.Divider { Layout.fillWidth: true }
             RowLayout {
@@ -206,10 +206,9 @@ Item {
                 }
                 // Empty
                 Text { anchors.centerIn: parent
-                    text: root.searchText !== "" ? "No results"
-                        : root.activeMode === 5 ? root.emptyLabels[5]
-                        : root.activeMode === 4 ? "Type an expression\u2026"
-                        : root.emptyLabels[root.activeMode] || "Type to search\u2026"
+                    text: root.activeMode === 5 ? "Ask anything\u2026"
+                        : root.searchText !== "" ? "No matching actions"
+                        : "Start typing to search"
                     color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodyMedium
                     visible: root.filteredResults.length === 0 && !(root.activeMode === 5 && (root.aiResponse !== "" || root.aiLoading)) }
                 // List
@@ -250,7 +249,7 @@ Item {
     // Thin adapter over the shared services/AiClient.qml. The client owns the
     // endpoint, model, debounce, generation guard and timeout; this surface
     // only mirrors its state into the UI bindings that already exist.
-    readonly property bool aiAvailable: !!aiClient
+    readonly property bool aiAvailable: !!aiClient && String(aiClient.endpoint || "") !== ""
     readonly property string aiEndpoint: aiClient ? aiClient.endpoint : ""
     readonly property string aiModel: aiClient ? aiClient.model : ""
 
@@ -261,8 +260,10 @@ Item {
     readonly property string aiErrorDetail: aiClient ? aiClient.errorDetail : ""
 
     function triggerAiQuery() {
-        aiQuery = searchText;
-        if (aiClient) aiClient.query(searchText);
+        aiQuery = searchText.trim().replace(/^\?\s*/, "");
+        if (!aiClient) return
+        if (aiQuery === "") aiClient.reset()
+        else aiClient.query(aiQuery)
     }
     function resetAi() {
         aiQuery = "";
@@ -373,30 +374,12 @@ Item {
         return scored.slice(0, limit || 30).map(function(entry) { return entry.item; });
     }
     function filterResults() {
-        if ((activeMode === 0 || activeMode === 1) && !root.scanStarted) { appCache = buildDefaultApps(); scanDesktopFiles(); }
+        if (activeMode === 0 && !root.scanStarted) { appCache = buildDefaultApps(); scanDesktopFiles(); }
         if (activeMode === 0 && !root.projectScanStarted) scanProjects()
         var q = searchText.toLowerCase().trim();
         selectedIndex = 0;
         if (activeMode === 5) { filteredResults = []; return; }
-        if (activeMode === 6) {
-            var clipboardItems = [{ title:"Open Author Clipboard", iconName:"com.namikofficial.author-clipboard", icon:"\uF0EA", subtitle:"Search, copy, paste, pin, and manage history", action:"open_clipboard", actionParams:{} }];
-            filteredResults = ranked(clipboardItems, q, 1); return;
-        }
-        if (activeMode === 4) {
-            if (q === "") { filteredResults = []; return; }
-            var calcResult = evaluateCalc(q);
-            if (calcResult.valid) {
-                filteredResults = [{ title:"= " + calcResult.display, icon:"\uF1EC", subtitle:q, action:"copy_result", actionParams:{value:calcResult.value} }];
-            } else {
-                // Invalid calc results are shown but not copyable
-                filteredResults = [{ title:calcResult.display, icon:"\uF1EC", subtitle:q, action:"", actionParams:{} }];
-            }
-            return;
-        }
-        var src = activeMode === 0 ? buildAllResults()
-            : activeMode === 1 ? buildAppResults()
-            : activeMode === 2 ? buildWindowResults()
-            : buildCommandResults();
+        var src = buildAllResults()
         filteredResults = ranked(src, q, q === "" ? 20 : 30);
     }
     function buildAppResults() { return appCache.length > 0 ? appCache : buildDefaultApps() }
@@ -406,33 +389,47 @@ Item {
             if (!project || !project.id || !project.name) return
             var id = String(project.id)
             var prefix = String(project.name)
+            var selectors = [id].concat(Array.isArray(project.aliases) ? project.aliases : []).join(" ")
             items.push({ title: prefix + " — Open context", icon: "\uF07C",
-                subtitle: "Project · " + id + " · editor and terminal", action: "resume_project",
+                subtitle: "Project · " + selectors + " · editor and terminal", action: "resume_project",
                 actionParams: { id: id } })
             items.push({ title: prefix + " — Open editor", icon: "\uF121",
-                subtitle: "Project · " + id, action: "project_action",
+                subtitle: "Project · " + selectors, action: "project_action",
                 actionParams: { id: id, command: "edit" } })
             items.push({ title: prefix + " — Terminal", icon: "\uF120",
-                subtitle: "Project · " + id, action: "project_action",
+                subtitle: "Project · " + selectors, action: "project_action",
                 actionParams: { id: id, command: "shell" } })
             items.push({ title: prefix + " — tmux session", icon: "\uF120",
-                subtitle: "Project · " + id, action: "project_action",
+                subtitle: "Project · " + selectors, action: "project_action",
                 actionParams: { id: id, command: "tmux" } })
         })
         return items
     }
     function buildAllResults() {
         var items = buildAppResults().concat(buildWindowResults(), buildCommandResults(), buildProjectResults())
+        items.push({ title: "Open clipboard history", icon: "\uF0EA",
+            subtitle: "Clipboard · Search, copy, pin, and manage history",
+            action:"open_clipboard", actionParams: {} })
         if (searchText.trim() !== "") {
-            var result = evaluateCalc(searchText)
+            var expression = searchText.trim()
+            var result = evaluateCalc(expression)
             if (result.valid) items.push({ title: "= " + result.display, icon: "\uF1EC",
-                subtitle: "Calculation · " + searchText.trim(), action: "copy_result",
+                subtitle: "Calculation · " + expression, action: "copy_result",
                 actionParams: { value: result.value } })
         }
         return items
     }
     function buildWindowResults() { try { if (!hyprland || !hyprland.windows) return []; var out = []; var wins = hyprland.windows; for (var i = 0; i < wins.length; i++) { var w = wins[i]; if (!w) continue; var wsLabel = ""; if (w.workspace) wsLabel = "ws " + (w.workspace.name || w.workspace.id || ""); out.push({ title:w.title||"Untitled", icon:"\uF2D2", subtitle:wsLabel, action:"focus_window", actionParams:{address:w.address||""} }) } return out } catch(e) { return [] } }
-    function buildCommandResults() { return [{ title:"Lock", icon:"\uF023", subtitle:"Lock the screen", action:"lock", actionParams:{} }, { title:"Suspend", icon:"\uF186", subtitle:"Suspend to RAM", action:"suspend", actionParams:{} }, { title:"Reboot", icon:"\uF01E", subtitle:"Reboot the system", action:"reboot", actionParams:{} }, { title:"Power Off", icon:"\uF011", subtitle:"Shut down", action:"power_off", actionParams:{} }, { title:"Dolphin", icon:"\uF07C", subtitle:"Open file manager", action:"launchProgram", actionParams:{program:"files"} }, { title:"Screenshot", icon:"\uF030", subtitle:"Take a screenshot", action:"screenshot", actionParams:{} }, { title:"Reload shell", icon:"\uF021", subtitle:"Restart NoxFlow shell", action:"reload_shell", actionParams:{} }] }
+    function buildCommandResults() {
+        return [
+            { title: "Lock", icon: "\uF023", subtitle: "Lock the screen", action: "lock", actionParams: {} },
+            { title: "Suspend", icon: "\uF186", subtitle: "Suspend to RAM", action: "suspend", actionParams: {} },
+            { title: "Reboot", icon: "\uF01E", subtitle: "Reboot the system", action: "reboot", actionParams: {} },
+            { title: "Power Off", icon: "\uF011", subtitle: "Shut down", action: "power_off", actionParams: {} },
+            { title: "Screenshot", icon: "\uF030", subtitle: "Take a screenshot", action: "screenshot", actionParams: {} },
+            { title: "Reload shell", icon: "\uF021", subtitle: "Restart NoxFlow shell", action: "reload_shell", actionParams: {} }
+        ]
+    }
 
     // Safe calculator with proper input validation.
     // Returns { valid: bool, display: string, value: number|string }.
@@ -539,6 +536,7 @@ Item {
     function moveList(d) { if (filteredResults.length === 0) return; selectedIndex = (selectedIndex + d + filteredResults.length) % filteredResults.length; resultsList.currentIndex = selectedIndex; resultsList.positionViewAtIndex(selectedIndex, ListView.Contain) }
     function selectBoundary(last) { if (filteredResults.length === 0) return; selectedIndex = last ? filteredResults.length - 1 : 0; resultsList.currentIndex = selectedIndex; resultsList.positionViewAtIndex(selectedIndex, ListView.Contain) }
     function activateSelected() {
+        if (activeMode === 5) { triggerAiQuery(); return }
         if (launchBusy || selectedIndex < 0 || selectedIndex >= filteredResults.length) return
         var item = filteredResults[selectedIndex]
         if (!item || !item.action) return
