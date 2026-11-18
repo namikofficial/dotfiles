@@ -3,6 +3,7 @@
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -75,7 +76,7 @@ PanelWindow {
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(parent.width * 0.72, Theme.Tokens.scaled(760))
-        height: Math.min(parent.height * 0.82, Theme.Tokens.scaled(640))
+        height: Math.min(parent.height * 0.9, Theme.Tokens.scaled(640))
         radius: Theme.Tokens.radiusXl
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
         border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
@@ -84,11 +85,13 @@ PanelWindow {
         clip: true
 
         Flickable {
+            id: dashboardScroll
             anchors.fill: parent
             anchors.margins: Theme.Tokens.spacingMd
             contentHeight: dashContent.childrenRect.height + Theme.Tokens.spacingLg
             interactive: contentHeight > height
             clip: true
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
 
             ColumnLayout {
                 id: dashContent

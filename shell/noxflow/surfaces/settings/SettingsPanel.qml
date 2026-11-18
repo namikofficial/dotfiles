@@ -12,6 +12,7 @@
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -355,8 +356,10 @@ PanelWindow {
             Components.Divider { Layout.fillWidth: true }
 
             Flickable {
+                id: settingsScroll
                 Layout.fillWidth: true; Layout.fillHeight: true
                 contentHeight: contentColumn.height; clip: true; interactive: true
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
 
                 ColumnLayout {
                     id: contentColumn; width: parent.width
