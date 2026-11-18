@@ -6,7 +6,7 @@ Verification adapters and delegated verification work must distinguish `PASS`, `
 
 ## Web
 
-Run focused Playwright tests before interactive browser exploration. Use the configured isolated Chromium MCP for deterministic runtime checks. Use an existing Chrome DevTools session only for authenticated, performance, network, console, or visual debugging. Never edit source while verifying.
+Run focused Playwright tests before interactive browser exploration. Use Chrome DevTools MCP for interactive browser verification. Never edit source while verifying.
 
 Check affected success, validation, loading, empty, failure, navigation/history, keyboard, responsive, accessibility, console, network, and visible-regression behavior as applicable. Convert confirmed exploratory regressions into reusable Playwright tests.
 

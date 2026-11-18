@@ -7,10 +7,8 @@ Usage:
   mcp-profile env {minimal|dev|web|notes|mobile}
   mcp-profile status
   mcp-profile stop PID...
-  mcp-profile verify-codegraph
 
-CodeGraph is available in every profile. Other servers remain explicitly
-scoped. Use the environment form with:
+Chrome DevTools is available in the web profile; Maestro in mobile. Use the environment form with:
   eval "$(mcp-profile env dev)"
 EOF
 }
@@ -41,28 +39,6 @@ case "${1:-}" in
         parent="$(ps -p "$ppid" -o comm= 2>/dev/null | tr -d ' ' || true)"
         printf '%-8s %-8s %-8s %-10s %-8s %s [parent=%s]\n' "$pid" "$ppid" "$rss" "$elapsed" "$mode" "$command" "${parent:-unknown}"
       done
-    ;;
-  verify-codegraph)
-    command -v opencode >/dev/null 2>&1 || {
-      printf 'opencode is not installed\n' >&2
-      exit 127
-    }
-    output="$(NOXFLOW_MCP_PROFILE=dev timeout 45s opencode mcp list --pure 2>&1 || true)"
-    clean_output="$(printf '%s\n' "$output" | sed $'s/\033\\[[0-9;]*m//g')"
-    failed=0
-    for server in codegraph; do
-      if printf '%s\n' "$clean_output" | awk -v server="$server" '$0 ~ server && $0 ~ /connected/ { found=1 } END { exit(found ? 0 : 1) }'; then
-        printf '%s: connected\n' "$server"
-      else
-        printf '%s: failed\n' "$server" >&2
-        failed=1
-      fi
-    done
-    if [ "$failed" -ne 0 ]; then
-      printf '%s\n' "$output" >&2
-      printf 'Relevant MCP server verification failed\n' >&2
-      exit 1
-    fi
     ;;
   stop)
     shift

@@ -464,8 +464,8 @@ Item {
             launchTarget = item.title || "application"
             launchError = ""
             var argv;
-            if (item.actionParams.desktopId) argv = ["gtk-launch", item.actionParams.desktopId];
-            else if (item.actionParams.command) argv = [item.actionParams.command];
+            if (item.actionParams.desktopId) argv = ["uwsm", "app", "-t", "service", "--", item.actionParams.desktopId];
+            else if (item.actionParams.command) argv = ["uwsm", "app", "-t", "service", "--", item.actionParams.command];
             if (argv) launchProcess.run(argv); else return;
             break
         case "launchProgram":

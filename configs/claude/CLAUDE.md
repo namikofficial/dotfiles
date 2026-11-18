@@ -9,22 +9,13 @@
 
 ## Subagent delegation
 
-Use subagents proactively to keep the main context focused.
-
-- Use `Explore` for broad fan-out sweeps across many files, directories, or naming conventions when only the conclusion matters.
-- Use `scout` for locating implementations, tracing unfamiliar flows, and mapping affected files before substantial changes.
-- Use `planner` before substantial or cross-cutting changes that need a sequenced strategy and named acceptance criteria.
-- Use `verifier` to run the cheapest authoritative checks for a changed surface and report observed results.
-- Use `reviewer` after meaningful implementations, bug fixes, refactors, migrations, authentication changes, database changes, or infrastructure changes.
-- Delegate independent investigations in parallel when doing so will materially reduce main-context usage.
-- Do not delegate trivial operations where delegation would cost more than doing the work directly.
-- The main agent remains responsible for implementation, verification, and the final decision.
+Work directly by default. Delegate only a substantial, independent task when it saves meaningful time or context. The main agent owns integration, verification, and the final decision.
 
 ## Workstation environment
 
-Arch Linux, Hyprland, zsh. The Bash tool runs an interactive zsh that sources
-`~/.zshrc` (symlink into `~/Documents/code/dotfiles`), so shell aliases and
-functions are live inside tool calls.
+Arch Linux, Hyprland, zsh. Claude's Bash tool is configured to use `/usr/bin/bash`.
+The interactive terminal remains zsh. Do not assume interactive aliases or
+functions exist in agent shell commands.
 
 ### Alias traps
 

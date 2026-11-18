@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Bounded AI session router. It classifies context and reports its decision,
-# but never edits files, changes a project, or silently delegates work.
 usage() {
   cat <<'EOF'
 Usage: ai-session.sh [--dry-run] [--explain] {opencode|codex} [tool args...]
 
-Environment overrides:
-  AI_SESSION_PROFILE=dev|web|mobile|notes|minimal
-  AI_SESSION_TASK=ui|web|mobile|backend|database|security|docs|plan|explore|fix
-  AI_SESSION_NO_PROFILE=1       do not add a Codex profile overlay
+Optional Codex overlay:
+  AI_SESSION_PROFILE=design|notes
+  AI_SESSION_NO_PROFILE=1       do not add an overlay; preserve normal Codex config
+
+OpenCode uses the MCP profiles declared per server in its canonical config.
+This launcher does not classify tasks, select agents, or delegate work.
 EOF
 }
 
-dry_run="${AI_SESSION_DRY_RUN:-0}"
+dry_run=0
 explain=0
 while (($#)); do
   case "$1" in
@@ -36,7 +36,7 @@ done
 
 tool="${1:-}"
 shift || true
-case "$tool" in codex | opencode) ;; *)
+case "$tool" in opencode | codex) ;; *)
   usage >&2
   exit 2
   ;;
@@ -46,73 +46,43 @@ command -v "$tool" >/dev/null 2>&1 || {
   exit 127
 }
 
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-repo_name="$(basename "${repo_root:-$PWD}")"
-task_text="${AI_SESSION_TASK:-${*:-}}"
-
-if [[ -n "${AI_SESSION_PROFILE:-}" ]]; then
-  profile="$AI_SESSION_PROFILE"
-elif [[ "$PWD" == */notes/* || "$PWD" == */DocsVault/* ]]; then
-  profile=notes
-elif printf '%s\n' "$task_text" | grep -Eiq 'android|expo|react[[:space:]-]?native|maestro|device|mobile|emulator'; then
-  profile=mobile
-elif printf '%s\n' "$task_text" | grep -Eiq 'ui|ux|design|screenshot|figma|browser|web|playwright|css|component'; then
-  profile=web
-elif [[ "$repo_root" == */noxorigin* || "$repo_root" == */dotfiles* || "$PWD" == */noxorigin* || "$PWD" == */dotfiles* ]]; then
-  profile=dev
-else
-  profile=minimal
-fi
-case "$profile" in minimal | dev | web | mobile | notes) ;; *)
-  printf 'ai-session: invalid profile %s\n' "$profile" >&2
-  exit 2
-  ;;
-esac
-
-if [[ -n "${AI_SESSION_TASK:-}" ]]; then
-  task="$AI_SESSION_TASK"
-elif printf '%s\n' "$task_text" | grep -Eiq 'security|auth|permission|secret|tenant|rls'; then
-  task=security
-elif printf '%s\n' "$task_text" | grep -Eiq 'database|sql|migration|postgres|redis|transaction'; then
-  task=database
-elif printf '%s\n' "$task_text" | grep -Eiq 'android|expo|react[[:space:]-]?native|maestro|device|mobile'; then
-  task=mobile
-elif printf '%s\n' "$task_text" | grep -Eiq 'ui|ux|design|screenshot|figma|browser|web|css|component'; then
-  task=ui
-elif printf '%s\n' "$task_text" | grep -Eiq 'plan|design the approach|spec|proposal'; then
-  task=plan
-elif printf '%s\n' "$task_text" | grep -Eiq 'explore|where is|find|map|trace|explain'; then
-  task=explore
-elif printf '%s\n' "$task_text" | grep -Eiq 'docs|documentation|readme'; then
-  task=docs
-else
-  task=implementation
-fi
-
-agent=build
-case "$task" in
-  plan) agent=plan ;; explore) agent=explore ;; ui) agent=ui-specialist ;;
-  mobile) agent=android-verifier ;; security) agent=security-audit ;;
-  web) agent=web-verifier ;; database | backend | implementation | docs) agent=build ;;
-esac
-
-printf 'ai-session: tool=%s repo=%s profile=%s task=%s agent=%s capability=codegraph\n' "$tool" "$repo_name" "$profile" "$task" "$agent" >&2
-if ((explain)); then
-  printf 'ai-session: repo_root=%s\n' "${repo_root:-unknown}" >&2
-  printf 'ai-session: handoff=bounded-only; coordinator owns integration and final verification\n' >&2
-  printf 'ai-session: state_changes=none before tool startup\n' >&2
-fi
-if ((dry_run)); then exit 0; fi
-
-if [[ "$tool" == opencode ]]; then
-  export NOXFLOW_MCP_PROFILE="$profile"
-  exec opencode "$@"
+profile="${AI_SESSION_PROFILE:-}"
+if [[ -n "$profile" ]]; then
+  if [[ "$tool" != codex ]]; then
+    printf 'ai-session: AI_SESSION_PROFILE applies only to Codex; OpenCode profiles are configured per MCP server\n' >&2
+    exit 2
+  fi
+  case "$profile" in design | notes) ;; *)
+    printf 'ai-session: unsupported Codex profile %s (use design or notes)\n' "$profile" >&2
+    exit 2
+    ;;
+  esac
 fi
 
 has_profile_arg=0
-for arg in "$@"; do [[ "$arg" == --profile=* || "$arg" == --profile || "$arg" == -p ]] && has_profile_arg=1; done
-if [[ "${AI_SESSION_NO_PROFILE:-0}" != 1 && "$has_profile_arg" == 0 ]]; then
-  if [[ "$profile" == web ]]; then exec codex --profile design "$@"; fi
-  if [[ "$profile" == notes ]]; then exec codex --profile notes "$@"; fi
+for arg in "$@"; do
+  [[ "$arg" == --profile=* || "$arg" == --profile || "$arg" == -p ]] && has_profile_arg=1
+done
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+repo_name="$(basename "${repo_root:-$PWD}")"
+profile_state=default
+if [[ "$tool" == codex && "$has_profile_arg" == 1 ]]; then
+  profile_state=cli-explicit
+elif [[ "$tool" == codex && -n "$profile" && "${AI_SESSION_NO_PROFILE:-0}" != 1 ]]; then
+  profile_state="$profile"
+elif [[ "${AI_SESSION_NO_PROFILE:-0}" == 1 ]]; then
+  profile_state=disabled
 fi
-exec codex "$@"
+
+printf 'ai-session: tool=%s repo=%s profile=%s routing=direct\n' "$tool" "$repo_name" "$profile_state" >&2
+if ((explain)); then
+  printf 'ai-session: repo_root=%s\n' "${repo_root:-unknown}" >&2
+  printf 'ai-session: task classification=none; agent selection=none; delegation=none\n' >&2
+fi
+if ((dry_run)); then exit 0; fi
+
+if [[ "$tool" == codex && -n "$profile" && "$has_profile_arg" == 0 && "${AI_SESSION_NO_PROFILE:-0}" != 1 ]]; then
+  exec codex --profile "$profile" "$@"
+fi
+exec "$tool" "$@"

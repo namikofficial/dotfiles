@@ -32,12 +32,8 @@ Keep the harness direct:
   never added to `instructions`;
 - `tmux-tools` uses the system `nox` socket and shares the `nox` session;
   killing that shared session is refused;
-- CodeGraph remains the default semantic navigation MCP.
-- v0 uses OpenCode's remote OAuth flow; `vp0` provides the VP0 mobile design
-  library through its local MCP package.
-- Native mobile UI tasks should use the installed `building-native-ui` and
-  `mobile-design` skills, with `anti-ui-slop` and `emil-design-eng` as useful
-  design/review companions.
+- MCP integrations are limited to Chrome DevTools (browser) and Maestro.
+- Native Expo tasks can use the six official Expo skills in the shared skill directory.
 - The browser MCP attaches to the active Chrome profile; Chrome 144+ remote
   debugging must be enabled and the connection may require approval.
 
@@ -64,7 +60,7 @@ stale response. Do not use `PATCH /api/experimental/config` to force a reload:
 it writes to the highest-precedence global document, which is this file through
 its symlink.
 
-Authenticate v0 with `opencode mcp auth v0`. Browser MCP uses the active Chrome
+Browser MCP uses the active Chrome
 profile via `--autoConnect`; enable remote debugging in
 `chrome://inspect/#remote-debugging` before connecting. The agent can access
 that profile's open tabs and session data.

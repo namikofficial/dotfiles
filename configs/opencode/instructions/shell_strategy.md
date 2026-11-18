@@ -1,6 +1,7 @@
 # Non-interactive shell
 
-Shell commands run non-interactively.
+Agent shell commands use `/usr/bin/bash` and run non-interactively. The
+interactive workstation terminal remains zsh.
 
 - Use focused repository scripts and command-specific non-interactive flags.
 - Keep output bounded and preserve exit status; do not hide failed steps in command chains.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "shell": "/usr/bin/zsh",
+  "shell": "/usr/bin/bash",
   "provider": {
     "openai": {
       "npm": "@ai-sdk/openai",
@@ -63,12 +63,6 @@
   ],
   "mcp": {
     "servers": {
-      "codegraph": {
-        "type": "local",
-        "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "codegraph"],
-        "environment": {"NOXFLOW_MCP_PROFILE": "dev"},
-        "timeout": {"catalog": 60000, "execution": 120000}
-      },
       "maestro": {
         "type": "local",
         "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "maestro"],
@@ -80,33 +74,6 @@
         "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "browser"],
         "environment": {"NOXFLOW_MCP_PROFILE": "web"},
         "timeout": {"catalog": 120000, "execution": 600000}
-      },
-      "playwright": {
-        "type": "local",
-        "command": ["/home/namik/Documents/code/dotfiles/configs/opencode/mcp-scoped.sh", "playwright"],
-        "environment": {"NOXFLOW_MCP_PROFILE": "web"},
-        "timeout": {"catalog": 120000, "execution": 600000}
-      },
-      "v0": {
-        "type": "remote",
-        "url": "https://v0.app/api/mcp"
-      },
-      "vp0": {
-        "type": "local",
-        "command": ["npx", "-y", "vp0-mcp"]
-      },
-      "stitch": {
-        "type": "remote",
-        "url": "https://stitch.googleapis.com/mcp",
-        "oauth": false,
-        "headers": {"X-Goog-Api-Key": "{file:~/.config/opencode/stitch-api-key}"}
-      },
-      "tinyfish": {
-        "type": "remote",
-        "url": "https://agent.tinyfish.ai/mcp?source=tinyfish_cli&client=opencode&connect_attempt_id=426030f1-7ad8-4661-ae31-ca45d344111f",
-        "headers": {
-          "X-API-Key": "sk-tinyfish-_P3-iDg6XM9GhRyyAokFu_0sKPvvasO-"
-        }
       }
     }
   },
@@ -119,7 +86,7 @@
     },
     "ui": {
       "description": "Implement a focused UI change using the project UI contract.",
-      "template": "Handle this UI outcome: $ARGUMENTS\n\nFor native mobile work, use building-native-ui and mobile-design; apply anti-ui-slop and emil-design-eng where useful. If this is NoxOrigin mobile work, first read /home/namik/Documents/code/dotfiles/ai/system/NOXORIGIN_SYSTEM.md. Use v0 or VP0 MCP only when their design/generation workflows materially help, then adapt results to the repository's actual stack and components. Inspect existing screens, states, tokens, and owner components; make the smallest coherent change; verify on the affected native target where available; report untested targets explicitly.",
+      "template": "Handle this UI outcome: $ARGUMENTS\n\nFor Expo work, use the official Expo skills when relevant. If this is NoxOrigin mobile work, first read /home/namik/Documents/code/dotfiles/ai/system/NOXORIGIN_SYSTEM.md. Inspect existing screens, states, tokens, and owner components; make the smallest coherent change; verify on the affected native target where available; report untested targets explicitly.",
       "agent": "build"
     },
     "capture-eval": {

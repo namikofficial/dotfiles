@@ -4,67 +4,38 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 scoped="$root/configs/opencode/mcp-scoped.sh"
 profile="$root/setup/mcp-profile.sh"
-
 test_dir="$(mktemp -d)"
-cleanup() {
-  find "$test_dir" -type f -delete 2>/dev/null || true
-  find "$test_dir" -depth -type d -empty -delete 2>/dev/null || true
-}
-trap cleanup EXIT
-mkdir -p "$test_dir/node_modules/.bin"
-cat >"$test_dir/node_modules/.bin/codegraph" <<'MOCK'
-#!/usr/bin/env bash
-printf '%s\n' "$*"
-MOCK
-chmod +x "$test_dir/node_modules/.bin/codegraph"
-codegraph_args="$(NOXFLOW_MCP_PROFILE=minimal OPENCODE_MCP_HOME="$test_dir" "$scoped" codegraph --no-watch)"
-[ "$codegraph_args" = 'serve --mcp --no-watch' ] || {
-  printf 'minimal profile did not keep CodeGraph available: %s\n' "$codegraph_args" >&2
-  exit 1
-}
+trap 'rm -rf -- "$test_dir"' EXIT
 
 expected='export NOXFLOW_MCP_PROFILE=notes'
-actual="$($profile env notes)"
-[ "$actual" = "$expected" ] || {
-  printf 'unexpected profile export: %s\n' "$actual" >&2
-  exit 1
-}
-
+[ "$("$profile" env notes)" = "$expected" ]
 if "$profile" env invalid >/dev/null 2>&1; then
   printf 'invalid profile unexpectedly accepted\n' >&2
   exit 1
 fi
-
-status_output="$($profile status)"
-printf '%s\n' "$status_output" | grep -Fq 'profile=' || {
-  printf 'status did not report the active profile\n' >&2
-  exit 1
-}
-
-cat >"$test_dir/node_modules/.bin/playwright-mcp" <<'MOCK'
+for server in codegraph playwright obsidian local-docs; do
+  for mode in minimal dev web notes mobile; do
+    if NOXFLOW_MCP_PROFILE="$mode" "$scoped" "$server" >/dev/null 2>&1; then
+      printf 'retired server %s unexpectedly available in %s\n' "$server" "$mode" >&2
+      exit 1
+    fi
+  done
+done
+cat >"$test_dir/chrome-devtools-mcp" <<'MOCK'
 #!/usr/bin/env bash
 printf '%s\n' "$*"
 MOCK
-chmod +x "$test_dir/node_modules/.bin/playwright-mcp"
-playwright_args="$(NOXFLOW_MCP_PROFILE=web OPENCODE_MCP_HOME="$test_dir" "$scoped" playwright --headed)"
-[ "$playwright_args" = '--headed' ] || {
-  printf 'unexpected playwright launcher args: %s\n' "$playwright_args" >&2
-  exit 1
-}
-
-cat >"$test_dir/obsidian-mcp-server" <<'MOCK'
+cat >"$test_dir/maestro" <<'MOCK'
 #!/usr/bin/env bash
-printf 'obsidian-launcher-ok\n'
+printf '%s\n' "$*"
 MOCK
-chmod +x "$test_dir/obsidian-mcp-server"
-
-obsidian_result="$(OBSIDIAN_ENV_FILE="$test_dir/missing.env" \
-  OBSIDIAN_REST_CONFIG="$test_dir/missing.json" OBSIDIAN_CERT_PATH="$test_dir/missing.crt" \
-  OBSIDIAN_VAULT_PATH="$test_dir" OBSIDIAN_MCP_BIN="$test_dir/obsidian-mcp-server" \
-  "$root/configs/opencode/obsidian-mcp.sh")"
-[ "$obsidian_result" = 'obsidian-launcher-ok' ] || {
-  printf 'unexpected obsidian launcher result: %s\n' "$obsidian_result" >&2
+chmod +x "$test_dir/chrome-devtools-mcp" "$test_dir/maestro"
+browser_args="$(NOXFLOW_MCP_PROFILE=web CHROME_DEVTOOLS_MCP_BIN="$test_dir/chrome-devtools-mcp" "$scoped" browser)"
+[[ "$browser_args" == *--autoConnect* ]]
+maestro_args="$(PATH="$test_dir:$PATH" NOXFLOW_MCP_PROFILE=mobile "$scoped" maestro --test)"
+[ "$maestro_args" = 'mcp --test' ]
+if NOXFLOW_MCP_PROFILE=minimal "$scoped" browser >/dev/null 2>&1; then
+  printf 'minimal profile unexpectedly launched browser\n' >&2
   exit 1
-}
-
+fi
 printf 'mcp profile: ok\n'

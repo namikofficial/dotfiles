@@ -1,25 +1,28 @@
-# Codex optimization record
+# Codex configuration
 
-The active user configuration is `~/.codex/config.toml`; credentials
-and user state must not be committed here. The current baseline is deliberately
-small and profile-driven:
+The active user settings live in `~/.codex/config.toml`; personal behavior rules
+live in `~/.codex/AGENTS.md`. Credentials and user state stay out of this repository.
 
-- default model/reasoning and verbosity remain low for routine work;
-- subagents are limited to two concurrent threads and depth one;
-- browser, design, notes, and other optional MCP servers are disabled in the
-  base config and enabled only through separate profile files;
-- CodeGraph is routed through the dotfiles `mcp-scoped.sh` launcher so its
-  profile gating is shared with OpenCode;
-- the disabled Stitch server has no API key in the active Codex config;
-- `codex --strict-config doctor --summary --no-color --ascii` is the canonical
-  syntax/configuration smoke check.
+- Chrome DevTools is the only user-configured Codex MCP server.
+- GitHub is retained; optional specialist plugins have been removed. Explicit
+  disabled records prevent application-provided packages from auto-loading again.
+- Six official Expo skills live in `~/.agents/skills`, without the Expo MCP.
+- Memory remains enabled. Delegation is only on explicit request; existing
+  agent definitions, models, reasoning settings, and permissions are preserved.
+- RTK is optional for Codex. There is no mandatory semantic-navigation step.
 
-Codex profiles are overlays under `$CODEX_HOME/*.config.toml`, selected with
-`codex --profile NAME`. Keep project-specific guidance in trusted project
-`.codex/config.toml` files, and keep machine/provider/auth settings in the user
-config. Do not treat a parsed config or a successful MCP listing as proof of
-token savings; benchmark completed tasks with context, tool, verification, and
-rework metrics.
+Use targeted search and concise repository documentation or issues for durable
+context. Do not claim token savings from configuration size or tool listings:
+compare completed tasks, tool output, verification, and rework if benchmarking.
+
+Validate TOML syntax and use a fresh Codex session to check discovery. Existing
+sessions may retain tools and skill descriptions loaded before cleanup.
+
+On Unix, Codex uses the user's login shell for command execution and has no
+supported shell-path setting. The user config disables login-shell semantics
+to avoid loading interactive startup behavior. Non-interactive zsh also has
+`nomatch` disabled, so unmatched command globs behave like ordinary arguments.
+For Bash-specific syntax, invoke `/usr/bin/bash -c` explicitly.
 
 The 2026-09-22 user-config backup is retained at:
 

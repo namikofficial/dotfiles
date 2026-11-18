@@ -21,30 +21,28 @@ explicit choice inside `build`, not a mandatory pre-step. OpenCode's quota
 plugin adds `/quota`. Runtime `.ai/` artifacts are created only for genuinely
 large or multi-session work, not for every task.
 
-For automatic capability selection without changing the normal `codex` or
-`opencode` commands, use the explicit launcher:
+For argument-preserving launches with optional Codex overlays, use the
+launcher:
 
 ```sh
 setup/ai-session.sh opencode
 setup/ai-session.sh codex
 ```
 
-It detects repository/path, request intent, task class, and the smallest
-specialist hint; prints the route; preserves every tool argument (including
-`--yolo`, prompts, sessions, and explicit profiles); and supports:
+It is an argument-preserving direct launcher. It does not classify tasks,
+select an agent, or delegate work. OpenCode uses the MCP profiles configured
+per server. Codex uses its normal config unless you explicitly request an
+overlay:
 
 ```sh
 setup/ai-session.sh --explain --dry-run opencode --yolo
-AI_SESSION_PROFILE=mobile setup/ai-session.sh opencode
-AI_SESSION_TASK=security setup/ai-session.sh codex
+AI_SESSION_PROFILE=design setup/ai-session.sh codex
+AI_SESSION_PROFILE=notes setup/ai-session.sh codex
 AI_SESSION_NO_PROFILE=1 setup/ai-session.sh codex
 ```
 
-OpenCode receives the scoped MCP environment. Codex uses the design or notes
-overlay only when the classifier selects it and no explicit profile was passed.
-This is intentionally opt-in so a normal launch cannot unexpectedly change
-profiles or hand work to another agent. After reloading zsh, `ai-opencode` and
-`ai-codex` are equivalent argument-preserving shell functions.
+The wrapper is optional. Run `opencode` or `codex` directly for the normal
+workflow.
 
 MiniMax M2.7 is the normal build and plan model. From the same build session it
 can spawn `explore-m2.7`, cheaper `explore-m2.5`, `worker-m2.7`, `worker-m3`,
@@ -83,50 +81,16 @@ Optional Bruno, Schemathesis, axe, Roborazzi, browser CLI, cloud-device, and phy
 
 ## MCP resource profiles
 
-MCP servers are scoped by profile so every client does not start every expensive
-servers. The launcher pins each configured server to its correct scoped profile
-so normal OpenCode launches work without shell reconfiguration. Use explicit
-profile commands when starting standalone MCP clients:
+Only Chrome DevTools (`browser`, profile `web`) and Maestro (profile `mobile`)
+are configured. Both retain 120s discovery and 600s execution timeouts in the
+native V2 `mcp.servers` layout. The browser attaches to the active Chrome
+profile using auto-connect; enable remote debugging and approve the connection
+when Chrome prompts. Run `opencode mcp list` to check connections.
 
-The local OpenCode config declares CodeGraph, Maestro, browser, Playwright,
-Stitch, v0, and VP0, and build can use all of them. v0 uses remote OAuth;
-authenticate with `opencode mcp auth v0`. VP0 runs through `npx -y vp0-mcp`.
-For native mobile UI work, `/ui` routes through the installed native UI and
-mobile design skills and can use v0/VP0 when their workflows help. The two browser paths remain
-intentionally different: `playwright` is isolated and deterministic;
-`browser` attaches to the active Chrome profile. Chrome 144+ and remote
-debugging at `chrome://inspect/#remote-debugging` are required; Chrome may ask
-you to approve the connection. This gives the agent access to open tabs and
-session data in that profile. Verify the effective process map with
-`opencode mcp list`.
-
-Local servers declare split MCP timeouts. `catalog` bounds tool discovery;
-`execution` bounds a single tool call, which is what long-running work such as
-a Maestro cloud run or a Playwright session actually needs. CodeGraph uses
-60s/120s; Maestro, browser, and Playwright use 120s/600s. The remote servers
-(v0, VP0, Stitch) set no timeout and keep the OpenCode defaults. The block uses
-the native V2 `mcp.servers.<name>` layout: an object `timeout` in the old V1
-`mcp.<name>` position is rejected as a malformed value and OpenCode silently
-drops the entire server. Resolve the effective values with
-`opencode debug config | jq '.[0].info.mcp.servers | map_values(.timeout)'` and
-confirm nothing was dropped with `opencode mcp list`; a dropped server also
-appears in `opencode.log` as `configuration normalization diagnostic`.
-
-```sh
-eval "$(mcp-profile env dev)"    # browser + Playwright + CodeGraph + local docs
-eval "$(mcp-profile env notes)"  # dev + Obsidian
-eval "$(mcp-profile env mobile)" # dev + Maestro
-mcp-profile verify-codegraph      # fresh OpenCode CodeGraph handshake
-mcp-profile status                # classify scoped vs legacy processes
-```
-
-The browser server uses Chrome DevTools MCP auto-connect to attach to your
-active Chrome Stable profile. Enable remote debugging in Chrome settings and
-approve the connection when prompted. Do not run independent agents against
-the same active browser session at the same time.
-
-After normalizing the managed OpenCode link, restart OpenCode and verify the
-resolved config before using browser tools.
+The shared skill inventory contains only six official Expo skills: overview,
+native UI, routing, data fetching, dev client, and SDK upgrades. The source is
+`~/.agents/skills`; managed OpenCode skill links point there. No Expo MCP or
+additional design libraries are installed.
 
 The development resource profile is separate from MCP profiles. Review and
 apply it with:
@@ -149,11 +113,7 @@ Install the corrective planning hook with:
 setup/install-plannotator-improvement-hook.sh
 ```
 
-The shared Obsidian MCP launcher is `configs/opencode/obsidian-mcp.sh`. It reads the user-owned `~/.config/opencode/obsidian.env` and the vault's local REST API settings without copying credentials into this repository. OpenCode uses it from the tracked config; Codex and Claude Code use the same launcher as user-scoped MCP servers.
-
-The Stitch remote MCP entry reads its Google API key from the user-owned
-`~/.config/opencode/stitch-api-key` file. Keep that file mode `600`; the key is
-intentionally not stored in this repository. OpenCode v2 quota uses a tested
+OpenCode v2 quota uses a tested
 community port pinned to commit `75d9b5d`. Install/build it with:
 
 ```sh

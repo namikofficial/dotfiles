@@ -56,6 +56,13 @@ force_link "$ROOT_DIR/uwsm/env-hyprland" "$HOME/.config/uwsm/env-hyprland"
 force_link "$ROOT_DIR/xdg-desktop-portal/hyprland-portals.conf" "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf"
 force_link "$ROOT_DIR/configs/opencode/opencode.local-llamacpp.json" "$HOME/.config/opencode/opencode.json"
 force_link "$ROOT_DIR/configs/pi/models.json" "$HOME/.pi/agent/models.json"
+
+# Official Expo skills are installed once in the shared user skill directory.
+for skill in expo-overview expo-native-ui expo-router expo-data-fetching expo-dev-client expo-upgrade; do
+  for skill_root in "$HOME/.claude/skills" "$HOME/.pi/agent/skills" "$HOME/.gemini/skills" "$HOME/.gemini/antigravity/skills" "$ROOT_DIR/configs/opencode/skills"; do
+    force_link "$HOME/.agents/skills/$skill" "$skill_root/$skill"
+  done
+done
 force_link "$ROOT_DIR/configs/opencode/cli.json" "$HOME/.config/opencode/cli.json"
 force_link "$ROOT_DIR/configs/opencode/plugins/quota-v2" "$HOME/.config/opencode/plugins/quota-v2"
 force_link "$ROOT_DIR/configs/opencode/plugins/linux-notify" "$HOME/.config/opencode/plugins/linux-notify"

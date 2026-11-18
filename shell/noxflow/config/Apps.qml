@@ -22,7 +22,7 @@ QtObject {
         // Desktop / user-facing
         "terminal":     { command: "kitty",     label: "Terminal" },
         "files":        { command: "dolphin",   label: "File manager" },
-        "browser":      { command: "firefox",   label: "Browser" },
+        "browser":      { command: "google-chrome-stable", label: "Browser" },
         "editor":       { command: "code",      label: "Code editor" },
         "notes":        { command: "obsidian",  label: "Notes" },
         // Shell plumbing
@@ -85,6 +85,8 @@ QtObject {
         if (programs[id].args) argv = argv.concat(programs[id].args);
         if (args && args.length) argv = argv.concat(args);
         argv.unshift(programs[id].command);
+        if (["terminal", "files", "browser", "editor", "notes", "xdgOpen"].indexOf(id) !== -1)
+            argv = ["uwsm", "app", "-t", "service", "--"].concat(argv);
         try {
             Quickshell.execDetached(argv);
         } catch (error) {

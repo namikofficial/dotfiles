@@ -81,12 +81,8 @@ reorder     spring + medium haptic
 
 ## When to invoke skills
 
-- `mobile-design` — mobile feasibility, platform decisions, touch psychology
-- `building-native-ui` — Expo Router, native tabs, navigation patterns
-- `nox-ui-engineering` — building/reviewing screens, UX state matrices, design-to-code
-- `emil-design-eng` — animation craft, interaction polish
-- `anti-ui-slop` — hard finish gate against generic AI-generated UI
-- `frontend-trace` — locate component entry points before editing
+Use the official Expo skills for relevant native UI, routing, data fetching,
+development-client, and SDK-upgrade tasks. Preserve the existing project stack.
 
 ## Verification
 

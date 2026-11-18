@@ -1,30 +1,19 @@
 {
   "mcpServers": {
-    "filesystem": {
+    "chrome-devtools": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "~/Documents"],
-      "enabled": true
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--autoConnect",
+        "--no-usage-statistics"
+      ]
     },
-    "git": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "~/Documents/code/dotfiles"],
-      "enabled": true
-    },
-    "sqlite": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "~/.local/share/rag/rag.db"],
-      "enabled": true
-    },
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"],
-      "enabled": true
-    },
-    "rag": {
-      "command": "rag-mcp",
-      "args": [],
-      "enabled": true,
-      "timeout": 8000
+    "maestro": {
+      "command": "maestro",
+      "args": [
+        "mcp"
+      ]
     }
   }
 }

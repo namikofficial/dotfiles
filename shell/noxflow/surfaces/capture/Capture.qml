@@ -20,6 +20,33 @@ PanelWindow {
 
     signal fullScreenCaptureRequested(string destinationPath)
 
+    property bool captureHidden: false
+    property var pendingCapture: null
+
+    // Clear the complete layer before grim reads the compositor. Keep the
+    // window mapped so Hyprland cannot fade a cached toolbar into the capture.
+    Timer {
+        id: captureDelay
+        interval: 100
+        onTriggered: {
+            var action = root.pendingCapture
+            root.pendingCapture = null
+            if (action && lifecycle.active) action()
+        }
+    }
+
+    function captureWithoutOverlay(action) {
+        if (captureHidden || !lifecycle.active) return
+        pendingCapture = action
+        captureHidden = true
+        captureDelay.start()
+    }
+
+    function completeCapture(success) {
+        if (success) lifecycle.requestClose("captureDone")
+        else captureHidden = false
+    }
+
     // ── Lifecycle ──
     Components.SurfaceLifecycle { id: lifecycle }
     property alias openProgress: lifecycle.openProgress
@@ -63,14 +90,21 @@ PanelWindow {
     margins.bottom: 0
     exclusiveZone: 0; aboveWindows: true; color: "transparent"
     visible: lifecycle.active
+    contentItem.visible: !root.captureHidden
     // Request the keyboard seat on open rather than on click; see the long
     // explanation in core/MorphSurface.qml.
-    WlrLayershell.keyboardFocus: lifecycle.active
+    WlrLayershell.keyboardFocus: lifecycle.active && !root.captureHidden
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
+    WlrLayershell.namespace: "noxflow-capture"
 
     Connections {
         target: lifecycle
+        function onClosed() {
+            captureDelay.stop()
+            root.pendingCapture = null
+            root.captureHidden = false
+        }
         function onOpened() {
             showToolbar = false; showOcrResult = false; showWordOverlay = false
             hasSelection = false; selecting = false
@@ -94,10 +128,9 @@ PanelWindow {
         lifecycle.requestClose("escape")
     }
 
-    // ── Scrim ──
-    Rectangle {
+    // Keep the desktop at its original brightness while selecting.
+    Item {
         anchors.fill: parent
-        color: Theme.Tokens.withAlpha(Theme.Tokens.tonalBackground, Theme.Tokens.glassScrimAlpha)
 
         Rectangle {
             x: root.selX; y: root.selY; width: root.selW; height: root.selH
@@ -176,8 +209,8 @@ PanelWindow {
         height: Theme.Tokens.scaled(Theme.Tokens.heightToolbar)
         implicitWidth: toolbarRow.width + Theme.Tokens.scaled(Theme.Tokens.spacingXl)
         radius: Theme.Tokens.radiusPill
-        color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, Theme.Tokens.glassPanelAlpha)
-        border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
+        color: Theme.Tokens.surfaceSurfaceContainerHighest
+        border.color: Theme.Tokens.outlineDefault; border.width: 1
         visible: root.showToolbar
         opacity: root.showToolbar ? 1 : 0
         scale: root.showToolbar ? 1 : 0.8
@@ -338,13 +371,18 @@ PanelWindow {
     }
 
     function performAction(action) {
+        root.captureWithoutOverlay(function() { root.executeAction(action) })
+    }
+
+    function executeAction(action) {
         var region = root.globalRegion()
         var ts = new Date().toISOString().replace(/[:T]/g, "-").replace(/\..*$/, "")
             + "-" + Math.floor(Math.random() * 1000000)
 
         switch (action) {
             case "copy":
-                copyToClipboard.runShell("grim -g \"" + region + "\" - | wl-copy")
+                copyToClipboard.run(["bash", "-o", "pipefail", "-c",
+                    "grim -g \"" + region + "\" - | wl-copy"])
                 break
             case "save": {
                 var base = Quickshell.env("XDG_PICTURES_DIR") || (Quickshell.env("HOME") + "/Pictures")
@@ -382,6 +420,7 @@ PanelWindow {
     property Components.Command lensCapture: Components.Command {
         label: "Screen capture"
         onExited: function(code) {
+            root.completeCapture(false)
             if (code !== 0) {
                 notifyProcess.run(["notify-send", "Lens capture failed", root.lensCapture.failureText(), "-u", "critical"])
                 return
@@ -408,6 +447,7 @@ PanelWindow {
     property Components.Command searchCapture: Components.Command {
         label: "Screen capture"
         onExited: function(code) {
+            root.completeCapture(false)
             if (code !== 0) {
                 notifyProcess.run(["notify-send", "Search capture failed", root.searchCapture.failureText(), "-u", "critical"])
                 return
@@ -437,6 +477,7 @@ PanelWindow {
         label: "Copy image"
         stdinEnabled: false
         onExited: function(code) {
+            root.completeCapture(code === 0)
             if (code !== 0) {
                 root.showCopyFailure(root.copyToClipboard)
             } else {
@@ -449,6 +490,7 @@ PanelWindow {
     property Components.Command saveScreenshot: Components.Command {
         label: "Save screenshot"
         onExited: function(code) {
+            root.completeCapture(code === 0)
             if (code !== 0) {
                 // Report through the same notification path as every other
                 // failure here, naming the real exit code.
@@ -500,14 +542,18 @@ PanelWindow {
     property string ocrCaptureFile: ""
 
     function performOcr() {
+        root.captureWithoutOverlay(function() { root.executeOcr() })
+    }
+
+    function executeOcr() {
         var region = root.globalRegion()
         root.showToolbar = false; root.showOcrResult = true
         root.ocrText = "Recognizing text…"; root.ocrWords = []; root.analysisType = ""
 
         // Fail loudly and specifically when a required binary is absent,
         // instead of running a pipeline that dies on its first command.
-        if (!Config.Apps.isAvailable("grim")) { root.ocrText = "Cannot capture: grim is not installed"; return }
-        if (!Config.Apps.isAvailable("tesseract")) { root.ocrText = "OCR unavailable: tesseract is not installed"; return }
+        if (!Config.Apps.isAvailable("grim")) { root.ocrText = "Cannot capture: grim is not installed"; root.completeCapture(false); return }
+        if (!Config.Apps.isAvailable("tesseract")) { root.ocrText = "OCR unavailable: tesseract is not installed"; root.completeCapture(false); return }
 
         var w = Math.round(root.selW); var h = Math.round(root.selH)
         var psm = root.settings && root.settings.rawMode ? "6"
@@ -544,6 +590,7 @@ PanelWindow {
     property Components.Command ocrProcess: Components.Command {
         label: "OCR"
         onExited: function(code) {
+            root.completeCapture(false)
             var text = root.ocrProcess.output.trim()
             if (code !== 0 || text === "") {
                 // Name the binary that actually failed rather than guessing.
@@ -655,7 +702,7 @@ PanelWindow {
     function fullScreenSave() {
         var base = Quickshell.env("XDG_PICTURES_DIR") || (Quickshell.env("HOME") + "/Pictures")
         var file = base + "/Screenshots/" + new Date().toISOString().replace(/[:T]/g, "-").replace(/\..*$/, "") + ".png"
-        root.fullScreenCaptureRequested(file)
+        root.captureWithoutOverlay(function() { root.fullScreenCaptureRequested(file) })
     }
 
     // ── Public API ──

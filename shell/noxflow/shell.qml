@@ -400,18 +400,16 @@ ShellRoot {
                 "mkdir -p " + JSON.stringify(dir)
                 + " && grim " + JSON.stringify(dest)
                 + " && notify-send 'Screenshot saved' " + JSON.stringify(dest) + " -t 3000");
-            captureFullScreen.exited.connect(function(code) {
-                if (code === 0) return;
-                // The shell has no notify-send banner of its own, so the exit
-                // code and stderr go to the journal instead of being dropped.
-                console.warn("screenshot failed:", captureFullScreen.failureText());
-            });
         }
         Component.onCompleted: panelController.registerModal(this)
         Component.onDestruction: panelController.unregisterModal(this)
     }
     property Components.Command captureFullScreen: Components.Command {
         label: "Screenshot"
+        onExited: function(code) {
+            capture.completeCapture(code === 0);
+            if (code !== 0) console.warn("screenshot failed:", captureFullScreen.failureText());
+        }
         // The grim failure notification moved into onExited above: one place
         // reports the real exit code instead of the shell string building a
         // second, always-identical "grim returned an error" message.

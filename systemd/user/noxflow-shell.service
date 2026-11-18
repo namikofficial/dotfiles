@@ -14,7 +14,9 @@ KillSignal=SIGTERM
 # The shell launches user-facing terminal actions (including yay/pacman)
 # that must be able to ask sudo for authentication.
 NoNewPrivileges=no
-PrivateTmp=yes
+# Desktop applications inherit this namespace. They must share /tmp with the
+# session so normal Chrome launches can reach its existing-instance socket.
+PrivateTmp=no
 SyslogIdentifier=noxflow-shell
 # Silence exactly one Qt-internal category. QtWayland's text-input-v3 logs
 # "disableSurface ... is focused" whenever keyboard focus moves between the

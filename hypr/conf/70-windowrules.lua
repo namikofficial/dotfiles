@@ -12,6 +12,14 @@ hl.layer_rule({
   ignore_alpha = 0.25,
 })
 
+-- The full-screen screenshot selector must preserve the pixels it is framing.
+-- Its own scrim provides contrast, so compositor blur is unnecessary here.
+hl.layer_rule({
+  name = "noxflow-capture-no-blur",
+  match = { namespace = "^(noxflow-capture)$" },
+  blur = false,
+})
+
 -- Window rules
 rule({
   name = "suppress-maximize-events",
