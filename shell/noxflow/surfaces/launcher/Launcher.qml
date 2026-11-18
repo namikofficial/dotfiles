@@ -401,11 +401,25 @@ Item {
     }
     function buildAppResults() { return appCache.length > 0 ? appCache : buildDefaultApps() }
     function buildProjectResults() {
-        return projectCache.map(function(project) {
-            if (!project || !project.id || !project.name) return null
-            return { title: project.name, icon: "\uF07C", subtitle: "Project · " + project.id,
-                action: "resume_project", actionParams: { id: String(project.id) } }
-        }).filter(function(project) { return project !== null })
+        var items = []
+        projectCache.forEach(function(project) {
+            if (!project || !project.id || !project.name) return
+            var id = String(project.id)
+            var prefix = String(project.name)
+            items.push({ title: prefix + " — Open context", icon: "\uF07C",
+                subtitle: "Project · " + id + " · editor and terminal", action: "resume_project",
+                actionParams: { id: id } })
+            items.push({ title: prefix + " — Open editor", icon: "\uF121",
+                subtitle: "Project · " + id, action: "project_action",
+                actionParams: { id: id, command: "edit" } })
+            items.push({ title: prefix + " — Terminal", icon: "\uF120",
+                subtitle: "Project · " + id, action: "project_action",
+                actionParams: { id: id, command: "shell" } })
+            items.push({ title: prefix + " — tmux session", icon: "\uF120",
+                subtitle: "Project · " + id, action: "project_action",
+                actionParams: { id: id, command: "tmux" } })
+        })
+        return items
     }
     function buildAllResults() {
         var items = buildAppResults().concat(buildWindowResults(), buildCommandResults(), buildProjectResults())
@@ -536,6 +550,14 @@ Item {
             launchProcess.label = "Open project context"
             launchProcess.run([Quickshell.env("HOME") + "/.config/hypr/scripts/project-resume.sh",
                 "launch", "--project", String(item.actionParams.id)])
+            break
+        case "project_action":
+            if (!item.actionParams || !item.actionParams.id
+                    || ["edit", "shell", "tmux"].indexOf(item.actionParams.command) < 0) return
+            Quickshell.execDetached([Quickshell.env("HOME")
+                + "/Documents/code/dotfiles/setup/project-profile.sh",
+                String(item.actionParams.command), String(item.actionParams.id)])
+            lifecycle.requestClose("action")
             break
         case "copy_result":
             if (!item.actionParams || item.actionParams.value === undefined) return
