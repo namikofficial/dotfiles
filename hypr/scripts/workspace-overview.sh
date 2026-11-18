@@ -105,18 +105,15 @@ show_shortcuts_panel() {
   shortcuts="$(
     cat <<'EOF_KEYS'
 Super + Y (Primary) -> Open Workspace Hub
-Super + W -> Open Workspace Hub directly
-Super + Shift + Space -> Open Workspace Hub directly
-Super + Shift + Tab -> Open Workspace Hub directly
-Super + Tab -> Overview toggle (hyprexpo if available, Rofi hub fallback)
+Super + Tab -> Open Nox Atlas window and workspace overview
 Super + Ctrl + Space + Ctrl + 4 -> Quick Actions path to Workspace Hub
 Super + / + Ctrl + 4 -> Quick Actions path to Workspace Hub
 Super + A + Ctrl + 4 -> Quick Actions path to Workspace Hub
 Super + D + Ctrl + 4 -> Quick Actions path to Workspace Hub
-Ctrl + Alt + R (inside overview) -> Rename selected workspace
-Ctrl + Alt + BackSpace (inside overview) -> Clear selected workspace label
-Ctrl + Alt + F (inside overview) -> Toggle favorite workspace
-Ctrl + Alt + S (inside overview) -> Open this shortcuts panel
+Ctrl + Alt + R (inside Workspace Hub) -> Rename selected workspace
+Ctrl + Alt + BackSpace (inside Workspace Hub) -> Clear selected workspace label
+Ctrl + Alt + F (inside Workspace Hub) -> Toggle favorite workspace
+Ctrl + Alt + S (inside Workspace Hub) -> Open this shortcuts panel
 Ctrl + Alt + M (window row) -> Move window to workspace
 Ctrl + Alt + O (window row) -> Move window and follow
 Ctrl + Alt + P (window row) -> Send window to Sidecar
