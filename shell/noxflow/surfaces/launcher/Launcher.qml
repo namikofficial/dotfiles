@@ -21,7 +21,7 @@ Item {
 
     Components.SurfaceLifecycle { id: lifecycle }
     property alias openProgress: lifecycle.openProgress
-    Behavior on openProgress { NumberAnimation { duration: Theme.Tokens.duration(lifecycle.animDuration); easing.type: lifecycle.easingType } }
+    Behavior on openProgress { NumberAnimation { duration: lifecycle.animDuration; easing.type: lifecycle.easingType } }
     signal requestCaptureAfterClose()
 
     // Shell-local window focus. The launcher "Windows" mode lists hyprland
