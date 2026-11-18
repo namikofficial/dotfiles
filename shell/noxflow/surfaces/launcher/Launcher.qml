@@ -62,6 +62,17 @@ Item {
             searchField.forceActiveFocus()
         }
     }
+    property Components.Command copyResultProcess: Components.Command {
+        label: "Copy calculation result"
+        onExited: function(exitCode) {
+            if (exitCode === 0) lifecycle.requestClose("action")
+            else {
+                root.launchBusy = false
+                root.launchError = root.copyResultProcess.failureText()
+                searchField.forceActiveFocus()
+            }
+        }
+    }
 
     // AI state lives in the shared AiClient; see the adapter below.
     readonly property bool reducedMotion: Theme.Tokens.reducedMotion
@@ -162,10 +173,17 @@ Item {
                     wrapMode: Text.WordWrap
                 }
                 Components.TextButton {
-                    visible: root.scanFailed && !root.scanBusy && root.scanError !== ""
+                    visible: (root.scanFailed && !root.scanBusy && root.scanError !== "")
+                        || (!root.projectScanBusy && root.projectScanError !== "")
                     text: "Retry"
                     Layout.alignment: Qt.AlignVCenter
-                    onClicked: root.retryScan()
+                    onClicked: {
+                        if (root.projectScanError !== "") {
+                            root.projectScanStarted = false
+                            root.projectScanError = ""
+                            root.scanProjects()
+                        } else root.retryScan()
+                    }
                 }
             }
             // Results area
@@ -511,6 +529,19 @@ Item {
         var item = filteredResults[selectedIndex]
         if (!item || !item.action) return
         switch (item.action) {
+        case "resume_project":
+            if (!item.actionParams || !item.actionParams.id) return
+            launchTarget = item.title || "project"
+            launchError = ""
+            launchProcess.label = "Open project context"
+            launchProcess.run([Quickshell.env("HOME") + "/.config/hypr/scripts/project-resume.sh",
+                "launch", "--project", String(item.actionParams.id)])
+            break
+        case "copy_result":
+            if (!item.actionParams || item.actionParams.value === undefined) return
+            copyResultProcess.run(["sh", "-c", "printf %s \"$1\" | wl-copy --type text/plain",
+                "launcher", String(item.actionParams.value)])
+            break
         case "launch":
             if (!item.actionParams) return
             launchTarget = item.title || "application"
