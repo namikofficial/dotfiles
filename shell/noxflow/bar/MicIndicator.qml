@@ -30,6 +30,7 @@ Local.BarStatusPill {
     // progress gets a permanent slot in the bar.
     visible: root.micInUse
     occupied: true
+    railItem: true
     minimumWidth: Theme.Tokens.scaled(40)
     horizontalPadding: Theme.Tokens.scaled(10)
     tooltipText: "Microphone in use" + (root.captureNames.length > 0 ? " by " + root.captureNames.join(", ") : "")

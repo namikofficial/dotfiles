@@ -70,10 +70,10 @@ FocusScope {
                         : root.hovered
                             ? Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceHighest, 0.78)
                             : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, 0.62)
-        border.color: root.active
-            ? (root.railItem ? "transparent" : Theme.Tokens.tonalPrimary)
-            : root.activeFocus
-                ? Theme.Tokens.outlineFocus
+        border.color: root.activeFocus
+            ? Theme.Tokens.outlineFocus
+            : root.active
+                ? (root.railItem ? "transparent" : Theme.Tokens.tonalPrimary)
                 : "transparent"
         border.width: root.active && !root.railItem ? 1 : (root.activeFocus ? 2 : 0)
         // Unoccupied pills recede so the active workspace reads first.
