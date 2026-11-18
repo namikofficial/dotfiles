@@ -14,6 +14,7 @@ PanelWindow {
 
     Components.SurfaceLifecycle { id: lifecycle }
     property alias openProgress: lifecycle.openProgress
+    property bool previewsActive: false
 
     anchors.top: true
     anchors.bottom: true
@@ -180,7 +181,7 @@ PanelWindow {
                     required property int index
                     workspace: modelData
                     workspaceIndex: index
-                    overviewOpen: lifecycle.active
+                    overviewOpen: root.previewsActive
                     width: workspaceGrid.cellWidth - Theme.Tokens.scaled(10)
                     height: workspaceGrid.cellHeight - Theme.Tokens.scaled(10)
                     selected: index === workspaceGrid.currentIndex
@@ -212,6 +213,13 @@ PanelWindow {
         function onFocusedWorkspaceChanged() {
             if (lifecycle.active) Qt.callLater(root.selectFocusedWorkspace);
         }
+    }
+
+    Connections {
+        target: lifecycle
+        function onOpened() { root.previewsActive = true; }
+        function onClosing() { root.previewsActive = false; }
+        function onClosed() { root.previewsActive = false; }
     }
 
     Component.onCompleted: root.coordinator.registerModal(root)
