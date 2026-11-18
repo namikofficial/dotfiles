@@ -363,11 +363,6 @@ ShellRoot {
     // Nox Atlas is the single visual window/workspace overview. It replaces
     // the external overview plugin and its Rofi fallback while using the
     // compositor's live toplevel model and screencopy path.
-    AtlasSurface.Atlas {
-        id: atlas
-        screen: Quickshell.activeScreen || null
-        coordinator: panelController
-    }
     function toggleAtlas() { panelController.toggleModal(atlas); }
     function openAtlas() { panelController.openModal(atlas); }
     function closeAtlas() { atlas.close(); }
@@ -517,5 +512,13 @@ ShellRoot {
             calModel: calendarModel; launcherComponent: launcherDefinition
             activityController: activityControllerInstance
         }
+    }
+
+    // Declared after the per-screen chrome so the full-screen overlay stacks
+    // above the rail on compositors that order equal-layer surfaces by age.
+    AtlasSurface.Atlas {
+        id: atlas
+        screen: Quickshell.activeScreen || null
+        coordinator: panelController
     }
 }
