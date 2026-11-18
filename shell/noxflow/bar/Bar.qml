@@ -297,6 +297,11 @@ Item {
                     Layout.alignment: Qt.AlignVCenter
                 }
 
+                Local.CameraIndicator {
+                    id: cameraIndicator
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
                 Local.NotificationPill {
                     id: notificationPill
                     count: root.notificationModel && root.notificationModel.notifications
