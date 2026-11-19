@@ -87,14 +87,14 @@ Item {
     function triggerBindings() {
         var radius = Theme.Tokens.radiusPill;
         return [
-            { panel: "calendar",       monitor: root.monitorName, geometry: root.clockGeometry,       cornerRadius: radius },
-            { panel: "media",          monitor: root.monitorName, geometry: root.mediaChipGeometry,   cornerRadius: radius },
-            { panel: "notifications",  monitor: root.monitorName, geometry: root.notificationGeometry, cornerRadius: radius },
-            { panel: "quick-settings", monitor: root.monitorName, geometry: root.volumeGeometry,     cornerRadius: radius },
-            { panel: "quick-settings", monitor: root.monitorName, geometry: root.networkGeometry,    cornerRadius: radius, triggerId: "network" },
-            { panel: "quick-settings", monitor: root.monitorName, geometry: root.bluetoothGeometry,  cornerRadius: radius, triggerId: "bluetooth" },
-            { panel: "quick-settings", monitor: root.monitorName, geometry: root.volumeGeometry,     cornerRadius: radius, triggerId: "volume" },
-            { panel: "quick-settings", monitor: root.monitorName, geometry: root.batteryGeometry,    cornerRadius: radius, triggerId: "battery" }
+            { panel: "calendar",       monitor: root.monitorName, geometry: root.islandGeometry(), cornerRadius: radius },
+            { panel: "media",          monitor: root.monitorName, geometry: root.islandGeometry(), cornerRadius: radius },
+            { panel: "notifications", monitor: root.monitorName, geometry: root.chipRect(notificationPill), cornerRadius: radius },
+            { panel: "quick-settings", monitor: root.monitorName, geometry: root.chipRect(audioPowerCapsule.audioActionItem), cornerRadius: radius },
+            { panel: "quick-settings", monitor: root.monitorName, geometry: root.chipRect(connectivityCapsule.networkActionItem), cornerRadius: radius, triggerId: "network" },
+            { panel: "quick-settings", monitor: root.monitorName, geometry: root.chipRect(connectivityCapsule.bluetoothActionItem), cornerRadius: radius, triggerId: "bluetooth" },
+            { panel: "quick-settings", monitor: root.monitorName, geometry: root.chipRect(audioPowerCapsule.audioActionItem), cornerRadius: radius, triggerId: "volume" },
+            { panel: "quick-settings", monitor: root.monitorName, geometry: root.chipRect(audioPowerCapsule.powerActionItem), cornerRadius: radius, triggerId: "battery" }
         ];
     }
 

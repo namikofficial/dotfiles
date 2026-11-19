@@ -269,11 +269,11 @@ QtObject {
         pruneDestroyed();
         var list = panels[name];
         if (!list || list.length === 0) return false;
-        var registered = triggerRegistry && typeof triggerRegistry.trigger === "function"
-            ? triggerRegistry.trigger(name, targetMonitor) : null;
-        console.log("NOX_QA_REGISTRY", targetMonitor, JSON.stringify(triggerRegistry ? triggerRegistry.triggers : null));
         var target = surface(name);
         if (!target) return false;
+        if (!targetMonitor && target.screen) targetMonitor = target.screen.name || "";
+        var registered = triggerRegistry && typeof triggerRegistry.trigger === "function"
+            ? triggerRegistry.trigger(name, targetMonitor) : null;
 
         // Idempotent re-open on the same monitor: the panel stays open.
         // An explicit initialSection retargets without closing (used by

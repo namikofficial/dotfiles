@@ -375,7 +375,6 @@ PanelWindow {
 
         var hasOrigin = rect && rect.width > 0 && rect.height > 0;
         var target = targetGeometryFor(name);
-        console.log("NOX_QA_ORIGIN", name, JSON.stringify(rect));
 
         if (activePanel !== "" && activePanel !== name) {
             // Swap: retarget geometry + crossfade content.
