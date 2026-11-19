@@ -417,7 +417,7 @@ PanelWindow {
             surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
             frameTop = sourceG.top; frameRight = sourceG.right;
             frameWidth = sourceG.width; frameHeight = sourceG.height;
-            frameRadius = Theme.Tokens.radiusPill;
+            frameRadius = Math.min(sourceG.width, sourceG.height) / 2;
             // Content starts hidden; compact content shows the origin.
             compactOpacity = 1.0; compactTranslate = 0.0;
             expandedOpacity = 0.0;
@@ -501,7 +501,7 @@ PanelWindow {
         var hasOrigin = originRect && originRect.width > 0 && originRect.height > 0;
         if (hasOrigin) {
             frameTop = g.top; frameRight = g.right; frameWidth = g.width; frameHeight = g.height;
-            frameRadius = Theme.Tokens.radiusPill;
+            frameRadius = Math.min(g.width, g.height) / 2;
             // The layer window keeps its current size because nothing assigns
             // surfaceHeight here — that *is* the retention, so the frame is not
             // clipped mid-collapse. Wait exactly as long as the frame's own
