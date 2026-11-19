@@ -206,7 +206,7 @@ Item {
                         ? "Recent commands first   ·   Apps   ·   Windows   ·   Projects   ·   Actions"
                         : "Apps   ·   Windows   ·   Projects   ·   Actions   ·   Calculations"
                 color: Theme.Tokens.textMuted
-                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                font.pixelSize: Theme.Tokens.typographyLabelMedium
                 elide: Text.ElideRight
             }
             Components.Divider { Layout.fillWidth: true }
@@ -273,10 +273,11 @@ Item {
                     spacing: Theme.Tokens.spacingXs; visible: !(root.activeMode === 5 && (root.aiResponse !== "" || root.aiLoading))
                     delegate: Item {
                         required property int index; required property var modelData
-                        width: parent ? parent.width : 0; height: Theme.Tokens.scaled(Theme.Tokens.heightControl)
+                        width: parent ? parent.width : 0; height: Theme.Tokens.scaled(56)
                         property bool ho: false; property bool pr: false
                         readonly property bool cur: index === root.selectedIndex
                         Rectangle { anchors.fill: parent; radius: Theme.Tokens.radiusSm; color: cur ? Theme.Tokens.tonalPrimaryContainer : ho ? Theme.Tokens.surfaceSurfaceContainerHigh : "transparent" }
+                        Rectangle { visible: cur; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; width: Theme.Tokens.scaled(3); height: Theme.Tokens.scaled(28); radius: width / 2; color: Theme.Tokens.tonalPrimary }
                         RowLayout { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingSm; spacing: Theme.Tokens.spacingMd
                             Item { Layout.preferredWidth: Theme.Tokens.scaled(28); Layout.preferredHeight: Theme.Tokens.scaled(28)
                                 // Plain Image with a bounded sourceSize: IconImage rasterised theme SVGs
@@ -289,7 +290,7 @@ Item {
                                 Text { anchors.fill: parent; text: modelData.icon || root.defaultIcon; visible: !appIcon.visible; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.tonalPrimary; font.pixelSize: Theme.Tokens.iconMd; font.family: Theme.Tokens.iconFont; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                             }
                             ColumnLayout { Layout.fillWidth: true; spacing: 0
-                                Text { text: modelData.title || modelData.name || "Unknown"; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; elide: Text.ElideRight; Layout.fillWidth: true }
+                                Text { text: modelData.title || modelData.name || "Unknown"; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textPrimary; font.pixelSize: Theme.Tokens.typographyBodyMedium; font.bold: cur; elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text { text: modelData.subtitle || ""; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary; font.pixelSize: Theme.Tokens.typographyLabelSmall; elide: Text.ElideRight; visible: text !== "" }
                             }
                             Text { text: modelData.shortcut || ""; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall; visible: text !== "" }
@@ -301,11 +302,9 @@ Item {
                 Rectangle {
                     id: previewPane
                     anchors.top: parent.top; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    width: Theme.Tokens.scaled(248)
+                    width: Theme.Tokens.scaled(220)
                     radius: Theme.Tokens.radiusMd
-                    color: Theme.Tokens.surfaceSurfaceContainerHigh
-                    border.color: Theme.Tokens.outlineSubtle
-                    border.width: 1
+                    color: Theme.Tokens.surfaceSurfaceContainer
                     visible: root.activeMode !== 5 && root.selectedResult !== null
                     Accessible.name: root.selectedResult
                         ? "Preview: " + String(root.selectedResult.title || root.selectedResult.name || "Selected action")
@@ -378,10 +377,9 @@ Item {
                         Components.Divider { Layout.fillWidth: true }
                         Text {
                             Layout.fillWidth: true
-                            text: "Enter  run   ·   ↑ ↓  select   ·   Esc  close"
+                            text: "↑ ↓  Select     Enter  Run\nEsc  Close"
                             color: Theme.Tokens.textMuted
                             font.pixelSize: Theme.Tokens.typographyLabelSmall
-                            wrapMode: Text.WordWrap
                         }
                     }
                 }

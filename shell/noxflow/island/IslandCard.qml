@@ -125,7 +125,8 @@ Rectangle {
             : root.pillWidth
     height: parent.height
     radius: root.launcherVisible || root.visualExpanded ? Theme.Tokens.radiusXl : Theme.Tokens.radiusPill
-    color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, Theme.Tokens.glassPanelAlpha)
+    color: root.launcherVisible ? Theme.Tokens.surfaceSurfaceContainerLow
+        : Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh, Theme.Tokens.glassPanelAlpha)
     border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha)
     border.width: 1
     Accessible.role: Accessible.Button
