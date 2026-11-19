@@ -256,8 +256,7 @@ PanelWindow {
                     var columns = width < Theme.Tokens.scaled(900) || workspaceGrid.count <= 1 ? 1 : 2;
                     var rows = Math.max(1, Math.ceil(workspaceGrid.count / columns));
                     var heightPerRow = Math.floor(height / rows);
-                    return Math.max(Theme.Tokens.scaled(300),
-                        Math.min(Theme.Tokens.scaled(560), heightPerRow));
+                    return Math.max(Theme.Tokens.scaled(300), heightPerRow);
                 }
                 boundsBehavior: Flickable.StopAtBounds
                 interactive: contentHeight > height

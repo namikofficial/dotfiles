@@ -119,10 +119,10 @@ FocusScope {
                 currentIndex: root.selected ? root.selectedWindowIndex : -1
                 cellWidth: root.windowCount === 1
                     ? width : Math.floor((width - Theme.Tokens.scaled(10)) / 2)
-                cellHeight: Math.min(Theme.Tokens.scaled(280),
-                    Math.max(Theme.Tokens.scaled(120),
-                        Math.floor((height - Theme.Tokens.scaled(8))
-                            / Math.max(1, Math.ceil(root.windowCount / 2)))))
+                // Give the previews the available space. The former fixed
+                // 280px ceiling left the lower half of large workspaces empty.
+                cellHeight: Math.max(Theme.Tokens.scaled(160),
+                    Math.floor(height / Math.max(1, Math.ceil(root.windowCount / 2))))
                 boundsBehavior: Flickable.StopAtBounds
                 interactive: contentHeight > height
                 focus: root.selected
