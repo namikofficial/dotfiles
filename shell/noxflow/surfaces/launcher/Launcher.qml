@@ -406,8 +406,8 @@ Item {
                 Text {
                     id: compactHints
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    visible: !previewPane.visible && root.activeMode !== 5 && root.selectedResult !== null
-                    text: "↑ ↓  Select    Enter  Run    Esc  Close"
+                    visible: !previewPane.visible && root.activeMode !== 5
+                    text: root.selectedResult ? "↑ ↓  Select    Enter  Run    Esc  Close" : "Esc  Close"
                     color: Theme.Tokens.textMuted
                     font.pixelSize: Theme.Tokens.typographyLabelSmall
                     elide: Text.ElideRight
