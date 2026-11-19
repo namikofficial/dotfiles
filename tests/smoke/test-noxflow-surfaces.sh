@@ -142,6 +142,30 @@ toggle_surface launcher 2>/dev/null || true
 
 echo ""
 
+# A close followed immediately by a reopen used to leave the coordinator
+# reporting an open panel while its layer had already been destroyed. Check
+# the compositor's actual layer, rather than trusting the IPC state alone.
+if command -v hyprctl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+  "$NOXCTL" close 2>/dev/null || true
+  sleep 0.4
+  baseline_layers=$(hyprctl layers -j | jq '[.[] .levels[][] | select(.namespace == "quickshell" and .h > 100)] | length')
+  toggle_surface notifications
+  sleep 0.4
+  toggle_surface notifications
+  toggle_surface notifications
+  sleep 0.6
+  reopened_layers=$(hyprctl layers -j | jq '[.[] .levels[][] | select(.namespace == "quickshell" and .h > 100)] | length')
+  if (( reopened_layers > baseline_layers )); then
+    log_pass "Notifications layer survives close and immediate reopen"
+  else
+    log_fail "Notifications layer missing after close and immediate reopen"
+  fi
+  "$NOXCTL" close 2>/dev/null || true
+  sleep 0.4
+fi
+
+echo ""
+
 # ── Log check: new QML errors ──
 echo "--- Journal log check (since test start) ---"
 
