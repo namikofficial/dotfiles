@@ -211,10 +211,10 @@ FocusScope {
 
     // ── Startup animation trigger ──
     Component.onCompleted: {
-        root.animState = NotificationItem.Returning;
-        root.physicsY = -200;
-        root.physicsRot = 45;
-        // physicsLoop.running is bound to animState; no manual start needed.
+        root.animState = NotificationItem.Inert;
+        root.physicsX = 0;
+        root.physicsY = 0;
+        root.physicsRot = 0;
     }
 
     // ── Render with physics transform ──
@@ -253,17 +253,40 @@ FocusScope {
             id: layout
             anchors.fill: parent
             anchors.margins: root.contentMargin
-            spacing: Theme.Tokens.spacingSm
+            spacing: Theme.Tokens.spacingXs
 
-            // Header: app icon + name + close
+            // Header: app icon + name + timestamp + close
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.Tokens.spacingSm
 
-                Text {
-                    text: root.privacyRedacted ? "◈" : (root.notification.app_icon || "◈")
-                    color: Theme.Tokens.tonalPrimary
-                    font.pixelSize: Theme.Tokens.iconSm
+                Item {
+                    Layout.preferredWidth: Theme.Tokens.scaled(18)
+                    Layout.preferredHeight: Theme.Tokens.scaled(18)
+
+                    Image {
+                        id: appIconImg
+                        anchors.fill: parent
+                        visible: !root.privacyRedacted
+                            && root.iconSource(root.notification.app_icon) !== ""
+                            && status === Image.Ready
+                        source: root.privacyRedacted ? "" : root.iconSource(root.notification.app_icon)
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        visible: !appIconImg.visible
+                        readonly property string customGlyph: !root.privacyRedacted
+                            ? root.shortGlyph(root.notification.app_icon) : ""
+                        text: root.privacyRedacted ? "◈" : (customGlyph !== "" ? customGlyph : "\uF0F3")
+                        color: root.notification.urgency === "critical"
+                            ? Theme.Tokens.stateDanger : Theme.Tokens.tonalPrimary
+                        font.family: customGlyph !== "" || root.privacyRedacted
+                            ? Theme.Tokens.typographyFontFamily : Theme.Tokens.iconFont
+                        font.pixelSize: Theme.Tokens.scaled(13)
+                    }
                 }
 
                 Text {
@@ -271,20 +294,23 @@ FocusScope {
                     color: Theme.Tokens.textSecondary
                     font.family: Theme.Tokens.typographyFontFamily
                     font.pixelSize: Theme.Tokens.typographyLabelSmall
+                    font.bold: true
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                 }
 
                 Text {
+                    visible: text !== ""
                     text: root.privacyRedacted ? "" : (root.notification.timestamp || "")
                     color: Theme.Tokens.textMuted
+                    font.family: Theme.Tokens.typographyFontFamily
                     font.pixelSize: Theme.Tokens.typographyLabelSmall
                 }
 
                 Text {
                     text: "✕"
                     color: Theme.Tokens.textMuted
-                    font.pixelSize: Theme.Tokens.iconSm
+                    font.pixelSize: Theme.Tokens.scaled(13)
                     TapHandler { onTapped: { root.animState = NotificationItem.Dismissing; } }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
@@ -320,25 +346,32 @@ FocusScope {
             // Inline action buttons
             RowLayout {
                 Layout.fillWidth: true
+                Layout.topMargin: Theme.Tokens.spacingXs
                 spacing: Theme.Tokens.spacingXs
-                visible: !root.privacyRedacted && root.notification.actions
+                visible: !root.isHistory && !root.privacyRedacted && root.notification.actions
                     && root.notification.actions.length > 0
 
                 Repeater {
                     model: notification.actions
                     delegate: Rectangle {
                         required property var modelData
-                        height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
-                        implicitWidth: actionLabel.width + Theme.Tokens.scaled(Theme.Tokens.spacingLg)
+                        implicitHeight: Theme.Tokens.scaled(28)
+                        implicitWidth: actionLabel.implicitWidth + Theme.Tokens.scaled(20)
+                        Layout.preferredHeight: implicitHeight
+                        Layout.preferredWidth: implicitWidth
                         radius: Theme.Tokens.radiusPill
                         color: Theme.Tokens.surfaceSurfaceVariant
+                        border.color: Theme.Tokens.outlineSubtle
+                        border.width: 1
 
                         Text {
                             id: actionLabel
                             anchors.centerIn: parent
                             text: typeof modelData === "string" ? modelData : modelData.label || modelData.id || modelData
                             color: Theme.Tokens.textPrimary
+                            font.family: Theme.Tokens.typographyFontFamily
                             font.pixelSize: Theme.Tokens.typographyLabelSmall
+                            font.bold: true
                         }
 
                         TapHandler {
