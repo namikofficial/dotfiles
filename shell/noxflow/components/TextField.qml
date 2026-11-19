@@ -153,7 +153,6 @@ FocusScope {
         }
     }
 
-    Keys.onReturnPressed: root.accepted()
     // Escape releases focus from the field first; the surrounding panel's
     // FocusScope closes the panel on the *next* press. The event has to be
     // accepted for that two-step behaviour to exist: an unaccepted key press
