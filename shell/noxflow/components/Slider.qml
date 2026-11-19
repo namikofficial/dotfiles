@@ -81,7 +81,7 @@ FocusScope {
     }
     Rectangle {
         visible: !root.readOnly
-        x: root.knobRadius + root.travel * root.fraction
+        x: root.travel * root.fraction
         anchors.verticalCenter: parent.verticalCenter
         width: root.knobSize; height: root.knobSize
         radius: root.knobRadius

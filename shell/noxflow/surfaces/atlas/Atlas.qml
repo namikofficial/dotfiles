@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -7,6 +8,7 @@ import "../../theme" as Theme
 import "../../components" as Components
 import "." as Local
 import "AtlasHistory.js" as AtlasHistory
+import "AtlasLayout.js" as AtlasLayout
 
 PanelWindow {
     id: root
@@ -84,6 +86,7 @@ PanelWindow {
         if (next < 0) next = workspaceGrid.count - 1;
         if (next >= workspaceGrid.count) next = 0;
         workspaceGrid.currentIndex = next;
+        workspaceGrid.positionViewAtIndex(next, GridView.Contain);
         Qt.callLater(function() {
             if (workspaceGrid.currentItem) workspaceGrid.currentItem.forceActiveFocus();
         });
@@ -250,25 +253,20 @@ PanelWindow {
                 Layout.fillHeight: true
                 clip: true
                 model: Hyprland.workspaces
-                readonly property int adaptiveColumns: {
-                    var count = workspaceGrid.count;
-                    if (count <= 1 || width < Theme.Tokens.scaled(900)) return 1;
-                    if (count <= 3) return count;
-                    if (count === 4) return 2;
-                    var ratio = Math.max(1, width / Math.max(1, height));
-                    return Math.max(2, Math.min(Math.ceil(count / 2), Math.ceil(Math.sqrt(count * ratio))));
-                }
-                cellWidth: Math.floor((width - Theme.Tokens.scaled(10) * (adaptiveColumns - 1)) / adaptiveColumns)
-                cellHeight: {
-                    var rows = Math.max(1, Math.ceil(workspaceGrid.count / adaptiveColumns));
-                    var heightPerRow = Math.floor(height / rows);
-                    return heightPerRow;
-                }
+                readonly property var gridMetrics: AtlasLayout.computeGrid(
+                    workspaceGrid.count, width, height,
+                    Theme.Tokens.scaled(360), Theme.Tokens.scaled(260), 4)
+                readonly property int adaptiveColumns: workspaceGrid.count <= 1
+                    ? 1 : gridMetrics.columns
+                cellWidth: gridMetrics.cellWidth
+                cellHeight: gridMetrics.cellHeight
                 boundsBehavior: Flickable.StopAtBounds
                 interactive: contentHeight > height
                 keyNavigationEnabled: false
                 currentIndex: -1
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                 onCurrentIndexChanged: {
+                    if (currentIndex >= 0) positionViewAtIndex(currentIndex, GridView.Contain);
                     if (currentItem && lifecycle.active)
                         Qt.callLater(function() { if (workspaceGrid.currentItem) workspaceGrid.currentItem.forceActiveFocus(); });
                 }

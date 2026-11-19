@@ -9,6 +9,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import "../../theme" as Theme
 import "../../components" as Components
+import "DashboardClock.js" as DashboardClock
 
 PanelWindow {
     id: root
@@ -23,6 +24,9 @@ PanelWindow {
     required property var systemModel
     readonly property bool systemTelemetryReadable: !!systemModel
         && (systemModel.status === "live" || systemModel.status === "stale")
+    property date now: new Date()
+    readonly property var todayEvents: calModel.eventsForDay(
+        root.now.getFullYear(), root.now.getMonth(), root.now.getDate())
 
     signal requestCaptureAfterClose()
 
@@ -45,9 +49,22 @@ PanelWindow {
         ? WlrKeyboardFocus.Exclusive
         : WlrKeyboardFocus.None
 
+    Timer {
+        id: clockRefreshTimer
+        interval: 30000
+        repeat: true
+        running: lifecycle.active
+        onTriggered: {
+            var prevDay = root.now.getDate();
+            root.now = new Date();
+            if (root.now.getDate() !== prevDay) calModel.today();
+        }
+    }
+
     Connections {
         target: lifecycle
         function onOpened() {
+            root.now = new Date();
             calModel.today();
             if (calModel.events.length === 0) calModel.syncGCal();
         }
@@ -76,7 +93,7 @@ PanelWindow {
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(parent.width * 0.72, Theme.Tokens.scaled(760))
-        height: Math.min(parent.height * 0.9, Theme.Tokens.scaled(640))
+        height: Math.min(parent.height * 0.9, Theme.Tokens.scaled(680))
         radius: Theme.Tokens.radiusXl
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
         border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
@@ -88,10 +105,11 @@ PanelWindow {
             id: dashboardScroll
             anchors.fill: parent
             anchors.margins: Theme.Tokens.spacingMd
-            contentHeight: dashContent.childrenRect.height + Theme.Tokens.spacingLg
+            contentWidth: width
+            contentHeight: dashContent.implicitHeight + Theme.Tokens.spacingLg
             interactive: contentHeight > height
             clip: true
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
             ColumnLayout {
                 id: dashContent
@@ -104,19 +122,14 @@ PanelWindow {
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 0
                     Text {
-                        text: {
-                            var h = new Date().getHours()
-                            if (h < 12) return "Good morning"
-                            if (h < 17) return "Good afternoon"
-                            return "Good evening"
-                        }
+                        text: DashboardClock.greetingForDate(root.now)
                         color: Theme.Tokens.textPrimary
                         font.pixelSize: Theme.Tokens.typographyDisplayMedium
                         font.family: Theme.Tokens.typographyDisplayFamily
                         font.bold: true
                     }
                     Text {
-                        text: Qt.formatDate(new Date(), "dddd, MMMM d")
+                        text: Qt.formatDate(root.now, "dddd, MMMM d")
                         color: Theme.Tokens.textSecondary
                         font.pixelSize: Theme.Tokens.typographyBodyLarge
                         font.family: Theme.Tokens.typographyFontFamily
@@ -252,12 +265,9 @@ PanelWindow {
                             delegate: Rectangle {
                                 required property int index
                                 readonly property int day: index + 1
-                                readonly property bool isToday: {
-                                    var d = new Date()
-                                    return d.getFullYear() === calModel.year &&
-                                           d.getMonth() === calModel.month &&
-                                           d.getDate() === day
-                                }
+                                readonly property bool isToday: root.now.getFullYear() === calModel.year
+                                    && root.now.getMonth() === calModel.month
+                                    && root.now.getDate() === day
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: Theme.Tokens.scaled(24)
                                 radius: Theme.Tokens.radiusPill
@@ -288,7 +298,7 @@ PanelWindow {
                         Layout.fillWidth: true; Layout.fillHeight: true
                         spacing: Theme.Tokens.spacingXs; clip: true
                         Repeater {
-                            model: calModel.eventsForDay(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+                            model: root.todayEvents
                             delegate: Rectangle {
                                 required property var modelData
                                 Layout.fillWidth: true
@@ -319,7 +329,7 @@ PanelWindow {
                         Text {
                             text: "No events today"; color: Theme.Tokens.textMuted
                             font.pixelSize: Theme.Tokens.typographyBodySmall
-                            visible: calModel.eventsForDay(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).length === 0
+                            visible: root.todayEvents.length === 0
                         }
                     }
                 }

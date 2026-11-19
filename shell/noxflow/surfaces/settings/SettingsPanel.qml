@@ -84,17 +84,28 @@ PanelWindow {
         return SettingsPanel.SettingState.Idle;
     }
 
+    function scheduleStatusClear() {
+        if (root.lastStatusKind === "" || !lifecycle.interactive) {
+            statusAutoClearTimer.stop();
+            return;
+        }
+        statusAutoClearTimer.interval = statusAutoClearTimer.defaultDurationMs;
+        statusAutoClearTimer.restart();
+    }
+
     function reportStatus(kind, key, message) {
         lastStatusKind = kind;
         lastStatusKey = key || "";
         lastStatusMessage = message || "";
         lastStatusAt = Date.now();
+        scheduleStatusClear();
     }
 
     function clearStatus() {
         lastStatusKind = "";
         lastStatusKey = "";
         lastStatusMessage = "";
+        statusAutoClearTimer.stop();
     }
 
     // The mapping lives in config/Appearance.qml so shell.qml can apply the
@@ -211,25 +222,34 @@ PanelWindow {
             clearStatus();
             hydrateFromDaemon();
         }
+        function onInteractiveChanged() {
+            if (lifecycle.interactive) {
+                if (root.lastStatusKind !== "") root.scheduleStatusClear();
+            } else {
+                statusAutoClearTimer.stop();
+            }
+        }
         function onClosing(reason) {
-            // Drop any pending writes so the panel doesn't display stale
-            // Pending indicators when reopened. The daemon either accepted
-            // them (in which case the SettingUpdated callback cleared the
-            // pending tag) or rejected them (errorCallback cleared it).
+            statusAutoClearTimer.stop();
         }
     }
 
     Timer {
-        // Auto-clear the status banner after a few seconds so it doesn't
-        // accumulate stale saved/rejected messages during long sessions.
-        interval: 4000
+        id: statusAutoClearTimer
+        // Auto-clear the status indicator after 4 seconds, restarting cleanly
+        // whenever a newer status arrives in reportStatus().
+        readonly property int defaultDurationMs: 4000
+        interval: defaultDurationMs
         repeat: false
-        running: root.lastStatusKind !== "" && lifecycle.interactive
         onTriggered: {
-            // Only clear if no new status arrived in the meantime.
-            if (Date.now() - root.lastStatusAt >= interval) {
-                root.clearStatus();
+            var remaining = defaultDurationMs - (Date.now() - root.lastStatusAt);
+            if (remaining > 50) {
+                interval = Math.max(50, Math.ceil(remaining));
+                restart();
+                return;
             }
+            interval = defaultDurationMs;
+            root.clearStatus();
         }
     }
 
@@ -274,8 +294,8 @@ PanelWindow {
     // ── Settings panel ──
     Rectangle {
         anchors.centerIn: parent
-        width: Math.min(parent.width * 0.7, Theme.Tokens.scaled(520))
-        height: Math.min(parent.height * 0.75, Theme.Tokens.scaled(500))
+        width: Math.min(parent.width * 0.78, Theme.Tokens.scaled(680))
+        height: Math.min(parent.height * 0.84, Theme.Tokens.scaled(660))
         radius: Theme.Tokens.radiusXl
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
         border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
@@ -285,67 +305,112 @@ PanelWindow {
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: Theme.Tokens.spacingXl
-            spacing: Theme.Tokens.spacingLg
+            spacing: Theme.Tokens.spacingMd
 
             RowLayout {
                 Layout.fillWidth: true
-                Text {
-                    text: "Nox Studio"
-                    color: Theme.Tokens.textPrimary
-                    font.pixelSize: Theme.Tokens.typographyHeadlineMedium
-                    font.family: Theme.Tokens.typographyDisplayFamily
-                    font.bold: true; Layout.fillWidth: true
+                spacing: Theme.Tokens.spacingSm
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                        text: "NOX / STUDIO"
+                        color: Theme.Tokens.tonalSecondary
+                        font.family: Theme.Tokens.typographyFontFamily
+                        font.pixelSize: Theme.Tokens.typographyLabelSmall
+                        font.bold: true
+                        font.letterSpacing: 1.2
+                    }
+                    Text {
+                        text: "Nox Studio"
+                        color: Theme.Tokens.textPrimary
+                        font.pixelSize: Theme.Tokens.typographyHeadlineMedium
+                        font.family: Theme.Tokens.typographyDisplayFamily
+                        font.bold: true
+                        Layout.fillWidth: true
+                    }
                 }
+
+                // Quiet inline status pill for normal sync/saved feedback (no vertical jump).
+                Rectangle {
+                    id: statusPill
+                    readonly property bool showInline: root.hydrationInFlight
+                        || root.lastStatusKind === "saved"
+                        || root.lastStatusKind === "external"
+                    readonly property color pillAccent: root.lastStatusKind === "saved"
+                        ? Theme.Tokens.stateSuccess : Theme.Tokens.stateInfo
+                    visible: showInline
+                    Layout.preferredHeight: Theme.Tokens.scaled(28)
+                    Layout.preferredWidth: Math.min(Theme.Tokens.scaled(260), pillRow.implicitWidth + Theme.Tokens.scaled(18))
+                    radius: Theme.Tokens.radiusPill
+                    color: Theme.Tokens.withAlpha(pillAccent, 0.14)
+                    border.color: Theme.Tokens.withAlpha(pillAccent, 0.36)
+                    border.width: 1
+
+                    RowLayout {
+                        id: pillRow
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.Tokens.scaled(9)
+                        anchors.rightMargin: Theme.Tokens.scaled(9)
+                        spacing: Theme.Tokens.spacingXs
+                        Text {
+                            text: root.hydrationInFlight ? "•" : (root.lastStatusKind === "saved" ? "✓" : "↻")
+                            color: statusPill.pillAccent
+                            font.pixelSize: Theme.Tokens.typographyLabelSmall
+                            font.bold: true
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: root.hydrationInFlight ? "Syncing…"
+                                : root.lastStatusKind === "external" ? "Up to date"
+                                : root.lastStatusMessage
+                            color: Theme.Tokens.textPrimary
+                            font.family: Theme.Tokens.typographyFontFamily
+                            font.pixelSize: Theme.Tokens.typographyLabelSmall
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
+
                 Components.IconButton {
-                    iconText: "✕"; accessibleName: "Close settings"
+                    iconText: "\uF00D"; accessibleName: "Close settings"
                     onClicked: lifecycle.requestClose("closeButton")
                 }
             }
 
-            // ── Status banner ──
-            // Reflects connection state, hydration result, last write result
-            // and last maintenance result. Always truthful: a visible
-            // "rejected" stays until the user changes something else or the
-            // 4-second timer expires.
+            // ── Error / reconnect banner (only shown for failures or disconnect) ──
             Rectangle {
                 Layout.fillWidth: true
-                visible: root.lastStatusKind !== "" || root.hydrationInFlight
+                readonly property bool isAlert: root.lastStatusKind === "rejected"
+                    || root.lastStatusKind === "reconnect"
+                    || root.lastStatusKind === "unavailable"
+                visible: isAlert
                 radius: Theme.Tokens.radiusMd
-                implicitHeight: statusRow.implicitHeight + Theme.Tokens.spacingMd * 2
+                Layout.preferredHeight: errorRow.implicitHeight + Theme.Tokens.spacingSm * 2
                 color: Theme.Tokens.withAlpha(
-                    root.lastStatusKind === "rejected" ? Theme.Tokens.stateDanger
-                        : root.lastStatusKind === "reconnect" ? Theme.Tokens.stateWarning
-                        : root.lastStatusKind === "unavailable" ? Theme.Tokens.stateWarning
-                        : root.lastStatusKind === "external" ? Theme.Tokens.stateInfo
-                        : Theme.Tokens.stateSuccess, 0.18)
+                    root.lastStatusKind === "rejected" ? Theme.Tokens.stateDanger : Theme.Tokens.stateWarning,
+                    0.16)
                 border.color: Theme.Tokens.withAlpha(
-                    root.lastStatusKind === "rejected" ? Theme.Tokens.stateDanger
-                        : root.lastStatusKind === "reconnect" ? Theme.Tokens.stateWarning
-                        : root.lastStatusKind === "unavailable" ? Theme.Tokens.stateWarning
-                        : root.lastStatusKind === "external" ? Theme.Tokens.stateInfo
-                        : Theme.Tokens.stateSuccess, 0.42)
+                    root.lastStatusKind === "rejected" ? Theme.Tokens.stateDanger : Theme.Tokens.stateWarning,
+                    0.42)
                 border.width: 1
+
                 RowLayout {
-                    id: statusRow
+                    id: errorRow
                     anchors.fill: parent
-                    anchors.margins: Theme.Tokens.spacingMd
+                    anchors.margins: Theme.Tokens.spacingSm
                     spacing: Theme.Tokens.spacingSm
                     Text {
-                        text: root.hydrationInFlight ? "•" : (root.lastStatusKind === "rejected" ? "!" : root.lastStatusKind === "saved" ? "✓" : root.lastStatusKind === "external" ? "↻" : root.lastStatusKind === "reconnect" ? "↻" : root.lastStatusKind === "unavailable" ? "!" : "")
-                        color: Theme.Tokens.textPrimary
-                        font.pixelSize: Theme.Tokens.iconSm
+                        text: root.lastStatusKind === "rejected" ? "!" : "↻"
+                        color: root.lastStatusKind === "rejected" ? Theme.Tokens.stateDanger : Theme.Tokens.stateWarning
+                        font.pixelSize: Theme.Tokens.typographyLabelMedium
                         font.bold: true
                     }
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: root.hydrationInFlight ? "Loading settings from daemon…"
-                            : root.lastStatusKind === "saved" ? root.lastStatusMessage
-                            : root.lastStatusKind === "rejected" ? root.lastStatusMessage
-                            : root.lastStatusKind === "external" ? root.lastStatusMessage
-                            : root.lastStatusKind === "reconnect" ? root.lastStatusMessage
-                            : root.lastStatusKind === "unavailable" ? root.lastStatusMessage
-                            : ""
+                        text: root.lastStatusMessage
                         color: Theme.Tokens.textPrimary
                         font.family: Theme.Tokens.typographyFontFamily
                         font.pixelSize: Theme.Tokens.typographyBodySmall
@@ -358,229 +423,423 @@ PanelWindow {
             Flickable {
                 id: settingsScroll
                 Layout.fillWidth: true; Layout.fillHeight: true
-                contentHeight: contentColumn.height; clip: true; interactive: true
-                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOn }
+                contentWidth: width
+                contentHeight: contentColumn.implicitHeight + Theme.Tokens.spacingXs
+                clip: true; interactive: contentHeight > height
+                ScrollBar.vertical: ScrollBar {
+                    id: settingsScrollBar
+                    policy: ScrollBar.AsNeeded
+                }
 
                 ColumnLayout {
-                    id: contentColumn; width: parent.width
+                    id: contentColumn
+                    width: settingsScroll.width - (settingsScrollBar.visible ? Theme.Tokens.scaled(12) : 0)
                     spacing: Theme.Tokens.spacingLg
 
-                    Text {
-                        text: "Theme Profile"; color: Theme.Tokens.textPrimary
-                        font.pixelSize: Theme.Tokens.typographyTitleMedium
-                        font.family: Theme.Tokens.typographyFontFamily; font.bold: true
+                    // ── Section: Theme Profile ──
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.Tokens.spacingSm
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                text: "THEME PROFILE"
+                                color: Theme.Tokens.textMuted
+                                font.family: Theme.Tokens.typographyFontFamily
+                                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                font.bold: true
+                                font.letterSpacing: 1.1
+                                Layout.fillWidth: true
+                            }
+                            Text {
+                                text: "Switch between colour palettes"
+                                color: Theme.Tokens.textSecondary
+                                font.family: Theme.Tokens.typographyFontFamily
+                                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                            }
+                        }
+
+                        GridLayout {
+                            id: profileGrid
+                            Layout.fillWidth: true
+                            columns: 2
+                            columnSpacing: Theme.Tokens.spacingSm
+                            rowSpacing: Theme.Tokens.spacingSm
+
+                            Repeater {
+                                model: Theme.ThemeProfiles.profileNames()
+                                delegate: Rectangle {
+                                    required property string modelData
+                                    required property int index
+                                    readonly property bool isActive: Theme.Tokens.currentProfile === modelData
+                                    readonly property bool isPending: root.pendingWrites["appearance.profile"] !== undefined
+                                        && root.pendingWrites["appearance.profile"].value === modelData
+                                    readonly property int profileCount: Theme.ThemeProfiles.profileNames().length
+                                    activeFocusOnTab: true
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: "Apply " + modelData + " theme"
+
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: Theme.Tokens.scaled(58)
+                                    Layout.columnSpan: (index === profileCount - 1 && profileCount % 2 === 1) ? 2 : 1
+                                    radius: Theme.Tokens.radiusMd
+                                    color: isActive ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
+                                    border.color: isActive ? Theme.Tokens.tonalPrimary
+                                        : (activeFocus ? Theme.Tokens.outlineFocus : Theme.Tokens.outlineSubtle)
+                                    border.width: 1
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: Theme.Tokens.spacingMd
+                                        anchors.rightMargin: Theme.Tokens.spacingMd
+                                        spacing: Theme.Tokens.spacingMd
+
+                                        Row {
+                                            spacing: 3
+                                            Layout.alignment: Qt.AlignVCenter
+                                            Repeater {
+                                                model: [
+                                                    Theme.ThemeProfiles.getProfile(modelData).tonals.primary,
+                                                    Theme.ThemeProfiles.getProfile(modelData).tonals.secondary,
+                                                    Theme.ThemeProfiles.getProfile(modelData).tonals.tertiary,
+                                                    Theme.ThemeProfiles.getProfile(modelData).surfaces.surface
+                                                ]
+                                                delegate: Rectangle {
+                                                    width: 11; height: 11; radius: 3; color: modelData
+                                                    border.color: Theme.Tokens.outlineSubtle; border.width: 1
+                                                }
+                                            }
+                                        }
+
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 2
+                                            Text {
+                                                Layout.fillWidth: true
+                                                horizontalAlignment: Text.AlignLeft
+                                                elide: Text.ElideRight
+                                                text: {
+                                                    var labels = {
+                                                        "material-expressive": "Expressive",
+                                                        "material-focus": "Focus",
+                                                        "material-ambient": "Ambient",
+                                                        "material-performance": "Performance",
+                                                        "material-oled": "OLED Black"
+                                                    }
+                                                    return labels[modelData] || modelData
+                                                }
+                                                color: isActive ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textPrimary
+                                                font.pixelSize: Theme.Tokens.typographyBodyMedium
+                                                font.family: Theme.Tokens.typographyFontFamily
+                                                font.bold: isActive
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                horizontalAlignment: Text.AlignLeft
+                                                elide: Text.ElideRight
+                                                text: {
+                                                    var desc = {
+                                                        "material-expressive": "Vibrant default palette",
+                                                        "material-focus": "High contrast, max readability",
+                                                        "material-ambient": "Soft muted tones",
+                                                        "material-performance": "Flat, GPU-friendly",
+                                                        "material-oled": "True black background"
+                                                    }
+                                                    return desc[modelData] || ""
+                                                }
+                                                color: isActive ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textMuted
+                                                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                                font.family: Theme.Tokens.typographyFontFamily
+                                                visible: text !== ""
+                                            }
+                                        }
+
+                                        Text {
+                                            text: isPending ? "…" : isActive ? "✓" : ""
+                                            color: Theme.Tokens.tonalPrimary
+                                            font.pixelSize: Theme.Tokens.typographyBodyMedium
+                                            font.bold: true
+                                            visible: isActive || isPending
+                                        }
+                                    }
+
+                                    TapHandler {
+                                        onTapped: {
+                                            parent.forceActiveFocus()
+                                            applyTheme()
+                                        }
+                                    }
+                                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                    Keys.onReturnPressed: applyTheme()
+                                    Keys.onSpacePressed: applyTheme()
+
+                                    function applyTheme() {
+                                        if (isActive && !root.pendingWrites["appearance.profile"]) return;
+                                        Theme.Tokens.applyProfile(modelData);
+                                        root.writeSetting("appearance.profile", modelData, "Profile " + modelData);
+                                    }
+                                }
+                            }
+                        }
                     }
-                    Text {
-                        text: "Switch between colour palettes"
-                        color: Theme.Tokens.textSecondary
-                        font.pixelSize: Theme.Tokens.typographyBodySmall
-                        font.family: Theme.Tokens.typographyFontFamily
-                    }
 
-                    Repeater {
-                        model: Theme.ThemeProfiles.profileNames()
-                        delegate: Rectangle {
-                            required property string modelData
-                            readonly property bool isActive: Theme.Tokens.currentProfile === modelData
-                            readonly property bool isPending: root.pendingWrites["appearance.profile"] !== undefined
-                                && root.pendingWrites["appearance.profile"].value === modelData
-                            activeFocusOnTab: true
-                            Accessible.role: Accessible.Button
-                            Accessible.name: "Apply " + modelData + " theme"
+                    // ── Section: Appearance ──
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.Tokens.spacingSm
 
-                            Layout.fillWidth: true; height: Theme.Tokens.scaled(48)
-                            radius: Theme.Tokens.radiusMd
-                            color: isActive ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
-                            border.color: isActive ? Theme.Tokens.tonalPrimary : "transparent"
-                            border.width: isActive ? 1 : 0
+                        Text {
+                            text: "APPEARANCE"
+                            color: Theme.Tokens.textMuted
+                            font.family: Theme.Tokens.typographyFontFamily
+                            font.pixelSize: Theme.Tokens.typographyLabelSmall
+                            font.bold: true
+                            font.letterSpacing: 1.1
+                        }
 
-                            RowLayout {
-                                anchors.fill: parent
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: appearanceCardCol.implicitHeight + Theme.Tokens.spacingLg * 2
+                            radius: Theme.Tokens.radiusLg
+                            color: Theme.Tokens.surfaceSurfaceContainer
+                            border.color: Theme.Tokens.outlineSubtle
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: appearanceCardCol
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
                                 anchors.margins: Theme.Tokens.spacingLg
                                 spacing: Theme.Tokens.spacingMd
 
-                                Row {
-                                    spacing: 3; Layout.alignment: Qt.AlignVCenter
-                                    Repeater {
-                                        model: [
-                                            Theme.ThemeProfiles.getProfile(modelData).tonals.primary,
-                                            Theme.ThemeProfiles.getProfile(modelData).tonals.secondary,
-                                            Theme.ThemeProfiles.getProfile(modelData).tonals.tertiary,
-                                            Theme.ThemeProfiles.getProfile(modelData).surfaces.surface
-                                        ]
-                                        delegate: Rectangle {
-                                            width: 12; height: 12; radius: 3; color: modelData
-                                            border.color: Theme.Tokens.outlineSubtle; border.width: 1
-                                        }
-                                    }
-                                }
+                                Components.SettingRow {
+                                    Layout.fillWidth: true
+                                    label: "Density"
+                                    description: "Spacing and control scale"
+                                    Rectangle {
+                                        Layout.preferredHeight: Theme.Tokens.scaled(34)
+                                        Layout.preferredWidth: densitySegRow.implicitWidth + Theme.Tokens.scaled(6)
+                                        radius: Theme.Tokens.radiusPill
+                                        color: Theme.Tokens.surfaceSurface2
+                                        border.color: Theme.Tokens.outlineSubtle
+                                        border.width: 1
 
-                                ColumnLayout {
-                                    Layout.fillWidth: true; spacing: 0
-                                    Text {
-                                        text: {
-                                            var labels = {
-                                                "material-expressive": "Expressive",
-                                                "material-focus": "Focus",
-                                                "material-ambient": "Ambient",
-                                                "material-performance": "Performance",
-                                                "material-oled": "OLED Black"
+                                        RowLayout {
+                                            id: densitySegRow
+                                            anchors.fill: parent
+                                            anchors.margins: Theme.Tokens.scaled(3)
+                                            spacing: Theme.Tokens.scaled(2)
+
+                                            Repeater {
+                                                model: ["compact", "comfortable", "spacious"]
+                                                delegate: Rectangle {
+                                                    required property string modelData
+                                                    readonly property bool selected: Theme.Tokens.activeDensity === modelData
+                                                    activeFocusOnTab: true
+                                                    Accessible.role: Accessible.Button
+                                                    Accessible.name: "Density " + modelData
+                                                    Layout.preferredHeight: Theme.Tokens.scaled(26)
+                                                    Layout.preferredWidth: densityBtnText.implicitWidth + Theme.Tokens.scaled(18)
+                                                    radius: Theme.Tokens.radiusPill
+                                                    color: selected ? Theme.Tokens.tonalPrimaryContainer : "transparent"
+                                                    border.color: selected ? Theme.Tokens.tonalPrimary
+                                                        : (activeFocus ? Theme.Tokens.outlineFocus : "transparent")
+                                                    border.width: selected || activeFocus ? 1 : 0
+
+                                                    Text {
+                                                        id: densityBtnText
+                                                        anchors.centerIn: parent
+                                                        text: modelData.charAt(0).toUpperCase() + modelData.slice(1)
+                                                        color: selected ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
+                                                        font.family: Theme.Tokens.typographyFontFamily
+                                                        font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                                        font.bold: selected
+                                                    }
+
+                                                    TapHandler {
+                                                        onTapped: {
+                                                            parent.forceActiveFocus();
+                                                            if (Theme.Tokens.activeDensity === modelData) return;
+                                                            Theme.Tokens.activeDensity = modelData;
+                                                            root.writeSetting("appearance.density", modelData, "Density " + modelData);
+                                                        }
+                                                    }
+                                                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                                    Keys.onReturnPressed: {
+                                                        if (Theme.Tokens.activeDensity === modelData) return;
+                                                        Theme.Tokens.activeDensity = modelData;
+                                                        root.writeSetting("appearance.density", modelData, "Density " + modelData);
+                                                    }
+                                                    Keys.onSpacePressed: {
+                                                        if (Theme.Tokens.activeDensity === modelData) return;
+                                                        Theme.Tokens.activeDensity = modelData;
+                                                        root.writeSetting("appearance.density", modelData, "Density " + modelData);
+                                                    }
+                                                }
                                             }
-                                            return labels[modelData] || modelData
                                         }
-                                        color: isActive ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textPrimary
-                                        font.pixelSize: Theme.Tokens.typographyBodyMedium
-                                        font.family: Theme.Tokens.typographyFontFamily; font.bold: isActive
                                     }
-                                    Text {
-                                        text: {
-                                            var desc = {
-                                                "material-expressive": "Vibrant default palette",
-                                                "material-focus": "High contrast, max readability",
-                                                "material-ambient": "Soft muted tones",
-                                                "material-performance": "Flat, GPU-friendly",
-                                                "material-oled": "True black background"
+                                }
+
+                                Components.Divider { Layout.fillWidth: true }
+
+                                Components.SettingRow {
+                                    Layout.fillWidth: true
+                                    label: "Reduced motion"
+                                    description: "Skip geometry and transition motion"
+                                    valueText: Theme.Tokens.reducedMotion ? "On" : "Off"
+                                    valueWidth: Theme.Tokens.scaled(36)
+                                    Components.Toggle {
+                                        accessibleName: "Reduced motion"
+                                        checked: Theme.Tokens.reducedMotion
+                                        onToggled: function(value) {
+                                            if (Theme.Tokens.reducedMotion === value) return;
+                                            Theme.Tokens.reducedMotion = value;
+                                            root.writeSetting("shell.reduced_motion", value, "Reduced motion");
+                                        }
+                                    }
+                                }
+
+                                Components.Divider { Layout.fillWidth: true }
+
+                                Components.SettingRow {
+                                    Layout.fillWidth: true
+                                    label: "Corner radius"
+                                    description: "Effective radius: " + Theme.Tokens.appearanceRadius + "px"
+                                    Rectangle {
+                                        Layout.preferredHeight: Theme.Tokens.scaled(34)
+                                        Layout.preferredWidth: radiusSegRow.implicitWidth + Theme.Tokens.scaled(6)
+                                        radius: Theme.Tokens.radiusPill
+                                        color: Theme.Tokens.surfaceSurface2
+                                        border.color: Theme.Tokens.outlineSubtle
+                                        border.width: 1
+
+                                        RowLayout {
+                                            id: radiusSegRow
+                                            anchors.fill: parent
+                                            anchors.margins: Theme.Tokens.scaled(3)
+                                            spacing: Theme.Tokens.scaled(2)
+
+                                            Repeater {
+                                                model: [4, 8, 14, 20, 28]
+                                                delegate: Rectangle {
+                                                    required property int modelData
+                                                    readonly property bool selected: Theme.Tokens.appearanceRadius === modelData
+                                                    activeFocusOnTab: true
+                                                    Accessible.role: Accessible.Button
+                                                    Accessible.name: "Corner radius " + modelData + "px"
+                                                    Layout.preferredHeight: Theme.Tokens.scaled(26)
+                                                    Layout.preferredWidth: radiusBtnText.implicitWidth + Theme.Tokens.scaled(14)
+                                                    radius: Theme.Tokens.radiusPill
+                                                    color: selected ? Theme.Tokens.tonalPrimaryContainer : "transparent"
+                                                    border.color: selected ? Theme.Tokens.tonalPrimary
+                                                        : (activeFocus ? Theme.Tokens.outlineFocus : "transparent")
+                                                    border.width: selected || activeFocus ? 1 : 0
+
+                                                    Text {
+                                                        id: radiusBtnText
+                                                        anchors.centerIn: parent
+                                                        text: modelData + "px"
+                                                        color: selected ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textSecondary
+                                                        font.family: Theme.Tokens.typographyFontFamily
+                                                        font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                                        font.bold: selected
+                                                    }
+
+                                                    TapHandler {
+                                                        onTapped: {
+                                                            parent.forceActiveFocus();
+                                                            if (Theme.Tokens.appearanceRadius === modelData) return;
+                                                            Theme.Tokens.applyRadius(modelData);
+                                                            root.writeSetting("appearance.radius", modelData, "Radius " + modelData + "px");
+                                                        }
+                                                    }
+                                                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                                    Keys.onReturnPressed: {
+                                                        if (Theme.Tokens.appearanceRadius === modelData) return;
+                                                        Theme.Tokens.applyRadius(modelData);
+                                                        root.writeSetting("appearance.radius", modelData, "Radius " + modelData + "px");
+                                                    }
+                                                    Keys.onSpacePressed: {
+                                                        if (Theme.Tokens.appearanceRadius === modelData) return;
+                                                        Theme.Tokens.applyRadius(modelData);
+                                                        root.writeSetting("appearance.radius", modelData, "Radius " + modelData + "px");
+                                                    }
+                                                }
                                             }
-                                            return desc[modelData] || ""
                                         }
-                                        color: isActive ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textMuted
-                                        font.pixelSize: Theme.Tokens.typographyLabelSmall
-                                        font.family: Theme.Tokens.typographyFontFamily; visible: text !== ""
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Section: System ──
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.Tokens.spacingSm
+
+                        Text {
+                            text: "SYSTEM"
+                            color: Theme.Tokens.textMuted
+                            font.family: Theme.Tokens.typographyFontFamily
+                            font.pixelSize: Theme.Tokens.typographyLabelSmall
+                            font.bold: true
+                            font.letterSpacing: 1.1
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: systemCardCol.implicitHeight + Theme.Tokens.spacingLg * 2
+                            radius: Theme.Tokens.radiusLg
+                            color: Theme.Tokens.surfaceSurfaceContainer
+                            border.color: Theme.Tokens.outlineSubtle
+                            border.width: 1
+
+                            ColumnLayout {
+                                id: systemCardCol
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: Theme.Tokens.spacingLg
+                                spacing: Theme.Tokens.spacingMd
+
+                                Components.SettingRow {
+                                    Layout.fillWidth: true
+                                    label: "NoxFlow Shell"
+                                    description: "The shell unit has no reload handler; restarting respawns the bar and overlays."
+                                    Components.TextButton {
+                                        text: "Restart Shell"
+                                        enabled: root.maintenanceBusy === 0
+                                        onClicked: {
+                                            // The shell service is Type=simple with no
+                                            // ExecReload, so reload silently fails. Restart
+                                            // is the supported operation. We close the panel
+                                            // AFTER issuing the command so the user can see
+                                            // the success banner in the brief window before
+                                            // the shell itself exits.
+                                            root.maintenanceRun(["systemctl", "--user", "restart", "noxflow-shell"], "Restart shell");
+                                        }
                                     }
                                 }
 
-                                Text {
-                                    text: isPending ? "…" : isActive ? "✓" : ""
-                                    color: Theme.Tokens.tonalPrimary
-                                    font.pixelSize: Theme.Tokens.iconSm
-                                    font.bold: true
-                                    visible: isActive || isPending
+                                Components.Divider { Layout.fillWidth: true }
+
+                                Components.SettingRow {
+                                    Layout.fillWidth: true
+                                    label: "Nox Daemon"
+                                    description: "Restart noxd and reconnect live system providers."
+                                    Components.TextButton {
+                                        text: "Restart Daemon"
+                                        enabled: root.maintenanceBusy === 0
+                                        onClicked: {
+                                            root.closeAfterMaintenance = true;
+                                            root.maintenanceRun(["systemctl", "--user", "restart", "noxd"], "Restart daemon");
+                                        }
+                                    }
                                 }
-                            }
-
-                            TapHandler {
-                                onTapped: {
-                                    parent.forceActiveFocus()
-                                    applyTheme()
-                                }
-                            }
-                            HoverHandler { cursorShape: Qt.PointingHandCursor }
-                            Keys.onReturnPressed: applyTheme()
-                            Keys.onSpacePressed: applyTheme()
-
-                            function applyTheme() {
-                                if (isActive && !root.pendingWrites["appearance.profile"]) return;
-                                Theme.Tokens.applyProfile(modelData);
-                                root.writeSetting("appearance.profile", modelData, "Profile " + modelData);
-                            }
-                        }
-                    }
-
-                    Components.Divider { Layout.fillWidth: true }
-
-                    Text {
-                        text: "Appearance"; color: Theme.Tokens.textPrimary
-                        font.pixelSize: Theme.Tokens.typographyTitleMedium; font.bold: true
-                    }
-
-                    Components.SettingRow {
-                        Layout.fillWidth: true
-                        label: "Density"
-                        valueText: {
-                            var labels = { compact: "Compact", comfortable: "Comfortable", spacious: "Spacious" };
-                            return labels[Theme.Tokens.activeDensity] || Theme.Tokens.activeDensity;
-                        }
-                        Repeater {
-                            model: ["compact", "comfortable", "spacious"]
-                            delegate: Components.TextButton {
-                                required property string modelData
-                                text: modelData.charAt(0).toUpperCase() + modelData.slice(1)
-                                Layout.preferredWidth: Theme.Tokens.scaled(80)
-                                opacity: Theme.Tokens.activeDensity === modelData ? 1.0 : 0.6
-                                onClicked: {
-                                    if (Theme.Tokens.activeDensity === modelData) return;
-                                    Theme.Tokens.activeDensity = modelData;
-                                    root.writeSetting("appearance.density", modelData, "Density " + modelData);
-                                }
-                            }
-                        }
-                    }
-
-                    Components.SettingRow {
-                        Layout.fillWidth: true
-                        label: "Reduced motion"
-                        valueText: Theme.Tokens.reducedMotion ? "On" : "Off"
-                        valueWidth: Theme.Tokens.scaled(48)
-                        Components.Toggle {
-                            accessibleName: "Reduced motion"
-                            checked: Theme.Tokens.reducedMotion
-                            onToggled: {
-                                if (Theme.Tokens.reducedMotion === value) return;
-                                Theme.Tokens.reducedMotion = value;
-                                root.writeSetting("shell.reduced_motion", value, "Reduced motion");
-                            }
-                        }
-                    }
-
-                    Components.SettingRow {
-                        Layout.fillWidth: true
-                        label: "Corner radius"
-                        // Must reflect the EFFECTIVE radius, not a hard-coded
-                        // constant. appearanceRadius is updated by applyRadius()
-                        // so this binding is always honest.
-                        valueText: Theme.Tokens.appearanceRadius + "px"
-                        valueWidth: Theme.Tokens.scaled(40)
-                        Repeater {
-                            model: [4, 8, 14, 20, 28]
-                            delegate: Components.TextButton {
-                                required property int modelData
-                                text: modelData + "px"
-                                Layout.preferredWidth: Theme.Tokens.scaled(56)
-                                opacity: Theme.Tokens.appearanceRadius === modelData ? 1.0 : 0.6
-                                onClicked: {
-                                    if (Theme.Tokens.appearanceRadius === modelData) return;
-                                    Theme.Tokens.applyRadius(modelData);
-                                    root.writeSetting("appearance.radius", modelData, "Radius " + modelData + "px");
-                                }
-                            }
-                        }
-                    }
-
-                    Components.Divider { Layout.fillWidth: true }
-
-                    Text {
-                        text: "System"; color: Theme.Tokens.textPrimary
-                        font.pixelSize: Theme.Tokens.typographyTitleMedium; font.bold: true
-                    }
-                    Text {
-                        text: "Run a verified operation on the user systemd instance. The shell service has no reload handler, so \"Reload\" issues a restart (the shell will exit and respawn)."
-                        color: Theme.Tokens.textMuted
-                        font.family: Theme.Tokens.typographyFontFamily
-                        font.pixelSize: Theme.Tokens.typographyBodySmall
-                        wrapMode: Text.Wrap
-                        Layout.fillWidth: true
-                    }
-                    Flow {
-                        Layout.fillWidth: true; spacing: Theme.Tokens.spacingSm
-                        Components.TextButton {
-                            text: "Restart Shell"
-                            enabled: root.maintenanceBusy === 0
-                            onClicked: {
-                                // The shell service is Type=simple with no
-                                // ExecReload, so reload silently fails. Restart
-                                // is the supported operation. We close the panel
-                                // AFTER issuing the command so the user can see
-                                // the success banner in the brief window before
-                                // the shell itself exits.
-                                root.maintenanceRun(["systemctl", "--user", "restart", "noxflow-shell"], "Restart shell");
-                            }
-                        }
-                        Components.TextButton {
-                            text: "Restart Daemon"
-                            enabled: root.maintenanceBusy === 0
-                            onClicked: {
-                                root.closeAfterMaintenance = true;
-                                root.maintenanceRun(["systemctl", "--user", "restart", "noxd"], "Restart daemon");
                             }
                         }
                     }
