@@ -250,13 +250,19 @@ PanelWindow {
                 Layout.fillHeight: true
                 clip: true
                 model: Hyprland.workspaces
-                cellWidth: width < Theme.Tokens.scaled(900) || workspaceGrid.count <= 1
-                    ? width : Math.floor((width - Theme.Tokens.scaled(18)) / 2)
+                readonly property int adaptiveColumns: {
+                    var count = workspaceGrid.count;
+                    if (count <= 1 || width < Theme.Tokens.scaled(900)) return 1;
+                    if (count <= 3) return count;
+                    if (count === 4) return 2;
+                    var ratio = Math.max(1, width / Math.max(1, height));
+                    return Math.max(2, Math.min(count, Math.ceil(Math.sqrt(count * ratio))));
+                }
+                cellWidth: Math.floor((width - Theme.Tokens.scaled(10) * (adaptiveColumns - 1)) / adaptiveColumns)
                 cellHeight: {
-                    var columns = width < Theme.Tokens.scaled(900) || workspaceGrid.count <= 1 ? 1 : 2;
-                    var rows = Math.max(1, Math.ceil(workspaceGrid.count / columns));
+                    var rows = Math.max(1, Math.ceil(workspaceGrid.count / adaptiveColumns));
                     var heightPerRow = Math.floor(height / rows);
-                    return Math.max(Theme.Tokens.scaled(300), heightPerRow);
+                    return heightPerRow;
                 }
                 boundsBehavior: Flickable.StopAtBounds
                 interactive: contentHeight > height
@@ -273,8 +279,8 @@ PanelWindow {
                     workspace: modelData
                     workspaceIndex: index
                     overviewOpen: root.previewsActive
-                    width: workspaceGrid.cellWidth - Theme.Tokens.scaled(10)
-                    height: workspaceGrid.cellHeight - Theme.Tokens.scaled(10)
+                    width: workspaceGrid.cellWidth - Theme.Tokens.scaled(8)
+                    height: workspaceGrid.cellHeight - Theme.Tokens.scaled(8)
                     selected: index === workspaceGrid.currentIndex
                     onActivateWindow: function(client) { root.focusWindow(client); }
                     onMoveWindow: function(address, targetWorkspace) { root.moveWindow(address, targetWorkspace); }

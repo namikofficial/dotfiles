@@ -145,7 +145,7 @@ PanelWindow {
     // ── Visual frame (the morphing surface) ──
     Rectangle {
         id: frame
-        anchors.top: parent.top
+        y: root.frameTop - root.topMargin
         x: Math.max(0, parent.width - root.frameRight - root.frameWidth)
         width: root.frameWidth; height: root.frameHeight
         radius: root.frameRadius
@@ -360,6 +360,15 @@ PanelWindow {
     // Open a panel with the full phased morph.
     function openPanel(name, rect, section) {
         if (!componentFor(name)) return false;
+        // A section deep-link to the visible panel is a retarget, not a toggle.
+        // Preserve the morph and let the loaded panel consume the new section.
+        if (!root.closing && activePanel === name && pendingPanel === "") {
+            initialSection = section || "";
+            if (content && content.item && initialSection !== ""
+                    && content.item.initialSection !== undefined)
+                content.item.initialSection = initialSection;
+            return true;
+        }
         // A new open always cancels a pending close (rapid toggle-close→open).
         var reopening = root.closing && activePanel === name;
         root.closing = false;
