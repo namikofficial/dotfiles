@@ -16,7 +16,7 @@ FocusScope {
     readonly property bool vpnActive: network && network.vpn && network.vpn.length > 0
     readonly property string shortSsid: network ? String(network.connectedSsid || "") : ""
     readonly property bool online: network && (network.connectivity === "full" || network.connectivity === "limited")
-    implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), values.implicitWidth + Theme.Tokens.scaled(24))
+    implicitWidth: Math.max(Theme.Tokens.scaled(Theme.Tokens.heightChip), values.implicitWidth + Theme.Tokens.scaled(root.railMode ? 8 : 24))
     implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
     Rectangle {
         anchors.fill: parent
@@ -48,7 +48,7 @@ FocusScope {
                 anchors.centerIn: parent
                 spacing: Theme.Tokens.scaled(6)
                 Text { text: root.vpnActive ? "\uF023" : root.online ? "\uF1EB" : "\uF071"; color: root.online ? Theme.Tokens.textSecondary : Theme.Tokens.stateWarning; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconXs }
-                Text { visible: root.shortSsid !== ""; text: root.shortSsid; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium; elide: Text.ElideRight; Layout.maximumWidth: Theme.Tokens.scaled(132) }
+                Text { visible: !root.railMode && root.shortSsid !== ""; text: root.shortSsid; color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelMedium; elide: Text.ElideRight; Layout.maximumWidth: Theme.Tokens.scaled(132) }
             }
             HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
             TapHandler { id: networkTap; onTapped: root.openNetwork() }
@@ -79,7 +79,7 @@ FocusScope {
                 anchors.centerIn: parent
                 spacing: Theme.Tokens.scaled(6)
                 Text { text: "\uF294"; color: root.connectedDevices.length > 0 ? Theme.Tokens.tonalSecondary : Theme.Tokens.textMuted; font.family: Theme.Tokens.iconFont; font.pixelSize: Theme.Tokens.iconXs }
-                Text { visible: root.connectedDevices.length > 0; text: root.connectedDevices.length === 1 ? String(root.connectedDevices[0].name || "Device") : String(root.connectedDevices.length); color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; elide: Text.ElideRight; Layout.maximumWidth: Theme.Tokens.scaled(72) }
+                Text { visible: !root.railMode && root.connectedDevices.length > 0; text: root.connectedDevices.length === 1 ? String(root.connectedDevices[0].name || "Device") : String(root.connectedDevices.length); color: Theme.Tokens.textSecondary; font.family: Theme.Tokens.typographyFontFamily; font.pixelSize: Theme.Tokens.typographyLabelSmall; elide: Text.ElideRight; Layout.maximumWidth: Theme.Tokens.scaled(72) }
             }
             HoverHandler { id: bluetoothHover; cursorShape: Qt.PointingHandCursor }
             TapHandler { id: bluetoothTap; onTapped: root.openBluetooth() }
