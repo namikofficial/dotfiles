@@ -101,7 +101,7 @@ Item {
     // Re-measure when anything that changes a capsule's width changes.
     onWidthChanged: morph.requestRegistration()
     onVisibleChanged: if (visible) morph.registerAll()
-    Component.onCompleted: { workspaces.refresh(); morph.registerAll(); }
+    Component.onCompleted: { workspaces.refresh(); morph.requestRegistration(); }
 
     Connections {
         target: root.hyprland
@@ -222,6 +222,10 @@ Item {
             readonly property int railInset: Theme.Tokens.scaled(6)
             implicitWidth: statusItems.implicitWidth + railInset * 2
             implicitHeight: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+            // Layout assigns this position after construction and whenever the
+            // status group changes width. Register only after that placement.
+            onXChanged: morph.requestRegistration()
+            onWidthChanged: morph.requestRegistration()
 
             Rectangle {
                 anchors.fill: parent
@@ -310,6 +314,8 @@ Item {
 
                 Local.NotificationPill {
                     id: notificationPill
+                    onXChanged: morph.requestRegistration()
+                    onWidthChanged: morph.requestRegistration()
                     count: !root.notificationModel || root.notificationModel.privacyRedacted ? 0
                         : root.notificationModel.notifications
                         ? root.notificationModel.notifications.length : 0
