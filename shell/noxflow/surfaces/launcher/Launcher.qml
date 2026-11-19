@@ -284,7 +284,9 @@ Item {
                     visible: root.filteredResults.length === 0 && !(root.activeMode === 5 && (root.aiResponse !== "" || root.aiLoading)) }
                 // List
                 ListView { id: resultsList
+                    clip: true
                     anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                    anchors.bottomMargin: compactHints.visible ? compactHints.height + Theme.Tokens.spacingSm : 0
                     anchors.right: parent.right
                     anchors.rightMargin: previewPane.visible ? previewPane.width + Theme.Tokens.spacingMd : 0
                     model: root.filteredResults; currentIndex: root.selectedIndex
@@ -323,7 +325,7 @@ Item {
                     width: Theme.Tokens.scaled(220)
                     radius: Theme.Tokens.radiusMd
                     color: Theme.Tokens.surfaceSurfaceContainer
-                    visible: root.activeMode !== 5 && root.selectedResult !== null
+                    visible: parent.width >= Theme.Tokens.scaled(600) && root.activeMode !== 5 && root.selectedResult !== null
                     Accessible.name: root.selectedResult
                         ? "Preview: " + String(root.selectedResult.title || root.selectedResult.name || "Selected action")
                         : "Command preview"
@@ -400,6 +402,15 @@ Item {
                             font.pixelSize: Theme.Tokens.typographyLabelSmall
                         }
                     }
+                }
+                Text {
+                    id: compactHints
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    visible: !previewPane.visible && root.activeMode !== 5 && root.selectedResult !== null
+                    text: "↑ ↓  Select    Enter  Run    Esc  Close"
+                    color: Theme.Tokens.textMuted
+                    font.pixelSize: Theme.Tokens.typographyLabelSmall
+                    elide: Text.ElideRight
                 }
             }
         }
