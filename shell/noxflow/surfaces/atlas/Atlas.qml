@@ -256,7 +256,7 @@ PanelWindow {
                     if (count <= 3) return count;
                     if (count === 4) return 2;
                     var ratio = Math.max(1, width / Math.max(1, height));
-                    return Math.max(2, Math.min(count, Math.ceil(Math.sqrt(count * ratio))));
+                    return Math.max(2, Math.min(Math.ceil(count / 2), Math.ceil(Math.sqrt(count * ratio))));
                 }
                 cellWidth: Math.floor((width - Theme.Tokens.scaled(10) * (adaptiveColumns - 1)) / adaptiveColumns)
                 cellHeight: {

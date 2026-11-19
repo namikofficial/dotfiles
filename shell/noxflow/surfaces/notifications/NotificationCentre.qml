@@ -90,9 +90,35 @@ Item {
 
             // List area
             Item { Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                Text { anchors.centerIn: parent; text: notifModel.privacyRedacted ? "Notification details hidden while locked" : (root.showHistory ? "No history" : "No notifications")
-                    color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodyMedium
-                    visible: notifModel.privacyRedacted || (root.showHistory ? notifModel.history.length : notifModel.notifications.length) === 0 }
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    width: parent.width - Theme.Tokens.scaled(28)
+                    spacing: Theme.Tokens.spacingSm
+                    visible: notifModel.privacyRedacted || (root.showHistory ? notifModel.history.length : notifModel.notifications.length) === 0
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: notifModel.privacyRedacted ? "•" : (root.showHistory ? "↺" : "◉")
+                        color: Theme.Tokens.tonalSecondary
+                        font.family: Theme.Tokens.typographyFontFamily
+                        font.pixelSize: Theme.Tokens.scaled(30)
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: notifModel.privacyRedacted ? "Details hidden" : (root.showHistory ? "No history yet" : "You’re all caught up")
+                        color: Theme.Tokens.textPrimary
+                        font.family: Theme.Tokens.typographyDisplayFamily
+                        font.pixelSize: Theme.Tokens.typographyTitleMedium
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: notifModel.privacyRedacted ? "Notification content is protected while the screen is locked." : (root.showHistory ? "Dismissed notifications will appear here." : "New notifications will appear here.")
+                        color: Theme.Tokens.textMuted
+                        font.pixelSize: Theme.Tokens.typographyBodySmall
+                        wrapMode: Text.Wrap
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                }
 
                 Flickable {
                     anchors.fill: parent; clip: true
