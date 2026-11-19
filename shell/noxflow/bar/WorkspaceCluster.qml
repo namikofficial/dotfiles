@@ -106,6 +106,7 @@ Item {
 
                     Component.onCompleted: if (isActive) Qt.callLater(root.revealActive)
                     onIsActiveChanged: if (isActive) Qt.callLater(root.revealActive)
+                    onWidthChanged: if (isActive) Qt.callLater(root.revealActive)
 
                     hoverSource: function (name, isHovered, pill) {
                         root.hovered(name, isHovered, pill);
