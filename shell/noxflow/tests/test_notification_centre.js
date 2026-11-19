@@ -42,6 +42,8 @@ assert(modelQml.includes("dedupePrependHistory("), "NotificationModel must dedup
 const bridgeQml = fs.readFileSync(require.resolve("../services/NotificationBridge.qml"), "utf8");
 assert(bridgeQml.includes("timestamp:"), "NotificationBridge must populate arrival timestamp for NotificationItem");
 assert(bridgeQml.includes("pushHistory("), "NotificationBridge must archive dismissed/expired items into history");
+assert(/actionsSupported:\s*true/.test(bridgeQml), "NotificationBridge must advertise actionsSupported for inline actions");
+assert(/n\.tracked\s*=\s*true/.test(bridgeQml), "NotificationBridge must track notifications so metadata stays intact");
 
 const centreQml = fs.readFileSync(require.resolve("../surfaces/notifications/NotificationCentre.qml"), "utf8");
 assert(centreQml.includes("preferredHeight"), "NotificationCentre must expose content-aware preferredHeight");

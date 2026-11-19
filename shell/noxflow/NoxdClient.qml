@@ -54,6 +54,7 @@ QtObject {
     property string subscriptionId: ""
     property var failedAction: null
     property int reconnectCount: 0
+    property bool disconnectPending: false
 
     // ── Constants ──
     readonly property int requestTimeoutMs: 2000
@@ -126,7 +127,7 @@ QtObject {
             // cancels pending requests, clears the subscription id and
             // schedules the backoff reconnect.
             root.stopHeartbeat();
-            root.socket.connected = false;
+            root.disconnectSocketDeferred();
             return;
         }
         root.sendRequest("ping", undefined, root.noteHeartbeatPong, root.noteHeartbeatPong);
@@ -233,10 +234,25 @@ QtObject {
         reconnectCount += 1;
     }
 
+    // Defer socket teardown off the active QLocalSocket signal frame.
+    // Mutating `socket.connected = false` synchronously inside `onError` or
+    // `SplitParser.onRead` causes Quickshell 0.3.2 to tear down the active
+    // QLocalSocket mid-emission (SIGSEGV in QObject::deleteLater).
+    function disconnectSocketDeferred() {
+        if (disconnectPending) return;
+        disconnectPending = true;
+        Qt.callLater(function() {
+            root.disconnectPending = false;
+            if (root.socket.connected) root.socket.connected = false;
+            else if (root.phase !== "disconnected" && !root.reconnectTimer.running)
+                root.handleConnectionChange();
+        });
+    }
+
     function handleSocketError(message) {
         console.error("noxd socket error", message);
         errorText = "socket: " + message;
-        if (socket.connected) socket.connected = false;
+        root.disconnectSocketDeferred();
     }
 
     // ── Request system (multi-request, timeouts, retry) ──
@@ -549,7 +565,7 @@ QtObject {
         if (!Protocol.isAllowedProvider(event.provider)) return;
         if (event.stream_id !== streamId) {
             errorText = "daemon stream changed; reconnecting";
-            socket.connected = false;
+            root.disconnectSocketDeferred();
             return;
         }
         receivedEvents += 1;
@@ -625,6 +641,6 @@ QtObject {
         phase = "disconnected";
         connectionStateUpdated("disconnected");
         cancelPendingRequests("protocol_failure");
-        if (socket.connected) socket.connected = false;
+        root.disconnectSocketDeferred();
     }
 }
