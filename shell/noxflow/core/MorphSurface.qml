@@ -154,6 +154,7 @@ PanelWindow {
 
         Behavior on width { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
         Behavior on x { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
+        Behavior on y { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
         Behavior on height { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
         Behavior on radius { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: Config.Motion.panelSwitch; easing.type: Easing.OutCubic } }
 
