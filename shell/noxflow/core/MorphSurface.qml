@@ -361,6 +361,7 @@ PanelWindow {
     function openPanel(name, rect, section) {
         if (!componentFor(name)) return false;
         // A new open always cancels a pending close (rapid toggle-close→open).
+        var reopening = root.closing && activePanel === name;
         root.closing = false;
         root.contentReady = false;
         collapseTimer.stop();
@@ -372,7 +373,7 @@ PanelWindow {
         initialSection = section || "";
 
         // Toggle behavior: opening the already-open panel closes it.
-        if (activePanel === name && pendingPanel === "") { closePanel(); return true; }
+        if (!reopening && activePanel === name && pendingPanel === "") { closePanel(); return true; }
 
         var hasOrigin = rect && rect.width > 0 && rect.height > 0;
         var target = targetGeometryFor(name);
@@ -406,6 +407,11 @@ PanelWindow {
         root.morphPhase = MorphSurface.Phase.Preparing;
         activePanel = name;
         content.active = true;
+        if (reopening && content.item && typeof content.item.open === "function") {
+            content.item.open();
+            contentReadyTimer.restart();
+            applyContentFocus();
+        }
         applyOrigin(name);
 
         if (hasOrigin) {
