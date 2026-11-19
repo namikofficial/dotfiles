@@ -35,7 +35,7 @@ Item {
             id: preview
             anchors.fill: parent
             anchors.bottomMargin: caption.height
-            captureSource: root.client ? root.client.wayland : null
+            captureSource: root.client && root.client.wayland ? root.client.wayland : null
             live: root.live
             constraintSize: Qt.size(960, 540)
             Connections {
