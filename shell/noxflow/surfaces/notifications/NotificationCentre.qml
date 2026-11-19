@@ -58,7 +58,7 @@ Item {
     readonly property real dividerHeight: dividerItem.implicitHeight + Theme.Tokens.spacingMd
     readonly property real bodyPreferredHeight: root.isEmpty
         ? Math.max(Theme.Tokens.scaled(140), emptyState.implicitHeight + Theme.Tokens.scaled(28))
-        : Math.max(Theme.Tokens.scaled(104), listCol.implicitHeight + Theme.Tokens.spacingXs)
+        : Math.max(Theme.Tokens.scaled(104), listCol.implicitHeight + Theme.Tokens.spacingSm)
     readonly property real preferredHeight: Math.ceil(
         Theme.Tokens.spacingLg * 2
         + headerHeight

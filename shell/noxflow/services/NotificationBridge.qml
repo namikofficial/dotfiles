@@ -59,6 +59,11 @@ Item {
     // Instantiated, never referenced as a singleton — see the note above.
     Notify.NotificationServer {
         id: server
+        actionsSupported: true
+        bodySupported: true
+        imageSupported: true
+        persistenceSupported: true
+        keepOnReload: true
     }
 
     // ── Do Not Disturb ──
@@ -80,6 +85,7 @@ Item {
     // cannot observe a key being written into a JS object. Anything that needs
     // to react goes through `order`, which *is* a property assignment.
     property var live: ({})          // id -> Notification object
+    property var notes: ({})         // id -> translated note snapshot
     property var deadline: ({})      // id -> epoch ms at which it expires
     property var arrivedAt: ({})     // id -> { ms, label } recorded on arrival
     property var order: []            // ids, oldest first
@@ -119,12 +125,14 @@ Item {
             if (due !== undefined && now >= due) expired.push(key);
         }
         for (var j = 0; j < expired.length; j++) {
-            var gone = root.live[expired[j]];
-            if (gone && root.model && typeof root.model.pushHistory === "function")
-                root.model.pushHistory(root.toNote(gone));
+            var expKey = expired[j];
+            var gone = root.live[expKey];
+            var goneNote = root.notes[expKey] || (gone ? root.toNote(gone) : null);
+            if (goneNote && root.model && typeof root.model.pushHistory === "function")
+                root.model.pushHistory(goneNote);
             // Tell the sender its notification went away before dropping it.
             if (gone && typeof gone.dismiss === "function") gone.dismiss();
-            root.remove(expired[j]);
+            root.remove(expKey);
         }
     }
 
@@ -140,6 +148,7 @@ Item {
                 label: arrival.toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
             };
         }
+        root.notes[key] = root.toNote(entry);
         // A replacement restarts the clock; the sender is still showing it.
         root.deadline[key] = Date.now() + root.timeoutOf(entry);
         if (isNew) root.order = root.order.concat([key]);
@@ -148,8 +157,9 @@ Item {
 
     function remove(id) {
         var key = String(id);
-        if (root.live[key] === undefined) return;
+        if (root.live[key] === undefined && root.notes[key] === undefined) return;
         delete root.live[key];
+        delete root.notes[key];
         delete root.deadline[key];
         delete root.arrivedAt[key];
         root.order = root.order.filter(function (k) { return k !== key; });
@@ -163,6 +173,7 @@ Item {
 
     function clearAll() {
         root.live = {};
+        root.notes = {};
         root.deadline = {};
         root.arrivedAt = {};
         root.order = [];
@@ -173,6 +184,7 @@ Item {
     Connections {
         target: server
         function onNotification(n) {
+            if (n) n.tracked = true;
             root.upsert(n);
         }
     }
@@ -184,8 +196,10 @@ Item {
         if (!root.model) return;
         var out = [];
         for (var i = root.order.length - 1; i >= 0; i--) {
-            var entry = root.live[root.order[i]];
-            if (entry) out.push(root.toNote(entry));
+            var key = root.order[i];
+            var entry = root.live[key];
+            var note = root.notes[key] || (entry ? root.toNote(entry) : null);
+            if (note) out.push(note);
         }
         root.model.replaceAll(out, root.dnd);
     }
@@ -236,13 +250,13 @@ Item {
     // drops it locally. Nothing comes back to confirm it (see the header), so
     // the local removal is not conditional on a `closed` signal.
     function dismiss(id) {
-        var entry = root.find(id);
-        if (entry) {
-            if (root.model && typeof root.model.pushHistory === "function")
-                root.model.pushHistory(root.toNote(entry));
-            if (typeof entry.dismiss === "function") entry.dismiss();
-        }
-        root.remove(id);
+        var key = String(id);
+        var entry = root.find(key);
+        var note = root.notes[key] || (entry ? root.toNote(entry) : null);
+        if (note && root.model && typeof root.model.pushHistory === "function")
+            root.model.pushHistory(note);
+        if (entry && typeof entry.dismiss === "function") entry.dismiss();
+        root.remove(key);
     }
 
     function invoke(id, actionId) {
@@ -261,12 +275,12 @@ Item {
     function closeAll() {
         var ids = root.order.slice();
         for (var i = 0; i < ids.length; i++) {
-            var entry = root.live[ids[i]];
-            if (entry) {
-                if (root.model && typeof root.model.pushHistory === "function")
-                    root.model.pushHistory(root.toNote(entry));
-                if (typeof entry.dismiss === "function") entry.dismiss();
-            }
+            var key = ids[i];
+            var entry = root.live[key];
+            var note = root.notes[key] || (entry ? root.toNote(entry) : null);
+            if (note && root.model && typeof root.model.pushHistory === "function")
+                root.model.pushHistory(note);
+            if (entry && typeof entry.dismiss === "function") entry.dismiss();
         }
         root.clearAll();
     }
