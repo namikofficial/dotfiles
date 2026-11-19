@@ -64,15 +64,6 @@ Item {
         var p = item.mapToItem(null, 0, 0);
         return Qt.rect(p.x, p.y, item.width, item.height);
     }
-    // The clock and the media chip both live inside the island surface.
-    readonly property rect clockGeometry: islandGeometry()
-    readonly property rect mediaChipGeometry: clockGeometry
-    readonly property rect notificationGeometry: chipRect(notificationPill)
-    readonly property rect networkGeometry: chipRect(connectivityCapsule.networkActionItem)
-    readonly property rect bluetoothGeometry: chipRect(connectivityCapsule.bluetoothActionItem)
-    readonly property rect volumeGeometry: chipRect(audioPowerCapsule.audioActionItem)
-    readonly property rect batteryGeometry: chipRect(audioPowerCapsule.powerActionItem)
-
     function islandGeometry() {
         if (!islandHost || typeof islandHost.islandGeometry !== "function") return Qt.rect(0, 0, 0, 0);
         return islandHost.islandGeometry();
@@ -100,6 +91,7 @@ Item {
 
     // Re-measure when anything that changes a capsule's width changes.
     onWidthChanged: morph.requestRegistration()
+    onMonitorNameChanged: if (morph) morph.requestRegistration()
     onVisibleChanged: if (visible) morph.registerAll()
     Component.onCompleted: { workspaces.refresh(); morph.requestRegistration(); }
 
@@ -161,9 +153,9 @@ Item {
     }
 
     // ── Panel toggles ──
-    function toggleCalendar() { shellRoot.coordinator.toggle("calendar", monitorName, clockGeometry); }
-    function toggleNotifications() { shellRoot.coordinator.toggle("notifications", monitorName, notificationGeometry); }
-    function toggleMedia() { shellRoot.coordinator.toggle("media", monitorName, mediaChipGeometry); }
+    function toggleCalendar() { shellRoot.coordinator.toggle("calendar", monitorName, islandGeometry()); }
+    function toggleNotifications() { shellRoot.coordinator.toggle("notifications", monitorName, chipRect(notificationPill)); }
+    function toggleMedia() { shellRoot.coordinator.toggle("media", monitorName, islandGeometry()); }
     function toggleQuickSettings(sourceItem, section) {
         shellRoot.coordinator.toggle("quick-settings", monitorName,
                                      chipRect(sourceItem || rightZone), section || "");
