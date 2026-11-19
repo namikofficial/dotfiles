@@ -146,21 +146,55 @@ QtObject {
         return -1;
     }
 
+    function dedupePrependHistory(currentHistory, note) {
+        var list = Utils.asArray(currentHistory);
+        if (!note) return list;
+        var noteId = note.id !== undefined && note.id !== null ? String(note.id) : "";
+        var filtered = [];
+        for (var i = 0; i < list.length; i++) {
+            var existing = list[i];
+            var existingId = existing && existing.id !== undefined && existing.id !== null
+                ? String(existing.id) : "";
+            if (noteId !== "" && existingId === noteId) continue;
+            filtered.push(existing);
+        }
+        return [note].concat(filtered).slice(0, maxHistory);
+    }
+
     function pushHistory(note) {
-        var next = [note].concat(history);
-        history = next.slice(0, maxHistory);
+        history = dedupePrependHistory(history, note);
+    }
+
+    function removeFromHistory(id) {
+        var targetId = String(id);
+        history = history.filter(function(entry) {
+            return !entry || String(entry.id) !== targetId;
+        });
+    }
+
+    function pullNonCriticalToHistory() {
+        var nextHistory = root.history.slice();
+        var keep = [];
+        for (var i = 0; i < root.notifications.length; i++) {
+            var note = root.notifications[i];
+            if (note && note.urgency === "critical") keep.push(note);
+            else nextHistory = dedupePrependHistory(nextHistory, note);
+        }
+        notifications = keep;
+        root.history = nextHistory.slice(0, root.maxHistory);
     }
 
     /// Toggle Do Not Disturb. This is the single write path: there is no
     /// daemon to ask, so the property *is* the state.
     function toggleDnd() {
-        root.dnd = !root.dnd;
-        root.sigDndChanged(root.dnd);
+        setDnd(!root.dnd);
     }
 
     function setDnd(enabled) {
-        if (root.dnd === !!enabled) return;
-        root.dnd = !!enabled;
+        var nextDnd = !!enabled;
+        if (root.dnd === nextDnd) return;
+        root.dnd = nextDnd;
+        if (nextDnd) pullNonCriticalToHistory();
         root.sigDndChanged(root.dnd);
     }
 
@@ -172,35 +206,27 @@ QtObject {
     function replaceAll(items, dndEnabled) {
         if (dndEnabled !== undefined) root.dnd = !!dndEnabled;
         var next = [];
-        var history = root.history;
+        var nextHistory = root.history.slice();
         for (var i = 0; i < items.length; i++) {
             var note = items[i];
             // DND suppresses presentation but keeps the note in history, the
             // same rule addNotification() has always used.
-            if (root.dnd && note.urgency !== "critical") {
-                history = [note].concat(history).slice(0, root.maxHistory);
+            if (root.dnd && note && note.urgency !== "critical") {
+                nextHistory = dedupePrependHistory(nextHistory, note);
                 continue;
             }
             next.push(note);
         }
         notifications = next;
-        history = history;
+        root.history = nextHistory.slice(0, root.maxHistory);
     }
 
     /// Called when DND flips so already-visible notes are pulled back.
     function applyDnd(enabled) {
-        if (root.dnd === enabled) return;
-        root.dnd = enabled;
-        if (!enabled) return;
-        var history = root.history;
-        var keep = [];
-        for (var i = 0; i < root.notifications.length; i++) {
-            var note = root.notifications[i];
-            if (note.urgency === "critical") keep.push(note);
-            else history = [note].concat(history);
-        }
-        notifications = keep;
-        history = history.slice(0, root.maxHistory);
-        root.sigDndChanged(enabled);
+        var nextDnd = !!enabled;
+        var changed = root.dnd !== nextDnd;
+        root.dnd = nextDnd;
+        if (nextDnd) pullNonCriticalToHistory();
+        if (changed) root.sigDndChanged(nextDnd);
     }
 }

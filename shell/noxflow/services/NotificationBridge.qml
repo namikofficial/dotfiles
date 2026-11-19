@@ -81,6 +81,7 @@ Item {
     // to react goes through `order`, which *is* a property assignment.
     property var live: ({})          // id -> Notification object
     property var deadline: ({})      // id -> epoch ms at which it expires
+    property var arrivedAt: ({})     // id -> { ms, label } recorded on arrival
     property var order: []            // ids, oldest first
 
     readonly property int count: root.order.length
@@ -119,6 +120,8 @@ Item {
         }
         for (var j = 0; j < expired.length; j++) {
             var gone = root.live[expired[j]];
+            if (gone && root.model && typeof root.model.pushHistory === "function")
+                root.model.pushHistory(root.toNote(gone));
             // Tell the sender its notification went away before dropping it.
             if (gone && typeof gone.dismiss === "function") gone.dismiss();
             root.remove(expired[j]);
@@ -130,6 +133,13 @@ Item {
         var key = String(entry.id);
         var isNew = root.live[key] === undefined;
         root.live[key] = entry;
+        if (!root.arrivedAt[key]) {
+            var arrival = new Date();
+            root.arrivedAt[key] = {
+                ms: arrival.getTime(),
+                label: arrival.toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
+            };
+        }
         // A replacement restarts the clock; the sender is still showing it.
         root.deadline[key] = Date.now() + root.timeoutOf(entry);
         if (isNew) root.order = root.order.concat([key]);
@@ -141,6 +151,7 @@ Item {
         if (root.live[key] === undefined) return;
         delete root.live[key];
         delete root.deadline[key];
+        delete root.arrivedAt[key];
         root.order = root.order.filter(function (k) { return k !== key; });
         root.publish();
     }
@@ -153,6 +164,7 @@ Item {
     function clearAll() {
         root.live = {};
         root.deadline = {};
+        root.arrivedAt = {};
         root.order = [];
         root.publish();
     }
@@ -200,15 +212,18 @@ Item {
                 });
             }
         }
+        var key = String(entry.id);
+        var stamp = root.arrivedAt[key];
         return {
-            id: String(entry.id),
-            server_id: String(entry.id),
+            id: key,
+            server_id: key,
             app_name: entry.appName || "",
             app_icon: entry.appIcon || "",
             summary: entry.summary || "",
             body: entry.body || "",
             urgency: root.urgencyOf(entry),
-            time: Date.now(),
+            time: stamp ? stamp.ms : Date.now(),
+            timestamp: stamp ? stamp.label : new Date().toLocaleTimeString(Qt.locale(), Locale.ShortFormat),
             actions: actions,
             dismissable: true,
             timeout: entry.expireTimeout === undefined ? 5000 : Number(entry.expireTimeout)
@@ -222,7 +237,11 @@ Item {
     // the local removal is not conditional on a `closed` signal.
     function dismiss(id) {
         var entry = root.find(id);
-        if (entry && typeof entry.dismiss === "function") entry.dismiss();
+        if (entry) {
+            if (root.model && typeof root.model.pushHistory === "function")
+                root.model.pushHistory(root.toNote(entry));
+            if (typeof entry.dismiss === "function") entry.dismiss();
+        }
         root.remove(id);
     }
 
@@ -243,7 +262,11 @@ Item {
         var ids = root.order.slice();
         for (var i = 0; i < ids.length; i++) {
             var entry = root.live[ids[i]];
-            if (entry && typeof entry.dismiss === "function") entry.dismiss();
+            if (entry) {
+                if (root.model && typeof root.model.pushHistory === "function")
+                    root.model.pushHistory(root.toNote(entry));
+                if (typeof entry.dismiss === "function") entry.dismiss();
+            }
         }
         root.clearAll();
     }

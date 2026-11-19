@@ -14,9 +14,29 @@ FocusScope {
     required property var notification
     property bool hovered: false
     property bool privacyRedacted: false
+    property bool isHistory: false
 
     signal dismissed(var notification)
     signal actionInvoked(var notification, string actionId)
+
+    function hasImagePath(raw) {
+        if (!raw) return false;
+        var s = String(raw).trim();
+        return s.indexOf("file://") === 0 || s.indexOf("/") === 0;
+    }
+
+    function iconSource(raw) {
+        if (!hasImagePath(raw)) return "";
+        var s = String(raw).trim();
+        return s.indexOf("file://") === 0 ? s : "file://" + s;
+    }
+
+    function shortGlyph(raw) {
+        if (!raw) return "";
+        var s = String(raw).trim();
+        if (s === "" || s.indexOf("/") >= 0) return "";
+        return s.length <= 2 ? s : "";
+    }
 
     // The content margin is named so the card can measure itself without
     // referring to the layout's *height*.
@@ -42,10 +62,10 @@ FocusScope {
     // ── Physics state (Rivendell-style spring-damper frame loop) ──
     enum AnimState { Returning, Inert, Flinging, Dismissing }
 
-    property int animState: NotificationItem.Returning
+    property int animState: NotificationItem.Inert
     property real physicsX: 0.0        // offset from rest position
-    property real physicsY: -200.0     // starts above viewport
-    property real physicsRot: 45.0     // starts rotated
+    property real physicsY: 0.0        // starts settled at rest
+    property real physicsRot: 0.0      // starts level at rest
     property real velocityX: 0.0
     property real velocityY: 0.0
     property real velocityRot: 0.0
