@@ -129,8 +129,10 @@ FocusScope {
                 keyNavigationEnabled: true
                 highlightFollowsCurrentItem: false
                 onCurrentIndexChanged: {
-                    if (root.selected && currentIndex >= 0)
+                    if (root.selected && currentIndex >= 0) {
                         root.selectedWindowIndex = currentIndex;
+                        positionViewAtIndex(currentIndex, GridView.Contain);
+                    }
                 }
 
                 delegate: Local.AtlasWindow {

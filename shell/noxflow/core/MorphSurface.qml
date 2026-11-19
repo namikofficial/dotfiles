@@ -137,10 +137,10 @@ PanelWindow {
     }
 
     // Layer-surface geometry transitions (OutCubic, no overshoot).
-    Behavior on topMargin { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
+    Behavior on topMargin { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
     Behavior on rightMargin { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
     Behavior on surfaceWidth { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
-    Behavior on surfaceHeight { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
+    Behavior on surfaceHeight { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
 
     // ── Visual frame (the morphing surface) ──
     Rectangle {
@@ -152,10 +152,10 @@ PanelWindow {
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
         border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
 
-        Behavior on width { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
-        Behavior on x { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
-        Behavior on height { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
-        Behavior on radius { enabled: Config.Motion.geometry; NumberAnimation { duration: Config.Motion.panelSwitch; easing.type: Easing.OutCubic } }
+        Behavior on width { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
+        Behavior on x { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
+        Behavior on height { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
+        Behavior on radius { enabled: Config.Motion.geometry && root.morphPhase !== MorphSurface.Phase.Preparing; NumberAnimation { duration: Config.Motion.panelSwitch; easing.type: Easing.OutCubic } }
 
         // Compact content (origin chip) — mirrors the bar chip that opened the
         // panel. Fades out on open, back in on close while the frame collapses.
@@ -365,6 +365,7 @@ PanelWindow {
         root.contentReady = false;
         collapseTimer.stop();
         swapTimer.stop();
+        prepareTimer.stop();
         expandFadeTimer.stop();
         settleTimer.stop();
         originRect = rect && rect.width > 0 && rect.height > 0 ? rect : Qt.rect(0, 0, 0, 0);
@@ -410,24 +411,17 @@ PanelWindow {
         if (hasOrigin) {
             // Phase 1: capture source geometry, size the window to the chip.
             var sourceG = geometryFor(name, rect);
-            topMargin = sourceG.top; rightMargin = targetRightMargin;
-            surfaceWidth = targetSurfaceWidth; surfaceHeight = sourceG.height;
+            topMargin = targetTopMargin; rightMargin = targetRightMargin;
+            // Reserve the destination bounds before the frame expands so the
+            // compositor never clips the moving content during the morph.
+            surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
             frameTop = sourceG.top; frameRight = sourceG.right;
             frameWidth = sourceG.width; frameHeight = sourceG.height;
             frameRadius = Theme.Tokens.radiusPill;
             // Content starts hidden; compact content shows the origin.
             compactOpacity = 1.0; compactTranslate = 0.0;
             expandedOpacity = 0.0;
-            root.morphPhase = MorphSurface.Phase.Expanding;
-            // Phase 2: animate window + frame to target.
-            Qt.callLater(function() {
-                topMargin = targetTopMargin; rightMargin = targetRightMargin;
-                surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
-                frameTop = targetTopMargin; frameRight = target.right;
-                frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
-                // Phase 3: crossfade at ~40% of the geometry transition.
-                expandFadeTimer.restart();
-            });
+            prepareTimer.restart();
         } else {
             // No origin chip: just appear.
             topMargin = target.top; rightMargin = targetRightMargin; surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
@@ -437,6 +431,22 @@ PanelWindow {
             root.morphPhase = MorphSurface.Phase.Settled;
         }
         return true;
+    }
+
+    Timer {
+        id: prepareTimer
+        interval: 16
+        repeat: false
+        onTriggered: {
+            if (root.closing || root.activePanel === "") return;
+            var target = root.targetGeometryFor(root.activePanel);
+            root.morphPhase = MorphSurface.Phase.Expanding;
+            root.topMargin = root.targetTopMargin; root.rightMargin = root.targetRightMargin;
+            root.surfaceWidth = root.targetSurfaceWidth; root.surfaceHeight = target.height;
+            root.frameTop = target.top; root.frameRight = target.right;
+            root.frameWidth = target.width; root.frameHeight = target.height; root.frameRadius = Theme.Tokens.radiusXl;
+            expandFadeTimer.restart();
+        }
     }
 
     Timer {
@@ -468,6 +478,7 @@ PanelWindow {
         root.contentReady = false;
         contentReadyTimer.stop();
         swapTimer.stop();
+        prepareTimer.stop();
         expandFadeTimer.stop();
         settleTimer.stop();
         pendingPanel = "";
