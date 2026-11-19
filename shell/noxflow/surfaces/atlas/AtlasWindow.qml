@@ -27,8 +27,8 @@ Item {
         anchors.fill: parent
         radius: Theme.Tokens.radiusMd
         color: Theme.Tokens.surfaceSurface2
-        border.color: root.selected ? Theme.Tokens.accentSecondary : Theme.Tokens.outlineSubtle
-        border.width: root.selected ? 2 : 1
+        border.color: Theme.Tokens.outlineSubtle
+        border.width: 1
         clip: true
 
         ScreencopyView {
@@ -68,7 +68,7 @@ Item {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: Theme.Tokens.scaled(44)
-            color: Theme.Tokens.surfaceSurfaceContainerHigh
+            color: root.selected ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainerHigh
             Row {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.Tokens.scaled(12)
@@ -76,11 +76,13 @@ Item {
                 spacing: Theme.Tokens.scaled(8)
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(implicitWidth, parent.width * 0.38)
                     text: root.appName
                     color: Theme.Tokens.tonalSecondary
                     font.family: Theme.Tokens.typographyFontFamily
                     font.pixelSize: Theme.Tokens.typographyLabelSmall
                     font.bold: true
+                    elide: Text.ElideRight
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
@@ -93,6 +95,17 @@ Item {
                 }
             }
         }
+    }
+
+    // Draw the focus ring above both the preview and its caption. A border on
+    // the backing rectangle is otherwise painted over by those children.
+    Rectangle {
+        anchors.fill: parent
+        radius: Theme.Tokens.radiusMd
+        color: "transparent"
+        border.color: Theme.Tokens.outlineFocus
+        border.width: Theme.Tokens.scaled(2)
+        visible: root.selected
     }
 
     HoverHandler { cursorShape: Qt.PointingHandCursor }
