@@ -180,6 +180,7 @@ ShellRoot {
             id: morphSurface
             required property var modelData
             screen: modelData
+            notificationModel: notifStore
             panelComponents: ({
                 "quick-settings": quickSettingsComponent,
                 "calendar": calendarComponent,

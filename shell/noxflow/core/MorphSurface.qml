@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import "../theme" as Theme
 import "../config" as Config
+import "../surfaces/notifications/NotificationGrouping.js" as NotifGrouping
 
 // The only major-panel PanelWindow. Content views are ordinary Items loaded
 // into this window, so geometry and input ownership never change during a
@@ -27,6 +28,7 @@ PanelWindow {
     signal panelClosed(string panelName)
     required property var screen
     required property var panelComponents
+    property var notificationModel: null
     property string activePanel: ""
     property string pendingPanel: ""
     property rect originRect: Qt.rect(0, 0, 0, 0)
@@ -207,6 +209,7 @@ PanelWindow {
                 if (item && typeof item.open === "function") item.open();
                 contentReadyTimer.restart();
                 applyContentFocus();
+                Qt.callLater(root.syncContentHeight);
             }
         }
 
@@ -218,6 +221,13 @@ PanelWindow {
             function onVisibleChanged() {
                 if (root.contentReady && !root.closing && root.activePanel !== "" && content.item && !content.item.visible)
                     root.closePanel();
+            }
+        }
+        Connections {
+            target: content.item && content.item.preferredHeight !== undefined ? content.item : null
+            ignoreUnknownSignals: true
+            function onPreferredHeightChanged() {
+                root.syncContentHeight();
             }
         }
     }
@@ -345,9 +355,37 @@ PanelWindow {
         else if (name === "sync") height = Theme.Tokens.scaled(680);
         else if (name === "quick-share") height = Theme.Tokens.scaled(560);
         else if (name === "quick-settings") height = Math.min(Theme.Tokens.scaled(640), available);
-        else if (name === "notifications") height = Math.min(Theme.Tokens.scaled(760), available);
+        else if (name === "notifications") {
+            var maxNotifHeight = Math.min(Theme.Tokens.scaled(760), available);
+            var minNotifHeight = Math.min(Theme.Tokens.scaled(260), available);
+            var desired = 0;
+            if (activePanel === "notifications" && content && content.item
+                    && content.item.preferredHeight !== undefined
+                    && content.item.preferredHeight > 0) {
+                desired = content.item.preferredHeight;
+            } else {
+                var redacted = root.notificationModel ? !!root.notificationModel.privacyRedacted : false;
+                var activeCount = root.notificationModel && root.notificationModel.notifications
+                    ? root.notificationModel.notifications.length : 0;
+                desired = NotifGrouping.estimatePanelHeight(activeCount, redacted, Theme.Tokens.scaled);
+            }
+            height = Math.max(minNotifHeight, Math.min(maxNotifHeight, desired));
+        }
 
         return { width: width, height: height };
+    }
+
+    function syncContentHeight() {
+        if (root.closing || root.activePanel !== "notifications" || root.pendingPanel !== ""
+                || root.morphPhase === MorphSurface.Phase.Preparing) {
+            return;
+        }
+        var target = targetGeometryFor(root.activePanel);
+        if (Math.abs(root.frameHeight - target.height) > 1
+                || Math.abs(root.surfaceHeight - target.height) > 1) {
+            root.surfaceHeight = target.height;
+            root.frameHeight = target.height;
+        }
     }
 
     // Destination geometry for the expanded panel. Keep this separate from
