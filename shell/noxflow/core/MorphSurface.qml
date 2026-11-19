@@ -365,8 +365,11 @@ PanelWindow {
         if (!root.closing && activePanel === name && pendingPanel === "") {
             initialSection = section || "";
             if (content && content.item && initialSection !== ""
-                    && content.item.initialSection !== undefined)
+                    && content.item.initialSection !== undefined) {
                 content.item.initialSection = initialSection;
+                if (typeof content.item.applyInitialSection === "function")
+                    content.item.applyInitialSection();
+            }
             return true;
         }
         // A new open always cancels a pending close (rapid toggle-close→open).

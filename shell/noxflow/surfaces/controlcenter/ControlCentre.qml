@@ -54,6 +54,12 @@ Item {
     // MorphSurface writes the deep-link section here before opening the panel.
     property alias initialSection: viewState.initialSection
 
+    function applyInitialSection() {
+        var sectionTabs = { network: 2, volume: 1, audio: 1, system: 4, input: 5, power: 6, battery: 0 };
+        state.activeTab = sectionTabs[state.initialSection] !== undefined ? sectionTabs[state.initialSection] : 0;
+        state.expandedSection = state.initialSection === "bluetooth" ? "bluetooth" : "";
+    }
+
 
 
     anchors.fill: parent
@@ -67,9 +73,7 @@ Item {
             // activeTab field as a compatibility seam for callers, but route
             // every deep link into the unified content and remember which
             // section should be expanded first.
-            var sectionTabs = { network: 2, volume: 1, audio: 1, system: 4, input: 5, power: 6, battery: 0 };
-            state.activeTab = sectionTabs[state.initialSection] !== undefined ? sectionTabs[state.initialSection] : 0;
-            state.expandedSection = state.initialSection === "bluetooth" ? "bluetooth" : "";
+            root.applyInitialSection();
         }
     }
 
