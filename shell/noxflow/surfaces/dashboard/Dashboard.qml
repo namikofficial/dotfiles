@@ -92,8 +92,8 @@ PanelWindow {
     // ── Dashboard panel ──
     Rectangle {
         anchors.centerIn: parent
-        width: Math.min(parent.width * 0.72, Theme.Tokens.scaled(760))
-        height: Math.min(parent.height * 0.9, Theme.Tokens.scaled(680))
+        width: Math.min(parent.width * 0.78, Theme.Tokens.scaled(820))
+        height: Math.min(parent.height * 0.9, Theme.Tokens.scaled(720))
         radius: Theme.Tokens.radiusXl
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
         border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1

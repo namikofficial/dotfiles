@@ -295,7 +295,7 @@ PanelWindow {
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(parent.width * 0.78, Theme.Tokens.scaled(680))
-        height: Math.min(parent.height * 0.84, Theme.Tokens.scaled(660))
+        height: Math.min(parent.height * 0.88, Theme.Tokens.scaled(748))
         radius: Theme.Tokens.radiusXl
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
         border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
@@ -434,7 +434,7 @@ PanelWindow {
                 ColumnLayout {
                     id: contentColumn
                     width: settingsScroll.width - (settingsScrollBar.visible ? Theme.Tokens.scaled(12) : 0)
-                    spacing: Theme.Tokens.spacingLg
+                    spacing: Theme.Tokens.spacingMd
 
                     // ── Section: Theme Profile ──
                     ColumnLayout {
@@ -481,7 +481,7 @@ PanelWindow {
                                     Accessible.name: "Apply " + modelData + " theme"
 
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: Theme.Tokens.scaled(58)
+                                    Layout.preferredHeight: Theme.Tokens.scaled(52)
                                     Layout.columnSpan: (index === profileCount - 1 && profileCount % 2 === 1) ? 2 : 1
                                     radius: Theme.Tokens.radiusMd
                                     color: isActive ? Theme.Tokens.tonalPrimaryContainer : Theme.Tokens.surfaceSurfaceContainer
