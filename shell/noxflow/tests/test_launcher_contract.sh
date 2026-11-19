@@ -166,4 +166,25 @@ has 'property bool scanFailed' "$QML"
 # NF-19: Radial slotCount derived from slots.length so all geometry stays in sync
 has 'readonly property int slotCount: Math.max(1, slots.length)' "$RADIAL"
 
+# NF-20: One selected command drives a live preview beside the results.
+has 'readonly property var selectedResult:' "$QML"
+has 'id: previewPane' "$QML"
+has 'root.previewActionLabel(root.selectedResult)' "$QML"
+has 'if (hovered) root.selectedIndex = index' "$QML"
+
+# Nox Command keeps a bounded, local recent-command list by stable action key.
+has 'import "../../CommandHistory.js" as CommandHistory' "$QML"
+has 'root.historyReader.run(["cat", root.launcherHistoryPath])' "$QML"
+has 'CommandHistory.normalize' "$QML"
+has 'function recordRecentCommand(item)' "$QML"
+has 'function writeRecentCommands()' "$QML"
+has 'umask 077' "$QML"
+has 'Recent commands first' "$QML"
+has 'CommandHistory.position' "$QML"
+
+# Project context results restore the manifest's allowlisted tools as well as
+# the editor and terminal, using project-resume's explicit restore mode.
+has 'prefix + " — Restore context"' "$QML"
+has '"restore", "--project", String(item.actionParams.id)' "$QML"
+
 printf 'noxflow launcher contract checks passed\n'

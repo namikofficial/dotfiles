@@ -9,6 +9,7 @@ import Quickshell.Wayland
 import "../../theme" as Theme
 import "../../config" as Config
 import "../../components" as Components
+import "OcrText.js" as OcrText
 
 PanelWindow {
     id: root
@@ -201,6 +202,30 @@ PanelWindow {
         }
     }
 
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: parent.top
+        anchors.topMargin: Theme.Tokens.scaled(Theme.Tokens.heightToolbar + Theme.Tokens.spacingLg)
+        implicitWidth: selectionHint.implicitWidth + Theme.Tokens.scaled(Theme.Tokens.spacingXl)
+        height: Theme.Tokens.scaled(Theme.Tokens.heightChip)
+        radius: Theme.Tokens.radiusPill
+        color: Theme.Tokens.surfaceSurfaceContainerHigh
+        border.color: Theme.Tokens.outlineSubtle
+        border.width: 1
+        visible: lifecycle.active && !root.hasSelection && !root.selecting
+        opacity: lifecycle.openProgress
+        Accessible.name: "Drag to select a region. Escape cancels capture."
+
+        Text {
+            id: selectionHint
+            anchors.centerIn: parent
+            text: "Drag to select a region  ·  Esc to cancel"
+            color: Theme.Tokens.textPrimary
+            font.family: Theme.Tokens.typographyFontFamily
+            font.pixelSize: Theme.Tokens.typographyLabelMedium
+        }
+    }
+
     // ── Toolbar ──
     Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -225,6 +250,11 @@ PanelWindow {
             Components.IconButton {
                 iconText: "💾"; accessibleName: "Save screenshot"
                 onClicked: root.performAction("save")
+            }
+            Components.IconButton {
+                iconText: "✎"; accessibleName: "Annotate screenshot"
+                enabled: Config.Apps.isAvailable("satty")
+                onClicked: root.performAction("annotate")
             }
             Components.IconButton {
                 iconText: "🔤"; accessibleName: "OCR (text recognition)"
@@ -397,6 +427,17 @@ PanelWindow {
                     + " || exit 1")
                 break
             }
+            case "annotate": {
+                var base = Quickshell.env("XDG_PICTURES_DIR") || (Quickshell.env("HOME") + "/Pictures")
+                annotationInputFile = "/tmp/nox-capture-annotation-" + ts + ".png"
+                annotationOutputFile = base + "/Screenshots/Annotated-" + ts + ".png"
+                annotationCommand.runShell(
+                    "mkdir -p " + root.shellQuote(base + "/Screenshots")
+                    + " && grim -g " + root.shellQuote(region) + " " + root.shellQuote(annotationInputFile)
+                    + " && satty --filename " + root.shellQuote(annotationInputFile)
+                    + " --output-filename " + root.shellQuote(annotationOutputFile))
+                break
+            }
             case "lens": {
                 lensUploadFile = "/tmp/nox-capture-lens-" + ts + ".png"
                 lensResultFile = "/tmp/nox-lens-result-" + ts + ".html"
@@ -416,6 +457,58 @@ PanelWindow {
     property string lensResultFile: ""
     property string searchImageFile: ""
     property string searchResultFile: ""
+    property string annotationInputFile: ""
+    property string annotationOutputFile: ""
+
+    function shellQuote(value) {
+        return "'" + String(value).replace(/'/g, "'\\''") + "'"
+    }
+
+    property Components.Command annotationCommand: Components.Command {
+        label: "Screenshot annotation"
+        onExited: function(code) {
+            if (code !== 0) {
+                root.annotationCleanup.run(["rm", "-f", root.annotationInputFile])
+                root.notifyProcess.run(["notify-send", "Annotation failed",
+                    root.annotationCommand.failureText(), "-u", "critical"])
+                root.lifecycle.requestClose("annotationFailed")
+                return
+            }
+            root.annotationFinalize.runShell(
+                "if [ -s " + root.shellQuote(root.annotationOutputFile) + " ]; then printf saved; fi"
+                + "; rm -f " + root.shellQuote(root.annotationInputFile))
+        }
+    }
+    property Components.Command annotationFinalize: Components.Command {
+        label: "Finish screenshot annotation"
+        onExited: function(code) {
+            if (code !== 0) {
+                root.notifyProcess.run(["notify-send", "Annotation cleanup failed",
+                    root.annotationFinalize.failureText(), "-u", "critical"])
+                root.lifecycle.requestClose("annotationFinalizeFailed")
+            } else if (root.annotationFinalize.output.trim() === "saved") {
+                root.annotationCopy.runShell("wl-copy < " + root.shellQuote(root.annotationOutputFile))
+            } else {
+                root.lifecycle.requestClose("annotationCancelled")
+            }
+        }
+    }
+    property Components.Command annotationCopy: Components.Command {
+        label: "Copy annotated screenshot"
+        onExited: function(code) {
+            if (code !== 0) {
+                root.notifyProcess.run(["notify-send", "Screenshot saved, copy failed",
+                    root.annotationCopy.failureText(), "-u", "critical"])
+            } else {
+                root.notifyProcess.run(["notify-send", "Annotated screenshot saved",
+                    root.annotationOutputFile, "-t", "3000"])
+            }
+            root.lifecycle.requestClose("annotationDone")
+        }
+    }
+    property Components.Command annotationCleanup: Components.Command {
+        label: "Clean up screenshot annotation"
+    }
 
     property Components.Command lensCapture: Components.Command {
         label: "Screen capture"
@@ -540,8 +633,18 @@ PanelWindow {
 
     // ── OCR pipeline ──
     property string ocrCaptureFile: ""
+    property string ocrPageSegmentationMode: "3"
+    property bool ocrBusy: false
 
     function performOcr() {
+        if (ocrBusy || captureHidden || !lifecycle.active) return
+        if (!OcrText.validLanguage(ocrLanguage)) {
+            showToolbar = false
+            showOcrResult = true
+            ocrText = "OCR language setting is invalid"
+            return
+        }
+        ocrBusy = true
         root.captureWithoutOverlay(function() { root.executeOcr() })
     }
 
@@ -552,81 +655,84 @@ PanelWindow {
 
         // Fail loudly and specifically when a required binary is absent,
         // instead of running a pipeline that dies on its first command.
-        if (!Config.Apps.isAvailable("grim")) { root.ocrText = "Cannot capture: grim is not installed"; root.completeCapture(false); return }
-        if (!Config.Apps.isAvailable("tesseract")) { root.ocrText = "OCR unavailable: tesseract is not installed"; root.completeCapture(false); return }
+        if (!Config.Apps.isAvailable("grim")) { root.ocrText = "Cannot capture: grim is not installed"; root.ocrBusy = false; root.completeCapture(false); return }
+        if (!Config.Apps.isAvailable("tesseract")) { root.ocrText = "OCR unavailable: tesseract is not installed"; root.ocrBusy = false; root.completeCapture(false); return }
 
         var w = Math.round(root.selW); var h = Math.round(root.selH)
-        var psm = root.settings && root.settings.rawMode ? "6"
+        ocrPageSegmentationMode = root.settings && root.settings.rawMode ? "6"
             : (h < 30 || w / h > 10) ? "7" : "3"
-
-        var postProcess = ""
-        if (root.settings && root.settings.rawMode) {
-            postProcess += " | sed 's/[[:space:]]*$//'"
-        } else if (root.settings && root.settings.singleLine) {
-            postProcess += " | awk 'BEGIN{RS=\"\"; ORS=\"\\n\\n\"} {$1=$1; print}'"
-                + " | sed 's/[[:space:]]*$//' | tr '\\n' ' ' | sed 's/  */ /g; s/[[:space:]]*$//'"
-        } else {
-            postProcess += " | awk 'BEGIN{RS=\"\"; ORS=\"\\n\\n\"} {$1=$1; print}'"
-                + " | sed 's/[[:space:]]*$//'"
-        }
 
         // Capture once to a temp file, then derive both the OCR text and the
         // TSV word boxes from it. No second grim capture.
-        var ts = new Date().toISOString().replace(/[:T]/g, "-").replace(/\..*$/, "")
+        var ts = String(Date.now())
         ocrCaptureFile = "/tmp/nox-ocr-" + ts + ".png"
 
-        // No `magick` step: it is not installed here, so the old pipeline
-        // always exited non-zero and reported "Is tesseract installed?" —
-        // naming the wrong binary. Tesseract reads the PNG directly; tsv
-        // generation in onExited handles upscaling-sensitive layouts.
-        // stderr is no longer discarded: Command keeps it, so a failure can say
-        // what actually failed instead of guessing from an empty stdout.
-        ocrProcess.runShell(
-            "grim -g \"" + region + "\" \"" + ocrCaptureFile + "\""
-            + " && tesseract \"" + ocrCaptureFile + "\" stdout -l " + root.ocrLanguage
-            + " --oem 1 --psm " + psm + postProcess)
+        ocrCaptureProcess.run(["grim", "-g", region, ocrCaptureFile])
+    }
+
+    property Components.Command ocrCaptureProcess: Components.Command {
+        label: "Capture OCR region"
+        onExited: function(code) {
+            if (code !== 0) {
+                root.ocrText = "Capture failed: " + root.ocrCaptureProcess.failureText()
+                root.ocrBusy = false
+                root.completeCapture(false)
+                root.cleanupOcrCapture()
+                return
+            }
+            if (!root.ocrProcess.run(["tesseract", root.ocrCaptureFile, "stdout",
+                "-l", OcrText.validLanguage(root.ocrLanguage), "--oem", "1",
+                "--psm", root.ocrPageSegmentationMode])) {
+                root.ocrText = "OCR could not start"
+                root.ocrBusy = false
+                root.completeCapture(false)
+                root.cleanupOcrCapture()
+            }
+        }
     }
 
     property Components.Command ocrProcess: Components.Command {
         label: "OCR"
         onExited: function(code) {
             root.completeCapture(false)
-            var text = root.ocrProcess.output.trim()
+            var text = OcrText.normalize(root.ocrProcess.output,
+                root.settings && root.settings.rawMode,
+                root.settings && root.settings.singleLine)
             if (code !== 0 || text === "") {
-                // Name the binary that actually failed rather than guessing.
-                root.ocrText = !Config.Apps.isAvailable("grim")
-                    ? "Capture failed: grim is not installed"
-                    : !Config.Apps.isAvailable("tesseract")
-                        ? "OCR failed: tesseract is not installed"
-                        : text === "" ? "No text recognised in the selection"
-                            : "OCR failed (tesseract exit " + code + ")";
-            if (code !== 0 && root.ocrProcess.errorOutput.trim() !== "")
-                root.ocrText += " — " + root.ocrProcess.errorOutput.trim().split("\n")[0];
+                root.ocrText = code !== 0
+                    ? "OCR failed: " + root.ocrProcess.failureText()
+                    : "No text recognised in the selection"
+                root.ocrBusy = false
+                root.cleanupOcrCapture()
                 return
             }
             root.ocrText = text; root.analysisType = root.analyzeText(text)
-            var clean = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim()
-            var snippet = clean.substring(0, 100)
-            if (clean.length > 100) snippet += "…"
-            notifyProcess.runShell(
-                "notify-send 'OCR ready' '" + snippet.replace(/'/g, "'\\''") + "' -t 3000")
+            notifyProcess.run(["notify-send", "OCR ready", "Select the result to copy it", "-t", "3000"])
             // Use the same captured file for TSV word boxes - no second grim capture
-            tsvProcess.runShell(
-                "tesseract \"" + ocrCaptureFile + "\" stdout -l "
-                + root.ocrLanguage + " tsv")
+            if (!tsvProcess.run(["tesseract", root.ocrCaptureFile, "stdout", "-l",
+                OcrText.validLanguage(root.ocrLanguage), "tsv"])) {
+                root.ocrBusy = false
+                root.cleanupOcrCapture()
+            }
         }
     }
 
     property Components.Command tsvProcess: Components.Command {
         label: "OCR word boxes"
         onExited: function(code) {
-            if (code !== 0) return
-            root.parseTsv(root.tsvProcess.output)
-            ocrCleanup.run(["rm", "-f", root.ocrCaptureFile])
+            if (code === 0) root.parseTsv(root.tsvProcess.output)
+            root.ocrBusy = false
+            root.cleanupOcrCapture()
         }
     }
 
     property Components.Command ocrCleanup: Components.Command { label: "OCR cleanup" }
+
+    function cleanupOcrCapture() {
+        if (!ocrCaptureFile) return
+        ocrCleanup.run(["rm", "-f", ocrCaptureFile])
+        ocrCaptureFile = ""
+    }
 
     function parseTsv(tsv) {
         var lines = tsv.split("\n"); var words = []; var header = true

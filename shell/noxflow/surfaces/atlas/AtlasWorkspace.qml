@@ -103,7 +103,7 @@ FocusScope {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
             color: Theme.Tokens.outlineSubtle
         }
 
@@ -119,8 +119,8 @@ FocusScope {
                 currentIndex: root.selected ? root.selectedWindowIndex : -1
                 cellWidth: root.windowCount === 1
                     ? width : Math.floor((width - Theme.Tokens.scaled(10)) / 2)
-                cellHeight: Math.min(Theme.Tokens.scaled(250),
-                    Math.max(Theme.Tokens.scaled(138),
+                cellHeight: Math.min(Theme.Tokens.scaled(280),
+                    Math.max(Theme.Tokens.scaled(120),
                         Math.floor((height - Theme.Tokens.scaled(8))
                             / Math.max(1, Math.ceil(root.windowCount / 2)))))
                 boundsBehavior: Flickable.StopAtBounds

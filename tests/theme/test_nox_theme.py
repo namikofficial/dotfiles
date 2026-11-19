@@ -10,9 +10,6 @@ from pathlib import Path
 from typing import ClassVar
 from unittest import mock
 
-from PIL import Image
-
-
 ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "hypr" / "scripts" / "nox-theme.py"
 SPEC = importlib.util.spec_from_file_location("nox_theme", MODULE_PATH)
@@ -33,15 +30,22 @@ def tearDownModule() -> None:
     _POLICY_PATCH.stop()
 
 
+def write_solid_ppm(path: Path, colour: tuple[int, int, int]) -> Path:
+    width = height = 64
+    path.write_bytes(
+        f"P6\n{width} {height}\n255\n".encode("ascii")
+        + bytes(colour) * width * height
+    )
+    return path
+
+
 class NoxThemeContractTests(unittest.TestCase):
     def make_wallpaper(self, directory: Path, name: str, colour: tuple[int, int, int]) -> Path:
-        path = directory / name
-        Image.new("RGB", (64, 64), colour).save(path)
-        return path
+        return write_solid_ppm(directory / name, colour)
 
     def test_same_bytes_are_bitwise_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            wallpaper = self.make_wallpaper(Path(raw), "blue.png", (32, 72, 180))
+            wallpaper = self.make_wallpaper(Path(raw), "blue.ppm", (32, 72, 180))
             first = nox_theme.compile_theme(wallpaper)
             second = nox_theme.compile_theme(wallpaper)
             self.assertEqual(first, second)
@@ -52,14 +56,14 @@ class NoxThemeContractTests(unittest.TestCase):
     def test_wallpaper_hue_reaches_semantic_accent(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             directory = Path(raw)
-            blue = nox_theme.compile_theme(self.make_wallpaper(directory, "blue.png", (32, 72, 180)))
-            red = nox_theme.compile_theme(self.make_wallpaper(directory, "red.png", (180, 40, 32)))
+            blue = nox_theme.compile_theme(self.make_wallpaper(directory, "blue.ppm", (32, 72, 180)))
+            red = nox_theme.compile_theme(self.make_wallpaper(directory, "red.ppm", (180, 40, 32)))
             self.assertNotEqual(blue["colors"]["primary"], red["colors"]["primary"])
             self.assertNotEqual(blue["source"]["sha256"], red["source"]["sha256"])
 
     def test_legacy_adapter_keys_are_present(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            theme = nox_theme.compile_theme(self.make_wallpaper(Path(raw), "dark.png", (8, 10, 14)))
+            theme = nox_theme.compile_theme(self.make_wallpaper(Path(raw), "dark.ppm", (8, 10, 14)))
             for key in ("bg", "surface", "text", "muted", "accent", "accent2", "warn", "danger"):
                 self.assertIn(key, theme)
 
@@ -79,7 +83,7 @@ class NoxThemeContractTests(unittest.TestCase):
             directory = Path(raw)
             for name, colour in samples.items():
                 with self.subTest(wallpaper=name):
-                    theme = nox_theme.compile_theme(self.make_wallpaper(directory, f"{name}.png", colour))
+                    theme = nox_theme.compile_theme(self.make_wallpaper(directory, f"{name}.ppm", colour))
                     self.assertTrue(theme["validation"]["passed"], theme["validation"])
                     palette_signatures.add((
                         theme["colors"]["primary"], theme["colors"]["secondary"],
@@ -116,14 +120,14 @@ class NoxThemeContractTests(unittest.TestCase):
 
     def test_explicit_light_mode_keeps_text_contrast(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            wallpaper = self.make_wallpaper(Path(raw), "bright.png", (246, 207, 157))
+            wallpaper = self.make_wallpaper(Path(raw), "bright.ppm", (246, 207, 157))
             theme = nox_theme.compile_theme(wallpaper, {"mode": "light"})
             self.assertEqual(theme["scheme"]["mode"], "light")
             self.assertTrue(theme["validation"]["passed"], theme["validation"])
 
     def test_surface_tint_changes_wallpaper_derived_neutrals(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            wallpaper = self.make_wallpaper(Path(raw), "teal.png", (38, 164, 154))
+            wallpaper = self.make_wallpaper(Path(raw), "teal.ppm", (38, 164, 154))
             restrained = nox_theme.compile_theme(wallpaper, {"surface_tint": 0.0})
             richer = nox_theme.compile_theme(wallpaper, {"surface_tint": 0.25})
             self.assertNotEqual(
@@ -143,8 +147,7 @@ class LightModeTests(unittest.TestCase):
 
     def compile_light(self, colour: tuple[int, int, int]) -> dict:
         with tempfile.TemporaryDirectory() as raw:
-            path = Path(raw) / "w.png"
-            Image.new("RGB", (64, 64), colour).save(path)
+            path = write_solid_ppm(Path(raw) / "w.ppm", colour)
             return nox_theme.compile_theme(path, {"mode": "light"})
 
     @staticmethod
@@ -207,8 +210,7 @@ class DarkModeRegressionTests(unittest.TestCase):
 
     def test_solid_dark_wallpaper_golden(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            path = Path(raw) / "dark.png"
-            Image.new("RGB", (64, 64), (8, 10, 14)).save(path)
+            path = write_solid_ppm(Path(raw) / "dark.ppm", (8, 10, 14))
             theme = nox_theme.compile_theme(path, {})
         colors = theme["colors"]
         self.assertEqual(theme["scheme"]["mode"], "dark")

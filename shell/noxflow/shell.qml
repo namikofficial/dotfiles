@@ -41,7 +41,7 @@ ShellRoot {
     // incapable of ever showing a count.
     NotificationModel {
         id: notifStore
-        privacyRedacted: sessionSecurity.privacyRedacted
+        lockedRedacted: sessionSecurity.privacyRedacted
     }
 
     // Decision 5: Quickshell owns org.freedesktop.Notifications. Instantiating
@@ -524,5 +524,6 @@ ShellRoot {
         id: atlas
         screen: Quickshell.activeScreen || null
         coordinator: panelController
+        hyprlandModel: hyprlandModel
     }
 }

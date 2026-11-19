@@ -119,7 +119,7 @@ FocusScope {
                         color: Theme.Tokens.textMuted
                         font.pixelSize: Theme.Tokens.typographyBodyLarge
                         font.family: Theme.Tokens.typographyFontFamily
-                        visible: input.text === "" && !input.activeFocus
+                        visible: input.text === ""
                         clip: true
                     }
                 }

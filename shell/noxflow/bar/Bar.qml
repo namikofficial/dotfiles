@@ -304,6 +304,7 @@ Item {
 
                 Local.ScreenCaptureIndicator {
                     id: screenCaptureIndicator
+                    notificationModel: root.notificationModel
                     Layout.alignment: Qt.AlignVCenter
                 }
 

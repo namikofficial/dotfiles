@@ -7,7 +7,7 @@ import Quickshell
 QtObject {
     id: root
 
-    readonly property string ocrLanguage: Quickshell.env("NOXFLOW_OCR_LANG") || "eng+fra"
+    readonly property string ocrLanguage: Quickshell.env("NOXFLOW_OCR_LANG") || "eng"
     readonly property string searchEngine: Quickshell.env("NOXFLOW_SEARCH_ENGINE") || "google"
     readonly property string aiEndpoint: Quickshell.env("NOXFLOW_AI_ENDPOINT") || "http://127.0.0.1:8080/v1/chat/completions"
     readonly property string aiModel: Quickshell.env("NOXFLOW_AI_MODEL") || "qwen3-4b-local"

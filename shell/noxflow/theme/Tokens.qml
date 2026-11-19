@@ -224,7 +224,7 @@ QtObject {
     readonly property int islandActivityMinWidth: 360
     readonly property int islandActivityMaxWidth: 450
     readonly property int islandDashboardMaxWidth: 460
-    readonly property int islandLauncherWidth: 620
+    readonly property int islandLauncherWidth: 780
     readonly property int islandLauncherHeight: 520
     readonly property int islandCalendarWidth: 520
     readonly property int islandHoverDwell: 140
@@ -257,7 +257,7 @@ QtObject {
     property real glassCardAlpha: 0.76
     property real glassOverlayAlpha: 0.60
     property real glassBorderAlpha: 0.64
-    property real glassScrimAlpha: 0.32
+    property real glassScrimAlpha: 0.18
 
     // blur
     readonly property int blurNone: 0

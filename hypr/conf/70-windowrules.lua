@@ -2,14 +2,14 @@ local ctx = assert(NOX_HYPR, "NOX_HYPR context missing")
 local rule = ctx.rule
 
 -- Layer rules
--- NoxFlow panels are translucent "glass"; without blur, text behind them
--- bleeds through and hurts legibility. ignore_alpha skips fully transparent
--- regions (the layer surface is full-screen) so only the panels blur.
+-- Quickshell's major-panel layer spans the full monitor for morph geometry.
+-- A blur rule therefore blurs the desktop outside the painted panels too.
+-- Atelier surfaces use high-contrast, mostly opaque fills instead of backdrop
+-- blur, so keep the whole shell layer crisp.
 hl.layer_rule({
-  name = "noxflow-glass-blur",
+  name = "noxflow-no-backdrop-blur",
   match = { namespace = "^(quickshell)$" },
-  blur = true,
-  ignore_alpha = 0.25,
+  blur = false,
 })
 
 -- The full-screen screenshot selector must preserve the pixels it is framing.

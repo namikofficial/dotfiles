@@ -175,7 +175,7 @@ PanelWindow {
                 return;
             }
             applyAppearanceFromMap(data);
-            reportStatus("external", "", "Settings hydrated from daemon");
+            reportStatus("external", "", "Settings are up to date");
         }, function(code, message) {
             hydrationInFlight = false;
             hydrationError = message || code || "hydration failed";
@@ -290,7 +290,7 @@ PanelWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Text {
-                    text: "Settings"
+                    text: "Nox Studio"
                     color: Theme.Tokens.textPrimary
                     font.pixelSize: Theme.Tokens.typographyHeadlineMedium
                     font.family: Theme.Tokens.typographyDisplayFamily

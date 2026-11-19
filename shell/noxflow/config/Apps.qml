@@ -32,6 +32,7 @@ QtObject {
         "hyprctl":      { command: "hyprctl",   label: "Compositor control" },
         // Capture / OCR
         "grim":         { command: "grim",      label: "Screen capture" },
+        "satty":        { command: "satty",     label: "Screenshot markup" },
         "tesseract":    { command: "tesseract", label: "Text recognition" },
         "notifySend":   { command: "notify-send", label: "Desktop notification" }
         // No dunstctl: Quickshell owns the notification bus outright, so DND is

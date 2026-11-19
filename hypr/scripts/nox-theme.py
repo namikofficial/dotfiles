@@ -10,16 +10,22 @@ the nox-theme-schema-v1 contract.
 from __future__ import annotations
 
 import argparse
+import colorsys
 import functools
 import hashlib
 import json
 import math
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
 from typing import Optional
 
-from PIL import Image, ImageEnhance
+try:
+    from PIL import Image, ImageEnhance
+except ModuleNotFoundError:
+    Image = None
+    ImageEnhance = None
 
 SCHEMA = "nox-theme-schema-v1"
 POLICY_VERSION = "nox-policy-2"
@@ -274,18 +280,23 @@ PERSONALITY_TUNES: dict = {
 
 def samples(path: Path) -> tuple[list[dict], float]:
     """Quantize wallpaper to ≤48 colors, return entries with OKLCH + HSV data."""
-    image = Image.open(path).convert("RGB")
-    image.thumbnail((640, 640))
-    # Slightly boost color saturation before sampling so muted wallpapers still yield usable chroma.
-    image = ImageEnhance.Color(image).enhance(1.12)
-    quantized = image.quantize(colors=48, method=Image.Quantize.MEDIANCUT)
-    palette = quantized.getpalette()
-    rows = quantized.getcolors() or []
+    if Image is not None:
+        image = Image.open(path).convert("RGB")
+        image.thumbnail((640, 640))
+        # Slightly boost color saturation before sampling so muted wallpapers still yield usable chroma.
+        image = ImageEnhance.Color(image).enhance(1.12)
+        quantized = image.quantize(colors=48, method=Image.Quantize.MEDIANCUT)
+        palette = quantized.getpalette()
+        rows = [
+            (count, tuple(palette[idx * 3: idx * 3 + 3]))
+            for count, idx in (quantized.getcolors() or [])
+        ]
+    else:
+        rows = _ffmpeg_median_cut(path)
     total = sum(count for count, _ in rows) or 1
 
     entries: list[dict] = []
-    for count, idx in sorted(rows, reverse=True):
-        rgb = tuple(palette[idx * 3: idx * 3 + 3])
+    for count, rgb in sorted(rows, key=lambda row: (row[0], row[1]), reverse=True):
         if len(rgb) != 3:
             continue
         L, C, H = rgb_to_oklch(*rgb)
@@ -310,6 +321,83 @@ def samples(path: Path) -> tuple[list[dict], float]:
     entropy = -sum(float(e["fraction"]) * math.log2(float(e["fraction"]))
                    for e in entries if e["fraction"] > 0)
     return entries, entropy
+
+
+def _ffmpeg_median_cut(path: Path) -> list[tuple[int, tuple[int, int, int]]]:
+    """Sample and quantize an image through FFmpeg when Pillow is unavailable."""
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg", "-v", "error", "-i", str(path),
+                "-vf", "scale=320:320:force_original_aspect_ratio=decrease",
+                "-frames:v", "1", "-f", "image2pipe", "-vcodec", "ppm", "pipe:1",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError("wallpaper sampling requires Pillow or ffmpeg") from exc
+    except subprocess.CalledProcessError as exc:
+        detail = exc.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"ffmpeg could not decode wallpaper {path}: {detail}") from exc
+
+    header = result.stdout.split(b"\n", 3)
+    if len(header) != 4 or header[0] != b"P6" or header[2] != b"255":
+        raise RuntimeError(f"ffmpeg returned an invalid PPM frame for wallpaper {path}")
+    try:
+        width, height = (int(value) for value in header[1].split())
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError(f"ffmpeg returned invalid PPM dimensions for wallpaper {path}") from exc
+    raw = header[3]
+    if width <= 0 or height <= 0 or len(raw) != width * height * 3:
+        raise RuntimeError(f"ffmpeg returned an incomplete PPM frame for wallpaper {path}")
+
+    counts: dict[tuple[int, int, int], int] = {}
+    for offset in range(0, len(raw), 3):
+        rgb = tuple(raw[offset:offset + 3])
+        red, green, blue = (channel / 255.0 for channel in rgb)
+        hue, saturation, value = colorsys.rgb_to_hsv(red, green, blue)
+        boosted = colorsys.hsv_to_rgb(hue, min(1.0, saturation * 1.12), value)
+        adjusted = tuple(round(channel * 255) for channel in boosted)
+        counts[adjusted] = counts.get(adjusted, 0) + 1
+
+    boxes = [list(counts.items())]
+    while len(boxes) < 48:
+        candidates = []
+        for index, box in enumerate(boxes):
+            if len(box) < 2:
+                continue
+            ranges = [
+                max(color[channel] for color, _ in box) - min(color[channel] for color, _ in box)
+                for channel in range(3)
+            ]
+            channel = max(range(3), key=lambda value: ranges[value])
+            weight = sum(count for _, count in box)
+            candidates.append((ranges[channel] * weight, index, channel))
+        if not candidates:
+            break
+        _, index, channel = max(candidates)
+        box = sorted(boxes.pop(index), key=lambda item: (item[0][channel], item[0]))
+        halfway = sum(count for _, count in box) / 2
+        accumulated = 0
+        split = 1
+        for split, (_, count) in enumerate(box, start=1):
+            accumulated += count
+            if accumulated >= halfway:
+                break
+        split = min(max(split, 1), len(box) - 1)
+        boxes.extend((box[:split], box[split:]))
+
+    output = []
+    for box in boxes:
+        count = sum(amount for _, amount in box)
+        color = tuple(
+            round(sum(rgb[channel] * amount for rgb, amount in box) / count)
+            for channel in range(3)
+        )
+        output.append((count, color))
+    return output
 
 
 # ── PALETTE EXTRACTION ───────────────────────────────────────────────────────

@@ -12,7 +12,10 @@
 
 import QtQml
 import Quickshell
+import Quickshell.Io
 import "ModelUtils.js" as Utils
+import "PipewirePrivacy.js" as PipewirePrivacy
+import "components" as Components
 
 QtObject {
     id: root
@@ -27,14 +30,50 @@ QtObject {
 
     // ── State ──
     property bool dnd: false
-    // Redact display content while the session is locked or lock state is
-    // unavailable. Stored notification data remains in memory for unlock.
-    property bool privacyRedacted: true
+    // Keep details hidden while locked, while screen sharing, or until the
+    // PipeWire capture state has been checked. Notifications remain available
+    // in memory and return to normal when the privacy condition ends.
+    property bool lockedRedacted: true
+    property bool screenCaptureActive: false
+    property bool screenCaptureStatusKnown: false
+    readonly property bool privacyRedacted: lockedRedacted
+        || !screenCaptureStatusKnown || screenCaptureActive
     property var notifications: []      // active notifications
     property var history: []            // dismissed/expired (max 50)
     property int maxActive: 20
     property int maxHistory: 50
     property int nextId: 1
+
+    function pollScreenCapture() {
+        if (screenCaptureProbe.running) return;
+        screenCaptureProbe.run(["pw-dump"]);
+    }
+
+    Component.onCompleted: Qt.callLater(root.pollScreenCapture)
+
+    property Components.Command screenCaptureProbe: Components.Command {
+        label: "Screen capture privacy probe"
+        onExited: function(code) {
+            if (code === 0) {
+                try {
+                    root.screenCaptureActive = PipewirePrivacy.screenCaptureActive(root.screenCaptureProbe.output);
+                    root.screenCaptureStatusKnown = true;
+                } catch (error) {
+                    root.screenCaptureStatusKnown = false;
+                }
+            } else {
+                root.screenCaptureStatusKnown = false;
+            }
+            root.screenCapturePollTimer.restart();
+        }
+    }
+
+    property Timer screenCapturePollTimer: Timer {
+        interval: 1000
+        repeat: true
+        running: true
+        onTriggered: root.pollScreenCapture()
+    }
 
     // ── Signals (names prefixed to avoid clashing with property change signals) ──
     signal sigNotificationAdded(var notification)

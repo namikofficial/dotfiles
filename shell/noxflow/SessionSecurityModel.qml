@@ -8,7 +8,8 @@ import "components" as Components
 QtObject {
     id: root
 
-    readonly property string sessionId: Quickshell.env("XDG_SESSION_ID")
+    readonly property string stateProbe: Quickshell.env("HOME")
+        + "/.config/hypr/scripts/session-lock-state.sh"
     readonly property int pollIntervalMs: 1000
 
     // Hide private content until logind confirms that the session is unlocked.
@@ -16,8 +17,8 @@ QtObject {
     property bool stateAvailable: false
 
     function refresh() {
-        if (probe.running || sessionId === "") return;
-        probe.run(["loginctl", "show-session", sessionId, "-p", "LockedHint", "--value"]);
+        if (probe.running || stateProbe === "/.config/hypr/scripts/session-lock-state.sh") return;
+        probe.run([stateProbe]);
     }
 
     Component.onCompleted: Qt.callLater(root.refresh)
@@ -41,7 +42,7 @@ QtObject {
         id: pollTimer
         interval: root.pollIntervalMs
         repeat: true
-        running: root.sessionId !== ""
+        running: root.stateProbe !== "/.config/hypr/scripts/session-lock-state.sh"
         onTriggered: root.refresh()
     }
 }

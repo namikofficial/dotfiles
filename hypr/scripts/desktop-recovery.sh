@@ -20,7 +20,7 @@ run_terminal() {
 menu() {
   cat <<'MENU' | rofi -dmenu -i -no-show-icons -p 'Recover Desktop' -theme "$HOME/.config/rofi/actions.rasi"
 Run dev-health
-Restart Wayle panel
+Restore preferred panel
 Restart portals
 Safe Hyprland reload
 Reapply theme
@@ -35,7 +35,7 @@ if [ "$action" = "menu" ]; then
   [ -n "${choice:-}" ] || exit 0
   case "$choice" in
     "Run dev-health") action="dev-health" ;;
-    "Restart Wayle panel") action="wayle" ;;
+    "Restore preferred panel") action="panel" ;;
     "Restart portals") action="portals" ;;
     "Safe Hyprland reload") action="hypr" ;;
     "Reapply theme") action="theme" ;;
@@ -49,9 +49,8 @@ case "$action" in
   dev-health)
     run_terminal "dev-health" "$REPO_DIR/setup/dev-health.sh"
     ;;
-  wayle)
-    "$SCRIPT_DIR/panel-switch.sh" show
-    notify "Wayle panel restored"
+  panel)
+    exec "$SCRIPT_DIR/panel-switch.sh" show
     ;;
   portals)
     exec "$SCRIPT_DIR/restart-portals.sh"

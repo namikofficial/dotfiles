@@ -45,6 +45,7 @@ assert.ok(!/scaled\(\s*\d/.test(motion) && !/Math\.round\(\s*\d+\s*\*/.test(moti
   "Motion.qml derives durations from Tokens, it holds no timing literals");
 assert.ok(!/duration\(\s*\d+\s*\)/.test(tokens), "Tokens animations use named motion tokens, not literals");
 const lifecycle = fs.readFileSync(path.join(root, "components/SurfaceLifecycle.qml"), "utf8");
-assert.ok(/Tokens\.motionSurface/.test(lifecycle), "SurfaceLifecycle uses the motion table");
+assert.ok(/Config\.Motion\.panel(Open|Close)/.test(lifecycle),
+  "SurfaceLifecycle uses named panel timings from the shared motion table");
 
 console.log(`ok - design tokens (${sizes.size} type sizes, outline ${ratio.toFixed(2)}:1)`);

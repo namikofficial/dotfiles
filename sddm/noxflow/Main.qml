@@ -130,8 +130,8 @@ Rectangle {
         clip: true
 
         Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 420; easing.type: Easing.OutBack; overshoot: 1.12 } }
-        Behavior on y { NumberAnimation { duration: 520; easing.type: Easing.OutBack; overshoot: 1.08 } }
+        Behavior on scale { NumberAnimation { duration: 420; easing.type: Easing.OutBack; easing.overshoot: 1.12 } }
+        Behavior on y { NumberAnimation { duration: 520; easing.type: Easing.OutBack; easing.overshoot: 1.08 } }
 
         Flow {
             id: topBarFlow
@@ -260,8 +260,8 @@ Rectangle {
         scale: 0.985
 
         Behavior on opacity { NumberAnimation { duration: 460; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 560; easing.type: Easing.OutBack; overshoot: 1.10 } }
-        Behavior on y { NumberAnimation { duration: 680; easing.type: Easing.OutBack; overshoot: 1.06 } }
+        Behavior on scale { NumberAnimation { duration: 560; easing.type: Easing.OutBack; easing.overshoot: 1.10 } }
+        Behavior on y { NumberAnimation { duration: 680; easing.type: Easing.OutBack; easing.overshoot: 1.06 } }
 
         Flow {
             id: contentFlow
@@ -423,6 +423,12 @@ Rectangle {
                             height: parent.height
                             text: userModel.lastUser || ""
                             font.pixelSize: 16
+                            color: root.tint(root.panelBgAlt, 0.94)
+                            borderColor: root.tint(root.accent, 0.42)
+                            focusColor: root.accent
+                            hoverColor: root.accentSoft
+                            textColor: root.textPrimary
+                            radius: 8
                             KeyNavigation.backtab: layoutBox
                             KeyNavigation.tab: passwordEntry
                             Keys.onPressed: {
@@ -453,7 +459,14 @@ Rectangle {
                             width: Math.max(0, parent.width - anchors.leftMargin)
                             height: parent.height
                             font.pixelSize: 16
-                            tooltipBG: accent
+                            color: root.tint(root.panelBgAlt, 0.94)
+                            borderColor: root.tint(root.accent, 0.42)
+                            focusColor: root.accent
+                            hoverColor: root.accentSoft
+                            textColor: root.textPrimary
+                            radius: 8
+                            tooltipBG: root.panelBgAlt
+                            tooltipFG: root.textPrimary
                             KeyNavigation.backtab: userEntry
                             KeyNavigation.tab: loginButton
                             Keys.onPressed: {
@@ -492,6 +505,12 @@ Rectangle {
                             text: textConstants.login
                             width: compactLayout ? actionsFlow.width : 174
                             height: buttonHeight
+                            color: root.accent
+                            activeColor: root.accentSoft
+                            pressedColor: root.secondary
+                            disabledColor: root.panelBorderSoft
+                            borderColor: root.tint(root.accent, 0.65)
+                            textColor: root.panelBg
                             onClicked: submitLogin()
                             KeyNavigation.backtab: passwordEntry
                             KeyNavigation.tab: rebootButton
@@ -502,6 +521,12 @@ Rectangle {
                             text: textConstants.reboot
                             width: compactLayout ? actionsFlow.width : 118
                             height: buttonHeight
+                            color: root.accent
+                            activeColor: root.accentSoft
+                            pressedColor: root.secondary
+                            disabledColor: root.panelBorderSoft
+                            borderColor: root.tint(root.accent, 0.65)
+                            textColor: root.panelBg
                             onClicked: sddm.reboot()
                             KeyNavigation.backtab: loginButton
                             KeyNavigation.tab: powerButton
@@ -512,6 +537,12 @@ Rectangle {
                             text: textConstants.shutdown
                             width: compactLayout ? actionsFlow.width : 118
                             height: buttonHeight
+                            color: root.accent
+                            activeColor: root.accentSoft
+                            pressedColor: root.secondary
+                            disabledColor: root.panelBorderSoft
+                            borderColor: root.tint(root.accent, 0.65)
+                            textColor: root.panelBg
                             onClicked: sddm.powerOff()
                             KeyNavigation.backtab: rebootButton
                             KeyNavigation.tab: suspendButton
@@ -522,6 +553,12 @@ Rectangle {
                             text: "Suspend"
                             width: compactLayout ? actionsFlow.width : 118
                             height: buttonHeight
+                            color: root.accent
+                            activeColor: root.accentSoft
+                            pressedColor: root.secondary
+                            disabledColor: root.panelBorderSoft
+                            borderColor: root.tint(root.accent, 0.65)
+                            textColor: root.panelBg
                             visible: sddm.canSuspend
                             onClicked: sddm.suspend()
                             KeyNavigation.backtab: powerButton
@@ -533,6 +570,12 @@ Rectangle {
                             text: "Hibernate"
                             width: compactLayout ? actionsFlow.width : 118
                             height: buttonHeight
+                            color: root.accent
+                            activeColor: root.accentSoft
+                            pressedColor: root.secondary
+                            disabledColor: root.panelBorderSoft
+                            borderColor: root.tint(root.accent, 0.65)
+                            textColor: root.panelBg
                             visible: sddm.canHibernate
                             onClicked: sddm.hibernate()
                             KeyNavigation.backtab: suspendButton

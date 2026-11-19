@@ -6,15 +6,18 @@ import Quickshell.Hyprland
 import "../../theme" as Theme
 import "../../components" as Components
 import "." as Local
+import "AtlasHistory.js" as AtlasHistory
 
 PanelWindow {
     id: root
 
     required property var coordinator
+    required property var hyprlandModel
 
     Components.SurfaceLifecycle { id: lifecycle }
     property alias openProgress: lifecycle.openProgress
     property bool previewsActive: false
+    property var focusHistory: []
 
     anchors.top: true
     anchors.bottom: true
@@ -96,6 +99,27 @@ PanelWindow {
         close();
     }
 
+    function findWindow(address) {
+        var workspaces = Hyprland.workspaces || [];
+        for (var i = 0; i < workspaces.length; i++) {
+            var clients = workspaces[i] && workspaces[i].toplevels ? workspaces[i].toplevels : [];
+            for (var j = 0; j < clients.length; j++) {
+                if (clients[j] && String(clients[j].address || "") === String(address || ""))
+                    return clients[j];
+            }
+        }
+        return null;
+    }
+
+    function focusRecent(entry) {
+        var client = entry ? findWindow(entry.address) : null;
+        if (client) focusWindow(client);
+    }
+
+    function rememberFocusedWindow(window) {
+        focusHistory = AtlasHistory.record(focusHistory, window);
+    }
+
     function moveWindow(address, workspace) {
         if (!workspace || workspace.id === undefined || !/^0x[0-9a-f]+$/i.test(address)) return;
         Hyprland.dispatch("movetoworkspacesilent " + Number(workspace.id)
@@ -154,7 +178,7 @@ PanelWindow {
                 Item { Layout.fillWidth: true }
 
                 Text {
-                    text: "← → choose a space     Tab next space     ↵ focus     Esc close"
+                    text: "↑ ↓ ← → choose a window     Tab next space     ↵ focus     Esc close"
                     color: Theme.Tokens.textMuted
                     font.family: Theme.Tokens.typographyFontFamily
                     font.pixelSize: Theme.Tokens.typographyLabelMedium
@@ -162,9 +186,61 @@ PanelWindow {
                 }
             }
 
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.Tokens.scaled(8)
+                visible: root.focusHistory.length > 0
+
+                Text {
+                    text: "RECENT FOCUS"
+                    color: Theme.Tokens.textMuted
+                    font.family: Theme.Tokens.typographyFontFamily
+                    font.pixelSize: Theme.Tokens.typographyLabelSmall
+                    font.bold: true
+                }
+
+                Repeater {
+                    model: root.focusHistory
+                    delegate: Rectangle {
+                        required property var modelData
+                        readonly property bool available: root.findWindow(modelData.address) !== null
+                        implicitWidth: Math.min(Theme.Tokens.scaled(250), recentLabel.implicitWidth + Theme.Tokens.scaled(22))
+                        height: Theme.Tokens.scaled(30)
+                        radius: Theme.Tokens.radiusSm
+                        color: Theme.Tokens.surfaceSurface2
+                        border.color: Theme.Tokens.outlineSubtle
+                        opacity: available ? 1 : 0.45
+
+                        Text {
+                            id: recentLabel
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.Tokens.scaled(10)
+                            anchors.rightMargin: Theme.Tokens.scaled(10)
+                            text: modelData.app + " · " + (modelData.title || "Untitled")
+                            color: Theme.Tokens.textSecondary
+                            font.family: Theme.Tokens.typographyFontFamily
+                            font.pixelSize: Theme.Tokens.typographyLabelSmall
+                            elide: Text.ElideRight
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        TapHandler {
+                            enabled: parent.available
+                            onTapped: root.focusRecent(modelData)
+                        }
+                        HoverHandler {
+                            enabled: parent.available
+                            cursorShape: Qt.PointingHandCursor
+                        }
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+            }
+
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                    Layout.preferredHeight: 1
                 color: Theme.Tokens.outlineSubtle
             }
 
@@ -174,14 +250,14 @@ PanelWindow {
                 Layout.fillHeight: true
                 clip: true
                 model: Hyprland.workspaces
-                cellWidth: width < Theme.Tokens.scaled(900)
+                cellWidth: width < Theme.Tokens.scaled(900) || workspaceGrid.count <= 1
                     ? width : Math.floor((width - Theme.Tokens.scaled(18)) / 2)
                 cellHeight: {
-                    var columns = width < Theme.Tokens.scaled(900) ? 1 : 2;
+                    var columns = width < Theme.Tokens.scaled(900) || workspaceGrid.count <= 1 ? 1 : 2;
                     var rows = Math.max(1, Math.ceil(workspaceGrid.count / columns));
                     var heightPerRow = Math.floor(height / rows);
-                    return Math.max(Theme.Tokens.scaled(380),
-                        Math.min(Theme.Tokens.scaled(410), heightPerRow));
+                    return Math.max(Theme.Tokens.scaled(300),
+                        Math.min(Theme.Tokens.scaled(560), heightPerRow));
                 }
                 boundsBehavior: Flickable.StopAtBounds
                 interactive: contentHeight > height
@@ -232,9 +308,17 @@ PanelWindow {
     }
 
     Connections {
+        target: root.hyprlandModel
+        function onActiveWindowChanged() {
+            root.rememberFocusedWindow(root.hyprlandModel.activeWindow);
+        }
+    }
+
+    Connections {
         target: lifecycle
         function onOpened() {
             root.previewsActive = true;
+            root.rememberFocusedWindow(root.hyprlandModel.activeWindow);
             Qt.callLater(root.selectFocusedWorkspace);
         }
         function onClosing() { root.previewsActive = false; }

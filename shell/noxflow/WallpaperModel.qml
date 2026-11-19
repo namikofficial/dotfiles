@@ -5,7 +5,7 @@
 import QtQml
 import Quickshell
 import Quickshell.Io
-import "ModelUtils.js" as Utils
+import "WallpaperScan.js" as WallpaperScan
 import "components" as Components
 
 QtObject {
@@ -26,7 +26,7 @@ QtObject {
 
     property Components.Command scanProc: Components.Command {
         label: "Wallpaper scan"
-        onExited: function(code) { root._onScanData(code === 0 ? root.scanProc.output : "") }
+        onExited: function(code) { root._onScanData(code, root.scanProc.output) }
     }
     property Components.Command currentProc: Components.Command {
         label: "Current wallpaper"
@@ -43,33 +43,23 @@ QtObject {
         var dirs = root.wallDirs.split(":");
         var roots = [];
         for (var i = 0; i < dirs.length; i++) {
-            if (dirs[i]) roots.push(JSON.stringify(dirs[i]));
+            if (dirs[i].trim()) roots.push(dirs[i].trim());
         }
         if (roots.length === 0) {
             scanning = false;
+            error = "";
             walls = [];
             return;
         }
-        scanProc.runShell(
-            "find " + roots.join(" ") +
-            " -maxdepth 1 -type f \\( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.webp' \\) 2>/dev/null | sort -u");
+        scanProc.run(WallpaperScan.argumentsFor(roots));
     }
 
-    /// Whole-output variant of the old line-by-line SplitParser handler.
-    function _onScanData(data) {
+    /// Empty directories are a valid empty state; only a failed find is an error.
+    function _onScanData(exitCode, data) {
         scanning = false;
-        if (!data) {
-            error = "wallpaper scan failed";
-            walls = [];
-            return;
-        }
-        var lines = data.split("\n").filter(function(l) { return l.trim() !== ""; });
-        var rejected = /(^|[^a-z])(anime|waifu|manga|hentai|kawaii|girl|girls|woman|women|character|avatar|hollow[ -]?knight|game[-_ ]?art|fanart|illustration)([^a-z]|$)/i;
-        lines = lines.filter(function(p) { return !rejected.test(p.split("/").pop()); });
-        walls = lines.map(function(p) {
-            var parts = p.split("/");
-            return { path: p, name: parts[parts.length - 1] };
-        });
+        var scanned = WallpaperScan.result(exitCode, data);
+        error = scanned.error;
+        walls = scanned.walls;
     }
 
     // ── Current wallpaper ──

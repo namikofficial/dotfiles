@@ -9,6 +9,7 @@ import Quickshell.Widgets
 import "../../theme" as Theme
 import "../../config" as Config
 import "../../components" as Components
+import "../../CommandHistory.js" as CommandHistory
 
 Item {
     id: root
@@ -44,18 +45,61 @@ Item {
     property string searchText: ""
     property var filteredResults: []
     property int selectedIndex: 0
+    readonly property var selectedResult: selectedIndex >= 0 && selectedIndex < filteredResults.length
+        ? filteredResults[selectedIndex] : null
     property bool launchBusy: false
     property string launchError: ""
     property string launchTarget: ""
+    property var recentCommandKeys: []
+    property var queuedHistoryKeys: []
+    property bool historyReady: false
+    property bool historyWriteAgain: false
+    property string pendingHistoryKey: ""
+    readonly property string launcherHistoryPath: {
+        var stateHome = Quickshell.env("XDG_STATE_HOME") || ""
+        if (stateHome === "") stateHome = (Quickshell.env("HOME") || "") + "/.local/state"
+        return stateHome + "/noxflow/launcher-history.json"
+    }
+    property Components.Command historyReader: Components.Command {
+        label: "Read recent commands"
+        onExited: function(exitCode) {
+            var loaded = []
+            if (exitCode === 0) {
+                try {
+                    var payload = JSON.parse(root.historyReader.output || "{}")
+                    if (payload.schemaVersion === 1 && Array.isArray(payload.commands))
+                        loaded = payload.commands
+                } catch (e) { loaded = [] }
+            }
+            root.recentCommandKeys = CommandHistory.normalize(root.queuedHistoryKeys.concat(loaded))
+            root.queuedHistoryKeys = []
+            root.historyReady = true
+            if (root.recentCommandKeys.length > 0) root.writeRecentCommands()
+            root.filterResults()
+        }
+    }
+    property Components.Command historyWriter: Components.Command {
+        label: "Save recent commands"
+        onExited: function(exitCode) {
+            if (exitCode !== 0) console.warn(root.historyWriter.failureText())
+            if (root.historyWriteAgain) {
+                root.historyWriteAgain = false
+                root.writeRecentCommands()
+            }
+        }
+    }
     property Components.Command launchProcess: Components.Command {
         label: "Launch"
         onStarted: { root.launchBusy = true; root.launchError = "" }
         onExited: function(exitCode) {
             root.launchBusy = false
             if (exitCode === 0) {
+                root.recordRecentKey(root.pendingHistoryKey)
+                root.pendingHistoryKey = ""
                 lifecycle.requestClose("action")
                 return
             }
+            root.pendingHistoryKey = ""
             // stderr is kept by Command, so the banner names the real cause.
             root.launchError = root.launchProcess.failureText();
             searchField.forceActiveFocus()
@@ -117,7 +161,10 @@ Item {
     // The inline island host creates this component only when Super+Space is
     // requested. Open its lifecycle from inside the component as well as from
     // the Loader callback so construction order cannot leave a blank card.
-    Component.onCompleted: root.open()
+    Component.onCompleted: {
+        root.historyReader.run(["cat", root.launcherHistoryPath])
+        root.open()
+    }
 
     // NoxIsland supplies the launcher card and its pill-to-panel transition.
     // Drawing another card here would stack translucent surfaces and compete
@@ -155,7 +202,9 @@ Item {
                 Layout.fillWidth: true
                 text: root.activeMode === 5
                     ? (root.aiAvailable ? "Ask NoxFlow · type a question" : "AI is not configured")
-                    : "Apps   ·   Windows   ·   Projects   ·   Actions   ·   Calculations"
+                    : root.searchText.trim() === "" && root.hasRecentResults()
+                        ? "Recent commands first   ·   Apps   ·   Windows   ·   Projects   ·   Actions"
+                        : "Apps   ·   Windows   ·   Projects   ·   Actions   ·   Calculations"
                 color: Theme.Tokens.textMuted
                 font.pixelSize: Theme.Tokens.typographyLabelSmall
                 elide: Text.ElideRight
@@ -207,12 +256,20 @@ Item {
                 // Empty
                 Text { anchors.centerIn: parent
                     text: root.activeMode === 5 ? "Ask anything\u2026"
+                        : root.projectScanStarted && !root.projectScanBusy
+                            && root.projectScanError === "" && root.projectCache.length === 0
+                            && /(project|session)/i.test(root.searchText)
+                            ? "No project contexts are registered in Workbench"
                         : root.searchText !== "" ? "No matching actions"
                         : "Start typing to search"
                     color: Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyBodyMedium
                     visible: root.filteredResults.length === 0 && !(root.activeMode === 5 && (root.aiResponse !== "" || root.aiLoading)) }
                 // List
-                ListView { id: resultsList; anchors.fill: parent; model: root.filteredResults; currentIndex: root.selectedIndex
+                ListView { id: resultsList
+                    anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
+                    anchors.right: parent.right
+                    anchors.rightMargin: previewPane.visible ? previewPane.width + Theme.Tokens.spacingMd : 0
+                    model: root.filteredResults; currentIndex: root.selectedIndex
                     spacing: Theme.Tokens.spacingXs; visible: !(root.activeMode === 5 && (root.aiResponse !== "" || root.aiLoading))
                     delegate: Item {
                         required property int index; required property var modelData
@@ -238,7 +295,94 @@ Item {
                             Text { text: modelData.shortcut || ""; color: cur ? Theme.Tokens.tonalOnPrimaryContainer : Theme.Tokens.textMuted; font.pixelSize: Theme.Tokens.typographyLabelSmall; visible: text !== "" }
                         }
                         TapHandler { onPressedChanged: parent.pr = pressed; onTapped: { root.selectedIndex = index; root.activateSelected() } }
-                        HoverHandler { onHoveredChanged: parent.ho = hovered; cursorShape: Qt.PointingHandCursor }
+                        HoverHandler { onHoveredChanged: { parent.ho = hovered; if (hovered) root.selectedIndex = index } cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+                Rectangle {
+                    id: previewPane
+                    anchors.top: parent.top; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    width: Theme.Tokens.scaled(248)
+                    radius: Theme.Tokens.radiusMd
+                    color: Theme.Tokens.surfaceSurfaceContainerHigh
+                    border.color: Theme.Tokens.outlineSubtle
+                    border.width: 1
+                    visible: root.activeMode !== 5 && root.selectedResult !== null
+                    Accessible.name: root.selectedResult
+                        ? "Preview: " + String(root.selectedResult.title || root.selectedResult.name || "Selected action")
+                        : "Command preview"
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: Theme.Tokens.spacingMd
+                        spacing: Theme.Tokens.spacingSm
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.Tokens.spacingSm
+                            Item {
+                                Layout.preferredWidth: Theme.Tokens.scaled(36)
+                                Layout.preferredHeight: Theme.Tokens.scaled(36)
+                                Image {
+                                    id: previewIcon
+                                    anchors.fill: parent
+                                    asynchronous: true
+                                    fillMode: Image.PreserveAspectFit
+                                    smooth: true
+                                    sourceSize: Qt.size(Theme.Tokens.scaled(72), Theme.Tokens.scaled(72))
+                                    source: root.selectedResult ? root.iconSource(root.selectedResult) : ""
+                                    visible: status === Image.Ready
+                                }
+                                Text {
+                                    anchors.fill: parent
+                                    text: root.selectedResult ? (root.selectedResult.icon || root.defaultIcon) : root.defaultIcon
+                                    visible: !previewIcon.visible
+                                    color: Theme.Tokens.tonalPrimary
+                                    font.pixelSize: Theme.Tokens.iconLg
+                                    font.family: Theme.Tokens.iconFont
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: root.previewActionLabel(root.selectedResult)
+                                color: Theme.Tokens.textMuted
+                                font.pixelSize: Theme.Tokens.typographyLabelSmall
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: root.selectedResult
+                                ? String(root.selectedResult.title || root.selectedResult.name || "Selected action")
+                                : "Select a command"
+                            color: Theme.Tokens.textPrimary
+                            font.family: Theme.Tokens.typographyDisplayFamily
+                            font.pixelSize: Theme.Tokens.typographyTitleMedium
+                            font.bold: true
+                            wrapMode: Text.Wrap
+                            maximumLineCount: 3
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            text: root.selectedResult ? String(root.selectedResult.subtitle || "") : ""
+                            color: Theme.Tokens.textSecondary
+                            font.pixelSize: Theme.Tokens.typographyBodySmall
+                            wrapMode: Text.Wrap
+                            maximumLineCount: 6
+                            elide: Text.ElideRight
+                        }
+                        Components.Divider { Layout.fillWidth: true }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Enter  run   ·   ↑ ↓  select   ·   Esc  close"
+                            color: Theme.Tokens.textMuted
+                            font.pixelSize: Theme.Tokens.typographyLabelSmall
+                            wrapMode: Text.WordWrap
+                        }
                     }
                 }
             }
@@ -358,6 +502,56 @@ Item {
         }
         return exact + prefix + Math.max(0, 100 - cursor);
     }
+    function previewActionLabel(item) {
+        if (!item) return "No selection"
+        if (item.action === "resume_project") return "Open project context"
+        if (item.action === "project_action") {
+            var command = item.actionParams ? String(item.actionParams.command || "") : ""
+            return command === "edit" ? "Open project editor"
+                : command === "shell" ? "Open project terminal"
+                : command === "tmux" ? "Open project session" : "Project action"
+        }
+        if (item.action === "launch") return "Open application"
+        if (item.action === "launchProgram") return "Run desktop action"
+        if (item.action === "focus_window") return "Focus open window"
+        if (item.action === "copy_result") return "Copy result to clipboard"
+        if (item.action === "open_clipboard") return "Open clipboard history"
+        if (item.action === "screenshot") return "Select a screenshot region"
+        if (item.action === "open_settings") return "Open Nox Studio"
+        return String(item.action || "Command").replace(/_/g, " ")
+    }
+    function recentPosition(item) {
+        return historyReady ? CommandHistory.position(recentCommandKeys, item) : -1
+    }
+    function hasRecentResults() {
+        if (!historyReady || recentCommandKeys.length === 0) return false
+        for (var i = 0; i < filteredResults.length; i++) {
+            if (recentPosition(filteredResults[i]) >= 0) return true
+        }
+        return false
+    }
+    function recordRecentKey(key) {
+        if (!key) return
+        if (!historyReady) {
+            queuedHistoryKeys = CommandHistory.normalize([key].concat(queuedHistoryKeys))
+            return
+        }
+        recentCommandKeys = CommandHistory.normalize([key].concat(recentCommandKeys))
+        writeRecentCommands()
+        filterResults()
+    }
+    function recordRecentCommand(item) {
+        recordRecentKey(CommandHistory.keyFor(item))
+    }
+    function writeRecentCommands() {
+        var payload = JSON.stringify({ schemaVersion: 1, commands: recentCommandKeys })
+        if (historyWriter.running) {
+            historyWriteAgain = true
+            return
+        }
+        var script = "umask 077; dir=${1%/*}; mkdir -p -- \"$dir\" || exit 1; tmp=\"$dir/.launcher-history.$$\"; trap 'rm -f -- \"$tmp\"' EXIT; printf %s \"$2\" > \"$tmp\" && chmod 600 \"$tmp\" && mv -f -- \"$tmp\" \"$1\""
+        historyWriter.run(["sh", "-c", script, "noxflow-history", launcherHistoryPath, payload])
+    }
     function ranked(items, query, limit) {
         var scored = [];
         for (var i = 0; i < items.length; i++) {
@@ -365,6 +559,15 @@ Item {
             if (query === "" || score >= 0) scored.push({ item: items[i], score: score });
         }
         scored.sort(function(a, b) {
+            if (query === "") {
+                var aRecent = root.recentPosition(a.item)
+                var bRecent = root.recentPosition(b.item)
+                if (aRecent !== bRecent) {
+                    if (aRecent < 0) return 1
+                    if (bRecent < 0) return -1
+                    return aRecent - bRecent
+                }
+            }
             var scoreDelta = b.score - a.score;
             if (scoreDelta !== 0) return scoreDelta;
             var aTitle = String(a.item.title || a.item.name || "");
@@ -390,8 +593,8 @@ Item {
             var id = String(project.id)
             var prefix = String(project.name)
             var selectors = [id].concat(Array.isArray(project.aliases) ? project.aliases : []).join(" ")
-            items.push({ title: prefix + " — Open context", icon: "\uF07C",
-                subtitle: "Project · " + selectors + " · editor and terminal", action: "resume_project",
+            items.push({ title: prefix + " — Restore context", icon: "\uF07C",
+                subtitle: "Project · " + selectors + " · editor, terminal, and saved tools", action: "resume_project",
                 actionParams: { id: id } })
             items.push({ title: prefix + " — Open editor", icon: "\uF121",
                 subtitle: "Project · " + selectors, action: "project_action",
@@ -546,8 +749,9 @@ Item {
             launchTarget = item.title || "project"
             launchError = ""
             launchProcess.label = "Open project context"
-            launchProcess.run([Quickshell.env("HOME") + "/.config/hypr/scripts/project-resume.sh",
-                "launch", "--project", String(item.actionParams.id)])
+            pendingHistoryKey = CommandHistory.keyFor(item)
+            if (!launchProcess.run([Quickshell.env("HOME") + "/.config/hypr/scripts/project-resume.sh",
+                "restore", "--project", String(item.actionParams.id)])) pendingHistoryKey = ""
             break
         case "project_action":
             if (!item.actionParams || !item.actionParams.id
@@ -555,6 +759,7 @@ Item {
             Quickshell.execDetached([Quickshell.env("HOME")
                 + "/Documents/code/dotfiles/setup/project-profile.sh",
                 String(item.actionParams.command), String(item.actionParams.id)])
+            recordRecentCommand(item)
             lifecycle.requestClose("action")
             break
         case "copy_result":
@@ -572,7 +777,10 @@ Item {
             var argv;
             if (item.actionParams.desktopId) argv = ["uwsm", "app", "-t", "service", "--", item.actionParams.desktopId];
             else if (item.actionParams.command) argv = ["uwsm", "app", "-t", "service", "--", item.actionParams.command];
-            if (argv) launchProcess.run(argv); else return;
+            if (argv) {
+                pendingHistoryKey = CommandHistory.keyFor(item)
+                if (!launchProcess.run(argv)) pendingHistoryKey = ""
+            } else return;
             break
         case "launchProgram":
             // Registry-backed launch: availability was probed at startup, so a
@@ -581,14 +789,20 @@ Item {
             launchTarget = item.title || "application"
             launchError = ""
             var launched = Config.Apps.invoke(item.actionParams.program, item.actionParams.args || [])
-            if (launched.ok) lifecycle.requestClose("action")
+            if (launched.ok) {
+                recordRecentCommand(item)
+                lifecycle.requestClose("action")
+            }
             else { launchError = launched.reason }
             break
         case "open_settings":
             // NoxFlow's own settings panel — not gnome-control-center, which
             // is not installed on this workstation.
             lifecycle.requestClose("openSettings")
-            if (shellRoot && typeof shellRoot.openSettings === "function") shellRoot.openSettings()
+            if (shellRoot && typeof shellRoot.openSettings === "function") {
+                shellRoot.openSettings()
+                recordRecentCommand(item)
+            }
             break
         case "focus_window":
             // Shell-local: dispatch via hyprctl. No typed daemon action exists.
@@ -597,13 +811,14 @@ Item {
             break
         case "open_clipboard":
             Quickshell.execDetached([Quickshell.env("HOME") + "/.config/hypr/scripts/cliphist-rofi.sh"])
+            recordRecentCommand(item)
             lifecycle.requestClose("action")
             break
         case "lock": if (root.noxd && root.noxd.connected) root.noxd.runAction({lock:{}}); lifecycle.requestClose("action"); break
         case "suspend": if (root.noxd && root.noxd.connected) root.noxd.runAction({suspend:{}}); lifecycle.requestClose("action"); break
         case "reboot": if (root.noxd && root.noxd.connected) root.noxd.runAction({reboot:{}}); lifecycle.requestClose("action"); break
         case "power_off": if (root.noxd && root.noxd.connected) root.noxd.runAction({power_off:{}}); lifecycle.requestClose("action"); break
-        case "screenshot": lifecycle.requestClose("screenshot"); break
+        case "screenshot": recordRecentCommand(item); lifecycle.requestClose("screenshot"); break
         case "reload_shell":
             launchTarget = "NoxFlow"
             launchProcess.label = "Restart shell";
