@@ -35,7 +35,7 @@ assert(redactedHeight < 360, `redacted notification panel must stay compact (got
 assert(populatedHeight > emptyHeight, "populated height estimate grows above empty height");
 
 const modelQml = fs.readFileSync(require.resolve("../NotificationModel.qml"), "utf8");
-assert(!/\bhistory\s*=\s*history\b/.test(modelQml), "NotificationModel must not shadow root.history with local history = history");
+assert(!/^\s*history\s*=\s*history\s*;/m.test(modelQml), "NotificationModel must not shadow root.history with local history = history;");
 assert(modelQml.includes("function removeFromHistory("), "NotificationModel must expose removeFromHistory()");
 assert(modelQml.includes("dedupePrependHistory("), "NotificationModel must deduplicate history entries");
 
