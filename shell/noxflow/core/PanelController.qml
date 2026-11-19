@@ -271,6 +271,7 @@ QtObject {
         if (!list || list.length === 0) return false;
         var registered = triggerRegistry && typeof triggerRegistry.trigger === "function"
             ? triggerRegistry.trigger(name, targetMonitor) : null;
+        console.log("NOX_QA_REGISTRY", targetMonitor, JSON.stringify(triggerRegistry ? triggerRegistry.triggers : null));
         var target = surface(name);
         if (!target) return false;
 
