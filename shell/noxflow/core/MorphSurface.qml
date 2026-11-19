@@ -97,6 +97,8 @@ PanelWindow {
     property real expandedOpacity: 0.0
     property real compactTranslate: 0.0
     property real expandedTranslate: 0.0
+    Behavior on compactTranslate { NumberAnimation { duration: Config.Motion.contentExit; easing.type: Easing.OutCubic } }
+    Behavior on expandedTranslate { NumberAnimation { duration: Config.Motion.contentEnter; easing.type: Easing.OutCubic } }
     // Origin chip visual (mirrored from the bar chip that opened the panel).
     property string compactIcon: ""
     property string compactLabel: ""
@@ -163,7 +165,6 @@ PanelWindow {
             visible: root.compactOpacity > 0.01
             transform: Translate { y: root.compactTranslate }
             Behavior on opacity { NumberAnimation { duration: Config.Motion.contentExit; easing.type: Easing.OutCubic } }
-            Behavior on transform { PropertyAnimation { duration: Config.Motion.contentExit; easing.type: Easing.OutCubic } }
 
             RowLayout {
                 anchors.centerIn: parent
@@ -197,7 +198,6 @@ PanelWindow {
             visible: root.expandedOpacity > 0.01
             transform: Translate { y: root.expandedTranslate }
             Behavior on opacity { NumberAnimation { duration: Config.Motion.contentEnter; easing.type: Easing.OutCubic } }
-            Behavior on transform { PropertyAnimation { duration: Config.Motion.contentEnter; easing.type: Easing.OutCubic } }
             onLoaded: {
                 root.contentReady = false;
                 if (item && root.initialSection !== "" && item.initialSection !== undefined)
@@ -364,7 +364,9 @@ PanelWindow {
         root.contentReady = false;
         collapseTimer.stop();
         swapTimer.stop();
-        if (rect && rect.width > 0 && rect.height > 0) originRect = rect;
+        expandFadeTimer.stop();
+        settleTimer.stop();
+        originRect = rect && rect.width > 0 && rect.height > 0 ? rect : Qt.rect(0, 0, 0, 0);
         initialSection = section || "";
 
         // Toggle behavior: opening the already-open panel closes it.
@@ -465,6 +467,8 @@ PanelWindow {
         root.contentReady = false;
         contentReadyTimer.stop();
         swapTimer.stop();
+        expandFadeTimer.stop();
+        settleTimer.stop();
         pendingPanel = "";
         root.morphPhase = MorphSurface.Phase.Collapsing;
         // Let the loaded panel run its own close lifecycle first (stops its
