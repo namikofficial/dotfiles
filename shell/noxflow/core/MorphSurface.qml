@@ -146,13 +146,14 @@ PanelWindow {
     Rectangle {
         id: frame
         anchors.top: parent.top
-        x: Math.max(0, (parent.width - root.frameWidth) / 2)
+        x: Math.max(0, parent.width - root.frameRight - root.frameWidth)
         width: root.frameWidth; height: root.frameHeight
         radius: root.frameRadius
         color: Theme.Tokens.glass(Theme.Tokens.surfaceSurfaceContainerHigh)
         border.color: Theme.Tokens.glass(Theme.Tokens.outlineDefault, Theme.Tokens.glassBorderAlpha); border.width: 1
 
         Behavior on width { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
+        Behavior on x { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
         Behavior on height { enabled: Config.Motion.geometry; NumberAnimation { duration: root.morphDuration; easing.type: Easing.OutCubic } }
         Behavior on radius { enabled: Config.Motion.geometry; NumberAnimation { duration: Config.Motion.panelSwitch; easing.type: Easing.OutCubic } }
 
@@ -353,7 +354,7 @@ PanelWindow {
     // chip. Mixing the two leaves the loaded panel clipped to chip size.
     function targetGeometryFor(name) {
         var size = panelSize(name);
-        return { top: targetTopMargin, right: targetRightMargin, width: size.width, height: size.height };
+        return { top: targetTopMargin, right: Math.max(0, (targetSurfaceWidth - size.width) / 2), width: size.width, height: size.height };
     }
 
     // Open a panel with the full phased morph.
@@ -388,7 +389,7 @@ PanelWindow {
             // clipping; the frame retargets to the new geometry.
             topMargin = targetTopMargin; rightMargin = targetRightMargin;
             surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
-            frameTop = targetTopMargin; frameRight = targetRightMargin;
+            frameTop = targetTopMargin; frameRight = target.right;
             frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
             // Origin chip visual updates for the incoming panel.
             applyOrigin(name);
@@ -409,7 +410,7 @@ PanelWindow {
         if (hasOrigin) {
             // Phase 1: capture source geometry, size the window to the chip.
             var sourceG = geometryFor(name, rect);
-            topMargin = sourceG.top; rightMargin = sourceG.right;
+            topMargin = sourceG.top; rightMargin = targetRightMargin;
             surfaceWidth = targetSurfaceWidth; surfaceHeight = sourceG.height;
             frameTop = sourceG.top; frameRight = sourceG.right;
             frameWidth = sourceG.width; frameHeight = sourceG.height;
@@ -422,14 +423,14 @@ PanelWindow {
             Qt.callLater(function() {
                 topMargin = targetTopMargin; rightMargin = targetRightMargin;
                 surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
-                frameTop = targetTopMargin; frameRight = targetRightMargin;
+                frameTop = targetTopMargin; frameRight = target.right;
                 frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
                 // Phase 3: crossfade at ~40% of the geometry transition.
                 expandFadeTimer.restart();
             });
         } else {
             // No origin chip: just appear.
-            topMargin = target.top; rightMargin = target.right; surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
+            topMargin = target.top; rightMargin = targetRightMargin; surfaceWidth = targetSurfaceWidth; surfaceHeight = target.height;
             frameTop = target.top; frameRight = target.right; frameWidth = target.width; frameHeight = target.height; frameRadius = Theme.Tokens.radiusXl;
             compactOpacity = 0.0; compactTranslate = -Theme.Tokens.scaled(6);
             expandedOpacity = 1.0; expandedTranslate = 0.0;
@@ -498,7 +499,7 @@ PanelWindow {
             collapseTimer.restart();
         } else {
             // No origin: fade out and unmount.
-            topMargin = g.top; rightMargin = g.right; surfaceWidth = targetSurfaceWidth; surfaceHeight = g.height;
+            topMargin = g.top; rightMargin = targetRightMargin; surfaceWidth = targetSurfaceWidth; surfaceHeight = g.height;
             collapseTimer.interval = root.collapseNoOriginInterval;
             collapseTimer.restart();
         }
