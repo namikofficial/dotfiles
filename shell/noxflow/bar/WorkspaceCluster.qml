@@ -29,6 +29,20 @@ Item {
     readonly property int railInset: Theme.Tokens.scaled(4)
     implicitWidth: Math.min(contents.implicitWidth + railInset * 2, Theme.Tokens.scaled(360))
 
+    function revealActive() {
+        for (var i = 0; i < workspaceRepeater.count; i++) {
+            var pill = workspaceRepeater.itemAt(i);
+            if (!pill || !pill.isActive) continue;
+            var left = contents.x + pill.x;
+            var right = left + pill.width;
+            var target = scroller.contentX;
+            if (left < target) target = left;
+            else if (right > target + scroller.width) target = right - scroller.width;
+            scroller.contentX = Math.max(0, Math.min(target, scroller.contentWidth - scroller.width));
+            return;
+        }
+    }
+
     // One quiet track gives workspace identity a home in the bar. Individual
     // inactive workspaces remain unboxed; only the selected one gets a filled
     // state in WorkspacePill.
@@ -65,6 +79,7 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.HorizontalFlick
         pressDelay: 80
+        onWidthChanged: Qt.callLater(root.revealActive)
 
         RowLayout {
             id: contents
@@ -74,6 +89,7 @@ Item {
             height: scroller.height
 
             Repeater {
+                id: workspaceRepeater
                 model: root.entries
 
                 delegate: Local.WorkspacePill {
@@ -87,6 +103,9 @@ Item {
                     hasActiveWindow: root.presentation(modelData).hasActiveWindow
                     activeApp: root.presentation(modelData).activeApp
                     activeTitle: root.presentation(modelData).activeTitle
+
+                    Component.onCompleted: if (isActive) Qt.callLater(root.revealActive)
+                    onIsActiveChanged: if (isActive) Qt.callLater(root.revealActive)
 
                     hoverSource: function (name, isHovered, pill) {
                         root.hovered(name, isHovered, pill);
