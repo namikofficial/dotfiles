@@ -224,8 +224,8 @@ QtObject {
     readonly property int islandActivityMinWidth: 360
     readonly property int islandActivityMaxWidth: 450
     readonly property int islandDashboardMaxWidth: 460
-    readonly property int islandLauncherWidth: 780
-    readonly property int islandLauncherHeight: 520
+    readonly property int islandLauncherWidth: 860
+    readonly property int islandLauncherHeight: 600
     readonly property int islandCalendarWidth: 520
     readonly property int islandHoverDwell: 140
     readonly property int islandTransitGrace: 450

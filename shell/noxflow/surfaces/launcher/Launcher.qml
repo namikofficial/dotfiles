@@ -174,6 +174,24 @@ Item {
         opacity: lifecycle.openProgress
 
         ColumnLayout { anchors.fill: parent; anchors.margins: Theme.Tokens.spacingLg; spacing: Theme.Tokens.spacingMd
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: "NOX / COMMAND"
+                    color: Theme.Tokens.tonalSecondary
+                    font.family: Theme.Tokens.typographyFontFamily
+                    font.pixelSize: Theme.Tokens.typographyLabelSmall
+                    font.bold: true
+                    font.letterSpacing: Theme.Tokens.scaled(1.2)
+                }
+                Item { Layout.fillWidth: true }
+                Text {
+                    text: "SEARCH YOUR WORKSPACE"
+                    color: Theme.Tokens.textMuted
+                    font.family: Theme.Tokens.typographyFontFamily
+                    font.pixelSize: Theme.Tokens.typographyLabelSmall
+                }
+            }
             // Search
             Components.TextField { id: searchField; Layout.fillWidth: true; label: ""; showClearButton: true
                 focus: lifecycle.active

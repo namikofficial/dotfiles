@@ -335,12 +335,12 @@ PanelWindow {
         if (name === "calendar" || name === "sync") width = Theme.Tokens.scaled(520);
         else if (name === "media") width = Theme.Tokens.scaled(452);
         else if (name === "quick-share") width = Theme.Tokens.scaled(460);
-        else if (name === "launcher") width = Theme.Tokens.scaled(780);
+        else if (name === "launcher") width = Theme.Tokens.scaled(Theme.Tokens.islandLauncherWidth);
 
         var height = Math.min(Theme.Tokens.scaled(720), available);
         if (name === "media") height = Math.min(Theme.Tokens.scaled(324), available);
         else if (name === "calendar") height = Theme.Tokens.scaled(650);
-        else if (name === "launcher") height = Theme.Tokens.scaled(520);
+        else if (name === "launcher") height = Math.min(Theme.Tokens.scaled(Theme.Tokens.islandLauncherHeight), available);
         else if (name === "sync") height = Theme.Tokens.scaled(680);
         else if (name === "quick-share") height = Theme.Tokens.scaled(560);
         else if (name === "quick-settings") height = Math.min(Theme.Tokens.scaled(640), available);
